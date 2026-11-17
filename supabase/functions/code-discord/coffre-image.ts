@@ -916,12 +916,12 @@ export interface DessinDeLAide {
 export function lignesDeLAide(d: DessinDeLAide): { regles: string[]; commandes: { nom: string; role: string }[] } {
   return {
     regles: [
-      "Un gardien cache un mot secret.",
-      "Faites-le-lui dire, ou devinez-le.",
+      "Un gardien cache un mot : faites-le-lui dire.",
       `Chaque essai : ${d.mise} statères dans la cagnotte.`,
       "Première et dernière lettres données au départ.",
-      d.cycle ? "Coffre ouvert : fois 2, 3 ou 4 selon la manche." : "Coffre ouvert : plus il se méfie, plus elle vaut.",
-      ...(d.essais !== null ? [`${d.essais} essais par jour pour chacun.`] : []),
+      d.cycle ? "Ruse : gain fois 2, 3 ou 4. Deviné : fois 1." : "Ruse : gain multiplié. Deviné : fois 1.",
+      "Un cinquième de la cagnotte va aux autres.",
+      d.essais !== null ? `${d.essais} essais par jour, 20 secondes entre deux.` : "20 secondes entre deux essais.",
       "Vendredi soir : le gardien se méfie moins.",
       "Dimanche soir : essais doublés.",
     ],
@@ -1004,6 +1004,8 @@ export interface DessinDuBilan {
   /** La durée de la manche, en minutes. */
   minutes: number;
   sur?: number | null;
+  /** Ce qui vient, en une ligne (« Ensuite : 8/15 · lézard · fois 3 ») ; absente, la ligne d'avant. */
+  suite?: string | null;
 }
 
 /** Une durée en mots : « 12 minutes », « 3 heures 05 », « 2 jours 4 heures ». */
@@ -1047,13 +1049,13 @@ export function imageDuBilan(d: DessinDuBilan): Image {
   });
   ecrire(t, PETITE, 14, 262, `Ouvert par ${raccourci(PETITE, d.gagnant, 3, 200)} en ${dureeEnMots(d.minutes)}`, OR_CLAIR, 3);
   if (d.acharne) ecrire(t, PETITE, 14, 296, `Le plus acharné : ${raccourci(PETITE, d.acharne.nom, 3, 200)}, ${d.acharne.essais} essai${d.acharne.essais > 1 ? "s" : ""}`, BLANC, 3);
-  ecrire(t, PETITE, 14, 362, "Un nouveau mot est sous clé : /coffre", GRIS, 3);
+  ecrire(t, PETITE, 14, 362, raccourci(PETITE, d.suite ?? "Un nouveau mot est sous clé : /coffre", 3, L - 28), d.suite ? OR_CLAIR : GRIS, 3);
   return t.image();
 }
 
 /** Le bilan, dit en mots. */
 export const decrireLeBilan = (d: DessinDuBilan): string =>
-  `Bilan de la manche ${numeroDe(d)} : le mot « ${d.mot} », gardé par ${FICHES_DES_GARDIENS[d.gardien].nom.toLowerCase()}, a été trouvé par ${d.gagnant} en ${dureeEnMots(d.minutes)}. ${enMilliers(d.essais)} essai${d.essais > 1 ? "s" : ""}, ${enMilliers(d.joueurs)} villageois, ${enMilliers(d.lettresAchetees)} lettre${d.lettresAchetees > 1 ? "s" : ""} achetée${d.lettresAchetees > 1 ? "s" : ""}.${d.acharne ? ` Le plus acharné : ${d.acharne.nom}, ${d.acharne.essais} essai${d.acharne.essais > 1 ? "s" : ""}.` : ""}`.slice(0, 1024);
+  `Bilan de la manche ${numeroDe(d)} : le mot « ${d.mot} », gardé par ${FICHES_DES_GARDIENS[d.gardien].nom.toLowerCase()}, a été trouvé par ${d.gagnant} en ${dureeEnMots(d.minutes)}. ${enMilliers(d.essais)} essai${d.essais > 1 ? "s" : ""}, ${enMilliers(d.joueurs)} villageois, ${enMilliers(d.lettresAchetees)} lettre${d.lettresAchetees > 1 ? "s" : ""} achetée${d.lettresAchetees > 1 ? "s" : ""}.${d.acharne ? ` Le plus acharné : ${d.acharne.nom}, ${d.acharne.essais} essai${d.acharne.essais > 1 ? "s" : ""}.` : ""}${d.suite ? ` ${d.suite}.` : ""}`.slice(0, 1024);
 
 export const pngDuTableau = (d: DessinDuTableau): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDuTableau(d));
 export const pngDeLAide = (d: DessinDeLAide): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDeLAide(d));

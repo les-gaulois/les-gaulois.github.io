@@ -18,6 +18,9 @@ import {
   messageDuCoffre,
   NIVEAUX,
   jaugeDeFatigue,
+  pauseDuGardien,
+  suiteDuBilan,
+  COFFRE_MESSAGES,
   MOT_SANS_NIVEAU,
   MOTS_PAR_NIVEAU,
   demandeDuMot,
@@ -138,8 +141,8 @@ describe("le cycle des quinze manches à thème", () => {
     // Sans cycle, le titre d'avant.
     expect(String(separateurDeManche(8)["content"]).split(LF).at(-2)).toBe("# Manche 8");
     // L'aide n'annonce les quinze manches que si le cycle tourne.
-    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30, cycle: true }).regles).toContain("Coffre ouvert : fois 2, 3 ou 4 selon la manche.");
-    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30 }).regles).toContain("Coffre ouvert : plus il se méfie, plus elle vaut.");
+    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30, cycle: true }).regles).toContain("Ruse : gain fois 2, 3 ou 4. Deviné : fois 1.");
+    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30 }).regles).toContain("Ruse : gain multiplié. Deviné : fois 1.");
     expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30 }).regles).toContain("Première et dernière lettres données au départ.");
     expect(parseTableau({ ok: true, manche: null, numero: 3, niveau: 2, cycle: true })?.cycle).toBe(true);
     expect(parseTableau({ ok: true, manche: null, numero: 3, niveau: 2 })?.cycle).toBe(false);
@@ -393,12 +396,15 @@ describe("les mots, la mémoire, la fatigue et le tableau d'honneur", () => {
     };
     const calls = await essai(rpc, "C'est un menhir");
     const envois = calls.webhook.filter((w) => w.method === "POST");
-    expect(envois.map((w) => w.call?.files?.[0]?.name ?? "texte")).toEqual([BILAN_FILE, HONNEUR_FILE, "texte"]);
-    expect((envois[1]?.call?.body as { attachments: { description: string }[] }).attachments[0]?.description).toContain("Les meilleurs : Jod, 8 coffres, 6 400 statères gagnés ; Un, 7 coffres, 5 600 statères gagnés.");
-    expect(String((envois[2]?.call?.body as { content: string }).content)).toContain("# Manche 1 sur 15 · facile");
+    // Deux messages : le tableau d'honneur, puis un seul message pour le vide, l'annonce de la manche 1 et le bilan.
+    expect(envois.map((w) => w.call?.files?.[0]?.name ?? "texte")).toEqual([HONNEUR_FILE, BILAN_FILE]);
+    expect((envois[0]?.call?.body as { attachments: { description: string }[] }).attachments[0]?.description).toContain("Les meilleurs : Jod, 8 coffres, 6 400 statères gagnés ; Un, 7 coffres, 5 600 statères gagnés.");
+    const dernier = envois[1]?.call?.body as { content: string; attachments: { description: string }[] };
+    expect(dernier.content).toContain("# Manche 1 sur 15 · facile");
+    expect(dernier.attachments[0]?.description).toContain("Ensuite : 1/15 · druide · fois 2.");
     // Une autre manche gagnée : pas de tableau d'honneur.
     const sept = await essai({ ...rpc, coffre_ouvrir: () => ouverture({ id: 40, mot: "menhir", essais: 2, rang: 7 }) }, "C'est un menhir");
-    expect(sept.webhook.filter((w) => w.method === "POST").map((w) => w.call?.files?.[0]?.name ?? "texte")).toEqual([BILAN_FILE, "texte"]);
+    expect(sept.webhook.filter((w) => w.method === "POST").map((w) => w.call?.files?.[0]?.name ?? "texte")).toEqual([BILAN_FILE]);
     const image = await lirePng(await pngDeLHonneur({ manches: quinze.map((m) => ({ rang: m.rang, gardien: GARDIENS[m.rang - 1] ?? "druide", nom: m.nom, stateres: m.stateres })) }));
     expect(image).toMatchObject({ largeur: IMAGE_DU_COFFRE.largeur, hauteur: IMAGE_DU_COFFRE.hauteur });
   });
@@ -410,5 +416,126 @@ describe("les mots, la mémoire, la fatigue et le tableau d'honneur", () => {
     expect(sql).toContain("revoke all on function public.coffre_cycle(bigint) from public, anon, authenticated;");
     expect(sql).toContain("grant execute on function public.coffre_cycle(bigint) to service_role;");
     expect(sql).not.toMatch(/\b(insert|update|delete|truncate|drop|alter)\b/i);
+  });
+});
+
+describe("la ruse récompensée, le partage, la pause et le salon allégé", () => {
+  const base = { discordId: "111111111111111111", nom: "Jod", message: "m", reponse: "r", gardien: "loup" as const, manche: 7, sur: 15, niveau: "difficile", essai: 4, restants: 3, mise: 10, cagnotte: 0 };
+
+  it("le message d'une victoire dit la part des autres, et qu'un mot deviné n'est pas multiplié", () => {
+    // 100 de part pour le gagnant, fois 3 ; 20 partagés entre trois autres.
+    const ruse = String(messageDuCoffre({ ...base, gagne: "menhir", gain: 300, fois: 3, partage: 20, partageurs: 3 })["content"]);
+    expect(ruse).toContain("Il remporte 300 statères : sa part de la cagnotte, 100, multipliée par 3 pour une manche difficile.");
+    expect(ruse).toContain("Les 3 autres villageois qui ont misé dans la manche se partagent 20 statères.");
+    const devine = String(messageDuCoffre({ ...base, gagne: "menhir", gain: 100, fois: 1, partage: 20, partageurs: 1, sansPrime: true })["content"]);
+    expect(devine).toContain("Il remporte sa part de la cagnotte : 100 statères. Le mot a été deviné : elle n'est pas multipliée, seule la ruse l'est.");
+    expect(devine).toContain("L'autre villageois qui a misé dans la manche reçoit 20 statères.");
+    // Seul dans sa manche : rien n'est partagé, et rien n'en est dit.
+    const seul = String(messageDuCoffre({ ...base, gagne: "menhir", gain: 360, fois: 3, partage: 0, partageurs: 0 })["content"]);
+    expect(seul).toContain("Il remporte 360 statères : la cagnotte de 120, multipliée par 3 pour une manche difficile.");
+    expect(seul).not.toContain("partage");
+    expect(seul).not.toContain("deviné");
+    // Avec des lettres achetées et un partage : sa part multipliée, puis les lettres.
+    expect(String(messageDuCoffre({ ...base, gagne: "menhir", gain: 450, fois: 3, partage: 50, partageurs: 2, lettres: 150 })["content"])).toContain("Il remporte 450 statères : sa part de 100 statères, multipliée par 3 pour une manche difficile, et les 150 statères des lettres achetées.");
+  });
+
+  it("la pause se dit en secondes, au seul membre", async () => {
+    expect(pauseDuGardien(12)).toContain("encore 12 secondes avant votre prochain essai");
+    expect(pauseDuGardien(1)).toContain("encore 1 seconde avant");
+    expect(pauseDuGardien(null)).toBe(COFFRE_MESSAGES.cooldown);
+    expect(pauseDuGardien(0)).toBe(COFFRE_MESSAGES.cooldown);
+    const claude: unknown[] = [];
+    const deps: Parameters<typeof coffreCommand>[1] = {
+      guildId: "1350905494600024094",
+      rpc: async () => ({ ok: false, error: "cooldown", secondes: 14 }),
+      webhook: async () => ({ status: 200, body: null }),
+      discord: async () => ({ status: 200, body: [] }),
+      background: () => undefined,
+      log: () => undefined,
+      sleep: async () => undefined,
+      claude: async (demande) => {
+        claude.push(demande);
+        return null;
+      },
+    };
+    const res = await coffreCommand({ type: 2, id: "333333333333333333", application_id: "222222222222222222", token: "jeton-de-l-interaction-0123456789", guild_id: "1350905494600024094", channel_id: COFFRE_SALON_ID, member: { nick: "Jod", user: { id: "111111111111111111", username: "jod" } }, data: { name: "coffre", options: [{ name: "message", type: 3, value: "Bonjour gardien" }] } }, deps);
+    expect(await res.json()).toMatchObject({ type: 4, data: { content: pauseDuGardien(14), flags: 64 } });
+    expect(claude).toEqual([]);
+  });
+
+  it("le bilan dit ce qui vient, en une ligne qui tient dans l'image", () => {
+    expect(suiteDuBilan(8)).toBe("Ensuite : 8/15 · lézard · fois 3");
+    expect(suiteDuBilan(1)).toBe("Ensuite : 1/15 · druide · fois 2");
+    expect(suiteDuBilan(null)).toBeNull();
+    expect(suiteDuBilan(16)).toBeNull();
+    // 12 pixels par signe, 592 de large : 49 signes au plus.
+    for (let rang = 1; rang <= MANCHES_PAR_CYCLE; rang++) expect((suiteDuBilan(rang) ?? "").length).toBeLessThanOrEqual(49);
+  });
+
+  it("un mot deviné dans le cycle : le robot ne parle de la règle que si le serveur la connaît", async () => {
+    const jouer = async (clos: Record<string, unknown>) => {
+      const webhook: { method: string; call?: DiscordCall }[] = [];
+      const tasks: Promise<unknown>[] = [];
+      const rpc: Record<string, () => Record<string, unknown>> = {
+        coffre_ouvrir: () => ({ ok: true, essai: 9, manche: { id: 40, mot: "menhir", essais: 2, rang: 7 }, niveau: 20, passes: [], ruses: [], historique: [], restants: 5, soir: null, cagnotte: 100, tenue: null }),
+        coffre_clore: () => ({ ok: true, gagne: true, manche: 41, essai: 3, mise: 10, cagnotte: 0, rang: 7, ...clos }),
+      };
+      const deps: Parameters<typeof coffreCommand>[1] = {
+        guildId: "1350905494600024094",
+        rpc: async (name) => rpc[name]?.() ?? null,
+        webhook: async (method, _path, call) => {
+          webhook.push({ method, call });
+          return { status: 200, body: null };
+        },
+        discord: async () => ({ status: 200, body: [] }),
+        background: (task) => void tasks.push(task),
+        log: () => undefined,
+        sleep: async () => undefined,
+        claude: async () => ({ texte: JSON.stringify({ reponse: "Bravo, villageois.", humeur: "panique", longueur_dite: false, lettres: [], indice: "" }), modele: DRUIDE_MODELE, entree: 10, sortie: 10 }),
+      };
+      await coffreCommand({ type: 2, id: "333333333333333333", application_id: "222222222222222222", token: "jeton-de-l-interaction-0123456789", guild_id: "1350905494600024094", channel_id: COFFRE_SALON_ID, member: { nick: "Jod", user: { id: "111111111111111111", username: "jod" } }, data: { name: "coffre", options: [{ name: "message", type: 3, value: "C'est un menhir" }] } }, deps);
+      await Promise.all(tasks);
+      return String((webhook.find((w) => w.method === "PATCH")?.call?.body as { content: string }).content);
+    };
+    // Le serveur à jour : pas de prime pour un mot deviné, et il dit ce qu'il a partagé.
+    const neuf = await jouer({ gain: 88, fois: 1, partage: 22, partageurs: 2 });
+    expect(neuf).toContain("Il remporte sa part de la cagnotte : 88 statères. Le mot a été deviné : elle n'est pas multipliée, seule la ruse l'est.");
+    expect(neuf).toContain("Les 2 autres villageois qui ont misé dans la manche se partagent 22 statères.");
+    // L'ancien serveur multiplie encore et ne partage pas : le robot dit ce qui a vraiment été versé.
+    const ancien = await jouer({ gain: 330, fois: 3 });
+    expect(ancien).toContain("Il remporte 330 statères : la cagnotte de 110, multipliée par 3 pour une manche difficile.");
+    expect(ancien).not.toContain("deviné");
+  });
+
+  it("la migration ne multiplie que la ruse, partage un cinquième sans rien créer, et pose 20 secondes de pause", () => {
+    const sql = lire("20261117001100_coffre_ruse_partage_pause");
+    const corpsDe = (texte: string, nom: string) => texte.slice(texte.indexOf(`create or replace function public.${nom}(`), texte.indexOf("end $$;", texte.indexOf(`create or replace function public.${nom}(`)));
+    const clore = corpsDe(sql, "coffre_clore");
+    expect(clore).toContain("v_fois := case when v_mise > 0 and not coalesce(p_devine, false) then coalesce(internal.coffre_fois_du_rang(v_rang), v_garde + 1) else 1 end;");
+    expect(clore).toContain("v_pot := (v_cagnotte::bigint * 20 / 100)::integer;");
+    // Ce qui est versé : la part des autres, puis le reste au gagnant ; leur somme est la cagnotte.
+    expect(clore).toContain("values (q.compte, 'coffre_part', v_part, 'manche/' || p_manche::text);");
+    expect(clore).toContain("values (v_compte, 'coffre_gain', v_cagnotte - v_distribue, 'manche/' || p_manche::text);");
+    // La prime ne multiplie que la part du gagnant, lettres achetées exclues.
+    expect(clore).toContain("least((v_cagnotte - v_distribue - v_lettres)::bigint * (v_fois - 1), 1000000)::integer");
+    expect(clore).not.toContain("least((v_cagnotte - v_lettres)::bigint");
+    // Seuls ceux qui ont vraiment misé, hors le gagnant et hors mode GOD (coffre_payeur), ont une part.
+    expect(clore).toContain("where x.manche_id = p_manche and x.mise > 0 and x.reponse is not null and x.discord_id <> e.discord_id");
+    expect(clore).toContain("select internal.coffre_payeur(x.discord_id) as compte");
+    // Hors de ces retouches, la clôture est celle d'avant.
+    const avant = corpsDe(lire("20261117000800_coffre_cycle_des_manches"), "coffre_clore").split(LF);
+    const changees = ["v_fois := case when v_mise > 0 then", "v_gain := v_cagnotte;", "if v_fois > 1 and v_cagnotte - v_lettres > 0 then", "(v_cagnotte - v_lettres)::bigint", "'coffre_gain', v_cagnotte, 'manche/'"];
+    const gardees = avant.filter((ligne) => !changees.some((c) => ligne.includes(c)));
+    expect(gardees.length).toBe(avant.length - 6);
+    // Les réglages du coffre sont verrouillés avant tout compte, et un versement à un autre membre ne prend pas son verrou.
+    expect(clore.indexOf("perform 1 from internal.coffre_reglages where id for update;")).toBeGreaterThan(0);
+    expect(clore.indexOf("perform 1 from internal.coffre_reglages where id for update;")).toBeLessThan(clore.indexOf("internal.village_verrou("));
+    expect(clore).not.toContain("internal.village_verrou(q.compte)");
+    for (const ligne of gardees) expect(clore).toContain(ligne);
+    const ouvrir = corpsDe(sql, "coffre_ouvrir");
+    expect(ouvrir).toContain("where x.discord_id = p_discord_id and x.cree_le > now() - interval '20 seconds';");
+    expect(ouvrir).toContain("return jsonb_build_object('ok', false, 'error', 'cooldown', 'secondes', v_attente);");
+    for (const ligne of corpsDe(lire("20261117000500_coffre_remise_des_essais"), "coffre_ouvrir").split(LF)) expect(ouvrir).toContain(ligne);
+    expect(sql).not.toMatch(/^(delete|truncate|drop|alter|update)\b/im);
   });
 });

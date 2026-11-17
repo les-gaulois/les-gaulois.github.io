@@ -800,12 +800,19 @@ export const COFFRE_MESSAGES = {
   speechless: "Le gardien en reste sans voix.",
   tooLate: "Trop tard, villageois : un autre venait d'ouvrir le coffre. Un nouveau mot est déjà sous clé.",
   noWinner: "Aucun coffre n'a cédé cette semaine. Le premier villageois à en ouvrir un monte sur la plus haute marche.",
+  cooldown: "Le gardien reprend son souffle : attendez quelques secondes avant votre prochain essai.",
   noRound: "Le gardien n'a pas encore de mot sous clé : la manche commence au premier villageois qui lui parle, avec /coffre.",
   soldOut: "Le gardien a vendu ses trois lettres de la manche : il n'en cède plus. Il reste la ruse, avec /coffre.",
   tooFew: "Il reste trop peu de lettres cachées : le gardien ne vend pas son mot entier. À vous de le deviner, avec /coffre.",
   letterShort: "Votre bourse est trop légère pour cette lettre. Les statères viennent des points que vous rapportez au clan.",
   letterNoStake: "Le gardien ne vend ses lettres qu'aux villageois du site : il faut un compte validé, avec votre Gaulois : https://les-gaulois.github.io/village",
 };
+
+/** La pause entre deux essais d'un même membre, que le serveur tient (20 secondes) : ce qu'il lui reste à attendre. */
+export function pauseDuGardien(secondes: unknown): string {
+  const n = entier(secondes);
+  return n !== null && n > 0 ? `Le gardien reprend son souffle : encore ${n} seconde${n > 1 ? "s" : ""} avant votre prochain essai. Laissez un autre villageois tenter sa ruse.` : COFFRE_MESSAGES.cooldown;
+}
 
 /** Ce que /coffre répond, à lui seul, à qui le serveur refuse un essai. */
 export function refusDuCoffre(error: unknown): string {
@@ -858,6 +865,11 @@ export interface Tirage {
   /** Dans le cycle : le nombre de manches du cycle, et le niveau de celle-ci, en un mot (« difficile »). */
   sur?: number | null;
   niveau?: string | null;
+  /** Ce que les autres villageois de la manche se partagent, et combien ils sont ; absents si le serveur ne partage pas. */
+  partage?: number;
+  partageurs?: number;
+  /** Le mot a été deviné, et le serveur n'a donc pas multiplié la cagnotte : la ruse seule l'est. */
+  sansPrime?: boolean;
 }
 
 /**
@@ -871,18 +883,20 @@ export function messageDuCoffre(t: Tirage, image: string | null = null): Json {
     // Les lettres achetées sont gagnées sans être multipliées : gain = mises fois le multiplicateur, plus les lettres.
     const lettres = Math.max(0, t.lettres ?? 0);
     const mises = Math.round((t.gain - lettres) / fois);
+    const partage = Math.max(0, t.partage ?? 0);
+    const autres = Math.max(0, t.partageurs ?? 0);
     const face = t.niveau ? ` pour une manche ${t.niveau}` : t.garde ? ` face à un gardien à ${t.garde} sur ${FOIS_PAR_GARDE.length} de garde` : "";
     const cagnotte =
       t.gain > 0
         ? fois > 1 && mises > 0
           ? lettres > 0
-            ? ` Il remporte ${t.gain} statères : les ${mises} statères de mises, multipliés par ${fois}${face}, et les ${lettres} statères des lettres achetées.`
-            : ` Il remporte ${t.gain} statères : la cagnotte de ${mises}, multipliée par ${fois}${face}.`
-          : ` Il remporte la cagnotte : ${t.gain} statères.`
+            ? ` Il remporte ${t.gain} statères : ${partage > 0 ? `sa part de ${mises} statères, multipliée` : `les ${mises} statères de mises, multipliés`} par ${fois}${face}, et les ${lettres} statères des lettres achetées.`
+            : ` Il remporte ${t.gain} statères : ${partage > 0 ? "sa part de la cagnotte," : "la cagnotte de"} ${mises}, multipliée par ${fois}${face}.`
+          : ` Il remporte ${partage > 0 ? "sa part de la cagnotte" : "la cagnotte"} : ${t.gain} statères.${t.sansPrime ? " Le mot a été deviné : elle n'est pas multipliée, seule la ruse l'est." : ""}`
         : t.cagnotte > 0
           ? ` La cagnotte de ${t.cagnotte} statères reste dans le coffre : pour la gagner, il faut un compte validé sur le site, avec son Gaulois.`
           : "";
-    lignes.push(`${COUPE} **<@${t.discordId}> a ouvert le coffre !** Le mot était « ${t.gagne} », trouvé à l'essai ${t.essai} de la manche ${t.manche}${t.sur ? ` sur ${t.sur}` : ""}.${cagnotte} Tout le village l'acclame ! Un nouveau mot est déjà sous clé, et un autre gardien prend son tour de garde.`);
+    lignes.push(`${COUPE} **<@${t.discordId}> a ouvert le coffre !** Le mot était « ${t.gagne} », trouvé à l'essai ${t.essai} de la manche ${t.manche}${t.sur ? ` sur ${t.sur}` : ""}.${cagnotte}${partage > 0 && autres > 0 ? (autres > 1 ? ` Les ${autres} autres villageois qui ont misé dans la manche se partagent ${partage} statères.` : ` L'autre villageois qui a misé dans la manche reçoit ${partage} statères.`) : ""} Tout le village l'acclame ! Un nouveau mot est déjà sous clé, et un autre gardien prend son tour de garde.`);
   } else {
     const ou = image === null ? `Manche ${t.manche}${t.sur ? ` sur ${t.sur}` : ""}, essai ${t.essai}. ` : "";
     const mise = t.mise > 0 ? ` Mise : ${t.mise} statères, dans la cagnotte.` : "";
@@ -1093,6 +1107,10 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       fois: Math.max(1, entier(clos["fois"]) ?? 1),
       garde: entier(clos["garde"]),
       lettres: entier(clos["lettres"]) ?? 0,
+      partage: entier(clos["partage"]) ?? 0,
+      partageurs: entier(clos["partageurs"]) ?? 0,
+      // Seulement si le serveur connaît la règle : il dit alors ce qu'il a partagé, même zéro.
+      sansPrime: devine && entier(clos["partage"]) !== null && (entier(clos["fois"]) ?? 1) <= 1,
     };
     // L'image de la scène : si son dessin échoue, la réponse part en texte seul.
     let image: { png: Uint8Array<ArrayBuffer>; description: string } | null = null;
@@ -1125,11 +1143,22 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
     // La mise vient-elle de faire passer un seuil à la cagnotte ? Le salon l'apprend par une image.
     if (!gagne) await alerterLaCagnotte(interaction, cagnotte - tirage.mise, cagnotte, { gardien: manche.gardien, tenue: etat.tenue, garde, fois }, deps);
     if (gagne) {
-      // Le bilan de la manche, avant le vide qui la sépare de la suivante.
-      await posterLeBilan(interaction, manche, noDeManche, joueur.nom, deps);
       if (manche.rang === MANCHES_PAR_CYCLE) await posterLHonneur(interaction, manche, deps);
-      // Le salon repart propre pour la manche suivante. Si ce message ne part pas, le jeu continue sans lui.
-      if (isId(appId) && typeof token === "string" && /^[A-Za-z0-9._-]{20,500}$/.test(token)) await deps.webhook("POST", `/webhooks/${appId}/${token}`, { body: duCycle && manche.rang ? separateurDeManche((manche.rang % MANCHES_PAR_CYCLE) + 1, true) : separateurDeManche(numero + 1) });
+      // Le salon repart propre pour la manche suivante, en un seul message (retouche proposée au pilote et renvoyée par
+      // lui, 17 novembre 2026 : « alléger le salon ») : le vide, le titre de la manche qui commence, et l'image du bilan de celle qui
+      // finit, qui dit aussi ce qui vient. Si ce message ne part pas, le jeu continue sans lui.
+      const prochaine = duCycle && manche.rang ? (manche.rang % MANCHES_PAR_CYCLE) + 1 : null;
+      const bilan = await bilanDeLaManche(manche, noDeManche, joueur.nom, prochaine, deps);
+      const titre = prochaine !== null ? separateurDeManche(prochaine, true) : separateurDeManche(numero + 1);
+      if (isId(appId) && typeof token === "string" && /^[A-Za-z0-9._-]{20,500}$/.test(token)) {
+        const envoi = await deps.webhook(
+          "POST",
+          `/webhooks/${appId}/${token}`,
+          bilan ? { body: { ...titre, attachments: [{ id: 0, filename: BILAN_FILE, description: bilan.description.slice(0, 1024) }] }, files: [{ name: BILAN_FILE, type: "image/png", bytes: bilan.png }] } : { body: titre },
+        );
+        // L'envoi avec l'image refusé : le vide et le titre partent seuls, comme avant.
+        if (bilan && (!envoi || envoi.status >= 400)) await deps.webhook("POST", `/webhooks/${appId}/${token}`, { body: titre });
+      }
       await passerLeRole(clos["champion"], clos["ancien_champion"], deps);
     }
   } catch (e) {
@@ -1158,7 +1187,7 @@ export async function coffreCommand(interaction: Json, deps: CoffreDeps): Promis
   if (!isId(interactionId)) return prive(COFFRE_MESSAGES.down);
   const ouvert = await deps.rpc("coffre_ouvrir", { p_discord_id: id, p_nom: joueur.nom, p_message: message, p_interaction_id: interactionId, p_mise: mise });
   if (!ouvert) return prive(COFFRE_MESSAGES.down);
-  if (ouvert["ok"] !== true) return prive(refusDuCoffre(ouvert["error"]));
+  if (ouvert["ok"] !== true) return prive(ouvert["error"] === "cooldown" ? pauseDuGardien(ouvert["secondes"]) : refusDuCoffre(ouvert["error"]));
   const etat = parseEtat(ouvert);
   if (!etat) return prive(COFFRE_MESSAGES.down);
   deps.background(jouer(interaction, joueur, message, etat, deps));
@@ -1383,13 +1412,16 @@ async function posterLHonneur(interaction: Json, manche: MancheDuCoffre, deps: S
   }
 }
 
-/** Le bilan de la manche qui vient de finir, lu au serveur et posté en image. Sans lui, le jeu continue. */
-async function posterLeBilan(interaction: Json, manche: MancheDuCoffre, numero: number, gagnant: string, deps: SuiteDeps & Pick<Deps, "rpc">): Promise<void> {
+/**
+ * Le bilan de la manche qui vient de finir, lu au serveur et dessiné : il part avec l'annonce de la manche suivante.
+ * `prochaine` : le rang de la manche qui vient, dans le cycle. Sans réponse du serveur, `null` : le jeu continue sans lui.
+ */
+async function bilanDeLaManche(manche: MancheDuCoffre, numero: number, gagnant: string, prochaine: number | null, deps: Pick<Deps, "rpc" | "log">): Promise<{ png: Uint8Array<ArrayBuffer>; description: string } | null> {
   try {
     const lu = await deps.rpc("coffre_bilan", { p_manche: manche.id });
     const essais = entier(lu?.["essais"]);
     const joueurs = entier(lu?.["joueurs"]);
-    if (!lu || lu["ok"] !== true || essais === null || joueurs === null || essais === 0) return;
+    if (!lu || lu["ok"] !== true || essais === null || joueurs === null || essais === 0) return null;
     const acharne = record(lu["acharne"]);
     const fois = entier(acharne?.["essais"]);
     const bilan: DessinDuBilan = {
@@ -1403,11 +1435,20 @@ async function posterLeBilan(interaction: Json, manche: MancheDuCoffre, numero: 
       acharne: acharne && typeof acharne["nom"] === "string" && fois !== null && fois > 0 ? { nom: nomPropre(acharne["nom"]), essais: fois } : null,
       lettresAchetees: entier(lu["lettres_achetees"]) ?? 0,
       minutes: entier(lu["minutes"]) ?? 0,
+      suite: suiteDuBilan(prochaine),
     };
-    await posterUneImage(interaction, await pngDuBilan(bilan), BILAN_FILE, decrireLeBilan(bilan), deps);
+    return { png: await pngDuBilan(bilan), description: decrireLeBilan(bilan) };
   } catch (e) {
-    deps.log(`coffre : bilan non posté (${e instanceof Error ? e.message : String(e)})`);
+    deps.log(`coffre : bilan non dessiné (${e instanceof Error ? e.message : String(e)})`);
+    return null;
   }
+}
+
+/** Ce que le bilan dit de la manche qui vient, en une ligne : son rang, son gardien sans article, son multiplicateur. */
+export function suiteDuBilan(prochaine: number | null): string | null {
+  const suivante = mancheDuCycle(prochaine);
+  if (!suivante || prochaine === null) return null;
+  return `Ensuite : ${prochaine}/${MANCHES_PAR_CYCLE} · ${FICHES_DES_GARDIENS[suivante.gardien].nom.replace(/^(Le |La |L')/, "")} · fois ${NIVEAUX[suivante.niveau].fois}`;
 }
 
 /**

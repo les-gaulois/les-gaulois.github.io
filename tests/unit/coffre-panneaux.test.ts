@@ -120,9 +120,11 @@ describe("les panneaux du coffre", () => {
     const aide = { mise: MISE_DU_COFFRE, prixDesLettres: PRIX_DES_LETTRES, essais: 30 };
     const { regles, commandes } = lignesDeLAide(aide);
     expect(regles).toContain("Chaque essai : 10 statères dans la cagnotte.");
-    expect(regles).toContain("30 essais par jour pour chacun.");
+    expect(regles).toContain("30 essais par jour, 20 secondes entre deux.");
+    expect(regles).toContain("Un cinquième de la cagnotte va aux autres.");
     // Sans réponse du serveur, aucun nombre d'essais n'est écrit.
     expect(lignesDeLAide({ ...aide, essais: null }).regles.some((ligne) => ligne.includes("essais par jour"))).toBe(false);
+    expect(lignesDeLAide({ ...aide, essais: null }).regles).toContain("20 secondes entre deux essais.");
     expect(commandes.map((c) => c.nom)).toEqual(["/coffre", "/indices", "/indice", "/perceurs", "/help coffre"]);
     expect(commandes[2]?.role).toBe("Une lettre : 50, 100, 200 statères");
     expect(decrireLAide(aide)).toContain("Les statères viennent des points rapportés au clan.");
@@ -167,7 +169,7 @@ describe("l'alerte de cagnotte", () => {
 });
 
 describe("le bilan d'une manche", () => {
-  it("part en image quand le coffre s'ouvre, avant le vide entre deux manches", async () => {
+  it("part en image quand le coffre s'ouvre, dans le message qui annonce la manche suivante", async () => {
     const m = monde({
       coffre_ouvrir: () => ({ ok: true, essai: 9, manche: manche(), niveau: 6, passes: [], ruses: [], historique: [], restants: 5, soir: null, cagnotte: 300, tenue: null }),
       coffre_clore: () => ({ ok: true, gagne: true, manche: 7, essai: 13, mise: 10, cagnotte: 0, gain: 930, fois: 3, garde: 2 }),
@@ -177,10 +179,11 @@ describe("le bilan d'une manche", () => {
     await m.fini();
     expect(m.calls.rpc.find((c) => c.name === "coffre_bilan")?.args).toEqual({ p_manche: 7 });
     const envois = m.calls.webhook.filter((w) => w.method === "POST");
-    expect(envois).toHaveLength(2);
+    // Un seul message de plus : le vide, le titre de la manche qui commence, et l'image du bilan de celle qui finit.
+    expect(envois).toHaveLength(1);
     expect(envois[0]?.call?.files?.[0]?.name).toBe(BILAN_FILE);
     expect((envois[0]?.call?.body as { attachments: { description: string }[] }).attachments[0]?.description).toContain("13 essais, 4 villageois, 1 lettre achetée. Le plus acharné : GAL Un, 6 essais.");
-    expect(String((envois[1]?.call?.body as { content: string }).content)).toContain("# Manche 8");
+    expect(String((envois[0]?.call?.body as { content: string }).content)).toContain("# Manche 8");
   });
 
   it("sans réponse du serveur, le jeu continue sans bilan", async () => {
@@ -242,7 +245,7 @@ describe("/indices, /indice et /help coffre", () => {
     const { charge } = await enImage(await aideCommand(appel("help", { data: { name: "help", options: [{ type: 1, name: "coffre" }] } }), m.deps));
     expect(charge.data.flags).toBeUndefined();
     expect(charge.data.attachments[0]).toMatchObject({ filename: AIDE_FILE });
-    expect(charge.data.attachments[0]?.description).toContain("30 essais par jour pour chacun.");
+    expect(charge.data.attachments[0]?.description).toContain("30 essais par jour, 20 secondes entre deux.");
     // Le serveur muet : l'aide part quand même, sans nombre d'essais.
     const muet = await enImage(await aideCommand(appel("help"), monde().deps));
     expect(muet.charge.data.attachments[0]?.description).not.toContain("essais par jour");
