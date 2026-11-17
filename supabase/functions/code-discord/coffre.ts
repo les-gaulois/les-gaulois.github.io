@@ -52,6 +52,7 @@ import {
   GARDIENS,
   HUMEURS,
   INDICES_GARDES,
+  POINTS_FAIBLES,
   pngDeLAide,
   pngDeLAlerte,
   pngDeLaVictoire,
@@ -935,7 +936,7 @@ export function separateurDeManche(prochaine: number, duCycle: boolean = false):
   const annonce = suivante
     ? [
         `# Manche ${prochaine} sur ${MANCHES_PAR_CYCLE} · ${NIVEAUX[suivante.niveau].mot}`,
-        `${FICHES_DES_GARDIENS[suivante.gardien].nom} garde le coffre : ${FICHES_DES_GARDIENS[suivante.gardien].theme.toLowerCase()}. Ici, la cagnotte vaut fois ${NIVEAUX[suivante.niveau].fois}. À vous, villageois : /coffre`,
+        `${FICHES_DES_GARDIENS[suivante.gardien].nom} garde le coffre : ${FICHES_DES_GARDIENS[suivante.gardien].theme.toLowerCase()}. Son point faible : ${POINTS_FAIBLES[suivante.gardien]}. Ici, la cagnotte vaut fois ${NIVEAUX[suivante.niveau].fois}. À vous, villageois : /coffre`,
       ]
     : [`# Manche ${prochaine}`, "Un nouveau mot est sous clé, et un autre gardien monte la garde. À vous, villageois : /coffre"];
   // « _ _ » : une ligne que Discord affiche vide, sans la retirer.

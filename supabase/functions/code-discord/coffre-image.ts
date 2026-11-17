@@ -78,6 +78,29 @@ export const FICHES_DES_GARDIENS: Readonly<Record<Gardien, { nom: string; lieu: 
   },
 };
 
+/**
+ * Le point faible de chaque gardien, en quelques mots, tel que le salon le lit (choix du pilote, 17 novembre 2026 : « le
+ * dire », plutôt que de le laisser deviner) : l'annonce de chaque manche et le tableau entier l'écrivent. C'est le début
+ * de la faiblesse que lit Claude (`CARACTERES` de `coffre.ts`) : un test garde les deux d'accord.
+ */
+export const POINTS_FAIBLES: Readonly<Record<Gardien, string>> = {
+  druide: "la vanité",
+  forgeron: "la susceptibilité",
+  barde: "le bavardage",
+  marchande: "l'appât du gain",
+  axolotl: "la curiosité",
+  sanglier: "la gourmandise",
+  loup: "l'orgueil du chasseur",
+  lezard: "la paresse",
+  corbeau: "ce qui brille",
+  squelette: "l'ennui",
+  automate: "la logique",
+  givre: "la chaleur",
+  magma: "la colère",
+  ovni: "l'envie d'apprendre",
+  dragon: "la fierté de son trésor",
+};
+
 /** Une humeur : le mot que lit le joueur, sa couleur, et le visage du gardien (yeux et bouche de la garde-robe). */
 export const FICHES_DES_HUMEURS: Readonly<Record<Humeur, { mot: string; couleur: string; yeux: string; bouche: string }>> = {
   confiant: { mot: "sûr de lui", couleur: "#FFC857", yeux: "rieurs", bouche: "en-coin" },
@@ -882,7 +905,9 @@ export function imageDuTableau(d: DessinDuTableau): Image {
     t.r(p.x, p.y, 2 * u, 8 * u + 1, OR);
     ecrire(t, PETITE, p.x + 5 * u, p.y + 2 * u, p.texte, OR_CLAIR, u);
   }
-  ecrire(t, PETITE, 14, 356, d.prixLettre !== null ? `/indice : une lettre, ${enMilliers(d.prixLettre)} statères` : "Plus de lettre à vendre dans cette manche", d.prixLettre !== null ? OR_CLAIR : GRIS, 3);
+  // Le pied : le point faible du gardien, que tout le salon peut viser, puis la lettre à vendre.
+  ecrire(t, PETITE, 14, 348, `Point faible : ${POINTS_FAIBLES[d.gardien]}`, BLANC, 3);
+  ecrire(t, PETITE, 14, 374, d.prixLettre !== null ? `/indice : une lettre, ${enMilliers(d.prixLettre)} statères` : "Plus de lettre à vendre dans cette manche", d.prixLettre !== null ? OR_CLAIR : GRIS, 3);
   return t.image();
 }
 
@@ -895,6 +920,7 @@ export function decrireLeTableau(d: DessinDuTableau): string {
     motEnMots(d.tableau),
     indices.length > 0 ? `Indices : ${indices.join(", ")}.` : "Aucun indice pour l'instant.",
     `Cagnotte : ${enMilliers(d.cagnotte)} statères.`,
+    `Point faible du gardien : ${POINTS_FAIBLES[d.gardien]}.`,
     d.prixLettre !== null ? `La prochaine lettre coûte ${enMilliers(d.prixLettre)} statères, avec /indice.` : "Plus de lettre à vendre dans cette manche.",
   ]
     .filter((phrase) => phrase !== "")

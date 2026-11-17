@@ -37,7 +37,7 @@ import {
   parseTableau,
   separateurDeManche,
 } from "../../supabase/functions/code-discord/coffre";
-import { decrireLEssai, decrireLHonneur, FICHES_DES_GARDIENS, GARDIENS, HUMEURS, IMAGE_DU_COFFRE, lignesDeLAide, meilleursDuCycle, pngDeLEssai, pngDeLHonneur, tenueDuGardien } from "../../supabase/functions/code-discord/coffre-image";
+import { decrireLEssai, decrireLeTableau, decrireLHonneur, POINTS_FAIBLES, FICHES_DES_GARDIENS, GARDIENS, HUMEURS, IMAGE_DU_COFFRE, lignesDeLAide, meilleursDuCycle, pngDeLEssai, pngDeLHonneur, tenueDuGardien } from "../../supabase/functions/code-discord/coffre-image";
 import { modeleDuGaulois } from "../../supabase/functions/code-discord/gaulois";
 import type { DiscordCall } from "../../supabase/functions/code-discord/index";
 import { RARETES_DES_MODELES } from "../../supabase/functions/code-discord/modeles/index";
@@ -176,7 +176,15 @@ describe("le cycle des quinze manches à thème", () => {
     expect(gagne).toContain("Il remporte 360 statères : la cagnotte de 120, multipliée par 3 pour une manche difficile.");
     const suite = String(separateurDeManche(8, true)["content"]).split(LF);
     expect(suite.at(-2)).toBe("# Manche 8 sur 15 · difficile");
-    expect(suite.at(-1)).toBe("Le lézard garde le coffre : les dunes et l'oasis. Ici, la cagnotte vaut fois 3. À vous, villageois : /coffre");
+    expect(suite.at(-1)).toBe("Le lézard garde le coffre : les dunes et l'oasis. Son point faible : la paresse. Ici, la cagnotte vaut fois 3. À vous, villageois : /coffre");
+    // Le point faible dit au salon est le début de la faiblesse que lit Claude, pour chaque gardien.
+    for (const g of GARDIENS) {
+      const debut = CARACTERES[g].faiblesse.split(".")[0]?.replace("ton trésor", "son trésor");
+      expect(POINTS_FAIBLES[g], g).toBe(debut);
+      // « Point faible : … » tient dans le tableau : 12 pixels par signe, 592 de large.
+      expect(`Point faible : ${POINTS_FAIBLES[g]}`.length).toBeLessThanOrEqual(49);
+    }
+    expect(decrireLeTableau({ gardien: "dragon", tableau: { mot: "menhir", longueurDite: true, lettres: [1, 6], indices: [] }, manche: 15, sur: 15, fois: 4, essais: 3, garde: 4, cagnotte: 0, prixLettre: 50 })).toContain("Point faible du gardien : la fierté de son trésor.");
     expect(String(separateurDeManche(1, true)["content"])).toContain("# Manche 1 sur 15 · facile");
     // Sans cycle, le titre d'avant.
     expect(String(separateurDeManche(8)["content"]).split(LF).at(-2)).toBe("# Manche 8");
