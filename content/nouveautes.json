@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "ameliore",
+    "title": "Les statères gagnés sur le podium du coffre",
+    "body": "Sur Discord, /perceurs écrit sous les coffres de chacun des trois membres du podium les statères que ces coffres lui ont rapportés dans la semaine.",
+    "link": {
+      "href": "/confidentialite#coffre",
+      "label": "Ce que le jeu garde"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "nouveau",
     "title": "Le bilan des Gaulois sous chaque replay",
     "body": "Qui a produit l'or, mené l'attaque, donné aux autres : une carte par Gaulois, avec son score d'utilité. Et le classement des plus utiles, en moyenne. Les parties le reçoivent peu à peu.",
