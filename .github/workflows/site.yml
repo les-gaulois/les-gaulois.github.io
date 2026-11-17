@@ -399,7 +399,7 @@ jobs:
       - name: Effacer les anciens films des parties et leurs moteurs
         continue-on-error: true
         run: |
-          for prefixe in films- moteurs-films- lecteurs-; do
+          for prefixe in films- moteurs-films- lecteurs- cartes-gif-; do
             gh cache list --repo "$GITHUB_REPOSITORY" --ref "refs/heads/${GITHUB_REF_NAME}" --key "$prefixe" --sort created_at --order desc --limit 100 --json id --jq '.[3:][].id' |
               while read -r id; do gh cache delete "$id" --repo "$GITHUB_REPOSITORY"; done
           done
@@ -528,6 +528,34 @@ jobs:
           # Sans ces deux valeurs, la connexion n'apparaît pas et le site reste entièrement statique.
           PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           PUBLIC_SUPABASE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+      # Les cartes des membres en GIF, pour /macarte sur Discord (src/lib/cartes-gif.ts) : la carte de chaque fiche est filmée
+      # dans le Chromium de Playwright, sur les pages de dist/ et sans réseau, puis publiée sous dist/cartes/ avec sa liste.
+      # Seules les cartes nouvelles ou changées sont filmées, quelques-unes par passage ; les autres viennent du cache, jamais
+      # de Git. Aucune de ces étapes ne retient le site : sans elles, /macarte dit que la carte n'est pas prête.
+      - name: Restaurer les cartes en GIF
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/cartes-gif
+          key: cartes-gif-${{ github.run_id }}
+          restore-keys: cartes-gif-
+      - name: Installer le navigateur du film
+        continue-on-error: true
+        timeout-minutes: 4
+        run: npx playwright install --with-deps chromium
+      - name: Filmer les cartes des membres
+        continue-on-error: true
+        timeout-minutes: 8
+        run: npm run cartes:filmer
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+      - name: Conserver les cartes en GIF
+        if: ${{ !cancelled() && hashFiles('.cache/cartes-gif/index.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/cartes-gif
+          key: cartes-gif-${{ hashFiles('.cache/cartes-gif/index.json') }}
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist

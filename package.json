@@ -40,6 +40,7 @@
     "victoires:envoyer": "tsx scripts/envoyer-victoires.ts",
     "victoires:rejouer": "tsx scripts/rejouer-victoires.ts",
     "parties:filmer": "tsx scripts/filmer-parties.ts",
+    "cartes:filmer": "tsx scripts/filmer-cartes.ts",
     "films:publier": "tsx scripts/publier-films.ts",
     "lecteurs:construire": "tsx scripts/construire-lecteurs.ts",
     "stateres:crediter": "tsx scripts/crediter-stateres.ts",

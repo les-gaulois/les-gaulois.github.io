@@ -93,7 +93,7 @@ describe("la commande /fiche", () => {
 
   it("part avec /code et les commandes du robot, chacune à part, sans doublon", () => {
     const names = COMMANDS.map((c) => c.name);
-    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "gaulois", "feu", "roles", "tickets", "concours", "coffre", "perceurs", "indices", "indice", "help"]);
+    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "gaulois", "feu", "macarte", "roles", "tickets", "concours", "coffre", "perceurs", "indices", "indice", "help"]);
     expect(new Set(names).size).toBe(names.length);
   });
 });

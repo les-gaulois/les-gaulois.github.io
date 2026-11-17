@@ -73,6 +73,7 @@ import { familierDe } from "./familiers/index.ts";
 import { banniereParId, dessinDeLaBanniere, type Banniere } from "./bannieres/index.ts";
 import { sceneDuGaulois, type Scene } from "./scene.ts";
 import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, releveEnMots, reponseDuFeu, type MondeLu } from "./feu.ts";
+import { CARTES_PATH, MACARTE_COMMAND, macarteMessage, macartePasPrete, parseCartes, type CartesLues } from "./macarte.ts";
 import { AIDE_COMMAND_NAME, aideCommand, COFFRE_COMMAND_NAME, coffreCommand, DRUIDE_MODELE, INDICE_COMMAND_NAME, indiceCommand, INDICES_COMMAND_NAME, indicesCommand, JETONS_MAX, PERCEURS_COMMAND_NAME, perceursCommand, type Tour } from "./coffre.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
@@ -216,6 +217,11 @@ export interface Deps {
    * tests qui n'en parlent pas : /feu dit alors que le site ne répond pas, et `/etat` dit `"feu":false`.
    */
   monde?(): Promise<MondeLu | null>;
+  /**
+   * Les cartes en GIF que publie le site (`CARTES_URL`), pour /macarte, aux mêmes conditions que les fiches. Absent des
+   * tests qui n'en parlent pas : /macarte dit alors que le site ne répond pas.
+   */
+  cartes?(): Promise<CartesLues | null>;
   /**
    * Une demande à Claude, pour le jeu du coffre (`coffre.ts`) : sa réponse, ou `null` sans clé ou si Claude ne répond pas.
    * S'il refuse, son texte est vide, avec les jetons consommés. Un seul appel par demande, jamais repris. Absent des tests qui n'en parlent pas : /coffre dit alors que le druide dort.
@@ -609,11 +615,13 @@ export const RIVAL_COMMAND = "rival";
 export const RIVAL_OPTION = "clan";
 export const MOI_COMMAND = "moi";
 export const GAULOIS_COMMAND = "gaulois";
-const ROBOT_COMMANDS: ReadonlySet<string> = new Set([FICHE_COMMAND_NAME, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND]);
+const ROBOT_COMMANDS: ReadonlySet<string> = new Set([FICHE_COMMAND_NAME, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, MACARTE_COMMAND]);
 /** L'index des commandes que le site publie avec ses pages (`src/lib/commandes-discord.ts`). */
 export const COMMANDES_URL = `${SITE_URL}/commandes.json`;
 /** L'état du monde du village que le site publie avec ses pages, pour /feu (`src/pages/village/monde.json.ts`). */
 export const MONDE_URL = `${SITE_URL}${MONDE_PATH}`;
+/** La liste des cartes en GIF que le site publie après ses pages, pour /macarte (`scripts/filmer-cartes.ts`). */
+export const CARTES_URL = `${SITE_URL}${CARTES_PATH}`;
 
 export interface CommandEntry {
   /** L'adresse de l'image depuis la racine du site, avec sa version. */
@@ -801,6 +809,24 @@ async function moiRoute(discordId: string, deps: Deps): Promise<Response> {
   return fiche && fiche.pseudo === pseudo ? json({ type: 4, data: ficheMessage(fiche, list.listedAt) }) : ephemeral(COMMAND_MESSAGES.noFiche);
 }
 
+/**
+ * /macarte : la carte du membre en GIF (`macarte.ts`). Le membre se reconnaît comme pour /moi (`discord_moi`, puis sa
+ * fiche, seule à son pseudo) ; le GIF est celui que le site a filmé et publié, la fonction n'en donne que l'adresse.
+ */
+async function macarteRoute(discordId: string, deps: Deps): Promise<Response> {
+  const [found, list, cartes] = await Promise.all([deps.rpc("discord_moi", { p_discord_id: discordId }), deps.fiches(), deps.cartes ? deps.cartes() : Promise.resolve(null)]);
+  if (!found) return ephemeral(COMMAND_MESSAGES.down);
+  if (found["ok"] !== true) {
+    const error = found["error"];
+    return ephemeral(error === "no_pseudo" ? COMMAND_MESSAGES.noPseudo : error === "shared_pseudo" ? COMMAND_MESSAGES.sharedPseudo : COMMAND_MESSAGES.notMember);
+  }
+  if (!list || !cartes) return ephemeral(COMMAND_MESSAGES.down);
+  const fiche = ficheDuMembre(found, list);
+  if (!fiche) return ephemeral(COMMAND_MESSAGES.noFiche);
+  const v = cartes.get(fiche.id);
+  return v ? json({ type: 4, data: macarteMessage(SITE_URL, fiche, v, COMPONENTS_V2) }) : ephemeral(macartePasPrete(SITE_URL));
+}
+
 /** Ce que /gaulois dit au seul joueur qui la tape, quand il n'y a pas de Gaulois à montrer. */
 export const GAULOIS_MESSAGES = {
   none: `Vous n'avez pas encore de Gaulois. Habillez-le sur la page « Mon Gaulois » du site : <${SITE_URL}/village>. Connectez-vous avec Discord, ou avec un code que donne /code ici.`,
@@ -939,11 +965,11 @@ async function robotRoute(name: string, interaction: Record<string, unknown>, da
   if (name === FICHE_COMMAND_NAME) return ficheRoute(interaction, data, deps);
   const typing = interaction["type"] === 4;
   if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId) return typing ? choicesReply([]) : ephemeral(COMMAND_MESSAGES.wrongPlace);
-  if (name === MOI_COMMAND || name === GAULOIS_COMMAND) {
+  if (name === MOI_COMMAND || name === GAULOIS_COMMAND || name === MACARTE_COMMAND) {
     const user = record(record(interaction["member"])?.["user"]);
     const id = user?.["id"];
     if (typing || user?.["bot"] === true || typeof id !== "string" || !/^[0-9]{17,20}$/.test(id)) return typing ? choicesReply([]) : ephemeral(COMMAND_MESSAGES.wrongPlace);
-    return name === MOI_COMMAND ? moiRoute(id, deps) : gauloisRoute(id, deps);
+    return name === MOI_COMMAND ? moiRoute(id, deps) : name === MACARTE_COMMAND ? macarteRoute(id, deps) : gauloisRoute(id, deps);
   }
   if (name === FEU_COMMAND) return typing ? choicesReply([]) : feuRoute(deps);
   const index = await deps.commandes();
@@ -1765,6 +1791,7 @@ export function liveDeps(env: Env, fetcher: typeof fetch = fetch): Deps {
     fiches: () => readSiteFile(fetcher, FICHES_URL, parseFiches, "fiches", log),
     commandes: () => readSiteFile(fetcher, COMMANDES_URL, parseCommandes, "commandes", log),
     monde: () => readSiteFile(fetcher, MONDE_URL, parseMonde, "monde", log),
+    cartes: () => readSiteFile(fetcher, CARTES_URL, parseCartes, "cartes", log),
     botId,
     discord: (method, path, call = {}) => (botToken !== "" && botId !== "" ? discordCall(method, path, call, `Bot ${botToken}`) : Promise.resolve(null)),
     webhook: (method, path, call = {}) => (path.startsWith("/webhooks/") ? discordCall(method, path, call, null) : Promise.resolve(null)),

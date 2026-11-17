@@ -14,6 +14,7 @@ import { lirePng } from "../../supabase/functions/code-discord/billets";
 import { IMAGE_GAULOIS, TENUE_DE_DEPART, decrireGaulois, decrireLaScene } from "../../supabase/functions/code-discord/gaulois";
 import { sceneDuGaulois } from "../../supabase/functions/code-discord/scene";
 import { FEU_FILE, IMAGE_DU_FEU, phraseDuFeu, sansFeu, type MondeLu } from "../../supabase/functions/code-discord/feu";
+import { carteGifUrl, descriptionDeLaCarte, macartePasPrete } from "../../supabase/functions/code-discord/macarte";
 import {
   APP_PUBLIC_KEY,
   BOT_TOKEN_SECRET,
@@ -639,6 +640,47 @@ describe("les commandes du robot, envoyées par Discord", () => {
     const body = await content(await handle(await fromDiscord(run("moi")), deps));
     expect(body.data.content).toBe(COMMAND_MESSAGES.sharedPseudo);
     expect(body.data.flags).toBe(64);
+  });
+
+  it("/macarte montre à tout le salon le GIF de la carte du membre, à l'adresse que publie le site, avec sa version", async () => {
+    const cartes = new Map([["Ab12Cd34", "0123456789ab"]]);
+    const { deps, calls } = world({ discord_moi: () => ({ ok: true, pseudo: "Brennos" }) }, { cartes: async () => cartes });
+    const body = await shown(await handle(await fromDiscord(run("macarte")), deps));
+    expect(calls.rpc).toEqual([{ name: "discord_moi", args: { p_discord_id: PLAYER } }]);
+    expect(body.type).toBe(4);
+    expect(body.data.flags).toBe(32768);
+    expect(body.data.components[0]?.items).toEqual([{ media: { url: carteGifUrl(SITE_URL, "Ab12Cd34", "0123456789ab") }, description: descriptionDeLaCarte("Brennos") }]);
+    expect(body.data.components[0]?.items?.[0]?.media.url).toBe("https://les-gaulois.github.io/cartes/Ab12Cd34.gif?v=0123456789ab");
+    expect(body.data.components[1]?.components?.map((b) => b.url)).toEqual([ficheUrl("Ab12Cd34"), `${SITE_URL}/village#boutique`]);
+    expect(body.data.allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it("/macarte dit au seul joueur qui la tape quand sa carte n'est pas filmée, qu'il n'est pas reconnu, ou que le site ne répond pas", async () => {
+    const cartes = new Map([["Uv12Wx34", "0123456789ab"]]);
+    const moi = { discord_moi: () => ({ ok: true, pseudo: "Brennos" }) };
+    for (const [answers, over, message] of [
+      [moi, { cartes: async () => cartes }, macartePasPrete(SITE_URL)],
+      [moi, { cartes: async () => null }, COMMAND_MESSAGES.down],
+      [moi, {}, COMMAND_MESSAGES.down],
+      [moi, { cartes: async () => cartes, fiches: async () => null }, COMMAND_MESSAGES.down],
+      [{ discord_moi: () => ({ ok: false, error: "not_member" }) }, { cartes: async () => cartes }, COMMAND_MESSAGES.notMember],
+      [{ discord_moi: () => ({ ok: false, error: "no_pseudo" }) }, { cartes: async () => cartes }, COMMAND_MESSAGES.noPseudo],
+      [{ discord_moi: () => ({ ok: true, pseudo: "Parti.0001" }) }, { cartes: async () => cartes }, COMMAND_MESSAGES.noFiche],
+      [{}, { cartes: async () => cartes }, COMMAND_MESSAGES.down],
+    ] as const) {
+      const body = await content(await handle(await fromDiscord(run("macarte")), world(answers, over).deps));
+      expect(body.data.content).toBe(message);
+      expect(body.data.flags).toBe(64);
+    }
+    expect(macartePasPrete(SITE_URL)).toContain(`<${SITE_URL}/village>`);
+    // Deux membres au même pseudo : la carte de l'autre ne part jamais dans le salon.
+    const twins: FicheList = { listedAt: LISTED_AT, fiches: [...FICHES.fiches, fiche("Zz99Yy88", "BRENNOS")] };
+    const partage = world(moi, { fiches: async () => twins, cartes: async () => new Map([["Ab12Cd34", "0123456789ab"]]) });
+    expect((await content(await handle(await fromDiscord(run("macarte")), partage.deps))).data.content).toBe(COMMAND_MESSAGES.noFiche);
+    // Hors du serveur du clan : rien n'est lu.
+    const dehors = world(moi, { cartes: async () => cartes });
+    expect((await content(await handle(await fromDiscord(run("macarte", [], { guild_id: "111111111111111111" })), dehors.deps))).data.content).toBe(COMMAND_MESSAGES.wrongPlace);
+    expect(dehors.calls.rpc).toEqual([]);
   });
 
   it("/moi ne prend l'identifiant que de la commande signée, ni hors du serveur du clan ni pour un robot", async () => {

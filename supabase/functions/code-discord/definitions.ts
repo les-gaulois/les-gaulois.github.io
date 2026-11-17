@@ -63,6 +63,8 @@ export const MOI_COMMAND = { name: "moi", type: 1, description: "Votre fiche, si
 export const GAULOIS_COMMAND = { name: "gaulois", type: 1, description: "Montrer à tous votre Gaulois en pixels, et votre niveau et votre flamme si votre fiche les montre" } as const;
 /** /feu (docs/DIRECTION.md, « Le village des Gaulois ») : le grand feu de la place, qui suit les points rapportés au clan sur 7 jours (`feu.ts`). */
 export const FEU_COMMAND = { name: "feu", type: 1, description: "Le grand feu du village : sa hauteur suit les points rapportés au clan sur 7 jours" } as const;
+/** /macarte (docs/DIRECTION.md, « La commande /macarte ») : la carte du membre en GIF, celle de sa fiche, filmée par le site (`macarte.ts`). */
+export const MACARTE_COMMAND = { name: "macarte", type: 1, description: "Montrer à tous votre carte animée : votre Gaulois, votre bannière et votre finition" } as const;
 
 /** Le droit « Gérer les rôles » de Discord (1 << 28), en chiffres. */
 export const MANAGE_ROLES = "268435456";
@@ -165,4 +167,4 @@ export const AIDE_COMMAND = {
 } as const;
 
 /** Les commandes du serveur du clan : la fonction les crée ou les remet à jour, chacune à part (`inscription.ts`). */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND, COFFRE_COMMAND, PERCEURS_COMMAND, INDICES_COMMAND, INDICE_COMMAND, AIDE_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, MACARTE_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND, COFFRE_COMMAND, PERCEURS_COMMAND, INDICES_COMMAND, INDICE_COMMAND, AIDE_COMMAND] as const;
