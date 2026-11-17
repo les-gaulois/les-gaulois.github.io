@@ -609,11 +609,12 @@ footer h2 {
   margin: 0;
   padding: calc(var(--px) * 9) 0 calc(var(--px) * 5);
   list-style: none;
-  perspective: calc(var(--px) * 200);
 }
+/* Chaque carte a son point de fuite, en son milieu : avec un seul pour la rangée, la plaque du nom et le Gaulois des
+   cartes de côté glissaient hors de leur carte. */
 .podium-carte-case {
   flex: none;
-  transform-style: preserve-3d;
+  perspective: calc(var(--px) * 200);
   animation: podium-carte-flotte 9s ease-in-out infinite;
 }
 /* Le premier au milieu, un peu plus haut ; l'ordre de lecture reste premier, deuxième, troisième. */
@@ -680,6 +681,23 @@ footer h2 {
   inset: 0;
   background: radial-gradient(circle at calc(50% - var(--mx) * 55%) calc(45% - var(--my) * 55%), color-mix(in srgb, var(--carte-ecriture) 50%, transparent), transparent 52%);
   mix-blend-mode: overlay;
+}
+/* La finition animée de la carte (src/lib/fx/finitions-carte.ts) : deux toiles en pixels, une sur la face, derrière le
+   Gaulois, et une devant lui, un peu rétrécie pour ne pas dépasser de la carte une fois rapprochée. */
+.podium-carte-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.podium-carte[data-finition="artifice"] .podium-carte-face > .podium-carte-fx {
+  mix-blend-mode: screen;
+}
+.podium-carte-fx-devant {
+  transform: translateZ(calc(var(--px) * 13)) scale(0.935);
 }
 /* La feuille holographique, offerte à tous : un arc-en-ciel qui dérive lentement et glisse avec le curseur, puis un éclat
    de la couleur du liseré qui traverse la carte toutes les sept secondes, une carte après l'autre. Rien ne clignote. */

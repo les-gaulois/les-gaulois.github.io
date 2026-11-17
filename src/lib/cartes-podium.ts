@@ -9,6 +9,7 @@
  * écarte aucun : le guerrier reste) et si au moins un de ses joueurs a créé son Gaulois. Un joueur sans Gaulois garde sa
  * carte, sans personnage ; un joueur sans bannière, une carte au fond uni.
  */
+import type { FinitionDeCarte } from "./fx/finitions-carte";
 import type { PortraitDeGaulois } from "./gaulois-site";
 
 /** Le podium tient en trois cartes, pas plus. */
@@ -24,6 +25,8 @@ export interface CarteDuPodium {
   place: number;
   wins: number;
   metal: MetalDeCarte;
+  /** L'animation de la carte : celle de sa place, tant que le rayon « Cartes » de la boutique n'existe pas. */
+  finition: FinitionDeCarte;
   portrait: PortraitDeGaulois | null;
   /** La taille du Gaulois sur sa carte, en cases de la carte par pixel de son image. */
   echelle: number;
@@ -36,6 +39,9 @@ export function echelleDuGaulois({ largeur, hauteur }: Pick<PortraitDeGaulois, "
   return Math.min(0.78, 42 / largeur, 58 / hauteur);
 }
 
+/** Une finition par place : le champignon atomique au premier, le piratage au deuxième, le feu d'artifice au troisième. */
+export const finitionDuMetal = (metal: MetalDeCarte): FinitionDeCarte => (metal === "or" ? "champignon" : metal === "argent" ? "piratage" : "artifice");
+
 const metalDeLaPlace = (place: number): MetalDeCarte => (place <= 1 ? "or" : place === 2 ? "argent" : "bronze");
 
 /** Les cartes à montrer, dans l'ordre du podium, ou `null` : le guerrier reste. */
@@ -47,7 +53,8 @@ export function cartesDuPodium(
   if (!players || players.length === 0 || players.length > CARTES_DU_PODIUM) return null;
   const cartes = players.map(({ id, username, place, wins }): CarteDuPodium => {
     const portrait = portraitDe(id);
-    return { id, username, place, wins, metal: metalDeLaPlace(place), portrait, echelle: portrait ? echelleDuGaulois(portrait) : 0, banniere: banniereDe(id) };
+    const metal = metalDeLaPlace(place);
+    return { id, username, place, wins, metal, finition: finitionDuMetal(metal), portrait, echelle: portrait ? echelleDuGaulois(portrait) : 0, banniere: banniereDe(id) };
   });
   return cartes.some((c) => c.portrait !== null) ? cartes : null;
 }

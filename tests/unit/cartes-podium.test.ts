@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FINITIONS, type Toile } from "../../src/lib/fx/finitions-carte";
 import { cartesDuPodium, echelleDuGaulois, legendeDuPodium } from "../../src/lib/cartes-podium";
 import type { PortraitDeGaulois } from "../../src/lib/gaulois-site";
 
@@ -48,5 +49,14 @@ describe("les cartes du podium de l'accueil", () => {
     expect(legendeDuPodium("de la semaine", "du 9 nov. au 15 nov. 2026")).toBe("Le plus de victoires de la semaine du 9 nov. au 15 nov. 2026");
     expect(legendeDuPodium("du 12 nov. au 15 nov.", "du 9 nov. au 15 nov. 2026")).toBe("Le plus de victoires du 12 nov. au 15 nov.");
     expect(legendeDuPodium(null, "du 9 nov. au 15 nov. 2026")).toBe("Le plus de victoires de la semaine du 9 nov. au 15 nov. 2026");
+  });
+
+  it("donne à chaque place son animation, et chaque animation se dessine à toute heure sans erreur", () => {
+    const cartes = cartesDuPodium(podium, () => portrait(), () => null);
+    expect(cartes?.map((c) => c.finition)).toEqual(["champignon", "piratage", "artifice"]);
+    let gestes = 0;
+    const toile = new Proxy({}, { get: () => () => gestes++, set: () => true }) as unknown as Toile;
+    for (const dessiner of Object.values(FINITIONS)) for (let t = 0; t < 20; t += 0.13) dessiner(toile, toile, t);
+    expect(gestes).toBeGreaterThan(1000);
   });
 });

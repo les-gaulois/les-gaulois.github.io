@@ -1,12 +1,13 @@
 ---
 /**
  * Les cartes du podium de l'accueil (src/lib/cartes-podium.ts) : le Gaulois de chaque joueur du podium de la semaine sort
- * de sa carte, devant sa bannière, et la carte se tourne vers le curseur avec un reflet (src/scripts/cartes-podium.ts).
+ * de sa carte, devant sa bannière et l'animation de sa place (src/lib/fx/finitions-carte.ts), et la carte se tourne vers le curseur avec un reflet (src/scripts/cartes-podium.ts).
  * Sans JavaScript, en pause ou avec « réduire les animations », les cartes restent à plat. Chaque carte mène à la fiche
  * du joueur. Les couches empilées du Gaulois sont décoratives : le pseudo, la place et les victoires sont écrits.
  */
 import { fmtCount, fmtRank } from "../lib/format";
 import type { CarteDuPodium } from "../lib/cartes-podium";
+import { HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE } from "../lib/fx/finitions-carte";
 
 interface Props {
   cartes: readonly CarteDuPodium[];
@@ -25,8 +26,9 @@ const COUCHES = [5, 4, 3, 2, 1, 0];
     {
       cartes.map((c) => (
         <li class="podium-carte-case">
-          <a class="podium-carte" data-metal={c.metal} href={`${base}/membres/${encodeURIComponent(c.id)}`} data-testid="hero-card">
+          <a class="podium-carte" data-metal={c.metal} data-finition={c.finition} href={`${base}/membres/${encodeURIComponent(c.id)}`} data-testid="hero-card">
             <span class="podium-carte-face" aria-hidden="true" style={c.banniere ? `--banniere:url("${base}${c.banniere}")` : undefined}>
+              <canvas class="podium-carte-fx" data-toile="fond" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
               <i class="podium-carte-holo" />
               <i class="podium-carte-eclat" />
             </span>
@@ -37,6 +39,7 @@ const COUCHES = [5, 4, 3, 2, 1, 0];
                 ))}
               </span>
             )}
+            <canvas class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} aria-hidden="true" />
             <span class="podium-carte-rang">{fmtRank(c.place)}</span>{" "}
             <span class="podium-carte-bas">
               <span class="podium-carte-nom">{c.username}</span>{" "}
