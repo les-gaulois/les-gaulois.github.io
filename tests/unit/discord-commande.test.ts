@@ -93,7 +93,7 @@ describe("la commande /fiche", () => {
 
   it("part avec /code et les commandes du robot, chacune à part, sans doublon", () => {
     const names = COMMANDS.map((c) => c.name);
-    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "gaulois", "feu", "roles", "tickets", "concours", "coffre", "perceurs"]);
+    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "gaulois", "feu", "roles", "tickets", "concours", "coffre", "perceurs", "indices", "indice", "help"]);
     expect(new Set(names).size).toBe(names.length);
   });
 });
@@ -142,8 +142,8 @@ describe("les commandes du robot", () => {
 
   it("tiennent dans les limites de Discord, et chaque option de texte propose pendant la saisie", () => {
     // /concours a des sous-commandes, contrôlées dans tests/unit/concours-discord.test.ts.
-    // /coffre a un texte libre, contrôlé dans tests/unit/coffre-discord.test.ts.
-    for (const command of COMMANDS.filter((c) => c.name !== "concours" && c.name !== "coffre")) {
+    // /coffre a un texte libre, et /help une sous-commande : contrôlés dans tests/unit/coffre-discord.test.ts et coffre-panneaux.test.ts.
+    for (const command of COMMANDS.filter((c) => c.name !== "concours" && c.name !== "coffre" && c.name !== "help")) {
       expect(command.name).toMatch(/^[a-z0-9_-]{1,32}$/);
       expect(command.type).toBe(1);
       expect(command.description.length).toBeGreaterThan(0);

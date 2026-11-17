@@ -8,6 +8,7 @@ import {
   DRUIDE_MODELE,
   FORME_DE_LA_REPONSE,
   INDICE_MAX,
+  COFFRE_SALON_ID,
   PERCEURS_FILE,
   RAISON_DU_ROLE,
   ROLE_DU_CHAMPION,
@@ -295,7 +296,8 @@ const interaction = (message: string, mise?: number): Record<string, unknown> =>
   application_id: APP,
   token: TOKEN,
   guild_id: GUILD,
-  channel: { id: "444444444444444444", type: 0, name: "coffre-du-druide" },
+  channel_id: COFFRE_SALON_ID,
+  channel: { id: COFFRE_SALON_ID, type: 0, name: "coffre-du-druide" },
   member: { nick: "Jod", user: { id: JOUEUR, username: "jod" } },
   data: { name: "coffre", options: [{ name: "message", type: 3, value: message }, ...(mise === undefined ? [] : [{ name: "mise", type: 4, value: mise }])] },
 });
@@ -410,7 +412,7 @@ describe("/perceurs", () => {
     expect(sql).toContain("revoke all on function public.coffre_palmares() from public, anon, authenticated;");
   });
 
-  const appel = { type: 2, guild_id: GUILD, data: { name: "perceurs" } };
+  const appel = { type: 2, guild_id: GUILD, channel_id: COFFRE_SALON_ID, data: { name: "perceurs" } };
 
   it("lit le podium sans rien croire : trois au plus, un nom propre, un compte de coffres", () => {
     expect(parsePerceurs({ perceurs: [{ nom: " [GAL]  Jod ", coffres: 3, tenue: { peau: "x" } }, { nom: "Sans coffre", coffres: 0 }, { coffres: 2 }, { nom: "B", coffres: 2, tenue: null }, { nom: "C", coffres: 1 }, { nom: "D", coffres: 1 }] })).toEqual([

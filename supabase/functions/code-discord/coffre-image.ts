@@ -741,3 +741,275 @@ export const decrireLePalmares = (perceurs: readonly Perceur[]): string =>
       return `${i + 1}. ${p.nom}, ${p.coffres} coffre${p.coffres > 1 ? "s" : ""}${gagnes}${banniere ? `, devant sa bannière « ${banniere.nom} »` : ""}`;
     })
     .join(" ; ")}.`.slice(0, 1024);
+
+/* ---------- Les panneaux : le tableau entier, l'aide, l'alerte de cagnotte, le bilan d'une manche ---------- */
+
+/** Les boucliers de la garde, calés à droite : de 1 à 4 pleins. */
+function boucliers(t: Toile, droite: number, y: number, garde: number): void {
+  const pleins = Math.max(1, Math.min(4, Math.round(garde)));
+  const gl = largeurDuTexte(PETITE, "Garde", 2) + 8 + 4 * 15;
+  ecrire(t, PETITE, droite - gl, y + 4, "Garde", GRIS, 2);
+  for (let i = 0; i < 4; i++) {
+    const px = droite - 4 * 15 + i * 15 + 3;
+    t.r(px, y, 12, 14, i < pleins ? OR : "#1B2A5C");
+    t.r(px, y, 12, 2, i < pleins ? OR_CLAIR : CASE_BORD);
+    t.r(px, y + 12, 2, 2, NUIT);
+    t.r(px + 10, y + 12, 2, 2, NUIT);
+  }
+}
+
+/** Le fond d'un panneau : la nuit, un filet d'or sous l'en-tête et un autre au-dessus du pied. */
+function fondDuPanneau(t: Toile, enTete: number, pied: number): void {
+  t.r(0, 0, L, IMAGE_DU_COFFRE.hauteur, NUIT);
+  t.r(0, 0, L, enTete, "#0D1740");
+  t.r(0, enTete, L, 3, OR);
+  t.r(0, enTete + 3, L, 2, OR_SOMBRE);
+  t.r(0, pied, L, 2, OR_SOMBRE);
+}
+
+/** Combien d'indices du gardien une manche garde, et le tableau entier montre : le serveur s'arrête au même nombre. */
+export const INDICES_GARDES = 12;
+
+export interface DessinDuTableau {
+  gardien: Gardien;
+  tableau: Tableau;
+  manche: number;
+  /** Les essais déjà répondus dans la manche. */
+  essais: number;
+  garde: number;
+  cagnotte: number;
+  /** Le prix de la prochaine lettre à vendre, ou `null` : il n'y en a plus dans cette manche. */
+  prixLettre: number | null;
+  /** La lettre qu'un membre vient d'acheter : son nom, la place de la lettre, son prix. */
+  achat?: { nom: string; place: number; prix: number } | null;
+}
+
+/**
+ * Le tableau entier de la manche (demande du pilote, 17 novembre 2026 : l'image d'un essai ne montre que les indices qui
+ * tiennent sur une ligne) : le mot en grandes cases, puis tous les indices gardés, sur deux colonnes.
+ */
+export function imageDuTableau(d: DessinDuTableau): Image {
+  const t = new Toile(L, IMAGE_DU_COFFRE.hauteur);
+  fondDuPanneau(t, 132, 340);
+  t.cases(casesDuGaulois(tenueDuGardien(d.gardien, d.achat ? "flatte" : "mefiant")), GAULOIS_LARGEUR, 8, 6, 2);
+  ecrire(t, GRANDE, 118, 12, "Le tableau", OR, 3, OR_SOMBRE);
+  ecrire(t, PETITE, 118, 44, `${FICHES_DES_GARDIENS[d.gardien].nom} · manche ${d.manche} · ${d.essais} essai${d.essais > 1 ? "s" : ""}`, GRIS, 2);
+  const droite = L - 14;
+  const garde = Math.max(1, Math.min(4, Math.round(d.garde)));
+  cagnotte(t, droite, 20, `${enMilliers(d.cagnotte)} fois ${garde + 1}`);
+  boucliers(t, droite, 40, garde);
+  // Le nom seul cède la place : la lettre et son prix se lisent toujours.
+  if (d.achat) ecrire(t, PETITE, 118, 62, `${raccourci(PETITE, d.achat.nom, 2, 170)} achète la lettre ${d.achat.place} : ${enMilliers(d.achat.prix)} statères`, OR_CLAIR, 2);
+  // Le mot, en grandes cases : une lettre donnée sur de l'or, une case vide sinon.
+  let x = 118;
+  for (const lettre of casesDuMot(d.tableau)) {
+    if (lettre === "?") {
+      ecrire(t, PETITE, x + (x > 118 ? 6 : 0), 102, x > 118 ? "... longueur inconnue" : "Longueur inconnue", "#8E9BC9", 2);
+      break;
+    }
+    const connue = lettre !== "_";
+    t.r(x, 84, 30, 42, connue ? OR : CASE);
+    t.r(x, 84, 30, 3, connue ? OR_CLAIR : CASE_BORD);
+    t.r(x, 123, 30, 3, connue ? OR_SOMBRE : "#3A4A86");
+    if (connue) ecrire(t, GRANDE, x + 8, 94, lettre, "#2A1608", 3);
+    x += 33;
+  }
+  // Tous les indices, en pastilles qui se suivent : en grand si tout tient, sinon en plus petit. Aucun n'est raccourci.
+  const indices = indicesDuTableau(d.tableau).slice(0, INDICES_GARDES + 1);
+  if (indices.length === 0) ecrire(t, PETITE, 14, 152, "Le gardien n'a encore rien dit.", GRIS, 3);
+  const poser = (u: number): { x: number; y: number; l: number; texte: string }[] | null => {
+    const places: { x: number; y: number; l: number; texte: string }[] = [];
+    let px = 14;
+    let py = 144;
+    for (const texte of indices) {
+      const l = largeurDuTexte(PETITE, texte, u) + 8 * u;
+      if (px > 14 && px + l > L - 14) {
+        px = 14;
+        py += 8 * u + 3;
+      }
+      places.push({ x: px, y: py, l, texte });
+      px += l + 3 * u;
+    }
+    return py + 8 * u + 1 <= 336 ? places : u > 2 ? null : places.filter((p) => p.y + 8 * u + 1 <= 336);
+  };
+  // À la petite taille, ce qui ne tiendrait toujours pas reste dans la description en mots.
+  const u = poser(3) ? 3 : 2;
+  for (const p of poser(u) ?? []) {
+    t.r(p.x, p.y, p.l, 8 * u + 1, "#1B2A5C");
+    t.r(p.x, p.y, 2 * u, 8 * u + 1, OR);
+    ecrire(t, PETITE, p.x + 5 * u, p.y + 2 * u, p.texte, OR_CLAIR, u);
+  }
+  ecrire(t, PETITE, 14, 356, d.prixLettre !== null ? `/indice : une lettre, ${enMilliers(d.prixLettre)} statères` : "Plus de lettre à vendre dans cette manche", d.prixLettre !== null ? OR_CLAIR : GRIS, 3);
+  return t.image();
+}
+
+/** Le tableau entier, dit en mots. */
+export function decrireLeTableau(d: DessinDuTableau): string {
+  const indices = indicesDuTableau(d.tableau);
+  return [
+    d.achat ? `${d.achat.nom} achète la lettre ${d.achat.place} du mot pour ${enMilliers(d.achat.prix)} statères, versés dans la cagnotte.` : "",
+    `Le tableau de la manche ${d.manche}, gardée par ${FICHES_DES_GARDIENS[d.gardien].nom.toLowerCase()}, après ${d.essais} essai${d.essais > 1 ? "s" : ""}.`,
+    motEnMots(d.tableau),
+    indices.length > 0 ? `Indices : ${indices.join(", ")}.` : "Aucun indice pour l'instant.",
+    `Cagnotte : ${enMilliers(d.cagnotte)} statères.`,
+    d.prixLettre !== null ? `La prochaine lettre coûte ${enMilliers(d.prixLettre)} statères, avec /indice.` : "Plus de lettre à vendre dans cette manche.",
+  ]
+    .filter((phrase) => phrase !== "")
+    .join(" ")
+    .slice(0, 1024);
+}
+
+export interface DessinDeLAide {
+  /** La mise d'un essai, et les prix des lettres à vendre, en statères. */
+  mise: number;
+  prixDesLettres: readonly number[];
+  /** Les essais par membre et par jour, si le serveur les a dits. */
+  essais: number | null;
+}
+
+/** Ce que l'aide écrit : les règles, puis chaque commande et ce qu'elle fait. Les mêmes lignes servent à l'image et à sa description. */
+export function lignesDeLAide(d: DessinDeLAide): { regles: string[]; commandes: { nom: string; role: string }[] } {
+  return {
+    regles: [
+      "Un gardien cache un mot secret.",
+      "Faites-le-lui dire, ou devinez-le.",
+      `Chaque essai : ${d.mise} statères dans la cagnotte.`,
+      "Le coffre ouvert, elle est à vous :",
+      "fois 2 à fois 5, selon la garde du gardien.",
+      ...(d.essais !== null ? [`${d.essais} essais par jour pour chacun.`] : []),
+      "Vendredi soir : le gardien se méfie moins.",
+      "Dimanche soir : essais doublés.",
+    ],
+    commandes: [
+      { nom: "/coffre", role: "Parler au gardien" },
+      { nom: "/indices", role: "Tout le tableau de la manche" },
+      { nom: "/indice", role: `Une lettre : ${d.prixDesLettres.map(enMilliers).join(", ")} statères` },
+      { nom: "/perceurs", role: "Le podium de la semaine" },
+      { nom: "/help coffre", role: "Cette aide" },
+    ],
+  };
+}
+
+/** L'aide du jeu, en image (demande du pilote, 17 novembre 2026) : comment on joue, puis les commandes. */
+export function imageDeLAide(d: DessinDeLAide): Image {
+  const t = new Toile(L, IMAGE_DU_COFFRE.hauteur);
+  fondDuPanneau(t, 46, 400);
+  const coffre = casesDuCoffre(false);
+  t.cases(coffre.cases, coffre.largeur, 14, 9, 1);
+  ecrire(t, GRANDE, 64, 12, "Le coffre du druide", OR, 3, OR_SOMBRE);
+  const { regles, commandes } = lignesDeLAide(d);
+  regles.forEach((ligne, i) => ecrire(t, PETITE, 14, 68 + i * 24, raccourci(PETITE, ligne, 3, L - 28), BLANC, 3));
+  const y = 68 + regles.length * 24 + 12;
+  t.r(14, y - 9, L - 28, 2, OR_SOMBRE);
+  commandes.forEach((commande, i) => {
+    const cy = y + 4 + i * 25;
+    t.r(14, cy - 4, 156, 23, "#1B2A5C");
+    t.r(14, cy - 4, 4, 23, OR);
+    ecrire(t, PETITE, 24, cy, commande.nom, OR_CLAIR, 3);
+    ecrire(t, PETITE, 180, cy, raccourci(PETITE, commande.role, 3, L - 194), BLANC, 3);
+  });
+  return t.image();
+}
+
+/** L'aide, dite en mots. */
+export function decrireLAide(d: DessinDeLAide): string {
+  const { regles, commandes } = lignesDeLAide(d);
+  return `Le coffre du druide, comment jouer. ${regles.join(" ")} Les commandes : ${commandes.map((c) => `${c.nom}, ${c.role.toLowerCase()}`).join(" ; ")}. Les statères viennent des points rapportés au clan.`.slice(0, 1024);
+}
+
+export interface DessinDeLAlerte {
+  gardien: Gardien;
+  /** La tenue du membre dont la mise ou l'achat vient de faire passer le seuil, ou `null`. */
+  tenue: Tenue | null;
+  /** Le seuil passé, et la cagnotte du moment, en statères. */
+  seuil: number;
+  cagnotte: number;
+  garde: number;
+}
+
+/** L'alerte de cagnotte : la scène du coffre, et la somme qu'elle vient de passer. */
+export function imageDeLAlerte(d: DessinDeLAlerte): Image {
+  const t = new Toile(L, IMAGE_DU_COFFRE.hauteur);
+  poserLaScene(t, d.gardien, "confiant", d.tenue, NUIT_DE_LUNE, false);
+  const y = fondDuBandeau(t);
+  const titre = `La cagnotte passe ${enMilliers(d.seuil)} statères`;
+  const l = largeurDuTexte(PETITE, titre, 3);
+  t.cases(casesDuStatere(12), 12, Math.round(L / 2 - l / 2) - 32, y + 7, 2);
+  ecrire(t, PETITE, Math.round(L / 2 - l / 2), y + 12, titre, OR, 3);
+  const garde = Math.max(1, Math.min(4, Math.round(d.garde)));
+  centrer(t, PETITE, L / 2, y + 40, `Fois ${garde + 1} pour qui ouvre le coffre`, BLANC, 3);
+  return t.image();
+}
+
+/** L'alerte, dite en mots. */
+export const decrireLAlerte = (d: DessinDeLAlerte): string =>
+  `La cagnotte du coffre passe ${enMilliers(d.seuil)} statères : elle est de ${enMilliers(d.cagnotte)} statères, multipliée par ${Math.max(1, Math.min(4, Math.round(d.garde))) + 1} pour qui ouvre le coffre.`;
+
+export interface DessinDuBilan {
+  gardien: Gardien;
+  mot: string;
+  manche: number;
+  /** Le nom sous lequel le gagnant a ouvert le coffre. */
+  gagnant: string;
+  essais: number;
+  joueurs: number;
+  /** Le membre qui a fait le plus d'essais répondus, s'il est connu. */
+  acharne: { nom: string; essais: number } | null;
+  lettresAchetees: number;
+  /** La durée de la manche, en minutes. */
+  minutes: number;
+}
+
+/** Une durée en mots : « 12 minutes », « 3 heures 05 », « 2 jours 4 heures ». */
+export function dureeEnMots(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  if (m < 1) return "moins d'une minute";
+  if (m < 60) return `${m} minute${m > 1 ? "s" : ""}`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} heure${h > 1 ? "s" : ""}${m % 60 > 0 ? ` ${String(m % 60).padStart(2, "0")}` : ""}`;
+  const j = Math.floor(h / 24);
+  return `${j} jour${j > 1 ? "s" : ""}${h % 24 > 0 ? ` ${h % 24} heure${h % 24 > 1 ? "s" : ""}` : ""}`;
+}
+
+/** Le bilan d'une manche, posté quand son coffre s'ouvre : trois chiffres, puis qui a ouvert et qui a le plus essayé. */
+export function imageDuBilan(d: DessinDuBilan): Image {
+  const t = new Toile(L, IMAGE_DU_COFFRE.hauteur);
+  fondDuPanneau(t, 138, 340);
+  t.cases(casesDuGaulois(tenueDuGardien(d.gardien, "vaincu")), GAULOIS_LARGEUR, 8, 6, 2);
+  ecrire(t, GRANDE, 118, 12, "Le bilan", OR, 3, OR_SOMBRE);
+  ecrire(t, PETITE, 118, 44, `Manche ${d.manche} · ${FICHES_DES_GARDIENS[d.gardien].nom} est vaincu`, GRIS, 2);
+  let x = 118;
+  for (const lettre of d.mot.slice(0, 10)) {
+    t.r(x, 70, 30, 42, OR);
+    t.r(x, 70, 30, 3, OR_CLAIR);
+    t.r(x, 109, 30, 3, OR_SOMBRE);
+    ecrire(t, GRANDE, x + 8, 80, lettre, "#2A1608", 3);
+    x += 33;
+  }
+  const cases = [
+    { chiffre: enMilliers(d.essais), mot: d.essais > 1 ? "essais" : "essai" },
+    { chiffre: enMilliers(d.joueurs), mot: "villageois" },
+    { chiffre: enMilliers(d.lettresAchetees), mot: d.lettresAchetees > 1 ? "lettres vendues" : "lettre vendue" },
+  ];
+  cases.forEach((c, i) => {
+    const cx = 14 + i * 200;
+    t.r(cx, 156, 192, 84, CASE);
+    t.r(cx, 156, 192, 3, CASE_BORD);
+    t.r(cx, 237, 192, 3, OR);
+    centrer(t, PETITE, cx + 96, 170, c.chiffre, OR, 6);
+    centrer(t, PETITE, cx + 96, 214, c.mot, GRIS, 3);
+  });
+  ecrire(t, PETITE, 14, 262, `Ouvert par ${raccourci(PETITE, d.gagnant, 3, 200)} en ${dureeEnMots(d.minutes)}`, OR_CLAIR, 3);
+  if (d.acharne) ecrire(t, PETITE, 14, 296, `Le plus acharné : ${raccourci(PETITE, d.acharne.nom, 3, 200)}, ${d.acharne.essais} essai${d.acharne.essais > 1 ? "s" : ""}`, BLANC, 3);
+  ecrire(t, PETITE, 14, 362, "Un nouveau mot est sous clé : /coffre", GRIS, 3);
+  return t.image();
+}
+
+/** Le bilan, dit en mots. */
+export const decrireLeBilan = (d: DessinDuBilan): string =>
+  `Bilan de la manche ${d.manche} : le mot « ${d.mot} », gardé par ${FICHES_DES_GARDIENS[d.gardien].nom.toLowerCase()}, a été trouvé par ${d.gagnant} en ${dureeEnMots(d.minutes)}. ${enMilliers(d.essais)} essai${d.essais > 1 ? "s" : ""}, ${enMilliers(d.joueurs)} villageois, ${enMilliers(d.lettresAchetees)} lettre${d.lettresAchetees > 1 ? "s" : ""} achetée${d.lettresAchetees > 1 ? "s" : ""}.${d.acharne ? ` Le plus acharné : ${d.acharne.nom}, ${d.acharne.essais} essai${d.acharne.essais > 1 ? "s" : ""}.` : ""}`.slice(0, 1024);
+
+export const pngDuTableau = (d: DessinDuTableau): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDuTableau(d));
+export const pngDeLAide = (d: DessinDeLAide): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDeLAide(d));
+export const pngDeLAlerte = (d: DessinDeLAlerte): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDeLAlerte(d));
+export const pngDuBilan = (d: DessinDuBilan): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDuBilan(d));

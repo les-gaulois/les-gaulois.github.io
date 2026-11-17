@@ -73,7 +73,7 @@ import { familierDe } from "./familiers/index.ts";
 import { banniereParId, dessinDeLaBanniere, type Banniere } from "./bannieres/index.ts";
 import { sceneDuGaulois, type Scene } from "./scene.ts";
 import { FEU_COMMAND, FEU_FILE, MONDE_PATH, parseMonde, releveEnMots, reponseDuFeu, type MondeLu } from "./feu.ts";
-import { COFFRE_COMMAND_NAME, coffreCommand, DRUIDE_MODELE, JETONS_MAX, PERCEURS_COMMAND_NAME, perceursCommand, type Tour } from "./coffre.ts";
+import { AIDE_COMMAND_NAME, aideCommand, COFFRE_COMMAND_NAME, coffreCommand, DRUIDE_MODELE, INDICE_COMMAND_NAME, indiceCommand, INDICES_COMMAND_NAME, indicesCommand, JETONS_MAX, PERCEURS_COMMAND_NAME, perceursCommand, type Tour } from "./coffre.ts";
 
 /** Le nom de la commande, tel que le joueur la tape. `definitions.ts` la décrit ; la fonction la crée sur le serveur du clan (`inscription.ts`). */
 export const COMMAND_NAME = "code";
@@ -1399,6 +1399,9 @@ async function discordRoute(req: Request, deps: Deps): Promise<Response> {
   if ((interaction["type"] === 2 || interaction["type"] === 4) && name === CONCOURS_COMMAND_NAME) return concoursCommand(interaction, deps);
   if (interaction["type"] === 2 && name === COFFRE_COMMAND_NAME) return coffreCommand(interaction, deps);
   if (interaction["type"] === 2 && name === PERCEURS_COMMAND_NAME) return perceursCommand(interaction, deps);
+  if (interaction["type"] === 2 && name === INDICES_COMMAND_NAME) return indicesCommand(interaction, deps);
+  if (interaction["type"] === 2 && name === INDICE_COMMAND_NAME) return indiceCommand(interaction, deps);
+  if (interaction["type"] === 2 && name === AIDE_COMMAND_NAME) return aideCommand(interaction, deps);
   if (data && typeof name === "string" && ROBOT_COMMANDS.has(name) && (interaction["type"] === 2 || interaction["type"] === 4)) return robotRoute(name, interaction, data, deps);
   if (interaction["type"] !== 2 || name !== COMMAND_NAME) return ephemeral(MESSAGES.unknown);
 

@@ -13,7 +13,7 @@ import {
   type MancheDuCoffre,
   COFFRE_MESSAGES,
   COFFRE_OPTION,
-  COFFRE_SALON,
+  COFFRE_SALON_ID,
   ENVOIS_MAX,
   ENVOI_ATTENTE_MS,
   estLeSalonDuCoffre,
@@ -228,6 +228,10 @@ describe("ce que le salon lit", () => {
     // La cagnotte multipliée par le serveur selon la garde : le message dit la cagnotte, le multiplicateur et la garde.
     expect(messageDuCoffre({ ...base, mise: 10, cagnotte: 0, gain: 360, fois: 3, garde: 2 })["content"]).toContain("Il remporte 360 statères : la cagnotte de 120, multipliée par 3 face à un gardien à 2 sur 4 de garde.");
     expect(messageDuCoffre({ ...base, mise: 10, cagnotte: 0, gain: 360, fois: 3 })["content"]).toContain("la cagnotte de 120, multipliée par 3.");
+    // Les lettres achetées sont gagnées sans être multipliées : 120 de mises fois 3, plus 150 de lettres.
+    expect(messageDuCoffre({ ...base, mise: 10, cagnotte: 0, gain: 510, fois: 3, garde: 2, lettres: 150 })["content"]).toContain("Il remporte 510 statères : les 120 statères de mises, multipliés par 3 face à un gardien à 2 sur 4 de garde, et les 150 statères des lettres achetées.");
+    // Une cagnotte faite des seules lettres : rien n'est multiplié.
+    expect(messageDuCoffre({ ...base, mise: 10, cagnotte: 0, gain: 150, fois: 3, lettres: 150 })["content"]).toContain("Il remporte la cagnotte : 150 statères.");
     // Une garde de 1 à 4 : la cagnotte fois 2 à fois 5.
     expect(FOIS_PAR_GARDE).toEqual([2, 3, 4, 5]);
     expect(MISE_DU_COFFRE).toBe(10);
@@ -385,7 +389,8 @@ const interaction = (message: string, extra: Record<string, unknown> = {}): Reco
   application_id: APP,
   token: TOKEN,
   guild_id: GUILD,
-  channel: { id: "444444444444444444", type: 0, name: "coffre-du-druide" },
+  channel_id: COFFRE_SALON_ID,
+  channel: { id: COFFRE_SALON_ID, type: 0, name: "coffre-du-druide" },
   member: { nick: "Jod", user: { id: JOUEUR, username: "jod" } },
   data: { name: "coffre", options: [{ name: "message", type: 3, value: message }] },
   ...extra,
@@ -410,18 +415,18 @@ describe("/coffre", () => {
     expect(m.calls.claude).toEqual([]);
   });
 
-  it("ne joue que dans le salon du coffre, quel que soit ce qui décore son nom", async () => {
-    expect(estLeSalonDuCoffre({ type: 0, name: COFFRE_SALON })).toBe(true);
-    expect(estLeSalonDuCoffre({ type: 0, name: String.fromCodePoint(0x1f5dd, 0x3003) + "Coffre-du-Druide" })).toBe(true);
-    expect(estLeSalonDuCoffre({ type: 0, name: "général" })).toBe(false);
-    expect(estLeSalonDuCoffre({ type: 0, name: "coffre" })).toBe(false);
-    // Un fil (11) au bon nom, que tout membre peut créer, ne compte pas.
-    expect(estLeSalonDuCoffre({ type: 11, name: COFFRE_SALON })).toBe(false);
-    expect(estLeSalonDuCoffre({ name: COFFRE_SALON })).toBe(false);
+  it("ne joue que dans le salon du coffre, reconnu à son numéro et jamais à son nom", async () => {
+    expect(COFFRE_SALON_ID).toBe("1571987729095467049");
+    expect(estLeSalonDuCoffre({ channel_id: COFFRE_SALON_ID })).toBe(true);
+    // Un autre salon, même au nom du jeu, et un fil ouvert dans le salon (il a son propre numéro) ne comptent pas.
+    expect(estLeSalonDuCoffre({ channel_id: "555555555555555555", channel: { id: "555555555555555555", type: 0, name: "coffre-du-druide" } })).toBe(false);
+    expect(estLeSalonDuCoffre({ channel: { id: COFFRE_SALON_ID } })).toBe(false);
+    expect(estLeSalonDuCoffre({})).toBe(false);
     expect(estLeSalonDuCoffre(undefined)).toBe(false);
+    expect(COFFRE_MESSAGES.wrongChannel).toContain(`<#${COFFRE_SALON_ID}>`);
     const m = monde({ rpc: { coffre_ouvrir: () => ouverture() } });
-    for (const channel of [{ id: "555555555555555555", type: 0, name: "général" }, { id: "555555555555555555", type: 11, name: COFFRE_SALON }, undefined]) {
-      expect(await corps(await coffreCommand(interaction("Bonjour druide", { channel }), m.deps))).toMatchObject({ type: 4, data: { content: COFFRE_MESSAGES.wrongChannel, flags: 64 } });
+    for (const channel_id of ["555555555555555555", undefined]) {
+      expect(await corps(await coffreCommand(interaction("Bonjour druide", { channel_id }), m.deps))).toMatchObject({ type: 4, data: { content: COFFRE_MESSAGES.wrongChannel, flags: 64 } });
     }
     await m.fini();
     expect(m.calls.rpc).toEqual([]);

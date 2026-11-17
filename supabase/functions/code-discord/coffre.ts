@@ -19,6 +19,11 @@
  * par le serveur) ; chaque essai met une mise dans une cagnotte, que le gagnant emporte ; /perceurs montre le podium de
  * la semaine ; le vendredi soir le gardien se méfie moins, le dimanche soir les essais sont doublés.
  *
+ * Depuis le 17 novembre 2026 (migration `20261117000700_coffre_lettre_tableau_bilan.sql`) : /indices montre le tableau
+ * entier au seul membre, /indice vend une lettre du mot (son prix entre dans la cagnotte, rien n'est créé), /help coffre
+ * explique le jeu en image, une image annonce la cagnotte qui passe un seuil, et une autre fait le bilan de chaque manche.
+ * Toutes les commandes du jeu ne jouent que dans un salon, reconnu à son numéro (`COFFRE_SALON_ID`).
+ *
  * Depuis la migration `20261116001700_coffre_mise_obligatoire.sql` (demande du pilote, 16 novembre 2026, après un coffre
  * ouvert sans que personne ait misé) : chaque essai coûte une mise, et il faut donc un compte validé avec son Gaulois.
  * Depuis `20261117000100_coffre_mise_dix_et_garde.sql` (choix du pilote, 17 novembre 2026), la mise est de 10 statères,
@@ -30,16 +35,29 @@
  * fonction. Sans clé, /coffre répond que le druide dort, et tout le reste du robot marche.
  */
 import {
+  decrireLAide,
+  decrireLAlerte,
   decrireLaVictoire,
+  decrireLeBilan,
   decrireLEssai,
   decrireLePalmares,
+  decrireLeTableau,
   FICHES_DES_GARDIENS,
   GARDIENS,
   HUMEURS,
+  INDICES_GARDES,
+  pngDeLAide,
+  pngDeLAlerte,
   pngDeLaVictoire,
   pngDeLEssai,
+  pngDuBilan,
   pngDuPalmares,
+  pngDuTableau,
   SOIRS,
+  type DessinDeLAide,
+  type DessinDeLAlerte,
+  type DessinDuBilan,
+  type DessinDuTableau,
   type Gardien,
   type Humeur,
   type Perceur,
@@ -57,21 +75,15 @@ export const COFFRE_OPTION = "message";
 /** /perceurs : le podium de la semaine. */
 export const PERCEURS_COMMAND_NAME = "perceurs";
 /**
- * Le salon du jeu (demande du pilote, 16 novembre 2026 : « uniquement sur un seul salon ») : /coffre ne joue que dans un
- * salon dont le nom contient ces mots. Un émoji ou un signe devant le nom ne gêne pas. Ailleurs, le membre est renvoyé
- * vers ce salon, à lui seul, et rien n'est demandé au serveur ni à Claude.
+ * Le salon du jeu (demandes du pilote : « uniquement sur un seul salon », 16 novembre 2026, puis, le 17, « utilisables
+ * UNIQUEMENT dans ce salon », avec son numéro, pour toutes les commandes du coffre) : /coffre, /indices, /indice,
+ * /perceurs et /help coffre ne jouent que là. Ailleurs, le membre est renvoyé vers ce salon, à lui seul, et rien n'est
+ * demandé au serveur ni à Claude. Le numéro d'un salon n'est pas un secret : tout membre du serveur peut le lire.
  */
-export const COFFRE_SALON = "coffre-du-druide";
+export const COFFRE_SALON_ID = "1571987729095467049";
 
-/**
- * Ce salon est-il celui du jeu ? Discord donne le nom et la sorte du salon avec chaque commande. Seul un salon écrit
- * ordinaire compte (sorte 0) : un fil, dont n'importe quel membre choisit le nom, ne compte jamais.
- */
-export const estLeSalonDuCoffre = (channel: unknown): boolean => {
-  const salon = record(channel);
-  const nom = salon?.["name"];
-  return salon?.["type"] === 0 && typeof nom === "string" && plier(nom).includes(COFFRE_SALON);
-};
+/** Cette commande vient-elle du salon du jeu ? Discord donne le numéro du salon avec chaque commande ; un fil a le sien. */
+export const estLeSalonDuCoffre = (interaction: unknown): boolean => record(interaction)?.["channel_id"] === COFFRE_SALON_ID;
 
 /** Ce qu'un membre peut écrire au druide, en signes : la limite de l'option, que la fonction vérifie de nouveau. */
 export const MESSAGE_MIN = 2;
@@ -295,7 +307,7 @@ export function parseManche(value: unknown): MancheDuCoffre | null {
     gardien: estGardien(gardien) ? gardien : "druide",
     longueurDite: manche["longueur_dite"] === true,
     lettres: placesValides(manche["lettres"], mot.length),
-    indices: textes(manche["indices"]).slice(0, 6),
+    indices: textes(manche["indices"]).slice(0, INDICES_GARDES),
   };
 }
 
@@ -527,7 +539,7 @@ export const PERCEURS_FILE = "perceurs.png";
  */
 export const COFFRE_MESSAGES = {
   wrongPlace: "Le coffre est gardé au village : tapez /coffre dans le serveur Discord du clan.",
-  wrongChannel: `Le gardien ne quitte pas sa clairière : venez lui parler dans le salon « ${COFFRE_SALON} ».`,
+  wrongChannel: `Le gardien ne quitte pas sa clairière : tout le jeu du coffre se passe dans le salon <#${COFFRE_SALON_ID}>.`,
   short: `Parlez au gardien, villageois : un message de ${MESSAGE_MIN} à ${MESSAGE_MAX} signes.`,
   down: "Le gardien fait la sourde oreille pour l'instant. Réessayez dans un moment.",
   asleep: "Le gardien ronfle au pied de son chêne : le jeu n'est pas ouvert.",
@@ -543,6 +555,11 @@ export const COFFRE_MESSAGES = {
   speechless: "Le gardien en reste sans voix.",
   tooLate: "Trop tard, villageois : un autre venait d'ouvrir le coffre. Un nouveau mot est déjà sous clé.",
   noWinner: "Aucun coffre n'a cédé cette semaine. Le premier villageois à en ouvrir un monte sur la plus haute marche.",
+  noRound: "Le gardien n'a pas encore de mot sous clé : la manche commence au premier villageois qui lui parle, avec /coffre.",
+  soldOut: "Le gardien a vendu ses trois lettres de la manche : il n'en cède plus. Il reste la ruse, avec /coffre.",
+  tooFew: "Il reste trop peu de lettres cachées : le gardien ne vend pas son mot entier. À vous de le deviner, avec /coffre.",
+  letterShort: "Votre bourse est trop légère pour cette lettre. Les statères viennent des points que vous rapportez au clan.",
+  letterNoStake: "Le gardien ne vend ses lettres qu'aux villageois du site : il faut un compte validé, avec votre Gaulois : https://les-gaulois.github.io/village",
 };
 
 /** Ce que /coffre répond, à lui seul, à qui le serveur refuse un essai. */
@@ -591,6 +608,8 @@ export interface Tirage {
   fois?: number;
   /** La garde du gardien que le serveur a retenue pour ce multiplicateur, de 1 à 4 ; absente s'il ne l'a pas dite. */
   garde?: number | null;
+  /** Ce que les lettres achetées de la manche avaient mis dans la cagnotte : gagné, mais pas multiplié. */
+  lettres?: number;
 }
 
 /**
@@ -601,10 +620,16 @@ export function messageDuCoffre(t: Tirage, image: string | null = null): Json {
   const lignes = [`> **${sansForme(t.nom)}** : ${sansForme(t.message)}`, `**${FICHES_DES_GARDIENS[t.gardien].nom}** : ${t.reponse}`];
   if (t.gagne !== null) {
     const fois = t.fois ?? 1;
+    // Les lettres achetées sont gagnées sans être multipliées : gain = mises fois le multiplicateur, plus les lettres.
+    const lettres = Math.max(0, t.lettres ?? 0);
+    const mises = Math.round((t.gain - lettres) / fois);
+    const face = t.garde ? ` face à un gardien à ${t.garde} sur ${FOIS_PAR_GARDE.length} de garde` : "";
     const cagnotte =
       t.gain > 0
-        ? fois > 1
-          ? ` Il remporte ${t.gain} statères : la cagnotte de ${Math.round(t.gain / fois)}, multipliée par ${fois}${t.garde ? ` face à un gardien à ${t.garde} sur ${FOIS_PAR_GARDE.length} de garde` : ""}.`
+        ? fois > 1 && mises > 0
+          ? lettres > 0
+            ? ` Il remporte ${t.gain} statères : les ${mises} statères de mises, multipliés par ${fois}${face}, et les ${lettres} statères des lettres achetées.`
+            : ` Il remporte ${t.gain} statères : la cagnotte de ${mises}, multipliée par ${fois}${face}.`
           : ` Il remporte la cagnotte : ${t.gain} statères.`
         : t.cagnotte > 0
           ? ` La cagnotte de ${t.cagnotte} statères reste dans le coffre : pour la gagner, il faut un compte validé sur le site, avec son Gaulois.`
@@ -707,7 +732,7 @@ async function passerLeRole(champion: unknown, ancien: unknown, deps: CoffreDeps
 function tableauApres(value: unknown, mot: string, secours: Tableau): Tableau {
   const lu = record(value);
   if (!lu) return secours;
-  return { mot, longueurDite: lu["longueur_dite"] === true, lettres: placesValides(lu["lettres"], mot.length), indices: textes(lu["indices"]).slice(0, 6) };
+  return { mot, longueurDite: lu["longueur_dite"] === true, lettres: placesValides(lu["lettres"], mot.length), indices: textes(lu["indices"]).slice(0, INDICES_GARDES) };
 }
 
 /** La suite d'un essai, après « réfléchit… » : le mot s'il en faut un, la réponse du gardien, puis le verdict du serveur. */
@@ -793,6 +818,7 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       gain,
       fois: Math.max(1, entier(clos["fois"]) ?? 1),
       garde: entier(clos["garde"]),
+      lettres: entier(clos["lettres"]) ?? 0,
     };
     // L'image de la scène : si son dessin échoue, la réponse part en texte seul.
     let image: { png: Uint8Array<ArrayBuffer>; description: string } | null = null;
@@ -819,7 +845,11 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       deps.log(`coffre : image non dessinée (${e instanceof Error ? e.message : String(e)})`);
     }
     await repondre(messageDuCoffre(tirage, image?.description ?? null), image ? [{ name: COFFRE_FILE, type: "image/png", bytes: image.png }] : undefined);
+    // La mise vient-elle de faire passer un seuil à la cagnotte ? Le salon l'apprend par une image.
+    if (!gagne) await alerterLaCagnotte(interaction, cagnotte - tirage.mise, cagnotte, { gardien: manche.gardien, tenue: etat.tenue, garde: palierDuDruide(etat.niveau, manche.essais, etat.soir) + 1 }, deps);
     if (gagne) {
+      // Le bilan de la manche, avant le vide qui la sépare de la suivante.
+      await posterLeBilan(interaction, manche, numero, joueur.nom, deps);
       // Le salon repart propre pour la manche suivante. Si ce message ne part pas, le jeu continue sans lui.
       if (isId(appId) && typeof token === "string" && /^[A-Za-z0-9._-]{20,500}$/.test(token)) await deps.webhook("POST", `/webhooks/${appId}/${token}`, { body: separateurDeManche(numero + 1) });
       await passerLeRole(clos["champion"], clos["ancien_champion"], deps);
@@ -840,7 +870,7 @@ export async function coffreCommand(interaction: Json, deps: CoffreDeps): Promis
   const user = record(membre?.["user"]);
   const id = user?.["id"];
   if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId || !user || user["bot"] === true || !isId(id)) return prive(COFFRE_MESSAGES.wrongPlace);
-  if (!estLeSalonDuCoffre(interaction["channel"])) return prive(COFFRE_MESSAGES.wrongChannel);
+  if (!estLeSalonDuCoffre(interaction)) return prive(COFFRE_MESSAGES.wrongChannel);
   const { message, mise } = optionsDuCoffre(record(interaction["data"]));
   if (signes(message) < MESSAGE_MIN || signes(message) > MESSAGE_MAX) return prive(COFFRE_MESSAGES.short);
   if (!deps.claude) return prive(COFFRE_MESSAGES.asleep);
@@ -887,7 +917,8 @@ export function semaineEnMots(depuis: unknown): string | null {
 
 /** /perceurs : les trois membres qui ont ouvert le plus de coffres depuis lundi, en image, devant tout le salon. */
 export async function perceursCommand(interaction: Json, deps: Pick<Deps, "guildId" | "rpc" | "log">): Promise<Response> {
-  if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId) return prive(COFFRE_MESSAGES.wrongPlace);
+  const refus = horsDuSalon(interaction, deps);
+  if (refus) return refus;
   const lu = await deps.rpc("coffre_palmares", {});
   if (!lu || lu["ok"] !== true) return prive(COFFRE_MESSAGES.down);
   const perceurs = parsePerceurs(lu);
@@ -901,6 +932,226 @@ export async function perceursCommand(interaction: Json, deps: Pick<Deps, "guild
     return new Response(form);
   } catch (e) {
     deps.log(`perceurs : image non dessinée (${e instanceof Error ? e.message : String(e)})`);
+    return json({ type: 4, data: { content: sansForme(description), allowed_mentions: { parse: [] } } });
+  }
+}
+
+/* ---------- /indices, /indice, /help coffre, l'alerte de cagnotte et le bilan d'une manche ---------- */
+
+/** /indices : tout le tableau de la manche. /indice : acheter une lettre. /help coffre : l'aide du jeu. */
+export const INDICES_COMMAND_NAME = "indices";
+export const INDICE_COMMAND_NAME = "indice";
+export const AIDE_COMMAND_NAME = "help";
+export const AIDE_SOUS_COMMANDE = "coffre";
+export const TABLEAU_FILE = "tableau.png";
+export const AIDE_FILE = "aide-coffre.png";
+export const ALERTE_FILE = "cagnotte.png";
+export const BILAN_FILE = "bilan.png";
+
+/** Le prix des lettres à vendre dans une manche, dans l'ordre : le serveur décide ; ceci sert à l'aide. */
+export const PRIX_DES_LETTRES = [50, 100, 200] as const;
+
+/** Les sommes que la cagnotte annonce en les passant, en statères. */
+export const SEUILS_DE_CAGNOTTE = [500, 1000, 2000, 5000, 10000, 20000, 50000, 100000] as const;
+
+/** Le plus haut seuil que la cagnotte vient de passer, d'« avant » à « après », ou `null`. */
+export function seuilPasse(avant: number, apres: number): number | null {
+  let passe: number | null = null;
+  for (const seuil of SEUILS_DE_CAGNOTTE) if (avant < seuil && apres >= seuil) passe = seuil;
+  return passe;
+}
+
+/** Ce que `coffre_tableau` et `coffre_indice` rendent autour de la manche, lu sans rien croire. */
+export interface EtatDuTableau {
+  manche: MancheDuCoffre | null;
+  /** Le numéro de la manche ouverte (1 pour le premier coffre). */
+  numero: number;
+  niveau: number;
+  soir: Soir | null;
+  cagnotte: number;
+  essaisParMembre: number | null;
+  prixLettre: number | null;
+}
+
+export function parseTableau(value: unknown): EtatDuTableau | null {
+  const lu = record(value);
+  const numero = entier(lu?.["numero"]);
+  const niveau = entier(lu?.["niveau"]);
+  if (!lu || lu["ok"] !== true || numero === null || niveau === null) return null;
+  const soir = lu["soir"];
+  const prix = entier(lu["prix_lettre"]);
+  const essais = entier(lu["essais_par_membre"]);
+  return {
+    manche: parseManche(lu["manche"]),
+    numero,
+    niveau,
+    soir: estSoir(soir) ? soir : null,
+    cagnotte: entier(lu["cagnotte"]) ?? 0,
+    essaisParMembre: essais !== null && essais > 0 ? essais : null,
+    prixLettre: prix !== null && prix > 0 ? prix : null,
+  };
+}
+
+const dessinDuTableau = (etat: EtatDuTableau, manche: MancheDuCoffre, achat: DessinDuTableau["achat"] = null): DessinDuTableau => ({
+  gardien: manche.gardien,
+  tableau: { mot: manche.mot, longueurDite: manche.longueurDite, lettres: manche.lettres, indices: manche.indices },
+  manche: Math.max(1, etat.numero),
+  essais: manche.essais,
+  garde: palierDuDruide(etat.niveau, manche.essais, etat.soir) + 1,
+  cagnotte: etat.cagnotte,
+  prixLettre: etat.prixLettre,
+  achat,
+});
+
+/** Une réponse faite d'une image seule : devant tout le salon, ou pour le seul membre. */
+function reponseEnImage(png: Uint8Array<ArrayBuffer>, filename: string, description: string, seul: boolean): Response {
+  const form = new FormData();
+  form.append("payload_json", JSON.stringify({ type: 4, data: { attachments: [{ id: 0, filename, description: description.slice(0, 1024) }], allowed_mentions: { parse: [] }, ...(seul ? { flags: EPHEMERAL } : {}) } }));
+  form.append("files[0]", new Blob([png], { type: "image/png" }), filename);
+  return new Response(form);
+}
+
+/** Une commande du coffre ne joue que dans le serveur du clan, et dans le salon du jeu : sinon, ce qu'il faut répondre. */
+function horsDuSalon(interaction: Json, deps: Pick<Deps, "guildId">): Response | null {
+  if (deps.guildId === "" || interaction["guild_id"] !== deps.guildId) return prive(COFFRE_MESSAGES.wrongPlace);
+  if (!estLeSalonDuCoffre(interaction)) return prive(COFFRE_MESSAGES.wrongChannel);
+  return null;
+}
+
+/** /indices : tout le tableau de la manche, pour le seul membre qui le demande. Rien n'est écrit ni compté. */
+export async function indicesCommand(interaction: Json, deps: Pick<Deps, "guildId" | "rpc" | "log">): Promise<Response> {
+  const refus = horsDuSalon(interaction, deps);
+  if (refus) return refus;
+  const etat = parseTableau(await deps.rpc("coffre_tableau", {}));
+  if (!etat) return prive(COFFRE_MESSAGES.down);
+  if (!etat.manche) return prive(COFFRE_MESSAGES.noRound);
+  const dessin = dessinDuTableau(etat, etat.manche);
+  const description = decrireLeTableau(dessin);
+  try {
+    return reponseEnImage(await pngDuTableau(dessin), TABLEAU_FILE, description, true);
+  } catch (e) {
+    deps.log(`indices : image non dessinée (${e instanceof Error ? e.message : String(e)})`);
+    return prive(sansForme(description));
+  }
+}
+
+/** Ce que /indice répond, à lui seul, à qui le serveur refuse une lettre. */
+export function refusDeLaLettre(error: unknown, prix: unknown): string {
+  switch (error) {
+    case "no_round":
+      return COFFRE_MESSAGES.noRound;
+    case "sold_out":
+      return COFFRE_MESSAGES.soldOut;
+    case "too_few":
+      return COFFRE_MESSAGES.tooFew;
+    case "stake_short":
+      return entier(prix) ? `Votre bourse est trop légère : cette lettre coûte ${entier(prix)} statères. Les statères viennent des points que vous rapportez au clan.` : COFFRE_MESSAGES.letterShort;
+    case "no_stake":
+      return COFFRE_MESSAGES.letterNoStake;
+    default:
+      return refusDuCoffre(error);
+  }
+}
+
+type SuiteDeps = Pick<Deps, "webhook" | "log" | "sleep">;
+
+/** Un message de plus dans le salon, après la réponse : une image seule. S'il ne part pas, le jeu continue sans lui. */
+async function posterUneImage(interaction: Json, png: Uint8Array<ArrayBuffer>, filename: string, description: string, deps: SuiteDeps): Promise<void> {
+  const appId = interaction["application_id"];
+  const token = interaction["token"];
+  if (!isId(appId) || typeof token !== "string" || !/^[A-Za-z0-9._-]{20,500}$/.test(token)) return;
+  // Un message de suite envoyé avant que Discord ait reçu la réponse à la commande est refusé (404) : on réessaie.
+  for (let envoi = 1; envoi <= ENVOIS_MAX; envoi++) {
+    const res = await deps.webhook("POST", `/webhooks/${appId}/${token}`, {
+      body: { attachments: [{ id: 0, filename, description: description.slice(0, 1024) }], allowed_mentions: { parse: [] } },
+      files: [{ name: filename, type: "image/png", bytes: png }],
+    });
+    if (res && res.status < 500 && res.status !== 404) return;
+    if (envoi < ENVOIS_MAX) await deps.sleep(ENVOI_ATTENTE_MS);
+  }
+  deps.log(`coffre : image ${filename} non postée`);
+}
+
+/** L'alerte de cagnotte : si la mise ou l'achat vient de lui faire passer un seuil, une image le dit au salon. */
+async function alerterLaCagnotte(interaction: Json, avant: number, apres: number, dessin: Omit<DessinDeLAlerte, "seuil" | "cagnotte">, deps: SuiteDeps): Promise<void> {
+  const seuil = seuilPasse(avant, apres);
+  if (seuil === null) return;
+  try {
+    const alerte = { ...dessin, seuil, cagnotte: apres };
+    await posterUneImage(interaction, await pngDeLAlerte(alerte), ALERTE_FILE, decrireLAlerte(alerte), deps);
+  } catch (e) {
+    deps.log(`coffre : alerte de cagnotte non postée (${e instanceof Error ? e.message : String(e)})`);
+  }
+}
+
+/** Le bilan de la manche qui vient de finir, lu au serveur et posté en image. Sans lui, le jeu continue. */
+async function posterLeBilan(interaction: Json, manche: MancheDuCoffre, numero: number, gagnant: string, deps: SuiteDeps & Pick<Deps, "rpc">): Promise<void> {
+  try {
+    const lu = await deps.rpc("coffre_bilan", { p_manche: manche.id });
+    const essais = entier(lu?.["essais"]);
+    const joueurs = entier(lu?.["joueurs"]);
+    if (!lu || lu["ok"] !== true || essais === null || joueurs === null || essais === 0) return;
+    const acharne = record(lu["acharne"]);
+    const fois = entier(acharne?.["essais"]);
+    const bilan: DessinDuBilan = {
+      gardien: manche.gardien,
+      mot: manche.mot,
+      manche: numero,
+      gagnant,
+      essais,
+      joueurs,
+      acharne: acharne && typeof acharne["nom"] === "string" && fois !== null && fois > 0 ? { nom: nomPropre(acharne["nom"]), essais: fois } : null,
+      lettresAchetees: entier(lu["lettres_achetees"]) ?? 0,
+      minutes: entier(lu["minutes"]) ?? 0,
+    };
+    await posterUneImage(interaction, await pngDuBilan(bilan), BILAN_FILE, decrireLeBilan(bilan), deps);
+  } catch (e) {
+    deps.log(`coffre : bilan non posté (${e instanceof Error ? e.message : String(e)})`);
+  }
+}
+
+/**
+ * /indice : acheter une lettre du mot (idée choisie par le pilote, 17 novembre 2026). Le serveur tire la lettre, prend son
+ * prix dans la bourse du membre et le verse dans la cagnotte ; le salon voit le tableau, avec le nom de l'acheteur. Ce
+ * prix est gagné avec la cagnotte, mais le serveur ne le multiplie pas : seules les mises le sont.
+ */
+export async function indiceCommand(interaction: Json, deps: Pick<Deps, "guildId" | "rpc" | "webhook" | "background" | "log" | "sleep">): Promise<Response> {
+  const refus = horsDuSalon(interaction, deps);
+  if (refus) return refus;
+  const membre = record(interaction["member"]);
+  const user = record(membre?.["user"]);
+  const id = user?.["id"];
+  if (!user || user["bot"] === true || !isId(id)) return prive(COFFRE_MESSAGES.wrongPlace);
+  const nom = nomPropre([membre?.["nick"], user["global_name"], user["username"]].find((n): n is string => typeof n === "string" && n.trim() !== "") ?? "");
+  const lu = await deps.rpc("coffre_indice", { p_discord_id: id, p_nom: nom });
+  if (!lu) return prive(COFFRE_MESSAGES.down);
+  if (lu["ok"] !== true) return prive(refusDeLaLettre(lu["error"], lu["prix"]));
+  const etat = parseTableau(lu);
+  const place = entier(lu["place"]);
+  const prix = entier(lu["prix"]);
+  if (!etat || !etat.manche || place === null || prix === null) return prive(COFFRE_MESSAGES.down);
+  const dessin = dessinDuTableau(etat, etat.manche, { nom, place, prix });
+  const description = decrireLeTableau(dessin);
+  deps.background(alerterLaCagnotte(interaction, etat.cagnotte - prix, etat.cagnotte, { gardien: etat.manche.gardien, tenue: lireTenue(lu["tenue"]), garde: dessin.garde }, deps));
+  try {
+    return reponseEnImage(await pngDuTableau(dessin), TABLEAU_FILE, description, false);
+  } catch (e) {
+    deps.log(`indice : image non dessinée (${e instanceof Error ? e.message : String(e)})`);
+    return json({ type: 4, data: { content: sansForme(description), allowed_mentions: { parse: [] } } });
+  }
+}
+
+/** /help coffre : l'aide du jeu en image, devant tout le salon. Le nombre d'essais par jour vient du serveur, s'il répond. */
+export async function aideCommand(interaction: Json, deps: Pick<Deps, "guildId" | "rpc" | "log">): Promise<Response> {
+  const refus = horsDuSalon(interaction, deps);
+  if (refus) return refus;
+  const etat = parseTableau(await deps.rpc("coffre_tableau", {}));
+  const aide: DessinDeLAide = { mise: MISE_DU_COFFRE, prixDesLettres: PRIX_DES_LETTRES, essais: etat?.essaisParMembre ?? null };
+  const description = decrireLAide(aide);
+  try {
+    return reponseEnImage(await pngDeLAide(aide), AIDE_FILE, description, false);
+  } catch (e) {
+    deps.log(`aide du coffre : image non dessinée (${e instanceof Error ? e.message : String(e)})`);
     return json({ type: 4, data: { content: sansForme(description), allowed_mentions: { parse: [] } } });
   }
 }

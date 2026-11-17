@@ -150,5 +150,19 @@ export const COFFRE_COMMAND = {
 /** /perceurs (« Le coffre du druide ») : le podium de la semaine, en image. Son nom est celui qu'attend `coffre.ts`. */
 export const PERCEURS_COMMAND = { name: "perceurs", type: 1, description: "Le podium de la semaine : les villageois qui ont fait céder le plus de coffres" } as const;
 
+/** /indices : tout le tableau de la manche du coffre, pour le seul membre qui le demande. */
+export const INDICES_COMMAND = { name: "indices", type: 1, description: "Coffre du druide : tout le tableau de la manche, ses lettres et tous ses indices" } as const;
+
+/** /indice : acheter une lettre du mot du coffre. Le prix est dit ici, puisqu'il sort de la bourse sans autre question. */
+export const INDICE_COMMAND = { name: "indice", type: 1, description: "Coffre du druide : acheter une lettre du mot. 50, 100 puis 200 statères, dans la cagnotte" } as const;
+
+/** /help coffre : l'aide du jeu, en image. D'autres sujets pourront s'ajouter en sous-commandes. */
+export const AIDE_COMMAND = {
+  name: "help",
+  type: 1,
+  description: "L'aide des jeux du village",
+  options: [{ type: 1, name: "coffre", description: "Le coffre du druide : comment jouer, et les commandes du jeu" }],
+} as const;
+
 /** Les commandes du serveur du clan : la fonction les crée ou les remet à jour, chacune à part (`inscription.ts`). */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND, COFFRE_COMMAND, PERCEURS_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND, COFFRE_COMMAND, PERCEURS_COMMAND, INDICES_COMMAND, INDICE_COMMAND, AIDE_COMMAND] as const;
