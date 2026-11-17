@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "ameliore",
+    "title": "Le replay et son fil dans un seul écran",
+    "body": "Sur un grand écran, le fil « Entre Gaulois » reste à droite du replay, à sa hauteur : tout se voit sans descendre dans la page.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "nouveau",
     "title": "Trois tenues gardées",
     "body": "Dans « Mon Gaulois », trois places gardent une tenue complète. « Garder ici » range celle qui est à l'écran ; un clic sur une tenue gardée la remet, et « Enregistrer ma tenue » la fait porter.",
