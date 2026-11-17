@@ -2,13 +2,16 @@ import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { motionAllowed } from "../../lib/fx/motion";
 import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, RARETES, casesDuGaulois, type Tenue } from "../../lib/gaulois";
+import { basePath } from "../../lib/compte/api";
 import type { Banniere, EtatDeLaBanniere } from "../../lib/village/bannieres";
+import type { FinitionDuRayon } from "../../lib/village/cartes";
 import { BANNIERE_HAUTEUR, BANNIERE_LARGEUR } from "../../lib/village/ecran-bannieres";
 import type { Familier } from "../../lib/village/familiers";
 import { casesDuLivre, pageDeLaCase, pageVoisine, pagesDuLivre, sensDuGeste, volVersLeDecor, type CaseDuLivre, type PlaceDuDecor } from "../../lib/village/livre-bannieres";
 import { Problem } from "../compte/common";
 import type { Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, peindre } from "./BoutiquePixels";
+import { CarteAnimee, RefletDeBloc } from "./CarteAnimee";
 import { CartesDeLaVitrine } from "./Vitrine";
 
 /**
@@ -113,9 +116,16 @@ export interface LivreDesBannieresProps {
   choisir: (id: string | null) => Promise<Issue<string | null>>;
   etatDe?: (id: string) => EtatDeLaBanniere;
   motDe?: (id: string) => string;
+  /**
+   * La finition de carte que le membre montre (mode « choix », rayon « Cartes ») : l'aperçu de sa fiche porte son reflet,
+   * et un aperçu de plus montre sa carte devant la bannière survolée. `null` : le reflet offert.
+   */
+  finition?: FinitionDuRayon | null;
+  /** D'autres aperçus sous le livre, pour ce qui est survolé (mode « boutique », avec `dessin`). */
+  apercus?: (vue: CaseDuLivre) => ComponentChildren;
 }
 
-export function LivreDesBannieres({ lib, dessin, mode = "choix", miennes, montree, nom = "Moi", tenue, familier, choisir, etatDe, motDe }: LivreDesBannieresProps) {
+export function LivreDesBannieres({ lib, dessin, mode = "choix", miennes, montree, nom = "Moi", tenue, familier, choisir, etatDe, motDe, finition = null, apercus }: LivreDesBannieresProps) {
   const enBoutique = mode === "boutique";
   // L'image d'une case : celle du dessin donné, sinon la vignette de la bannière, cadre compris.
   const image = useMemo(
@@ -469,16 +479,30 @@ export function LivreDesBannieres({ lib, dessin, mode = "choix", miennes, montre
           ) : (
             <div class="fiche-banniere">
               <Vignette image={image} id={vue} />
+              <RefletDeBloc finition={finition} />
               <span class="fiche-banniere-titre">Ses parties sous le tag</span>
             </div>
           )}
           <p class="livre-apercu-note">À la prochaine mise à jour du site, si votre pseudo est public.</p>
+        </figure>
+        <figure class="livre-apercu" data-testid="livre-apercu-carte">
+          <figcaption>Ma carte</figcaption>
+          <CarteAnimee finition={finition} tenue={tenue} fond={vue ? `--banniere:url("${basePath()}/bannieres/${vue}.png")` : undefined} classe="livre-apercu-carte" />
+          <p class="livre-apercu-note">Sur ma fiche, et en haut de l'accueil si je suis sur le podium de la semaine.</p>
         </figure>
         <figure class="livre-apercu">
           <figcaption>Dans la vitrine</figcaption>
           <CartesDeLaVitrine gaulois={maCarte} testid="livre-apercu-vitrine" label="Ma carte de la vitrine" />
         </figure>
       </div>
+      )}
+      {enBoutique && dessin && apercus && (
+        <div class="livre-apercus" data-essai={enEssai ? "" : undefined}>
+          <p class="livre-apercus-titre" data-testid="livre-apercu-nom">
+            {enEssai ? `Essai : « ${nomDe(vue)} »` : nomDe(vue)}
+          </p>
+          {apercus(vue)}
+        </div>
       )}
       <Problem message={probleme} />
       <p class="sr-only" role="status" data-testid="banniere-annonce">

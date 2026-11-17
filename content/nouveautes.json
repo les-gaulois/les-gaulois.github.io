@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "ameliore",
+    "title": "Le reflet de la carte sur la fiche",
+    "body": "Un reflet choisi au rayon Cartes brille aussi sur le premier bloc de la fiche du membre. Les livres des bannières et des cartes montrent ce que cela donne avant de choisir.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "nouveau",
     "title": "La carte du membre sur sa fiche",
     "body": "Sur la fiche d'un membre qui a créé son Gaulois, sa carte paraît en haut : son Gaulois devant sa bannière, avec la finition qu'il a choisie au rayon Cartes de la boutique.",

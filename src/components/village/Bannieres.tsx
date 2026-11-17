@@ -3,6 +3,7 @@ import { ServerError, basePath, call } from "../../lib/compte/api";
 import { motionAllowed } from "../../lib/fx/motion";
 import { ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../../lib/gaulois";
 import type { Banniere, EtatDeLaBanniere } from "../../lib/village/bannieres";
+import { finitionParId, type FinitionDuRayon } from "../../lib/village/cartes";
 import { adresseDansLaBoutique } from "../../lib/village/boutique-rayons";
 import type { MesBannieres, PochetteBannieresReponse } from "../../lib/village/contrat";
 import { sansCadre, type DecorDeBanniere } from "../../lib/village/decor-banniere";
@@ -856,6 +857,16 @@ export function SectionDesBannieres({
 export function MaBanniere({ actif, nom, tenue, familier }: { actif?: boolean | undefined; nom: string; tenue: Tenue; familier: Familier | null }) {
   const { etat, lire, choisir } = useBannieres({ leger: true });
   const [ouvert, setOuvert] = useState(false);
+  // La finition de carte qu'il montre (rayon « Cartes »), pour les aperçus du livre : lue quand le livre s'ouvre. De
+  // l'habillage : sans le rayon, ou en panne, les aperçus gardent le reflet offert.
+  const [finition, setFinition] = useState<FinitionDuRayon | null>(null);
+  useEffect(() => {
+    if (!ouvert) return;
+    call<unknown>("get_mes_cartes").then(
+      (reponse) => setFinition(finitionParId(typeof reponse === "object" && reponse !== null && typeof (reponse as { porte?: unknown }).porte === "string" ? (reponse as { porte: string }).porte : null)),
+      () => setFinition(null),
+    );
+  }, [ouvert]);
 
   useEffect(() => {
     void lire();
@@ -903,7 +914,7 @@ export function MaBanniere({ actif, nom, tenue, familier }: { actif?: boolean | 
         </span>
       </summary>
       {/* Le livre ne se dessine qu'une fois le pli ouvert. */}
-      {ouvert && <LivreDesBannieres lib={lib} miennes={miennes} montree={montree} nom={nom} tenue={tenue} familier={familier} choisir={choisir} />}
+      {ouvert && <LivreDesBannieres lib={lib} miennes={miennes} montree={montree} nom={nom} tenue={tenue} familier={familier} choisir={choisir} finition={finition} />}
     </details>
   );
 }

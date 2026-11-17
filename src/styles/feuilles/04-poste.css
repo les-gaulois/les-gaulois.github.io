@@ -667,6 +667,42 @@ footer h2 {
 .podium-carte[data-metal="aucun"] {
   --metal: #7d8fd0;
 }
+/* Le reflet de la carte sur le premier bloc de la fiche (src/pages/membres/[id].astro) : les deux feuilles d'un reflet,
+   étirées sur tout le bloc, entre la bannière et l'écriture (z-index négatif dans un bloc isolé). Rien n'y tourne tout
+   seul : le dessin ne suit que la souris, et un grand bloc n'est donc repeint que quand elle bouge. */
+.stage-avec-effet {
+  isolation: isolate;
+}
+.bloc-effet {
+  --px: 6px;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.75;
+}
+.bloc-effet .podium-carte {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  transform: none;
+  box-shadow: none;
+  will-change: auto;
+}
+.bloc-effet .podium-carte-face {
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.bloc-effet .podium-carte-face::after {
+  display: none;
+}
+.bloc-effet,
+.bloc-effet * {
+  animation: none !important;
+}
 /* La carte d'un membre sur sa fiche (CarteDeMembre.astro) : à droite de ses informations, trois pixels la case ; au
    milieu, au-dessus d'elles, sur téléphone. */
 .carte-membre {

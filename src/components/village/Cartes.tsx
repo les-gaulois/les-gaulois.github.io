@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ServerError, basePath, call } from "../../lib/compte/api";
 import { HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE } from "../../lib/fx/finitions-carte";
-import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, RARETES, TENUE_DE_DEPART, casesDuGaulois, type Tenue } from "../../lib/gaulois";
+import { RARETES, TENUE_DE_DEPART, type Tenue } from "../../lib/gaulois";
 import type { EtatDeLaBanniere } from "../../lib/village/bannieres";
 import { peindreLaVignette } from "../../lib/village/cartes-vignette";
 import { CARTES, finitionParId, lireMesCartes, refusDeCarte, type FinitionDuRayon, type IdDeFinition, type MesCartes } from "../../lib/village/cartes";
 import { manque, stateres } from "../../lib/village/ecran-boutique";
-import { monterLesCartes } from "../../scripts/cartes-mouvement";
 import { Problem, Success, messageOf } from "../compte/common";
 import { BANNIERE_CHOISIE } from "./Bannieres";
 import { Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
-import { MarqueDeRarete, Prix, peindre } from "./BoutiquePixels";
+import { MarqueDeRarete, Prix } from "./BoutiquePixels";
+import { CarteAnimee, RefletDeBloc } from "./CarteAnimee";
 import { LivreDesBannieres, type DessinDuLivre } from "./LivreDesBannieres";
 
 /**
@@ -29,33 +29,13 @@ const RARETES_DES_CARTES = ["commun", "peu-commun", "epique", "mystique", "legen
 /** La carte dressée dans le livre : un quart de sa largeur, au milieu, plus haute que large. */
 const PLACE_DE_LA_CARTE = { gauche: 0.375, largeur: 0.25, hauteurSurLargeur: HAUTEUR_DE_TOILE / LARGEUR_DE_TOILE };
 
-/** La carte dressée dans le livre : le Gaulois du membre devant sa bannière et la finition regardée, animée comme sur l'accueil. */
-function CarteDuLivre({ finition, tenue, fond }: { finition: FinitionDuRayon; tenue: Tenue; fond: string | undefined }) {
-  const racine = useRef<HTMLDivElement>(null);
-  const gaulois = useRef<HTMLCanvasElement>(null);
-  const cases = useMemo(() => casesDuGaulois(tenue), [tenue]);
+/** L'image fixe d'une finition, telle que le robot la poste sur Discord à l'achat : la carte sans le Gaulois, sur le fond marine. */
+function ImageDeLAnnonce({ finition }: { finition: FinitionDuRayon }) {
+  const toile = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    peindre(gaulois.current, GAULOIS_LARGEUR, GAULOIS_HAUTEUR, cases);
-  }, [cases, finition.id]);
-  // À chaque finition dressée, la carte est refaite (`key`) et son mouvement repart.
-  useEffect(() => (racine.current ? monterLesCartes(racine.current, { sonde: true }) : undefined), [finition.id]);
-  return (
-    <div ref={racine} class="livre-carte" aria-hidden="true">
-      <div class="podium-carte-case">
-        <div key={finition.id} class="podium-carte" data-metal="or" data-finition={finition.id} data-reflet={finition.animee ? undefined : ""}>
-          <span class="podium-carte-face" style={fond}>
-            <canvas class="podium-carte-fx" data-toile="fond" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
-            <i class="podium-carte-holo" />
-            <i class="podium-carte-eclat" />
-          </span>
-          <span class="podium-carte-gaulois" style={`--w:${GAULOIS_LARGEUR};--h:${GAULOIS_HAUTEUR};--e:0.78`}>
-            <canvas ref={gaulois} width={GAULOIS_LARGEUR} height={GAULOIS_HAUTEUR} />
-          </span>
-          <canvas class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
-        </div>
-      </div>
-    </div>
-  );
+    if (toile.current) peindreLaVignette(toile.current, finition, null);
+  }, [finition]);
+  return <canvas ref={toile} width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} class="pixels cartes-apercu-annonce" aria-hidden="true" />;
 }
 
 export function SectionDesCartes({ tenue, onSolde, onRefus }: { tenue: Tenue | null; onSolde: (reste: number) => void; onRefus: () => void }) {
@@ -138,13 +118,40 @@ export function SectionDesCartes({ tenue, onSolde, onRefus }: { tenue: Tenue | n
       },
       decor: (id) => {
         const f = finitionParId(id);
-        return f ? <CarteDuLivre finition={f} tenue={tenueVue} fond={fond} /> : null;
+        return f ? <CarteAnimee finition={f} tenue={tenueVue} fond={fond} classe="livre-carte" sonde /> : null;
       },
       parId: finitionParId,
       place: PLACE_DE_LA_CARTE,
     }),
     [imageDeBanniere, tenueVue, fond],
   );
+
+  /**
+   * Les aperçus sous le livre, comme ceux du livre des bannières : ce que la finition survolée donne sur la fiche du membre
+   * (le premier bloc, devant sa bannière : un reflet seulement) et l'image que le robot poste sur Discord à l'achat.
+   */
+  const apercus = (id: string | null) => {
+    const f = finitionParId(id);
+    if (!f) return null;
+    return (
+      <>
+        <figure class="livre-apercu" data-testid="carte-apercu-fiche">
+          <figcaption>Sur ma fiche</figcaption>
+          <div class="fiche-banniere">
+            {adresse ? <img src={adresse} alt="" width="124" height="80" /> : <span class="cartes-apercu-sans-banniere" />}
+            <RefletDeBloc finition={f} />
+            <span class="fiche-banniere-titre">Ses parties sous le tag</span>
+          </div>
+          <p class="livre-apercu-note">{f.animee ? "Une animation en pixels reste sur votre carte : le bloc de la fiche ne prend que les reflets." : "À la prochaine mise à jour du site, si votre pseudo est public."}</p>
+        </figure>
+        <figure class="livre-apercu" data-testid="carte-apercu-annonce">
+          <figcaption>Sur Discord, à l'achat</figcaption>
+          <ImageDeLAnnonce finition={f} />
+          <p class="livre-apercu-note">L'image fixe que le robot poste dans le salon des achats.</p>
+        </figure>
+      </>
+    );
+  };
 
   /** Dans le livre, toucher une finition ne fait que la montrer : rien ne part au serveur. */
   const voirDansLeLivre = (id: string | null): Promise<Issue<string | null>> => {
@@ -247,7 +254,7 @@ export function SectionDesCartes({ tenue, onSolde, onRefus }: { tenue: Tenue | n
 
       <div class="banniere-vitrine banniere-vitrine-livre" data-rarete={finition.rarete} data-testid="carte-vitrine" data-finition={finition.id} data-etat={etatVu}>
         <div class="banniere-vue">
-          <LivreDesBannieres mode="boutique" dessin={dessin} miennes={duLivre} montree={finition} tenue={tenueVue} familier={null} choisir={voirDansLeLivre} etatDe={etatDe} motDe={motDe} />
+          <LivreDesBannieres mode="boutique" dessin={dessin} apercus={apercus} miennes={duLivre} montree={finition} tenue={tenueVue} familier={null} choisir={voirDansLeLivre} etatDe={etatDe} motDe={motDe} />
         </div>
         <div class="banniere-fiche">
           <p class="banniere-famille">{finition.animee ? "Animation en pixels" : "Reflet holographique"}</p>

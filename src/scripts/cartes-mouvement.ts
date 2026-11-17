@@ -15,8 +15,9 @@ import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDe
  * Anime les cartes (`.podium-carte`) de cette racine. Rend de quoi tout arrêter : l'écran qui les retire l'appelle.
  * `sonde` : dans le livre de la boutique, la carte est dressée en relief et le navigateur la croit parfois hors de l'écran ;
  * sa place est alors remesurée, deux fois par seconde au plus, tant qu'elle est au repos pour cette seule raison.
+ * `immobile` : sans souris, pas de balancement (le reflet d'un grand bloc de fiche : rien à repeindre quand rien ne bouge).
  */
-export function monterLesCartes(racine: HTMLElement, { sonde = false }: { sonde?: boolean } = {}): () => void {
+export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile = false }: { sonde?: boolean; immobile?: boolean } = {}): () => void {
   const html = document.documentElement;
   const calme = matchMedia("(prefers-reduced-motion: reduce)");
   const toile = (el: HTMLElement, nom: string) => el.querySelector<HTMLCanvasElement>(`canvas[data-toile="${nom}"]`)?.getContext("2d") ?? null;
@@ -93,6 +94,9 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false }: { sonde?
         const r = (c.el.parentElement ?? c.el).getBoundingClientRect();
         tx = borne((souris[0] - (r.left + r.width / 2)) / (r.width * 1.6));
         ty = borne((souris[1] - (r.top + r.height / 2)) / (r.height * 1.2));
+      } else if (immobile) {
+        tx = 0;
+        ty = 0;
       } else {
         // Un balancement lent, décalé d'une carte à l'autre : un tour en une quinzaine de secondes.
         tx = Math.sin(t / 2600 + c.i * 1.3) * 0.45;

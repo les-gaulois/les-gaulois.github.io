@@ -7,3 +7,5 @@ import { monterLesCartes } from "./cartes-mouvement";
 
 // Le podium de l'accueil, ou la carte d'un membre sur sa fiche (CarteDeMembre.astro).
 for (const racine of document.querySelectorAll<HTMLElement>("[data-podium-cartes], [data-carte-membre]")) monterLesCartes(racine);
+// Le reflet d'un bloc de fiche : il ne suit que la souris, pour ne rien repeindre quand personne ne bouge.
+for (const racine of document.querySelectorAll<HTMLElement>("[data-carte-bloc]")) monterLesCartes(racine, { immobile: true });

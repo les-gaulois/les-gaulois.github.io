@@ -13,6 +13,7 @@ import { clan } from "../../../config/clan";
 import { banniereParId } from "../../../supabase/functions/code-discord/bannieres/index";
 import { BANNIERES_MEMBRES_FILE, bannieresDuCache } from "../../lib/bannieres-joueurs";
 import { FINITIONS_MEMBRES_FILE, finitionsDuCache } from "../../lib/finitions-joueurs";
+import { finitionParId } from "../../lib/village/cartes";
 import { portraitDuGaulois } from "../../lib/gaulois-site";
 import { loadCompagnonsDeFlamme, loadMemberGames, loadMemberResultsOnce, loadMembers, loadMeta, loadRecordsPersonnels, loadSeriesEnCours, loadSessionIndex } from "../../lib/data";
 import { fmtCount, fmtDate, fmtDateTime, fmtInt, fmtPct } from "../../lib/format";
@@ -92,6 +93,13 @@ const fond = banniere
 // et la finition qu'il montre, relevés avant la construction (src/lib/finitions-joueurs.ts). Sans Gaulois créé : pas de carte.
 const portraitDeCarte = portraitDuGaulois(member.publicId);
 const finitionDeCarte = member.publicId ? (finitionsDuCache(FINITIONS_MEMBRES_FILE, [member.publicId]).get(member.publicId) ?? null) : null;
+// Le reflet de sa carte sur le premier bloc de la fiche (demande du pilote, 17 novembre 2026 : « ajouter l'effet aux bannières
+// de la fiche ») : seulement un reflet, qui s'étire sans se déformer ; une animation en pixels est dessinée pour une carte en
+// hauteur et reste sur la carte. Un seul bloc, immobile sans la souris, sous l'écriture : docs/DESIGN.md, « Les cartes du podium ».
+const refletDuBloc = (() => {
+  const f = finitionParId(finitionDeCarte);
+  return f && !f.animee ? f.id : null;
+})();
 // Son utilité dans les parties à revoir (demande du pilote, 17 novembre 2026 : « l'utilité sur la fiche du membre, sa moyenne
 // et ses titres ») : sa ligne du classement « Les plus utiles » (src/lib/rejeu/utiles-site.ts), s'il y est. Le pseudo doit
 // désigner ce membre et lui seul : le classement est rangé par pseudo. Sans ligne : rien, ce n'est pas zéro.
@@ -190,7 +198,18 @@ const tiles = member.team
       </div>
     </PageHeader>
 
-    <section class={`stage stage-blue reveal${fond.classe}`} style={fond.style} data-banniere={fond.id} data-rarete={fond.rarete} aria-labelledby="member-stats-title" data-testid="member-stats">
+    <section class={`stage stage-blue reveal${fond.classe}${refletDuBloc ? " stage-avec-effet" : ""}`} style={fond.style} data-banniere={fond.id} data-rarete={fond.rarete} aria-labelledby="member-stats-title" data-testid="member-stats">
+      {/* Le reflet de sa carte, décoratif, entre la bannière et l'écriture. */}
+      {refletDuBloc && (
+        <span class="bloc-effet" data-carte-bloc aria-hidden="true" data-testid="member-stats-effet">
+          <span class="podium-carte" data-finition={refletDuBloc} data-reflet="">
+            <span class="podium-carte-face">
+              <i class="podium-carte-holo"></i>
+              <i class="podium-carte-eclat"></i>
+            </span>
+          </span>
+        </span>
+      )}
       <h2 id="member-stats-title" class="section-title">Ses parties sous le tag</h2>
       {
         !member.team ? (

@@ -6191,3 +6191,31 @@ button.tenue-gardee-remettre:disabled {
 .livre-carte .podium-carte {
   box-shadow: none;
 }
+
+/* Les aperçus des deux livres (bannières et cartes) : le reflet de la carte sur le bloc de la fiche, la carte du membre,
+   et l'image que le robot poste sur Discord. Dans un aperçu, le reflet se pose sur l'image de la bannière, sous le titre. */
+.fiche-banniere > .bloc-effet {
+  z-index: auto;
+  overflow: hidden;
+  border-radius: 0.25rem;
+}
+.cartes-apercu-sans-banniere {
+  display: block;
+  aspect-ratio: 124 / 80;
+  border-radius: 0.25rem;
+  background: linear-gradient(135deg, #0f46c4, #0b2169 75%);
+}
+.livre-apercu-carte {
+  --px: 2.2px;
+  padding: 0.5rem 0;
+}
+.livre-apercu-carte .podium-carte-case {
+  animation: none;
+}
+.cartes-apercu-annonce {
+  width: 6rem;
+  height: auto;
+  border-radius: 0.25rem;
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+
