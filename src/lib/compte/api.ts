@@ -74,6 +74,31 @@ export function supabase(): Promise<SupabaseClient> {
 }
 
 /** Appelle une fonction du serveur. Lève une ServerError au message en français si elle refuse. */
+/**
+ * Le nom de l'annonce du solde : le serveur vient de donner la bourse du compte (`solde`, dans sa réponse ou dans un de ses
+ * blocs), et la page le fait savoir. Le bandeau de « Mon Gaulois » le suit ainsi sans relire le serveur, quel que soit
+ * l'onglet qui a acheté, gravé ou ouvert. Rien n'est calculé ici : c'est le nombre du serveur, tel quel.
+ */
+export const SOLDE_ANNONCE = "gal:solde";
+
+/**
+ * Le solde que porte une réponse du serveur : son champ `solde`, ou celui d'un de ses blocs de premier niveau (la forge
+ * le range dans `forge`), s'il est un entier positif ou nul ; `null` sinon. Les listes sont écartées : une ligne d'une
+ * liste n'est pas la bourse du compte.
+ */
+export function soldeDeLaReponse(reponse: unknown): number | null {
+  if (reponse === null || typeof reponse !== "object" || Array.isArray(reponse)) return null;
+  const blocs = [reponse, ...Object.values(reponse).filter((v) => v !== null && typeof v === "object" && !Array.isArray(v))] as Record<string, unknown>[];
+  const solde = blocs.map((b) => b["solde"]).find((v) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0);
+  return typeof solde === "number" ? solde : null;
+}
+
+function annoncerLeSolde(reponse: unknown): void {
+  if (typeof window === "undefined") return;
+  const solde = soldeDeLaReponse(reponse);
+  if (solde !== null) window.dispatchEvent(new CustomEvent(SOLDE_ANNONCE, { detail: { solde } }));
+}
+
 export async function call<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
   const sb = await supabase();
   let response: Awaited<ReturnType<SupabaseClient["rpc"]>>;
@@ -86,6 +111,7 @@ export async function call<T>(fn: string, args: Record<string, unknown> = {}): P
   if (error) throw new ServerError(error.code === "42501" ? "not_signed_in" : "network");
   const result = data as ({ ok?: boolean; error?: string } & T) | null;
   if (result?.ok === false) throw new ServerError(result.error ?? "network");
+  annoncerLeSolde(result);
   return result as T;
 }
 

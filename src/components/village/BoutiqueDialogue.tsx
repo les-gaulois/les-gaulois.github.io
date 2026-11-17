@@ -1,12 +1,12 @@
 import { createContext, type ComponentChildren } from "preact";
 import { useContext, useEffect, useRef, useState } from "preact/hooks";
-import { OBJETS, vignetteDeLObjet, type Objet, type RareteDObjet as Rarete, type Vignette } from "../../lib/gaulois";
+import { OBJETS, RARETES_DES_OBJETS, vignetteDeLObjet, type Objet, type RareteDObjet as Rarete, type Vignette } from "../../lib/gaulois";
 import type { PochetteReponse, RefObjet } from "../../lib/village/contrat";
 import { stateres } from "../../lib/village/ecran-boutique";
 import { bandeDeLaPochette, type Rangee } from "../../lib/village/tambour";
 import { MarqueDeRarete, Pixels, Prix } from "./BoutiquePixels";
 import { DessinPochette } from "./Pochette";
-import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour, type RangeeVue } from "./Tambour";
+import { BoutonSon, Tambour, carillonSiVoulu, preparerLeSon, preparerLeSonSiVoulu, useSonDuTambour, type RangeeVue } from "./Tambour";
 
 /** Ce que rend un achat : le résultat du serveur, ou les mots de son refus. */
 export type Issue<T> = { ok: true; valeur: T } | { ok: false; message: string };
@@ -58,6 +58,22 @@ export function CaseMontree({ objet, rarete, vignette }: { objet: Objet; rarete:
       <span class="case-image">{vignette && <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelle} class="case-dessin" />}</span>
       <span class="case-nom">{objet.nom}</span>
       <MarqueDeRarete rarete={rarete} />
+    </div>
+  );
+}
+
+/**
+ * L'objet qu'on vient de recevoir (17 novembre 2026) : la même case, posée devant des rayons de la couleur de sa rareté,
+ * avec la note du tambour pour sa rareté si le son n'est pas coupé. La même scène pour un achat à la boutique et pour un
+ * palier du sentier ; les pochettes ont leur tambour, la fusion son moule. Les rayons tournent très lentement, et pas du
+ * tout quand les animations sont coupées. Décoratifs : le nom et la rareté sont écrits dans la case.
+ */
+export function ObjetRecu({ objet, rarete, vignette }: { objet: Objet; rarete: Rarete; vignette: Vignette | null }) {
+  useEffect(() => carillonSiVoulu(RARETES_DES_OBJETS[rarete].rang), [rarete]);
+  return (
+    <div class="objet-recu" data-rarete={rarete} data-testid="objet-recu">
+      <span class="objet-recu-rayons" aria-hidden="true" />
+      <CaseMontree objet={objet} rarete={rarete} vignette={vignette} />
     </div>
   );
 }
@@ -136,6 +152,8 @@ export function DialogueAchat({ objet, rarete, vignette, prix, solde, acheter, o
   const envoyer = async () => {
     setEtape("envoi");
     setRefus(null);
+    // Dans le clic : sinon certains navigateurs gardent muette la note de l'objet reçu.
+    preparerLeSonSiVoulu();
     const issue = await acheter();
     if (issue.ok) {
       setReste(issue.valeur);
@@ -147,7 +165,7 @@ export function DialogueAchat({ objet, rarete, vignette, prix, solde, acheter, o
   };
   return (
     <Dialogue titre={etape === "fait" ? `${objet.nom} est à vous` : refus ? "Achat impossible" : `Acheter ${objet.nom} ?`} etape={etape === "fait" ? "fait" : "confirmer"} occupe={etape === "envoi"} onFermer={onFermer} testid="dialogue-achat">
-      <CaseMontree objet={objet} rarete={rarete} vignette={vignette} />
+      {etape === "fait" ? <ObjetRecu objet={objet} rarete={rarete} vignette={vignette} /> : <CaseMontree objet={objet} rarete={rarete} vignette={vignette} />}
       {etape === "fait" ? (
         <>
           {reste !== null && <p class="boutique-dialogue-texte">Il vous reste {stateres(reste)}.</p>}

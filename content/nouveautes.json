@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-11-17",
+    "kind": "ameliore",
+    "title": "« Mon Gaulois » fait plus jeu",
+    "body": "Votre Gaulois se tient devant sa bannière et cligne des yeux. Un bandeau montre votre palier du sentier et votre bourse. Les cases ont du relief, et un objet reçu arrive devant des rayons.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
     "date": "2026-11-16",
     "kind": "nouveau",
     "title": "Le sentier des Gaulois",

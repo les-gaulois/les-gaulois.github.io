@@ -33,8 +33,10 @@ import {
 } from "../../lib/village/sentier";
 import { AlbumDePochette } from "./AlbumPochette";
 import { useBannieres } from "./Bannieres";
-import { CaseMontree, Dialogue, DialogueAchat, type Issue } from "./BoutiqueDialogue";
+import { CaseMontree, Dialogue, DialogueAchat, ObjetRecu, type Issue } from "./BoutiqueDialogue";
+import { preparerLeSonSiVoulu } from "./Tambour";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
+import { sansCadre } from "../../lib/village/decor-banniere";
 import { DESSINS_DES_MISSIONS, EPEE_DES_MISSIONS, casesDuChaudron, pochetteDeRarete, type DessinDuSentier } from "./SentierDessins";
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
@@ -142,18 +144,6 @@ function Decor({ decor }: { decor: DessinDuSentier }) {
       <span class="sentier-voile" aria-hidden="true" />
     </>
   );
-}
-
-/** Le cadre d'une bannière (celui de sa rareté, ou celui de la pochette) tient dans ses trois cases de bord. */
-const CADRE = 3;
-
-/** La bannière sans son cadre : le décor du sentier n'en garde que la toile. */
-function sansCadre(scene: { largeur: number; hauteur: number; cases: readonly string[] }): DessinDuSentier {
-  const largeur = scene.largeur - 2 * CADRE;
-  const hauteur = scene.hauteur - 2 * CADRE;
-  const cases: string[] = [];
-  for (let y = 0; y < hauteur; y++) cases.push(...scene.cases.slice((y + CADRE) * scene.largeur + CADRE, (y + CADRE) * scene.largeur + CADRE + largeur));
-  return { largeur, hauteur, cases };
 }
 
 /** La teinte du voile : la couleur moyenne de la bannière, très assombrie, en « r, g, b ». */
@@ -516,6 +506,8 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
   const raretes = ORDRE.filter((r) => sentier.paliers.some((p) => p.rarete === r));
 
   const prendre = async (palier: number) => {
+    // Dans le clic : sinon certains navigateurs gardent muette la note de l'objet reçu.
+    preparerLeSonSiVoulu();
     setOccupe(true);
     setProbleme(null);
     setReussite(null);
@@ -685,7 +677,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
 
       {fenetre?.kind === "palier" && recu && (
         <Dialogue titre={`Palier ${fenetre.recu.palier} : ${recu.fiche.nom}`} etape="fait" occupe={false} onFermer={() => setFenetre(null)} testid="dialogue-palier">
-          <CaseMontree objet={recu.fiche} rarete={recu.fiche.rarete} vignette={vignetteDeLObjet(recu.emplacement, recu.objet)} />
+          <ObjetRecu objet={recu.fiche} rarete={recu.fiche.rarete} vignette={vignetteDeLObjet(recu.emplacement, recu.objet)} />
           {fenetre.recu.objet.double && <p class="boutique-dialogue-texte">Un double : vous l'aviez déjà. Il se fond à la forge ou se vend au marché.</p>}
           <div class="boutique-dialogue-actions">
             <button type="button" class="btn btn-primary" onClick={() => void porter(fenetre.recu.objet)} data-testid="palier-porter">

@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "preact/hooks";
 import type { Objet, Tenue, Vignette } from "../../lib/gaulois";
+import { motionAllowed } from "../../lib/fx/motion";
 import { tabKeyTarget } from "../../lib/onglets";
+import type { DecorDeBanniere } from "../../lib/village/decor-banniere";
 import { exemplaires } from "../../lib/village/ecran-boutique";
 import { decrireLApercu, tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { motsDeLaPlaque } from "../../lib/village/ecran-forge";
@@ -21,25 +23,56 @@ import { MarqueDeRarete, PetitePlaque, Pixels, Prix, peindre } from "./BoutiqueP
  * (`data-familier`, « petit » ou « large »), et réduit la case d'un nombre entier de pixels quand il le faut. La scène qui
  * porte l'aperçu reçoit la même taille (`tailleDeLApercu`), pour se ranger autrement sur téléphone.
  */
-export function ApercuGaulois({ tenue, familier = null, class: classe = "" }: { tenue: Tenue; familier?: Familier | null; class?: string }) {
+export function ApercuGaulois({ tenue, familier = null, decor = null, class: classe = "" }: { tenue: Tenue; familier?: Familier | null; decor?: DecorDeBanniere | null; class?: string }) {
   const toile = useRef<HTMLCanvasElement>(null);
+  const fond = useRef<HTMLCanvasElement>(null);
   const grille = useMemo(() => apercuAvecFamilier(tenue, familier), [tenue, familier]);
   useEffect(() => peindre(toile.current, grille.largeur, grille.hauteur, grille.cases), [grille]);
+  useEffect(() => {
+    if (decor) peindre(fond.current, decor.largeur, decor.hauteur, decor.cases);
+  }, [decor]);
+  // Il cligne des yeux de temps en temps (17 novembre 2026) : le même dessin, les yeux clos, un instant. Rien d'autre ne
+  // change ; ni avec « réduire les animations », ni avec le bouton pause du site, ni dans un onglet caché.
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const clos = apercuAvecFamilier(tenue, familier, { yeuxFermes: true });
+    let rouvre = 0;
+    let attente = 0;
+    const cligner = (): void => {
+      if (!document.hidden && motionAllowed()) {
+        peindre(toile.current, clos.largeur, clos.hauteur, clos.cases);
+        rouvre = window.setTimeout(() => peindre(toile.current, grille.largeur, grille.hauteur, grille.cases), CLIGNEMENT.ferme);
+      }
+      attente = window.setTimeout(cligner, CLIGNEMENT.entre + Math.random() * CLIGNEMENT.hasard);
+    };
+    attente = window.setTimeout(cligner, CLIGNEMENT.entre);
+    return () => {
+      window.clearTimeout(attente);
+      window.clearTimeout(rouvre);
+    };
+  }, [grille, tenue, familier]);
   const taille = tailleDeLApercu(familier);
   return (
-    <canvas
-      ref={toile}
-      width={grille.largeur}
-      height={grille.hauteur}
-      class={`gaulois-apercu ${classe}`}
-      style={taille ? `--cases:${grille.largeur}` : undefined}
-      data-familier={taille ?? undefined}
-      role="img"
-      aria-label={decrireLApercu(tenue, familier)}
-      data-testid="gaulois-apercu"
-    />
+    <span class="gaulois-cadre" data-decor={decor ? "" : undefined} data-testid="gaulois-cadre">
+      {/* La bannière qu'il montre sur /gaulois, derrière lui : décorative, son nom est écrit à l'onglet « Mon Gaulois ». */}
+      {decor && <canvas ref={fond} width={decor.largeur} height={decor.hauteur} class="pixels gaulois-decor" aria-hidden="true" data-testid="gaulois-decor" />}
+      <canvas
+        ref={toile}
+        width={grille.largeur}
+        height={grille.hauteur}
+        class={`gaulois-apercu ${classe}`}
+        style={taille ? `--cases:${grille.largeur}` : undefined}
+        data-familier={taille ?? undefined}
+        role="img"
+        aria-label={decrireLApercu(tenue, familier)}
+        data-testid="gaulois-apercu"
+      />
+    </span>
   );
 }
+
+/** Le clignement, en millisecondes : les yeux clos, l'attente la plus courte entre deux, et ce que le hasard y ajoute. */
+const CLIGNEMENT = { ferme: 170, entre: 4200, hasard: 3800 } as const;
 
 /**
  * La scène collée, commune au vestiaire et à la boutique : les quatre repères de la page (`racine`, `scene` le Gaulois,

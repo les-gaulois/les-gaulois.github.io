@@ -5,6 +5,7 @@ import { ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../../lib/gaulo
 import type { Banniere, EtatDeLaBanniere } from "../../lib/village/bannieres";
 import { adresseDansLaBoutique } from "../../lib/village/boutique-rayons";
 import type { MesBannieres, PochetteBannieresReponse } from "../../lib/village/contrat";
+import { sansCadre, type DecorDeBanniere } from "../../lib/village/decor-banniere";
 import { trierParRarete } from "../../lib/village/livre-bannieres";
 import { ANCRE_BANNIERES, BANNIERE_HAUTEUR, BANNIERE_LARGEUR, apresLAchat, banniereDOuverture, idsDesBannieres, messageDuRefusDAchat, raisonDeLaBanniere, raisonDeLaPochetteDesBannieres, sansBanniere } from "../../lib/village/ecran-bannieres";
 import { manque, motStatere, nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
@@ -50,6 +51,32 @@ const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
  * charge pas les dessins. `acheter` et `choisir` rendent le résultat du serveur ou les mots de son refus ; après un refus
  * d'achat, les bannières se relisent, pour dire ce qui manque d'après le serveur.
  */
+/** L'annonce d'une bannière choisie : le décor derrière le Gaulois se relit. */
+export const BANNIERE_CHOISIE = "gal:banniere-choisie";
+
+/**
+ * Le décor derrière le Gaulois de « Mon Gaulois » et de la boutique : la toile de la bannière qu'il montre sur /gaulois,
+ * sans son cadre, comme le fait le sentier ; `null` sans bannière, ou tant qu'elle n'est pas lue. `actif` : un visiteur sans
+ * compte ne demande rien au serveur. De l'habillage : une
+ * panne le laisse de côté.
+ */
+export function useDecorDuGaulois(actif = true): DecorDeBanniere | null {
+  const { etat, lire } = useBannieres({ leger: true });
+  useEffect(() => {
+    if (!actif) return;
+    void lire();
+    const relire = (): void => void lire(true);
+    window.addEventListener(BANNIERE_CHOISIE, relire);
+    return () => window.removeEventListener(BANNIERE_CHOISIE, relire);
+  }, [actif, lire]);
+  const lib = etat.kind === "pret" ? etat.lib : null;
+  const portee = etat.kind === "pret" ? etat.mes.porte : null;
+  return useMemo(() => {
+    const scene = lib && portee ? lib.vignetteDeLaBanniere(portee) : null;
+    return scene ? sansCadre(scene) : null;
+  }, [lib, portee]);
+}
+
 export function useBannieres({ leger = false }: { leger?: boolean } = {}) {
   const [etat, setEtat] = useState<EtatDesBannieres>({ kind: "lecture" });
 
@@ -119,6 +146,7 @@ export function useBannieres({ leger = false }: { leger?: boolean } = {}) {
       const choix = lib.lireChoixBanniere(await call<unknown>("choisir_banniere", { p_banniere: id }));
       if (!choix) return { ok: false, message: ILLISIBLE };
       setEtat((e) => (e.kind === "pret" ? { ...e, mes: { ...e.mes, porte: choix.porte } } : e));
+      window.dispatchEvent(new CustomEvent(BANNIERE_CHOISIE));
       return { ok: true, valeur: choix.porte };
     } catch (e) {
       return { ok: false, message: e instanceof ServerError ? lib.messageDesBannieres(e.code) : messageOf(e) };

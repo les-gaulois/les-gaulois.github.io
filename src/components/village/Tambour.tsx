@@ -63,7 +63,10 @@ export function preparerLeSon(): void {
   }
 }
 
-/** Le son voulu sur cet appareil, et de quoi le couper ou le remettre. */
+/** L'annonce d'un son coupé ou remis : chaque bouton du son relit le réglage. */
+const SON_CHANGE = "gal:son";
+
+/** Le son voulu sur cet appareil, et de quoi le couper ou le remettre. Un seul réglage : tous les boutons le suivent. */
 export function useSonDuTambour(): [boolean, () => void] {
   const [son, setSon] = useState(sonVoulu);
   const basculer = () => {
@@ -76,7 +79,14 @@ export function useSonDuTambour(): [boolean, () => void] {
     }
     if (voulu) preparerLeSon();
     setSon(voulu);
+    // Les autres boutons du son de la page (le bandeau, une fenêtre ouverte) suivent ce choix.
+    window.dispatchEvent(new CustomEvent(SON_CHANGE));
   };
+  useEffect(() => {
+    const relire = (): void => setSon(sonVoulu());
+    window.addEventListener(SON_CHANGE, relire);
+    return () => window.removeEventListener(SON_CHANGE, relire);
+  }, []);
   return [son, basculer];
 }
 
@@ -125,6 +135,16 @@ export function carillon(rang: number): void {
   const gamme = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98];
   for (let i = 0; i < rang; i++) note(gamme[i] ?? 523.25, 0.03 + i * 0.11, 0.7, 0.07, "triangle");
   if (rang >= 4) for (const f of rang >= 5 ? [523.25, 783.99, 1046.5, 1318.5, 1567.98] : [523.25, 783.99, 1046.5]) note(f, 0.08 + rang * 0.11, 2.4, 0.03, "sine");
+}
+
+/** Pour un objet reçu hors du tambour (un achat, un palier du sentier) : le son s'ouvre dans le clic, s'il n'est pas coupé. */
+export function preparerLeSonSiVoulu(): void {
+  if (sonVoulu()) preparerLeSon();
+}
+
+/** La note de la rareté d'un objet reçu hors du tambour, si le son n'est pas coupé et qu'un clic l'a ouvert. */
+export function carillonSiVoulu(rang: number): void {
+  if (sonVoulu()) carillon(rang);
 }
 
 // ---------- Le dessin ----------

@@ -34,7 +34,7 @@ import { familierDe } from "../../lib/village/familiers";
 import { lirePlaques, plaqueDe } from "../../lib/village/forge";
 import { tenueAvecModele } from "../../lib/village/modeles";
 import { NOMS_RAYONS, RAYONS, RAYON_CORPS, cadreDuVisage, grosPlan, rangerLeRayon, visageNu, type Rayon } from "../../lib/village/vestiaire-rayons";
-import { MaBanniere } from "../village/Bannieres";
+import { MaBanniere, useDecorDuGaulois } from "../village/Bannieres";
 import { Piece } from "../village/BoutiquePixels";
 import { ApercuGaulois, BarreDesRayons, Case, noterLeRetour, useSceneCollee } from "../village/Cases";
 import { MonFamilier, useFamiliers } from "../village/Familiers";
@@ -173,6 +173,10 @@ function Objets({ emplacement, tenue, boutique, plaques, onChange }: Choix & { e
   );
 }
 
+/** Les parties du rayon du corps, dans l'ordre de leurs pastilles : le corps (humain ou Gaulois unique), puis chaque trait. */
+const PARTIES_DU_CORPS = ["corps", "peau", "cheveux", "barbe", ...EMPLACEMENTS_VISAGE] as const;
+type PartieDuCorps = (typeof PARTIES_DU_CORPS)[number];
+
 /** Le visage du Gaulois dans l'onglet du corps : avec sa barbe, sans coiffe ni arme. */
 function visageDuRayon(tenue: Tenue): Vignette {
   return grosPlan(casesDuGaulois({ ...tenue, tete: "aucun", arme: "aucune" }), CADRE_VISAGE);
@@ -238,6 +242,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const [reussite, setReussite] = useState<string | null>(null);
   // Le rayon ouvert. Le corps d'abord : c'est par lui qu'on crée son Gaulois.
   const [rayon, setRayon] = useState<Rayon>(RAYON_CORPS);
+  // La partie du corps ouverte dans son rayon. Sans choix, le corps d'un Gaulois qui existe, sinon la peau.
+  const [partieDuCorps, setPartieDuCorps] = useState<PartieDuCorps | null>(null);
   // Le Gaulois existait déjà à la dernière lecture : vrai ou faux jusqu'à la suivante, même une fois le Gaulois créé, pour
   // que rien ne change de place sous les yeux de qui vient le créer (ici comme à l'inscription, dans « Mon compte »).
   const [existait, setExistait] = useState(false);
@@ -353,6 +359,8 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   };
 
   const { racine, scene, barre, panneau } = useSceneCollee(rayon, etat.kind);
+  // La bannière qu'il montre sur /gaulois, derrière son Gaulois : rien pour un visiteur.
+  const decor = useDecorDuGaulois(me !== null && me.signed_in);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
 
@@ -382,10 +390,11 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
 
   const change = !memeTenue(tenue, etat.enregistree);
   const choix: Choix = { tenue, boutique, plaques, onChange: changer };
+  const partieOuverte: PartieDuCorps = partieDuCorps === null || (partieDuCorps === "corps" && !existait) ? (existait ? "corps" : "peau") : partieDuCorps;
   return (
     <div ref={racine} class="vestiaire" data-testid="vestiaire">
       <div ref={scene} class="vestiaire-scene" data-familier={tailleDeLApercu(familiers.montre) ?? undefined}>
-        <ApercuGaulois tenue={tenue} familier={familiers.montre} />
+        <ApercuGaulois tenue={tenue} familier={familiers.montre} decor={decor} />
         <div class="vestiaire-scene-actions">
           <button type="button" class="btn btn-ghost" onClick={() => changer(tenueAvecModele(tenueAuHasard(Math.random), modeleDuGaulois(tenue)?.id ?? null))}>
             Au hasard
@@ -427,14 +436,19 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
           <div ref={panneau} id="vestiaire-panneau" class="vestiaire-panneau" role="tabpanel" aria-labelledby={`vestiaire-rayon-${rayon}`}>
             {rayon === RAYON_CORPS ? (
               <>
-                {/* Le corps ne se choisit que pour un Gaulois qui existe : rien pendant l'inscription. */}
-                {existait && <MonCorps etat={modeles.etat} tenue={tenue} vignette={(id) => portrait(tenueAvecModele(tenue, id), 2)} onChange={changer} onRelire={() => void modeles.lire()} />}
-                <Peau {...choix} />
-                <Poils emplacement="cheveux" {...choix} />
-                <Poils emplacement="barbe" {...choix} />
-                {EMPLACEMENTS_VISAGE.map((emplacement) => (
-                  <Visage key={emplacement} emplacement={emplacement} {...choix} />
-                ))}
+                {/* Une partie du corps à la fois (17 novembre 2026) : empilées, elles faisaient plus de quatre écrans, et le
+                    Gaulois sortait de la vue. Le corps ne se choisit que pour un Gaulois qui existe : rien pendant l'inscription. */}
+                <div class="vestiaire-filtre vestiaire-parties" role="group" aria-label="Les parties du corps" data-testid="vestiaire-parties">
+                  {PARTIES_DU_CORPS.filter((partie) => partie !== "corps" || existait).map((partie) => (
+                    <button key={partie} type="button" class="chip filtre" aria-pressed={partie === partieOuverte} onClick={() => setPartieDuCorps(partie)} data-testid={`vestiaire-partie-${partie}`}>
+                      {partie === "corps" ? "Corps" : NOMS_EMPLACEMENTS[partie]}
+                    </button>
+                  ))}
+                </div>
+                {partieOuverte === "corps" && <MonCorps etat={modeles.etat} tenue={tenue} vignette={(id) => portrait(tenueAvecModele(tenue, id), 2)} onChange={changer} onRelire={() => void modeles.lire()} />}
+                {partieOuverte === "peau" && <Peau {...choix} />}
+                {(partieOuverte === "cheveux" || partieOuverte === "barbe") && <Poils key={partieOuverte} emplacement={partieOuverte} {...choix} />}
+                {EMPLACEMENTS_VISAGE.map((emplacement) => partieOuverte === emplacement && <Visage key={emplacement} emplacement={emplacement} {...choix} />)}
               </>
             ) : (
               <Objets key={rayon} emplacement={rayon} {...choix} />

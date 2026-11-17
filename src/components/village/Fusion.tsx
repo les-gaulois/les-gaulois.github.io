@@ -28,6 +28,7 @@ import {
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import { Dialogue, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
+import { casesDuChaudron } from "./SentierDessins";
 import { Moule, type DessinDuMoule } from "./Moule";
 import { BoutonSon, preparerLeSon, useSonDuTambour } from "./Tambour";
 
@@ -207,6 +208,7 @@ export function Fusion({ fusion, onForge, onRelire }: { fusion: FusionDeLaForge;
   const objets = objetsDeLaRarete(fusion, rarete);
   const plein = creusetPlein(creuset, fusion);
   const manque = fusion.nombre - creuset.length;
+  const chaudron = casesDuChaudron(Math.min(1, creuset.length / fusion.nombre));
   const raison = plein ? null : libres[rarete] < fusion.nombre ? `Il faut ${fusion.nombre} objets de cette rareté à donner : vous en avez ${libres[rarete]}.` : `Posez encore ${manque} ${manque > 1 ? "objets" : "objet"}.`;
 
   const changerDeRarete = (suite: Rarete) => {
@@ -230,7 +232,17 @@ export function Fusion({ fusion, onForge, onRelire }: { fusion: FusionDeLaForge;
   };
 
   return (
-    <div class="fusion" data-testid="fusion">
+    <div class="fusion sentier-carte" data-ton="violet" data-testid="fusion">
+      {/* La même carte que celles du sentier (17 novembre 2026) : le chaudron se remplit à mesure qu'on pose des objets. */}
+      <div class="sentier-carte-tete">
+        <span class="sentier-carte-dessin" aria-hidden="true">
+          <Pixels largeur={chaudron.largeur} hauteur={chaudron.hauteur} cases={chaudron.cases} echelle={2} />
+        </span>
+        <div>
+          <h3>La fusion</h3>
+        </div>
+        <span class="sentier-gain tnum">{fusion.nombre} objets en donnent un</span>
+      </div>
       <div class="fusion-raretes" role="group" aria-label="Rareté à fondre">
         {RARETES_A_FONDRE.map((r) => (
           <button key={r} type="button" class="chip filtre" data-rarete={r} aria-pressed={r === rarete} onClick={() => changerDeRarete(r)} data-testid={`fusion-rarete-${r}`}>

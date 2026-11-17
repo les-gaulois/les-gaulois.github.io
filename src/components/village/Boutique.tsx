@@ -36,10 +36,10 @@ import { familierDe } from "../../lib/village/familiers";
 import { demandeLesModeles, messageDuRefusDesModeles, modeleParId, raisonDeLAchat, tenueAvecModele } from "../../lib/village/modeles";
 import { TOUT, choisirFiltre, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
 import { Loading, Problem, Success, messageOf, useNow } from "../compte/common";
-import { SectionDesBannieres } from "./Bannieres";
+import { SectionDesBannieres, useDecorDuGaulois } from "./Bannieres";
 import { Bourse } from "./Bourse";
 import { DialogueAchat, DialoguePochette, PochetteGagneeIci, type Issue } from "./BoutiqueDialogue";
-import { Prix } from "./BoutiquePixels";
+import { Pixels, Prix } from "./BoutiquePixels";
 import { ApercuGaulois, BarreDesRayons, Case, useSceneCollee } from "./Cases";
 import { useFamiliers } from "./Familiers";
 import { CaseObjet, Prix as PrixDuMarche } from "./MarcheCase";
@@ -49,6 +49,7 @@ import { Pochette } from "./Pochette";
 import { DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
 import { DialogueStateres, PochetteStateres, usePochetteStateres } from "./PochetteStateres";
 import { DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles } from "./SectionModeles";
+import { pochetteDeRarete } from "./SentierDessins";
 
 /** Le repère de forme d'une rareté, de un à cinq losanges : le même que sur les cases. */
 function Losanges({ rang }: { rang: number }) {
@@ -130,6 +131,8 @@ const refusDe = (e: unknown): string => (e instanceof ServerError ? e.code : "ne
 const motsDuMarche = (e: unknown): string => (e instanceof ServerError ? (messageDuMarche(e.code) ?? e.message) : messageOf(e));
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
 const SANS_OFFRE: readonly OffreLisible[] = [];
+/** Le dessin de la carte du marché : la bourse en pixels du sentier, déjà dessinée. */
+const BOURSE_DU_MARCHE = pochetteDeRarete("peu-commun");
 /** Le bloc des rayons (la barre et le rayon ouvert) : l'adresse des bannières y descend. */
 const ID_DES_RAYONS = "boutique-rayons-choix";
 
@@ -222,6 +225,8 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   // De même pour la pochette des familiers (`#familiers`, qui ouvre la partie « Pochettes ») : la page y descend.
   const [appelDesFamiliers, setAppelDesFamiliers] = useState(0);
   const maintenant = useNow();
+  // La bannière qu'il montre sur /gaulois, derrière le Gaulois d'essayage, comme au vestiaire.
+  const decor = useDecorDuGaulois();
 
   /** La boutique et la bourse, relues ensemble : l'une sans l'autre ne bloque rien. */
   const lireLaBoutique = async (): Promise<void> => {
@@ -670,7 +675,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   return (
     <div ref={racine} class="vestiaire boutique-page" data-testid="boutique">
       <div ref={scene} class="vestiaire-scene" data-familier={tailleDeLApercu(familiers.montre) ?? undefined}>
-        <ApercuGaulois tenue={modeleEnEssai ? tenueAvecModele(tenue, modeleEnEssai.id) : essai ? changerObjet(tenue, essai.emplacement, essai.objet) : tenue} familier={familiers.montre} />
+        <ApercuGaulois tenue={modeleEnEssai ? tenueAvecModele(tenue, modeleEnEssai.id) : essai ? changerObjet(tenue, essai.emplacement, essai.objet) : tenue} familier={familiers.montre} decor={decor} />
         <div class="vestiaire-scene-actions">
           <div class="vestiaire-essai" role="status" data-testid="boutique-essai">
             {essai && ficheEnEssai && (
@@ -772,9 +777,13 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
         )}
 
         {!pochettes && (
-        <section id={ANCRE_MARCHE} class="boutique-membres" aria-labelledby="boutique-membres-titre" data-testid="marche" data-etat={etatMarche.kind}>
-          <div class="boutique-membres-tete">
-            <h3 id="boutique-membres-titre" class="nom-champ vestiaire-titre">
+        <section id={ANCRE_MARCHE} class="boutique-membres sentier-carte" data-ton="bleu" aria-labelledby="boutique-membres-titre" data-testid="marche" data-etat={etatMarche.kind}>
+          <div class="boutique-membres-tete sentier-carte-tete">
+            {/* La même carte que celles du sentier (17 novembre 2026) : une bourse de marchand pour dessin. */}
+            <span class="sentier-carte-dessin" aria-hidden="true">
+              <Pixels largeur={BOURSE_DU_MARCHE.largeur} hauteur={BOURSE_DU_MARCHE.hauteur} cases={BOURSE_DU_MARCHE.cases} echelle={2} />
+            </span>
+            <h3 id="boutique-membres-titre">
               Le marché des membres
             </h3>
             {marcheLu && (

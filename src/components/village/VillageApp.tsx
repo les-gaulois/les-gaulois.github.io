@@ -10,6 +10,7 @@ import { ANCRE_FAMILIERS } from "../../lib/village/ecran-familiers";
 import { ANCRE_LOTERIE } from "../../lib/village/loterie";
 import { ANCRE_MODELES } from "../../lib/village/modeles";
 import { ANCRE_SENTIER } from "../../lib/village/sentier";
+import { BandeauDuJoueur } from "./BandeauDuJoueur";
 import Boutique from "./Boutique";
 import LoterieDuLundi from "./Loterie";
 import AtelierDeLaForge from "./Forge";
@@ -115,6 +116,8 @@ export default function VillageApp() {
       ) : (
         <Onglets label="Les parties de la page" prefix={PREFIXE} tabs={onglets} active={active} onSelect={select} call={call} />
       )}
+      {/* Le bandeau du joueur : partout sauf au sentier, qui montre déjà son palier et ses XP en grand. */}
+      {!aCreer && active !== ANCRE_SENTIER && <BandeauDuJoueur sentier={sentier.etat.kind === "pret" ? sentier.etat.sentier : null} versLeSentier={() => select(ANCRE_SENTIER)} />}
       <Partie prefix={PREFIXE} id="gaulois" active={aCreer ? "gaulois" : active} slide={aCreer ? null : slide}>
         {/* Le titre caché de la partie, sauf quand « Votre Gaulois », juste au-dessus, la nomme déjà. */}
         {!aCreer && <h2 class="sr-only">Mon Gaulois</h2>}

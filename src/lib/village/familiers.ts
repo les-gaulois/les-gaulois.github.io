@@ -55,9 +55,9 @@ export function chanceDuFamilier(id: string, chances: Valeurs, possedes: Readonl
   return effectives && restants > 0 ? effectives[familier.rarete] / restants : 0;
 }
 
-/** Le Gaulois et son familier sur une seule grille, pour un aperçu du site ; sans familier, le Gaulois seul. */
-export function apercuAvecFamilier(tenue: Tenue, familier: Familier | null): { largeur: number; hauteur: number; cases: (string | null)[] } {
-  return gauloisEtFamilier(casesDuGaulois(tenue), familier ? familierAPoser(familier) : null, GAULOIS_LARGEUR, GAULOIS_HAUTEUR);
+/** Le Gaulois et son familier sur une seule grille, pour un aperçu du site ; sans familier, le Gaulois seul. `yeuxFermes` : le même, les yeux clos, pour son clignement. */
+export function apercuAvecFamilier(tenue: Tenue, familier: Familier | null, options: { yeuxFermes?: boolean } = {}): { largeur: number; hauteur: number; cases: (string | null)[] } {
+  return gauloisEtFamilier(casesDuGaulois(tenue, options), familier ? familierAPoser(familier) : null, GAULOIS_LARGEUR, GAULOIS_HAUTEUR);
 }
 
 /** Le texte d'un refus des familiers : `pas_possede` a ses mots ici, les autres ceux de tout le site. */

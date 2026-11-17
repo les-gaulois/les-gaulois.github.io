@@ -13,12 +13,18 @@ export function Bourse({ bourse, solde }: { bourse: MesStateres; solde: number |
   const message = MESSAGES_BOURSE[etat];
   const montre = soldeAMontrer({ ...bourse, solde: solde ?? bourse.solde });
   return (
-    <section class="bourse" aria-labelledby="bourse-titre" data-testid="bourse" data-etat={etat}>
-      <h4 id="bourse-titre" class="nom-champ vestiaire-titre">
-        Votre bourse
-      </h4>
+    <section class="bourse sentier-carte" data-ton="or" aria-labelledby="bourse-titre" data-testid="bourse" data-etat={etat}>
+      {/* La même carte que celles du sentier (17 novembre 2026) : son dessin, son titre, et la règle des statères en pastille. */}
+      <div class="sentier-carte-tete">
+        <span class="sentier-carte-dessin" aria-hidden="true">
+          <Piece taille={24} echelle={2} />
+        </span>
+        <div>
+          <h4 id="bourse-titre">Votre bourse</h4>
+        </div>
+        <span class="sentier-gain tnum">{STATERES_PAR_POINT} statères par point rapporté au clan</span>
+      </div>
       <p class="bourse-solde" data-testid="bourse-solde">
-        <Piece taille={24} echelle={2} />
         {montre === null ? (
           <span class="bourse-inconnu">{SOLDE_INCONNU}</span>
         ) : (
@@ -39,7 +45,6 @@ export function Bourse({ bourse, solde }: { bourse: MesStateres; solde: number |
           )}
         </p>
       )}
-      <p class="bourse-regle">{STATERES_PAR_POINT} statères par point rapporté au clan.</p>
       {bourse.releve && (
         <p class="info-discrete" data-testid="bourse-releve">
           Parties relues le {instant(bourse.releve)}
