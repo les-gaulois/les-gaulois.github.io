@@ -29,8 +29,8 @@ const { portrait, banniere, finition, nom, mot = null, class: classe } = Astro.p
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const choisie = finitionParId(finition);
 const echelle = echelleDuGaulois(portrait);
-// Quatre couches de la même image, de la plus lointaine à la plus proche : l'épaisseur du Gaulois.
-const COUCHES = [3, 2, 1, 0];
+// Six couches de la même image, de la plus lointaine à la plus proche : l'épaisseur du Gaulois.
+const COUCHES = [5, 4, 3, 2, 1, 0];
 ---
 
 <div class:list={["carte-membre", classe]} data-carte-membre aria-hidden="true" data-testid="member-card">

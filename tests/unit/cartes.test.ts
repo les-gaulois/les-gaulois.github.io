@@ -160,3 +160,18 @@ describe("les images fixes des finitions, pour l'annonce des achats sur Discord"
     expect(lue?.achats.map((a) => [a.id, a.emplacement, a.objet])).toEqual([[1, "carte", "radar"]]);
   });
 });
+
+describe("le régime économe des cartes", () => {
+  it("compte comme lente une fenêtre où plus de la moitié des images ont mis plus de 34 millièmes de seconde", async () => {
+    const { fenetreLente, imageLente } = await import("../../src/scripts/cartes-mouvement");
+    // 60 et 30 images par seconde : des images à l'heure. 27 et 4 : des images lentes.
+    expect([16.7, 33.3].map(imageLente)).toEqual([false, false]);
+    expect([37, 250].map(imageLente)).toEqual([true, true]);
+    // Un à-coup isolé dans une fenêtre fluide ne compte pas ; une page qui rame, si. Il faut deux fenêtres de suite.
+    expect(fenetreLente(3, 100)).toBe(false);
+    expect(fenetreLente(50, 100)).toBe(false);
+    expect(fenetreLente(51, 100)).toBe(true);
+    expect(fenetreLente(8, 8)).toBe(true);
+    expect(fenetreLente(2, 2)).toBe(false);
+  });
+});

@@ -766,18 +766,36 @@ footer h2 {
   position: absolute;
   image-rendering: auto;
 }
+/* L'arc-en-ciel glisse tout seul, en continu (demande du pilote, 17 novembre 2026 : « tellement joli », « mais optimise
+   ça »). Pour ne rien repeindre, c'est la feuille entière qui se déplace (transform), jamais son dessin : elle dépasse la
+   carte de 50 cases de chaque côté, ses bandes se répètent toutes les 40 cases le long de leur pente (115 degrés), et
+   elle avance d'exactement une répétition (36,25 cases de côté, 16,9 de haut) avant de recommencer, sans couture. */
 .podium-carte-holo {
-  inset: -50%;
-  background: repeating-linear-gradient(115deg, #ff5a8a 0, #ffd24a 7%, #5aff9e 14%, #4ad2ff 21%, #a56bff 28%, #ff5a8a 35%) 0 0 / 300% 300%;
+  inset: calc(var(--px) * -50);
+  background: repeating-linear-gradient(
+    115deg,
+    #ff5a8a 0,
+    #ffd24a calc(var(--px) * 8),
+    #5aff9e calc(var(--px) * 16),
+    #4ad2ff calc(var(--px) * 24),
+    #a56bff calc(var(--px) * 32),
+    #ff5a8a calc(var(--px) * 40)
+  );
   mix-blend-mode: screen;
   opacity: 0.3;
+  animation: podium-carte-derive 14s linear infinite;
 }
-/* L'arc-en-ciel offert glisse avec l'inclinaison : de 40 % de la carte au plus, quand il la dépasse de 50 % de chaque
-   côté, pour que son bord ne paraisse jamais. Seulement sans reflet acheté : la règle est écrite pour ces cartes-là, et
+@keyframes podium-carte-derive {
+  to {
+    transform: translate(calc(var(--px) * -36.25), calc(var(--px) * -16.9));
+  }
+}
+/* L'arc-en-ciel offert glisse aussi avec l'inclinaison : de 12 cases au plus, en plus de sa dérive (36,25 cases), quand
+   il dépasse la carte de 50 cases de chaque côté : son bord ne paraît jamais. Seulement sans reflet acheté : la règle est écrite pour ces cartes-là, et
    non annulée ensuite par un « translate: none » que la compression de la feuille supprimait (les reflets glissaient
    alors hors de la carte, remarque du pilote : « l'effet disparaît en partie »). */
 .podium-carte:not([data-reflet]) .podium-carte-holo {
-  translate: calc(var(--carte-mx) * 20%) calc(var(--carte-my) * 20%);
+  translate: calc(var(--carte-mx) * var(--px) * 12) calc(var(--carte-my) * var(--px) * 12);
 }
 .podium-carte-eclat {
   inset: 0;
@@ -959,6 +977,15 @@ footer h2 {
     transform: translateX(-130%);
   }
 }
+/* Le régime économe (src/scripts/cartes-mouvement.ts) : sur un appareil qui rame, la page pose seule cette classe. La
+   dérive de l'arc-en-ciel s'arrête et le halo du Gaulois disparaît ; tout le reste demeure. */
+.cartes-econome .podium-carte-holo {
+  animation: none;
+}
+.cartes-econome .podium-carte-gaulois > img:last-child,
+.cartes-econome .podium-carte-gaulois > canvas {
+  filter: none;
+}
 /* Hors de l'écran, en pause ou dans un onglet caché, le script pose data-repos : plus aucune animation ne tourne. */
 [data-repos] .podium-carte-case,
 [data-repos] .podium-carte-case * {
@@ -998,8 +1025,9 @@ footer h2 {
   height: 100%;
   max-width: none;
   image-rendering: pixelated;
-  /* Quatre couches (six jusqu'au 17 novembre 2026), un peu plus écartées : la même épaisseur, moins de calques. */
-  transform: translateZ(calc(var(--k) * var(--px) * var(--e) * -0.8));
+  /* Six couches, comme sur la maquette (revenues à la demande du pilote, 17 novembre 2026). Chacune est une petite image
+     fixe : le navigateur ne les redessine pas, il les déplace. */
+  transform: translateZ(calc(var(--k) * var(--px) * var(--e) * -0.5));
   filter: brightness(0.5);
 }
 /* Dans la boutique, le Gaulois de la carte d'essai est une seule toile, sans couches. */
@@ -1009,10 +1037,12 @@ footer h2 {
   width: 100%;
   height: 100%;
   image-rendering: pixelated;
+  /* Le même halo clair que sur l'accueil. */
+  filter: drop-shadow(0 0 calc(var(--px) * 1.2) color-mix(in srgb, var(--carte-ecriture) 55%, transparent));
 }
-/* La couche de devant est l'image telle quelle, sans filtre. */
+/* La couche de devant porte le halo clair autour du Gaulois : une ombre calculée une fois, sur une image fixe. */
 .podium-carte-gaulois > img:last-child {
-  filter: none;
+  filter: drop-shadow(0 0 calc(var(--px) * 1.2) color-mix(in srgb, var(--carte-ecriture) 55%, transparent));
 }
 .podium-carte-rang {
   position: absolute;

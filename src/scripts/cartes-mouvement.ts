@@ -3,13 +3,53 @@
  * d'essai du rayon « Cartes » de la boutique, `src/components/village/Cartes.tsx`) : chaque carte se tourne vers le
  * curseur de la souris ; sans souris depuis trois secondes, ou au doigt, elle se balance lentement. Le script ne pose que
  * deux nombres par carte, `--carte-mx` et `--carte-my`, de -1 à 1 : l'inclinaison et le reflet sont dans la feuille de style
- * (04-poste.css). Il dessine aussi, vingt fois par seconde, la finition animée de chaque carte sur ses deux toiles
+ * (04-poste.css). Il dessine aussi, vingt fois par seconde (dix en régime économe), la finition animée de chaque carte sur ses deux toiles
  * (src/lib/fx/finitions-carte.ts). Il ne change aucun texte ni aucun chiffre.
  *
  * En pause (bouton de l'en-tête, `fx-off`), avec « réduire les animations », hors de l'écran ou dans un onglet caché,
  * les cartes reviennent à plat, les toiles sont effacées et le script ne dessine plus rien.
  */
 import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDeLaFinition } from "../lib/fx/finitions-carte";
+
+/*
+ * Le régime économe (demande du pilote, 17 novembre 2026 : « je veux que ça déchire visuellement », sans faire ramer les
+ * joueurs) : la page mesure elle-même sa fluidité, par fenêtres de deux secondes de mouvement. Une fenêtre est lente si
+ * plus de la moitié de ses images ont mis plus de 34 millièmes de seconde à venir (moins de 30 par seconde) : un à-coup
+ * isolé ne compte pas, une page qui rame vraiment, si. Après deux fenêtres lentes de suite, elle passe seule en mode
+ * léger, pour le reste de la visite :
+ * l'arc-en-ciel ne dérive plus, le halo du Gaulois disparaît (classe `cartes-econome`, 04-poste.css) et les finitions ne
+ * sont redessinées que dix fois par seconde au lieu de vingt. Un bon ordinateur garde tout ; personne n'a rien à régler.
+ * Les trois premières secondes de la page ne comptent pas (elle se met en place), ni un trou de plus d'une seconde (un
+ * onglet qu'on quitte).
+ */
+const CLE_ECONOME = "gal-cartes-econome";
+const FENETRE_DE_MESURE = 2000;
+const IMAGE_TROP_LENTE = 34;
+const FENETRES_LENTES_DE_SUITE = 2;
+
+/** Une image est-elle lente ? `ecart` : le temps depuis la précédente, en millièmes de seconde. */
+export const imageLente = (ecart: number): boolean => ecart > IMAGE_TROP_LENTE;
+/** Une fenêtre de mesure dit-elle que la page rame ? Plus de la moitié de ses images sont lentes (trois images au moins). */
+export const fenetreLente = (lentes: number, images: number): boolean => images >= 3 && lentes / images > 0.5;
+
+let econome = false;
+if (typeof document !== "undefined") {
+  try {
+    econome = sessionStorage.getItem(CLE_ECONOME) === "1";
+  } catch {
+    // Sans stockage, la mesure se refait à chaque page.
+  }
+  if (econome) document.documentElement.classList.add("cartes-econome");
+}
+function passerEnEconome(): void {
+  econome = true;
+  document.documentElement.classList.add("cartes-econome");
+  try {
+    sessionStorage.setItem(CLE_ECONOME, "1");
+  } catch {
+    // Rien à garder : le mode léger vaut pour cette page.
+  }
+}
 
 /**
  * Anime les cartes (`.podium-carte`) de cette racine. Rend de quoi tout arrêter : l'écran qui les retire l'appelle.
@@ -40,9 +80,16 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
   // Pour ne pas faire chuter les images par seconde : l'inclinaison n'est reposée que trente fois par seconde, et les
   // toiles des finitions ne sont redessinées que vingt fois. Entre deux, le navigateur n'a rien à repeindre.
   const PAS_DE_L_INCLINAISON = 1000 / 30;
-  const PAS_DU_DESSIN = 1000 / 20;
+  const pasDuDessin = () => (econome ? 1000 / 10 : 1000 / 20);
   let inclineA = -Infinity;
   let dessineA = -Infinity;
+  // La mesure de la fluidité (régime économe, en tête du fichier).
+  const montee = performance.now();
+  let imageAvant = 0;
+  let mesuree = 0;
+  let comptees = 0;
+  let imagesLentes = 0;
+  let lentes = 0;
 
   const actif = () => !arrete && !calme.matches && !html.classList.contains("fx-off") && visible && !document.hidden;
   const borne = (v: number) => Math.max(-1, Math.min(1, v));
@@ -71,6 +118,7 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
         poser(c);
         effacer(c);
       }
+      imageAvant = 0;
       // Au repos seulement parce qu'elle paraît hors de l'écran : on y revient dans une demi-seconde.
       if (sonde && !visible && !arrete && !calme.matches && !html.classList.contains("fx-off") && !document.hidden) {
         clearTimeout(rappel);
@@ -78,12 +126,30 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
       }
       return;
     }
+    // Chaque image qui vient compte, tant que le mode léger n'est pas pris.
+    if (!econome && t - montee > 3000) {
+      const ecart = t - imageAvant;
+      // Un trou de plus d'une seconde n'est pas une image lente : la page était ailleurs.
+      if (imageAvant > 0 && ecart < 1000) {
+        mesuree += ecart;
+        comptees++;
+        if (imageLente(ecart)) imagesLentes++;
+        if (mesuree >= FENETRE_DE_MESURE) {
+          lentes = fenetreLente(imagesLentes, comptees) ? lentes + 1 : 0;
+          if (lentes >= FENETRES_LENTES_DE_SUITE) passerEnEconome();
+          imagesLentes = 0;
+          mesuree = 0;
+          comptees = 0;
+        }
+      }
+    }
+    imageAvant = t;
     if (t - inclineA < PAS_DE_L_INCLINAISON) {
       image = requestAnimationFrame(tour);
       return;
     }
     inclineA = t;
-    const dessiner = t - dessineA >= PAS_DU_DESSIN;
+    const dessiner = t - dessineA >= pasDuDessin();
     if (dessiner) dessineA = t;
     const suit = souris !== null && t - vue < 3000;
     for (const c of cartes) {
