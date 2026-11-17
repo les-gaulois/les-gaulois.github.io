@@ -6156,3 +6156,83 @@ button.tenue-gardee-remettre:disabled {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+/* Le rayon « Cartes » de la boutique (src/components/village/Cartes.tsx, 17 novembre 2026) : à gauche la carte d'essai,
+   celle de l'accueil (04-poste.css) à quatre pixels la case ; à droite les trente-trois finitions, en cases à cliquer. */
+.cartes-corps {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+@media (min-width: 48rem) {
+  .cartes-corps {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.cartes-vue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+.cartes-essai {
+  --px: 4px;
+  padding: 1rem 1.5rem;
+}
+.cartes-vue-nom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+.cartes-gestes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.cartes-cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8rem), 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* La marque de rareté s'aligne à gauche, sous le nom, et non au milieu de la case. */
+.cartes-case > .case-rarete {
+  align-self: flex-start;
+  margin: 0;
+}
+.cartes-case {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  min-height: 5.5rem;
+  padding: 0.625rem 0.75rem;
+  border: 2px solid color-mix(in srgb, var(--ecriture) 22%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--ecriture) 5%, transparent);
+  color: var(--ecriture);
+  text-align: left;
+  cursor: pointer;
+}
+.cartes-case:hover {
+  border-color: color-mix(in srgb, var(--ecriture) 55%, transparent);
+}
+.cartes-case[aria-pressed="true"] {
+  border-color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 12%, transparent);
+}
+.cartes-case-nom {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.cartes-case-etat {
+  margin-top: auto;
+  font-size: 0.875rem;
+}

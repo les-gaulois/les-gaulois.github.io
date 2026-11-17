@@ -7,9 +7,10 @@
  *
  * Les cartes ne remplacent le guerrier que si le podium tient en trois cartes (une égalité qui garde quatre joueurs n'en
  * écarte aucun : le guerrier reste) et si au moins un de ses joueurs a créé son Gaulois. Un joueur sans Gaulois garde sa
- * carte, sans personnage ; un joueur sans bannière, une carte au fond uni.
+ * carte, sans personnage ; un joueur sans bannière, une carte au fond uni ; un joueur qui n'a pas choisi de finition au
+ * rayon « Cartes » de la boutique (`village/cartes.ts`), celle de sa place.
  */
-import type { FinitionDeCarte } from "./fx/finitions-carte";
+import { finitionParId, type IdDeFinition } from "./village/cartes";
 import type { PortraitDeGaulois } from "./gaulois-site";
 
 /** Le podium tient en trois cartes, pas plus. */
@@ -25,8 +26,10 @@ export interface CarteDuPodium {
   place: number;
   wins: number;
   metal: MetalDeCarte;
-  /** L'animation de la carte : celle de sa place, tant que le rayon « Cartes » de la boutique n'existe pas. */
-  finition: FinitionDeCarte;
+  /** La finition de la carte : celle que le joueur a choisie au rayon « Cartes » de la boutique, sinon celle de sa place. */
+  finition: IdDeFinition;
+  /** Animée en pixels sur ses toiles ; sinon, un reflet de la feuille de style. */
+  animee: boolean;
   portrait: PortraitDeGaulois | null;
   /** La taille du Gaulois sur sa carte, en cases de la carte par pixel de son image. */
   echelle: number;
@@ -40,7 +43,7 @@ export function echelleDuGaulois({ largeur, hauteur }: Pick<PortraitDeGaulois, "
 }
 
 /** Une finition par place : le champignon atomique au premier, le piratage au deuxième, le feu d'artifice au troisième. */
-export const finitionDuMetal = (metal: MetalDeCarte): FinitionDeCarte => (metal === "or" ? "champignon" : metal === "argent" ? "piratage" : "artifice");
+export const finitionDuMetal = (metal: MetalDeCarte): IdDeFinition => (metal === "or" ? "champignon-atomique" : metal === "argent" ? "piratage" : "feu-d-artifice");
 
 const metalDeLaPlace = (place: number): MetalDeCarte => (place <= 1 ? "or" : place === 2 ? "argent" : "bronze");
 
@@ -49,12 +52,15 @@ export function cartesDuPodium(
   players: readonly { id: string; username: string; place: number; wins: number }[] | null | undefined,
   portraitDe: (id: string) => PortraitDeGaulois | null,
   banniereDe: (id: string) => string | null,
+  /** La finition que le joueur montre (`finitions-joueurs.ts`), ou `null` : celle de sa place. Un nom inconnu est ignoré. */
+  finitionDe: (id: string) => string | null = () => null,
 ): CarteDuPodium[] | null {
   if (!players || players.length === 0 || players.length > CARTES_DU_PODIUM) return null;
   const cartes = players.map(({ id, username, place, wins }): CarteDuPodium => {
     const portrait = portraitDe(id);
     const metal = metalDeLaPlace(place);
-    return { id, username, place, wins, metal, finition: finitionDuMetal(metal), portrait, echelle: portrait ? echelleDuGaulois(portrait) : 0, banniere: banniereDe(id) };
+    const finition = finitionParId(finitionDe(id)) ?? finitionParId(finitionDuMetal(metal))!;
+    return { id, username, place, wins, metal, finition: finition.id, animee: finition.animee, portrait, echelle: portrait ? echelleDuGaulois(portrait) : 0, banniere: banniereDe(id) };
   });
   return cartes.some((c) => c.portrait !== null) ? cartes : null;
 }

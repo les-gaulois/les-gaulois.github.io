@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ServerError, basePath, call } from "../../lib/compte/api";
 import { fmtInt } from "../../lib/format";
 import { ADRESSE_VILLAGE, OBJETS, ORDRE_RARETES, RARETES, TENUE_DE_DEPART, changerObjet, tenueDuServeur, vignetteDeLObjet, type Emplacement, type Tenue } from "../../lib/gaulois";
@@ -6,10 +6,12 @@ import type { MesStateres } from "../../lib/stateres";
 import {
   ANCRE_MARCHE,
   IMAGE_DU_RAYON_BANNIERE,
+  IMAGE_DU_RAYON_CARTES,
   IMAGE_DU_RAYON_UNIQUES,
   NOMS_RAYONS,
   RAYONS_BOUTIQUE,
   RAYON_BANNIERE,
+  RAYON_CARTES,
   RAYON_POCHETTES,
   RAYON_UNIQUES,
   demandeLeMarche,
@@ -53,6 +55,7 @@ import { EtalDesPochettes } from "./Etal";
 import { DessinPochette, Pochette } from "./Pochette";
 import { DessinPochetteFamiliers, DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
 import { DessinPochetteStateres, DialogueStateres, PochetteStateres, usePochetteStateres } from "./PochetteStateres";
+import { SectionDesCartes } from "./Cartes";
 import { DessinDeLaPochette, DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles } from "./SectionModeles";
 import { pochetteDeRarete } from "./SentierDessins";
 
@@ -191,6 +194,19 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const [bannieresOuvertes, setBannieresOuvertes] = useState(false);
   // De même pour les Gaulois uniques, le septième onglet.
   const [uniquesOuverts, setUniquesOuverts] = useState(false);
+  // Les cartes ne se lisent qu'au premier passage dans leur onglet, puis restent, seulement cachées.
+  const [cartesOuvertes, setCartesOuvertes] = useState(false);
+  // L'onglet des cartes ne paraît que si le serveur connaît le rayon (migration 20261117001200) : tant qu'elle n'est pas
+  // collée, `get_mes_cartes` n'existe pas et rien ne change à la barre. Un refus du serveur (visiteur, compte suspendu)
+  // prouve qu'il existe.
+  const [cartesInstallees, setCartesInstallees] = useState(false);
+  useEffect(() => {
+    call<unknown>("get_mes_cartes").then(
+      () => setCartesInstallees(true),
+      (e: unknown) => setCartesInstallees(e instanceof ServerError && e.code !== "network"),
+    );
+  }, []);
+  const rayonsMontres = useMemo(() => (cartesInstallees ? RAYONS_BOUTIQUE : RAYONS_BOUTIQUE.filter((r) => r !== RAYON_CARTES)), [cartesInstallees]);
   const [filtres, setFiltres] = useState<Filtres>({});
   const [fenetre, setFenetre] = useState<Fenetre>(null);
   // Les pochettes gagnées à la loterie du lundi, qui restent à ouvrir : relues à l'ouverture de l'onglet et à chaque
@@ -382,6 +398,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
 
   useEffect(() => {
     if (rayon === RAYON_BANNIERE || rayon === RAYON_POCHETTES) setBannieresOuvertes(true);
+    if (rayon === RAYON_CARTES) setCartesOuvertes(true);
   }, [rayon]);
 
   // Les Gaulois uniques ne se lisent qu'au premier passage dans leur onglet, comme les bannières.
@@ -904,10 +921,10 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
             <BarreDesRayons
               prefixe="boutique"
               label="Les rayons de la boutique"
-              rayons={RAYONS_BOUTIQUE}
+              rayons={rayonsMontres}
               noms={NOMS_RAYONS}
               rayon={rayonChoisi}
-              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : IMAGE_DU_RAYON_BANNIERE)}
+              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : id === RAYON_CARTES ? IMAGE_DU_RAYON_CARTES : IMAGE_DU_RAYON_BANNIERE)}
               // Les offres des membres d'abord ; sinon la collection du rayon, ce qu'il possède sur ce qui existe.
               mention={(id) => (!estUnRayonDObjets(id) ? null : comptesDesOffres[id] > 0 ? motsDesOffres(comptesDesOffres[id]) : boutique ? motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet))) : null)}
               onChoisir={setRayon}
@@ -1040,6 +1057,20 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                     setSolde(reste);
                     // Une pochette des bannières vient peut-être de s'ouvrir avec un bon de la loterie.
                     if (pochettes) relireLesGagnees();
+                  }}
+                  onRefus={() => void lireLaBoutique()}
+                />
+              </div>
+            )}
+            {/* Les cartes : les finitions de la carte du podium, essayées sur le Gaulois enregistré. Après un achat, la bourse
+                de la page prend le solde que le serveur a répondu ; après un refus, elle se relit. */}
+            {(cartesOuvertes || rayon === RAYON_CARTES) && (
+              <div hidden={rayon !== RAYON_CARTES}>
+                <SectionDesCartes
+                  tenue={etat.enregistree}
+                  onSolde={(reste) => {
+                    setBoutique((b) => b && { ...b, solde: reste });
+                    setSolde(reste);
                   }}
                   onRefus={() => void lireLaBoutique()}
                 />

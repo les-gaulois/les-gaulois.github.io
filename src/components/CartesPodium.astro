@@ -26,7 +26,7 @@ const COUCHES = [5, 4, 3, 2, 1, 0];
     {
       cartes.map((c) => (
         <li class="podium-carte-case">
-          <a class="podium-carte" data-metal={c.metal} data-finition={c.finition} href={`${base}/membres/${encodeURIComponent(c.id)}`} data-testid="hero-card">
+          <a class="podium-carte" data-metal={c.metal} data-finition={c.finition} data-reflet={c.animee ? undefined : ""} href={`${base}/membres/${encodeURIComponent(c.id)}`} data-testid="hero-card">
             <span class="podium-carte-face" aria-hidden="true" style={c.banniere ? `--banniere:url("${base}${c.banniere}")` : undefined}>
               <canvas class="podium-carte-fx" data-toile="fond" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
               <i class="podium-carte-holo" />

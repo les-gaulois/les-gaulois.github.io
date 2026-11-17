@@ -12,16 +12,21 @@
  *
  * La même étape lit la bannière que ces membres montrent, pour leur ligne de la liste des membres (16 novembre 2026) :
  * `.cache/bannieres-membres.json`, de la même façon, relu par `bannieresDuCache` (`src/lib/bannieres-joueurs.ts`).
+ *
+ * Et la finition de carte qu'ils montrent, pour le podium de l'accueil (17 novembre 2026) : `.cache/finitions-membres.json`,
+ * relu par `finitionsDuCache` (`src/lib/finitions-joueurs.ts`).
  */
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { loadMembers } from "../src/lib/data";
 import { BANNIERES_MEMBRES_FILE, cacheDesBannieres, journalDesBannieres, lireBannieresDesJoueurs } from "../src/lib/bannieres-joueurs";
+import { cacheDesFinitions, FINITIONS_MEMBRES_FILE, journalDesFinitions, lireFinitionsDesJoueurs } from "../src/lib/finitions-joueurs";
 import { cacheDesGaulois, GAULOIS_FICHES_FILE, journalDesGaulois, lireGauloisDesJoueurs } from "../src/lib/gaulois-joueurs";
 
 // Jamais un ancien fichier : un membre suspendu depuis garderait son Gaulois sur sa fiche.
 rmSync(GAULOIS_FICHES_FILE, { force: true });
 rmSync(BANNIERES_MEMBRES_FILE, { force: true });
+rmSync(FINITIONS_MEMBRES_FILE, { force: true });
 
 const list = loadMembers();
 if (!list) {
@@ -54,5 +59,18 @@ if (bannieres.etat === "lu") {
 `);
   console.log(`Bannières de la liste : ${bannieres.bannieres.size} bannière${bannieres.bannieres.size > 1 ? "s" : ""} pour ${ids.length} membres au pseudo public.`);
 } else if (bannieres.etat === "panne") {
+  process.exitCode = 1;
+}
+
+// Les finitions des cartes du podium : une lecture à part, qu'une panne des Gaulois ou des bannières n'empêche pas.
+const finitions = await lireFinitionsDesJoueurs(ids, process.env["SUPABASE_URL"], process.env["SUPABASE_SECRET_KEY"]);
+const ligneDesFinitions = journalDesFinitions(finitions);
+if (ligneDesFinitions) console.log(ligneDesFinitions);
+
+if (finitions.etat === "lu") {
+  mkdirSync(dirname(FINITIONS_MEMBRES_FILE), { recursive: true });
+  writeFileSync(FINITIONS_MEMBRES_FILE, `${JSON.stringify(cacheDesFinitions(finitions.finitions, new Date()))}\n`);
+  console.log(`Finitions des cartes : ${finitions.finitions.size} finition${finitions.finitions.size > 1 ? "s" : ""} pour ${ids.length} membres au pseudo public.`);
+} else if (finitions.etat === "panne") {
   process.exitCode = 1;
 }

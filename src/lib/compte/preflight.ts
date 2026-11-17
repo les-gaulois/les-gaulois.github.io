@@ -368,6 +368,28 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
     else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète une bannière et choisit la sienne.`);
   }
 
+  // Le rayon « Cartes » de la boutique (migration 20261117001200, collée par le fichier .cache/a-coller-cartes.sql) : seul un
+  // compte connecté lit ses finitions ; seul un compte validé avec son Gaulois en achète ou en choisit une ; la lecture du
+  // site n'est ouverte qu'à la clé de service. Absente : 404, le fichier n'est pas collé, l'onglet du rayon ne paraît pas.
+  const cartes = await rpc("get_mes_cartes");
+  const cartesAnswer = cartes.ok ? ((await cartes.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (cartes.status === 404) add("Le rayon des cartes est installé", "warn", "get_mes_cartes est absente : collez le fichier .cache/a-coller-cartes.sql (sa dernière ligne dit « rayon des cartes : installé »).");
+  else if (isClosed(cartes.status) || (cartes.ok && cartesAnswer?.ok === false)) add("Un visiteur ne lit pas de finitions de carte", "ok");
+  else add("Un visiteur ne lit pas de finitions de carte", "fail", `Réponse ${cartes.status}. Ne mettez pas en ligne : seul un compte connecté lit ses finitions et son solde.`);
+  if (cartes.status !== 404) {
+    const cartesCalls = [
+      ["acheter_carte", { p_finition: "", p_prix_vu: 0 }, "Un visiteur n'achète pas de finition de carte"],
+      ["choisir_carte", { p_finition: null }, "Un visiteur ne choisit aucune finition de carte"],
+      ["cartes_des_joueurs", { p_empreintes: [] }, "Un visiteur ne lit pas les finitions des joueurs"],
+    ] as const;
+    for (const [fn, body, label] of cartesCalls) {
+      const res = await rpc(fn, body);
+      const answer = res.ok ? ((await res.json().catch(() => null)) as { ok?: boolean } | null) : null;
+      if (isClosed(res.status) || (res.ok && answer?.ok === false)) add(label, "ok");
+      else add(label, "fail", `Réponse ${res.status}. Ne mettez pas en ligne : les finitions de carte ne s'achètent et ne se lisent que par un compte qui en a le droit.`);
+    }
+  }
+
   // Les Gaulois uniques (migration 20261115001000, collée par le fichier .cache/a-coller-modeles.sql) : seul un compte
   // connecté lit ses modèles ; seul un compte validé avec son Gaulois en achète ou ouvre leur pochette. Absente : 404, le
   // fichier n'est pas collé.

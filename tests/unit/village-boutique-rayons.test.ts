@@ -45,8 +45,9 @@ describe("les rayons de la boutique", () => {
   it("sont les emplacements d'objets, puis les bannières et les Gaulois uniques : ni le corps, gratuit, ni les pochettes, qui ont leur partie de la page", () => {
     // L'ordre voulu par le pilote le 15 novembre 2026 : tête, haut, bas, pieds, arme, bannière ; tout ajout à la suite.
     expect(RAYONS_OBJETS).toEqual(EMPLACEMENTS_OBJETS);
-    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES]);
-    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière", "Uniques"]);
+    // Les cartes, huitième onglet depuis le 17 novembre 2026, à la suite.
+    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES, "cartes"]);
+    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière", "Uniques", "Cartes"]);
     expect(RAYONS_BOUTIQUE.filter(estUnRayonDObjets)).toEqual(EMPLACEMENTS_OBJETS);
     expect(estUnRayonDObjets(RAYON_BANNIERE)).toBe(false);
     expect(estUnRayonDObjets(RAYON_UNIQUES)).toBe(false);

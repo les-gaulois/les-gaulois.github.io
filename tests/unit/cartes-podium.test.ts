@@ -53,10 +53,21 @@ describe("les cartes du podium de l'accueil", () => {
 
   it("donne à chaque place son animation, et chaque animation se dessine à toute heure sans erreur", () => {
     const cartes = cartesDuPodium(podium, () => portrait(), () => null);
-    expect(cartes?.map((c) => c.finition)).toEqual(["champignon", "piratage", "artifice"]);
+    expect(cartes?.map((c) => c.finition)).toEqual(["champignon-atomique", "piratage", "feu-d-artifice"]);
+    expect(cartes?.every((c) => c.animee)).toBe(true);
     let gestes = 0;
     const toile = new Proxy({}, { get: () => () => gestes++, set: () => true }) as unknown as Toile;
-    for (const dessiner of Object.values(FINITIONS)) for (let t = 0; t < 20; t += 0.13) dessiner(toile, toile, t);
+    for (const dessiner of Object.values(FINITIONS)) for (let t = 0; t < 20; t += 0.13) dessiner(toile, toile, t, 0.3, -0.2);
     expect(gestes).toBeGreaterThan(1000);
+  });
+
+  it("montre la finition que le joueur a choisie, et celle de sa place pour un nom inconnu ou sans choix", () => {
+    const choix: Record<string, string> = { a: "arc-en-ciel", b: "inconnue" };
+    const cartes = cartesDuPodium(podium, () => portrait(), () => null, (id) => choix[id] ?? null);
+    expect(cartes?.map((c) => [c.finition, c.animee])).toEqual([
+      ["arc-en-ciel", false],
+      ["piratage", true],
+      ["feu-d-artifice", true],
+    ]);
   });
 });

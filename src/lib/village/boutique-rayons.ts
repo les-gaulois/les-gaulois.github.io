@@ -37,6 +37,12 @@ export type RayonObjet = (typeof RAYONS_OBJETS)[number];
 /** Le rayon des bannières de /gaulois. */
 export const RAYON_BANNIERE = "banniere";
 
+/**
+ * Le rayon des cartes (17 novembre 2026) : les finitions de la carte du membre, celle du podium de l'accueil
+ * (`cartes.ts`). Le huitième onglet, à la suite des Gaulois uniques.
+ */
+export const RAYON_CARTES = "cartes";
+
 /** Le rayon des Gaulois uniques : leur pochette et les onze corps de créature (`modeles.ts`). */
 export const RAYON_UNIQUES = "uniques";
 
@@ -52,10 +58,11 @@ export const RAYON_POCHETTES = "pochettes";
  * Les rayons de la boutique, dans l'ordre de la barre. Le 15 novembre 2026, le pilote trouvait la page longue : les
  * bannières, jusque-là une section entière au-dessus du marché, sont devenues un onglet après l'arme (« ranger les
  * bannières et futur ajout dans la suite tête, haut, bas, pied, arme, bannière »). Ce qui s'ajoutera à la boutique
- * prendra de même un onglet à la suite, plutôt qu'une section de plus sur la page : les Gaulois uniques sont le septième.
+ * prendra de même un onglet à la suite, plutôt qu'une section de plus sur la page : les Gaulois uniques sont le septième, les cartes
+ * (`RAYON_CARTES`, plus bas) le huitième.
  * Les pochettes n'en sont plus : elles ont leur partie de la page (`RAYON_POCHETTES`).
  */
-export const RAYONS_BOUTIQUE = [...RAYONS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES] as const;
+export const RAYONS_BOUTIQUE = [...RAYONS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES, RAYON_CARTES] as const;
 
 /*
  * Un rayon demandé depuis un autre onglet (la vitrine : « où trouver cet objet ») : noté ici, puis pris une seule fois par
@@ -86,7 +93,7 @@ export type RayonBoutique = (typeof RAYONS_BOUTIQUE)[number];
 export type RayonOuvert = RayonBoutique | typeof RAYON_POCHETTES;
 
 /** Le nom des onglets qui ne sont pas des rayons d'objets. « Uniques », pour « Gaulois uniques ». */
-const NOMS_DES_AUTRES_RAYONS: Readonly<Record<string, string>> = { [RAYON_BANNIERE]: "Bannière", [RAYON_UNIQUES]: "Uniques" };
+const NOMS_DES_AUTRES_RAYONS: Readonly<Record<string, string>> = { [RAYON_BANNIERE]: "Bannière", [RAYON_UNIQUES]: "Uniques", [RAYON_CARTES]: "Cartes" };
 
 /** Le nom de chaque onglet de la barre. */
 export const NOMS_RAYONS = Object.fromEntries(RAYONS_BOUTIQUE.map((rayon) => [rayon, NOMS_DES_AUTRES_RAYONS[rayon] ?? NOMS_EMPLACEMENTS[rayon as RayonObjet]])) as Readonly<Record<RayonBoutique, string>>;
@@ -153,6 +160,31 @@ export const IMAGE_DU_RAYON_UNIQUES: Vignette = {
   hauteur: DESSIN_ONGLET_UNIQUES.length,
   cases: DESSIN_ONGLET_UNIQUES.flatMap((ligne) => [...ligne].map((lettre) => COULEURS_ONGLET_UNIQUES[lettre] ?? null)),
 };
+
+/**
+ * L'image de l'onglet des cartes, décorative : une carte à liseré d'or, son fond marine, une étoile et un reflet en
+ * travers. Ce qu'on trouve dans l'onglet : des brillances de carte.
+ */
+const DESSIN_ONGLET_CARTES = [
+  ".kkkkkkkkkkk.",
+  "kgggggggggggk",
+  "kgbbbbbbbwbgk",
+  "kgbbbbbbwbbgk",
+  "kgbbbybwbbbgk",
+  "kgbbyyybbbbgk",
+  "kgbyyyyybbbgk",
+  "kgbbyyybbbbgk",
+  "kgbbybybbbbgk",
+  "kgbwbbbbbbbgk",
+  "kgwbbbbbbbbgk",
+  "kgbbbbbbbbbgk",
+  "kgnnnnnnnnngk",
+  "kgnnnnnnnnngk",
+  "kgggggggggggk",
+  ".kkkkkkkkkkk.",
+] as const;
+const COULEURS_ONGLET_CARTES: Readonly<Record<string, string>> = { k: "#1a1410", g: "#d4a017", b: "#2148b8", n: "#0a1230", y: "#ffe07a", w: "#9fd0ff" };
+export const IMAGE_DU_RAYON_CARTES: Vignette = vignetteDOnglet(DESSIN_ONGLET_CARTES, COULEURS_ONGLET_CARTES);
 
 /** Un rayon rangé : ce que vend la boutique du clan, ce que vendent les membres, et de quoi les réduire à une rareté. */
 export interface RayonRange {

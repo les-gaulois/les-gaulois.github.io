@@ -377,6 +377,9 @@ export function lireReponseDesAchats(data: unknown): Extract<LectureDesAchats, {
   let inconnus = 0;
   for (const brut of reponse.data.achats) {
     const ligne = LigneDuServeur.safeParse(brut);
+    // Une finition de carte achetée au rayon « Cartes » (« carte/<identifiant> », migration 20261117001200) : pas encore
+    // dessinée ici. Elle est écartée sans avertissement : ce n'est pas un objet inconnu.
+    if (ligne.success && ligne.data.emplacement === "carte") continue;
     const nom = ligne.success ? nomPropre(ligne.data.nom) : "";
     const emplacement = ligne.success ? ([...EMPLACEMENTS_OBJETS, FAMILIER, BANNIERE, MODELE] as readonly string[]).find((e) => e === ligne.data.emplacement) : undefined;
     // Un familier ne sort que de la pochette des familiers, une bannière que de la boutique ou, pour un trésor, de la
