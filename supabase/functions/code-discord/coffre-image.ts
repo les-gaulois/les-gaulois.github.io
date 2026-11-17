@@ -461,6 +461,8 @@ export interface DessinDeLEssai {
   /** Dans un cycle de manches à thème : le nombre de manches du cycle, et le multiplicateur du niveau de celle-ci. */
   sur?: number | null;
   fois?: number | null;
+  /** Où en est la fatigue du gardien, en quelques mots (« Fatigue dans 12 essais ») ; absente, rien n'est écrit. */
+  fatigue?: string | null;
 }
 
 const TITRES_DES_SOIRS: Readonly<Record<Soir, string>> = { cervoise: "Soir de cervoise", veillee: "Veillée : essais doublés" };
@@ -514,6 +516,8 @@ export function imageDeLEssai(d: DessinDeLEssai): Image {
     t.r(L - l - 8, 28, l, 2, OR);
     ecrire(t, PETITE, L - l + 3, 16, titre, OR_CLAIR, 2);
   }
+  // La jauge de fatigue, sous la plaque du gardien : les joueurs savent quand insister ensemble.
+  if (d.fatigue) plaque(t, 8 + 15 * E, 34, [{ texte: d.fatigue, couleur: BLANC }]);
   const y = fondDuBandeau(t);
   // Le mot, en cases.
   let x = 14;
@@ -757,6 +761,7 @@ export function decrireLEssai(d: DessinDeLEssai): string {
     indices.length > 0 ? `Indices : ${indices.join(", ")}.` : "",
     `${FICHES_DES_GARDIENS[d.gardien].theme}. Manche ${numeroDe(d)}, essai ${d.essai}. Garde du gardien : ${Math.max(1, Math.min(4, Math.round(d.garde)))} sur 4. Cagnotte : ${Math.max(0, Math.round(d.cagnotte))} statères, multipliée par ${foisDe(d)} pour qui ouvre le coffre.`,
     d.soir ? `${TITRES_DES_SOIRS[d.soir]}.` : "",
+    d.fatigue ? `${d.fatigue}.` : "",
   ]
     .filter((phrase) => phrase !== "")
     .join(" ")
@@ -1054,3 +1059,86 @@ export const pngDuTableau = (d: DessinDuTableau): Promise<Uint8Array<ArrayBuffer
 export const pngDeLAide = (d: DessinDeLAide): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDeLAide(d));
 export const pngDeLAlerte = (d: DessinDeLAlerte): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDeLAlerte(d));
 export const pngDuBilan = (d: DessinDuBilan): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDuBilan(d));
+
+/* ---------- Le tableau d'honneur d'un cycle ---------- */
+
+export interface DessinDeLHonneur {
+  /**
+   * Qui a ouvert chaque coffre du cycle, par le rang de la manche (1 à 15), et ce que ce coffre lui a versé. `membre` :
+   * ce qui distingue un membre d'un autre (son identifiant), jamais dessiné ; sans lui, le nom en tient lieu.
+   */
+  manches: readonly { rang: number; gardien: Gardien; nom: string; stateres: number; membre?: string }[];
+}
+
+/**
+ * Les villageois du cycle, du plus de coffres ouverts au moins ; à égalité, le plus de statères gagnés, puis le premier
+ * arrivé. Ils se comptent par membre, pas par nom : deux membres au même nom restent deux, et qui a changé de nom en
+ * cours de cycle reste un, sous son dernier nom.
+ */
+export function meilleursDuCycle(manches: DessinDeLHonneur["manches"]): { nom: string; coffres: number; stateres: number }[] {
+  const par = new Map<string, { nom: string; coffres: number; stateres: number; premier: number; dernier: number }>();
+  for (const m of manches) {
+    const cle = m.membre ?? `nom:${m.nom}`;
+    const deja = par.get(cle) ?? { nom: m.nom, coffres: 0, stateres: 0, premier: m.rang, dernier: 0 };
+    par.set(cle, { nom: m.rang >= deja.dernier ? m.nom : deja.nom, coffres: deja.coffres + 1, stateres: deja.stateres + Math.max(0, m.stateres), premier: Math.min(deja.premier, m.rang), dernier: Math.max(deja.dernier, m.rang) });
+  }
+  return [...par.values()].sort((a, b) => b.coffres - a.coffres || b.stateres - a.stateres || a.premier - b.premier).map(({ nom, coffres, stateres }) => ({ nom, coffres, stateres }));
+}
+
+/**
+ * Le tableau d'honneur, posté quand la dernière manche du cycle tombe (idée retenue par le pilote, 17 novembre 2026) :
+ * les quinze coffres et le nom de qui a ouvert chacun, puis les trois meilleurs du cycle, avec leurs statères gagnés.
+ */
+export function imageDeLHonneur(d: DessinDeLHonneur): Image {
+  const t = new Toile(L, IMAGE_DU_COFFRE.hauteur);
+  fondDuPanneau(t, 46, 400);
+  const coffre = casesDuCoffre(true);
+  t.cases(coffre.cases, coffre.largeur, 14, 3, 1);
+  ecrire(t, GRANDE, 64, 12, "Le cycle est fini", OR, 3, OR_SOMBRE);
+  // Les quinze coffres, sur trois colonnes de cinq : le rang, le gardien, et qui l'a vaincu.
+  const parRang = new Map(d.manches.map((m) => [m.rang, m]));
+  for (let rang = 1; rang <= 15; rang++) {
+    const m = parRang.get(rang);
+    const x = 14 + Math.floor((rang - 1) / 5) * 200;
+    const y = 60 + ((rang - 1) % 5) * 36;
+    t.r(x, y, 192, 32, CASE);
+    t.r(x, y, 4, 32, m ? OR : CASE_BORD);
+    ecrire(t, PETITE, x + 10, y + 5, String(rang), m ? OR_CLAIR : GRIS, 2);
+    if (m) {
+      // Le gardien sans son article, pour que les noms longs tiennent dans la case.
+      ecrire(t, PETITE, x + 30, y + 5, raccourci(PETITE, FICHES_DES_GARDIENS[m.gardien].nom.replace(/^(Le |La |L')/, ""), 2, 158), GRIS, 2);
+      ecrire(t, PETITE, x + 30, y + 19, raccourci(PETITE, m.nom, 2, 158), BLANC, 2);
+    }
+  }
+  t.r(14, 246, L - 28, 2, OR_SOMBRE);
+  // Les trois meilleurs, en grand : les coffres ouverts, puis la pièce et les statères gagnés.
+  meilleursDuCycle(d.manches)
+    .slice(0, 3)
+    .forEach((p, i) => {
+      const y = 262 + i * 30;
+      const metal = METAUX_DU_PODIUM[i] ?? METAUX_DU_PODIUM[0];
+      t.r(14, y - 5, 26, 25, metal.fond);
+      t.r(17, y - 2, 20, 19, NUIT);
+      ecrire(t, PETITE, 23, y, String(i + 1), metal.clair, 3);
+      const suite = `${p.coffres} coffre${p.coffres > 1 ? "s" : ""}`;
+      const fin = ecrire(t, PETITE, 50, y, `${raccourci(PETITE, p.nom, 3, 230)} : ${suite}`, i === 0 ? OR_CLAIR : BLANC, 3);
+      if (p.stateres > 0) {
+        t.cases(casesDuStatere(12), 12, fin + 10, y - 4, 2);
+        ecrire(t, PETITE, fin + 40, y, enMilliers(p.stateres), OR, 3);
+      }
+    });
+  ecrire(t, PETITE, 14, 366, "Le cycle repart : manche 1 sur 15", GRIS, 3);
+  return t.image();
+}
+
+/** Le tableau d'honneur, dit en mots. */
+export const decrireLHonneur = (d: DessinDeLHonneur): string =>
+  `Le cycle des quinze manches est fini. ${[...d.manches]
+    .sort((a, b) => a.rang - b.rang)
+    .map((m) => `${m.rang}. ${FICHES_DES_GARDIENS[m.gardien].nom} : ${m.nom}`)
+    .join(" ; ")}. Les meilleurs : ${meilleursDuCycle(d.manches)
+    .slice(0, 3)
+    .map((p) => `${p.nom}, ${p.coffres} coffre${p.coffres > 1 ? "s" : ""}${p.stateres > 0 ? `, ${enMilliers(p.stateres)} statères gagnés` : ""}`)
+    .join(" ; ")}.`.slice(0, 1024);
+
+export const pngDeLHonneur = (d: DessinDeLHonneur): Promise<Uint8Array<ArrayBuffer>> => ecrirePng(imageDeLHonneur(d));

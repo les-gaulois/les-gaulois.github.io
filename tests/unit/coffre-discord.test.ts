@@ -131,7 +131,7 @@ describe("le mot : choisi par Claude", () => {
     }
     expect(new Set(FAMILLES_DE_MOTS).size).toBe(FAMILLES_DE_MOTS.length);
     expect(INITIALES_DE_MOTS).toMatch(/^[a-z]+$/);
-    expect(demandeDuMot(["enclume"], { famille: "un outil", initiale: "m" })).toBe("Choisis le mot. Le sort a tiré pour cette manche : un outil, dont le nom commence par la lettre « M ». Ne prends pas le premier mot qui vient à tout le monde. Si vraiment aucun mot ne convient, garde la famille et change de lettre. Ces mots ont déjà servi, n'en reprends aucun : enclume.");
+    expect(demandeDuMot(["enclume"], { famille: "un outil", initiale: "m" })).toBe("Choisis le mot. Un mot connu d'un enfant de dix ans. Le sort a tiré pour cette manche : un outil, dont le nom commence par la lettre « M ». Ne prends pas le premier mot qui vient à tout le monde. Si vraiment aucun mot ne convient, garde la famille et change de lettre. Ces mots ont déjà servi, n'en reprends aucun : enclume.");
     expect(CONSIGNE_DU_MOT).toContain("sans accent");
   });
 });
@@ -591,7 +591,9 @@ describe("/coffre", () => {
     const m = monde({ rpc: { coffre_ouvrir: () => ouverture({ manche: null }), coffre_manche: () => ({ ok: false, error: "invalid_word" }), coffre_annuler: () => ({ ok: true }) }, claude: () => null });
     await coffreCommand(interaction("Bonjour druide"), m.deps);
     await m.fini();
-    expect(m.calls.rpc.slice(1)).toEqual([
+    // Avant de choisir un mot, le robot demande au serveur où en est le cycle, pour le niveau du mot.
+    expect(m.calls.rpc[1]).toEqual({ name: "coffre_cycle", args: { p_manche: null } });
+    expect(m.calls.rpc.slice(2)).toEqual([
       { name: "coffre_manche", args: { p_mot: null, p_microdollars: FORFAIT_ECHEC } },
       { name: "coffre_annuler", args: { p_essai: 9, p_microdollars: 0 } },
     ]);
@@ -611,16 +613,16 @@ describe("/coffre", () => {
     });
     await coffreCommand(interaction("Bonjour druide"), m.deps);
     await m.fini();
-    expect(m.calls.rpc.slice(1, 3)).toEqual([
+    expect(m.calls.rpc.slice(2, 4)).toEqual([
       { name: "coffre_manche", args: { p_mot: null, p_microdollars: 600 } },
       { name: "coffre_manche", args: { p_mot: "enclume", p_microdollars: 600 } },
     ]);
-    expect(m.calls.claude[0]).toMatchObject({ effort: "low", messages: [{ role: "user", content: expect.stringMatching(/^Choisis le mot\. Le sort a tiré pour cette manche : .+ Ces mots ont déjà servi, n'en reprends aucun : menhir\.$/) }] });
+    expect(m.calls.claude[0]).toMatchObject({ effort: "low", messages: [{ role: "user", content: expect.stringMatching(/^Choisis le mot\. Un mot connu d'un enfant de dix ans\. Le sort a tiré pour cette manche : .+ Ces mots ont déjà servi, n'en reprends aucun : menhir\.$/) }] });
     // La nouvelle manche repart sans souvenir de la précédente.
     expect(m.calls.claude[2]?.messages).toEqual([{ role: "user", content: "[Jod] Bonjour druide" }]);
     expect(m.calls.claude[2]?.system).toContain("« enclume »");
     expect(ecrit(m)).toContain("Nouveau coffre, nouvelle vigilance.");
-    expect(m.calls.rpc[3]?.args).toMatchObject({ p_manche: 3 });
+    expect(m.calls.rpc[4]?.args).toMatchObject({ p_manche: 3 });
   });
 
   it("aucun mot valable : l'essai est annulé, et le membre le sait", async () => {

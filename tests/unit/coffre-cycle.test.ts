@@ -17,15 +17,22 @@ import {
   MANCHES_PAR_CYCLE,
   messageDuCoffre,
   NIVEAUX,
+  jaugeDeFatigue,
+  MOT_SANS_NIVEAU,
+  MOTS_PAR_NIVEAU,
+  demandeDuMot,
+  HONNEUR_FILE,
+  BILAN_FILE,
   niveauDuRang,
   PALIERS,
   palierDeLaManche,
   palierDuDruide,
+  parseCycle,
   parseManche,
   parseTableau,
   separateurDeManche,
 } from "../../supabase/functions/code-discord/coffre";
-import { decrireLEssai, FICHES_DES_GARDIENS, GARDIENS, HUMEURS, IMAGE_DU_COFFRE, lignesDeLAide, pngDeLEssai, tenueDuGardien } from "../../supabase/functions/code-discord/coffre-image";
+import { decrireLEssai, decrireLHonneur, FICHES_DES_GARDIENS, GARDIENS, HUMEURS, IMAGE_DU_COFFRE, lignesDeLAide, meilleursDuCycle, pngDeLEssai, pngDeLHonneur, tenueDuGardien } from "../../supabase/functions/code-discord/coffre-image";
 import { modeleDuGaulois } from "../../supabase/functions/code-discord/gaulois";
 import type { DiscordCall } from "../../supabase/functions/code-discord/index";
 import { RARETES_DES_MODELES } from "../../supabase/functions/code-discord/modeles/index";
@@ -215,5 +222,193 @@ describe("la migration du cycle", () => {
     const gardees = avant.filter((ligne) => !ligne.includes("v_fois := case when v_mise > 0 then v_garde + 1 else 1 end;"));
     expect(gardees).toHaveLength(avant.length - 1);
     for (const ligne of gardees) expect(apres).toContain(ligne);
+  });
+});
+
+describe("les mots, la mémoire, la fatigue et le tableau d'honneur", () => {
+  const ID = "111111111111111111";
+  const AUTRE = "444444444444444444";
+  const cycle = (extra: Record<string, unknown> = {}) => ({ ok: true, cycle: true, rang_suivant: 8, manches: [{ rang: 1, discord_id: ID, nom: " [GAL] Jod ", stateres: 240 }, { rang: 2, discord_id: AUTRE, nom: "Un", stateres: 0 }, { rang: 7, discord_id: ID, nom: "Jod", stateres: 900 }], ...extra });
+
+  it("lit le cycle sans rien croire", () => {
+    expect(parseCycle(cycle())).toEqual({ rangSuivant: 8, victoires: [{ rang: 1, discordId: ID, nom: "GAL Jod", stateres: 240 }, { rang: 2, discordId: AUTRE, nom: "Un", stateres: 0 }, { rang: 7, discordId: ID, nom: "Jod", stateres: 900 }] });
+    // Sans cycle lancé, sans réponse, ou avec des lignes illisibles : rien, ou seulement ce qui se lit.
+    expect(parseCycle(cycle({ cycle: false }))).toBeNull();
+    expect(parseCycle({ ok: false })).toBeNull();
+    expect(parseCycle(null)).toBeNull();
+    expect(parseCycle(cycle({ rang_suivant: 16, manches: [{ rang: 0, discord_id: ID, nom: "A" }, { rang: 3, discord_id: "x", nom: "B" }, { rang: 4, discord_id: ID }, { rang: 5, discord_id: ID, nom: "C", stateres: -4 }] }))).toEqual({ rangSuivant: null, victoires: [{ rang: 5, discordId: ID, nom: "C", stateres: 0 }] });
+  });
+
+  it("le mot suit le niveau de la manche : court et courant d'abord, long et rare ensuite", () => {
+    const tirage = { famille: "un outil", initiale: "m" };
+    for (const niveau of Object.keys(NIVEAUX) as (keyof typeof NIVEAUX)[]) {
+      expect(demandeDuMot([], tirage, niveau)).toContain(MOTS_PAR_NIVEAU[niveau]);
+      expect(demandeDuMot([], tirage, niveau)).not.toContain(MOT_SANS_NIVEAU);
+      // Chaque niveau dit une longueur que la forme du mot accepte : de 5 à 10 lettres.
+      for (const n of MOTS_PAR_NIVEAU[niveau].match(/[0-9]+/g) ?? []) expect(Number(n)).toBeGreaterThanOrEqual(5);
+      for (const n of MOTS_PAR_NIVEAU[niveau].match(/[0-9]+/g) ?? []) expect(Number(n)).toBeLessThanOrEqual(10);
+    }
+    expect(MOTS_PAR_NIVEAU.facile).toContain("très courant");
+    expect(MOTS_PAR_NIVEAU.extreme).toContain("rare");
+    expect(new Set(Object.values(MOTS_PAR_NIVEAU)).size).toBe(5);
+    // Sans niveau connu, le mot d'avant ; sans tirage ni niveau, la demande d'avant.
+    expect(demandeDuMot([], tirage)).toContain(MOT_SANS_NIVEAU);
+    expect(demandeDuMot([])).toBe("Choisis le mot.");
+  });
+
+  it("la jauge dit quand le gardien fatigue, puis quand il lâche des indices, deux fois plus tard pour l'extrême", () => {
+    expect([1, 39, 40, 79, 80, 200].map((n) => jaugeDeFatigue({ rang: 7 }, n))).toEqual(["Fatigue dans 39 essais", "Fatigue dans 1 essai", "Fatigué · Indices dans 40 essais", "Fatigué · Indices dans 1 essai", "Épuisé : un indice à chaque réponse", "Épuisé : un indice à chaque réponse"]);
+    // Une manche facile : la garde ne peut plus baisser, seule la suite est dite.
+    expect(jaugeDeFatigue({ rang: 1 }, 5)).toBe("Indices dans 75 essais");
+    expect(jaugeDeFatigue({ rang: 1 }, 60)).toBe("Indices dans 20 essais");
+    expect(jaugeDeFatigue({ rang: 15 }, 50)).toBe("Fatigue dans 30 essais");
+    expect(jaugeDeFatigue({ rang: 15 }, 100)).toBe("Fatigué · Indices dans 60 essais");
+    expect(jaugeDeFatigue({ rang: null }, 5)).toBe("Fatigue dans 35 essais");
+    // La jauge suit la règle de la vigilance : elle annonce la fatigue à l'essai même où le palier baisse.
+    for (const rang of [4, 7, 12, 15]) {
+      const seuil = FATIGUE_ESSAIS * NIVEAUX[niveauDuRang(rang)].endurance;
+      expect(palierDeLaManche({ rang, essais: seuil - 1 }, 0)).toBe(NIVEAUX[niveauDuRang(rang)].palier);
+      expect(palierDeLaManche({ rang, essais: seuil }, 0)).toBe(NIVEAUX[niveauDuRang(rang)].palier - 1);
+      expect(jaugeDeFatigue({ rang }, seuil - 1)).toBe("Fatigue dans 1 essai");
+      expect(jaugeDeFatigue({ rang }, seuil)).toContain("Fatigué");
+    }
+    expect(decrireLEssai({ gardien: "loup", humeur: "agace", tenue: null, tableau: { mot: "tomate", longueurDite: true, lettres: [1], indices: [] }, manche: 7, sur: 15, fois: 3, essai: 28, garde: 3, cagnotte: 0, soir: null, fatigue: "Fatigue dans 12 essais" })).toContain("Fatigue dans 12 essais.");
+  });
+
+  it("le gardien sait combien de coffres le villageois a ouverts dans le cycle, sans que sa vigilance change", () => {
+    const manche = parseManche({ id: 40, mot: "menhir", essais: 2, rang: 8 });
+    if (!manche) throw new Error("manche illisible");
+    const sans = consigneDuGardien({ manche, niveau: 0, ruses: [], devine: false, soir: null });
+    const avec = consigneDuGardien({ manche, niveau: 0, ruses: [], devine: false, soir: null, memoire: { coffres: 2, vaincus: ["le druide", "le loup"] } });
+    expect(sans).not.toContain("Tu as de la mémoire");
+    expect(avec).toContain("a déjà ouvert 2 coffres dans ce cycle de quinze manches, en venant à bout de : le druide, le loup.");
+    expect(avec).toContain("Cela ne change ni tes règles ni ta vigilance.");
+    expect(avec).toContain(PALIERS[2]);
+    expect(consigneDuGardien({ manche, niveau: 0, ruses: [], devine: false, soir: null, memoire: { coffres: 0, vaincus: [] } })).toBe(sans);
+    expect(consigneDuGardien({ manche, niveau: 0, ruses: [], devine: false, soir: null, memoire: { coffres: 1, vaincus: [] } })).toContain("a déjà ouvert 1 coffre dans ce cycle de quinze manches.");
+  });
+
+  it("les meilleurs du cycle : le plus de coffres, puis le plus de statères, puis le premier arrivé", () => {
+    const manches = [
+      { rang: 1, gardien: "druide" as const, nom: "A", stateres: 100 },
+      { rang: 2, gardien: "forgeron" as const, nom: "B", stateres: 900 },
+      { rang: 3, gardien: "barde" as const, nom: "A", stateres: 50 },
+      { rang: 4, gardien: "marchande" as const, nom: "C", stateres: 900 },
+      { rang: 5, gardien: "axolotl" as const, nom: "D", stateres: -5 },
+    ];
+    expect(meilleursDuCycle(manches)).toEqual([{ nom: "A", coffres: 2, stateres: 150 }, { nom: "B", coffres: 1, stateres: 900 }, { nom: "C", coffres: 1, stateres: 900 }, { nom: "D", coffres: 1, stateres: 0 }]);
+    const dit = decrireLHonneur({ manches });
+    expect(dit).toContain("1. Le druide : A ; 2. Le forgeron : B");
+    expect(dit).toContain("Les meilleurs : A, 2 coffres, 150 statères gagnés ; B, 1 coffre, 900 statères gagnés ; C, 1 coffre, 900 statères gagnés.");
+    expect(meilleursDuCycle([])).toEqual([]);
+    // Par membre, pas par nom : deux membres au même nom restent deux ; qui change de nom reste un, sous son dernier nom.
+    const g = "druide" as const;
+    expect(meilleursDuCycle([{ rang: 1, gardien: g, nom: "Jod", stateres: 10, membre: "1" }, { rang: 2, gardien: g, nom: "Jod", stateres: 20, membre: "2" }])).toEqual([{ nom: "Jod", coffres: 1, stateres: 20 }, { nom: "Jod", coffres: 1, stateres: 10 }]);
+    expect(meilleursDuCycle([{ rang: 1, gardien: g, nom: "Ancien", stateres: 10, membre: "1" }, { rang: 5, gardien: g, nom: "Nouveau", stateres: 20, membre: "1" }])).toEqual([{ nom: "Nouveau", coffres: 2, stateres: 30 }]);
+  });
+
+  /** Un essai joué de bout en bout, avec ce que le serveur répond ; rend les appels au serveur, à Claude et à Discord. */
+  async function essai(rpc: Record<string, (args: Record<string, unknown>) => Record<string, unknown> | null>, message = "Bonjour gardien") {
+    const calls = { rpc: [] as { name: string; args: Record<string, unknown> }[], claude: [] as { system: string; messages: { content: string }[] }[], webhook: [] as { method: string; call?: DiscordCall }[] };
+    const tasks: Promise<unknown>[] = [];
+    const deps: Parameters<typeof coffreCommand>[1] = {
+      guildId: "1350905494600024094",
+      rpc: async (name, args) => {
+        calls.rpc.push({ name, args });
+        return rpc[name]?.(args) ?? null;
+      },
+      webhook: async (method, _path, call) => {
+        calls.webhook.push({ method, call });
+        return { status: 200, body: null };
+      },
+      discord: async () => ({ status: 200, body: [] }),
+      background: (task) => void tasks.push(task),
+      log: () => undefined,
+      sleep: async () => undefined,
+      claude: async (demande) => {
+        calls.claude.push(demande as unknown as { system: string; messages: { content: string }[] });
+        return demande.forme ? { texte: JSON.stringify({ reponse: "Non, villageois.", humeur: "mefiant", longueur_dite: false, lettres: [], indice: "" }), modele: DRUIDE_MODELE, entree: 10, sortie: 10 } : { texte: "enclume", modele: DRUIDE_MODELE, entree: 10, sortie: 10 };
+      },
+    };
+    await coffreCommand({ type: 2, id: "333333333333333333", application_id: "222222222222222222", token: "jeton-de-l-interaction-0123456789", guild_id: "1350905494600024094", channel_id: COFFRE_SALON_ID, member: { nick: "Jod", user: { id: ID, username: "jod" } }, data: { name: "coffre", options: [{ name: "message", type: 3, value: message }] } }, deps);
+    await Promise.all(tasks);
+    return calls;
+  }
+  const ouverture = (manche: Record<string, unknown> | null) => ({ ok: true, essai: 9, manche, niveau: 20, passes: ["menhir"], ruses: [], historique: [], restants: 5, soir: null, cagnotte: 100, tenue: null });
+  const clos = (extra: Record<string, unknown> = {}) => ({ ok: true, gagne: false, manche: 41, essai: 3, mise: 10, cagnotte: 110, gain: 0, fois: 1, ...extra });
+
+  it("à l'ouverture d'une manche, le mot est demandé au niveau de la manche qui vient", async () => {
+    const calls = await essai({
+      coffre_ouvrir: () => ouverture(null),
+      coffre_cycle: () => cycle({ rang_suivant: 14 }),
+      coffre_manche: () => ({ ok: true, manche: { id: 41, mot: "enclume", essais: 0, rang: 14 } }),
+      coffre_clore: () => clos(),
+    });
+    expect(calls.rpc.map((c) => c.name)).toEqual(["coffre_ouvrir", "coffre_cycle", "coffre_manche", "coffre_clore"]);
+    expect(calls.claude[0]?.messages[0]?.content).toContain(MOTS_PAR_NIVEAU.extreme);
+    // Sans cycle, le mot d'avant, et le jeu continue.
+    const sans = await essai({ coffre_ouvrir: () => ouverture(null), coffre_manche: () => ({ ok: true, manche: { id: 41, mot: "enclume", essais: 0 } }), coffre_clore: () => clos() });
+    expect(sans.claude[0]?.messages[0]?.content).toContain(MOT_SANS_NIVEAU);
+    expect(sans.rpc.map((c) => c.name)).toContain("coffre_clore");
+  });
+
+  it("dans une manche du cycle, la consigne dit les coffres déjà ouverts par ce villageois, et l'image a sa jauge", async () => {
+    const calls = await essai({ coffre_ouvrir: () => ouverture({ id: 40, mot: "menhir", essais: 2, rang: 8 }), coffre_cycle: () => cycle(), coffre_clore: () => clos() });
+    expect(calls.rpc[1]).toEqual({ name: "coffre_cycle", args: { p_manche: 40 } });
+    expect(calls.claude[0]?.system).toContain("a déjà ouvert 2 coffres dans ce cycle de quinze manches, en venant à bout de : le druide, le loup.");
+    const description = String((calls.webhook.find((w) => w.method === "PATCH")?.call?.body as { attachments: { description: string }[] }).attachments[0]?.description);
+    expect(description).toContain("Fatigue dans 37 essais.");
+    // Un autre villageois, ou une manche hors cycle : pas de mémoire, et aucune lecture du cycle hors cycle.
+    const autre = await essai({ coffre_ouvrir: () => ouverture({ id: 40, mot: "menhir", essais: 2, rang: 8 }), coffre_cycle: () => cycle({ manches: [{ rang: 2, discord_id: AUTRE, nom: "Un", stateres: 0 }] }), coffre_clore: () => clos() });
+    expect(autre.claude[0]?.system).not.toContain("Tu as de la mémoire");
+    // À l'ouverture de la manche 1, le serveur rend encore le cycle qui vient de finir : le gardien n'en a pas la mémoire.
+    const neuf = await essai({
+      coffre_ouvrir: () => ouverture(null),
+      coffre_cycle: () => cycle({ rang_suivant: 1 }),
+      coffre_manche: () => ({ ok: true, manche: { id: 41, mot: "enclume", essais: 0, rang: 1 } }),
+      coffre_clore: () => clos(),
+    });
+    expect(neuf.claude[1]?.system).toContain("Le mot secret de cette manche");
+    expect(neuf.claude[1]?.system).not.toContain("Tu as de la mémoire");
+    // En cours de cycle, à l'ouverture d'une manche, la mémoire vaut : ce sont bien les coffres de ce cycle.
+    const suite = await essai({
+      coffre_ouvrir: () => ouverture(null),
+      coffre_cycle: () => cycle({ rang_suivant: 8 }),
+      coffre_manche: () => ({ ok: true, manche: { id: 41, mot: "enclume", essais: 0, rang: 8 } }),
+      coffre_clore: () => clos(),
+    });
+    expect(suite.claude[1]?.system).toContain("a déjà ouvert 2 coffres dans ce cycle");
+    const hors = await essai({ coffre_ouvrir: () => ouverture({ id: 40, mot: "menhir", essais: 2 }), coffre_cycle: () => cycle(), coffre_clore: () => clos() });
+    expect(hors.rpc.map((c) => c.name)).toEqual(["coffre_ouvrir", "coffre_clore"]);
+    expect(hors.claude[0]?.system).not.toContain("Tu as de la mémoire");
+  });
+
+  it("quand la quinzième manche tombe, le tableau d'honneur part après le bilan, avant l'annonce de la manche 1", async () => {
+    const quinze = Array.from({ length: 15 }, (_, i) => ({ rang: i + 1, discord_id: i % 2 === 0 ? ID : AUTRE, nom: i % 2 === 0 ? "Jod" : "Un", stateres: 100 * (i + 1) }));
+    const rpc = {
+      coffre_ouvrir: () => ouverture({ id: 40, mot: "menhir", essais: 2, rang: 15 }),
+      coffre_cycle: () => cycle({ rang_suivant: 1, manches: quinze }),
+      coffre_clore: () => clos({ gagne: true, gain: 440, fois: 4, cagnotte: 0, rang: 15 }),
+      coffre_bilan: () => ({ ok: true, essais: 3, joueurs: 2, acharne: { nom: "Jod", essais: 2 }, lettres_achetees: 0, minutes: 12 }),
+    };
+    const calls = await essai(rpc, "C'est un menhir");
+    const envois = calls.webhook.filter((w) => w.method === "POST");
+    expect(envois.map((w) => w.call?.files?.[0]?.name ?? "texte")).toEqual([BILAN_FILE, HONNEUR_FILE, "texte"]);
+    expect((envois[1]?.call?.body as { attachments: { description: string }[] }).attachments[0]?.description).toContain("Les meilleurs : Jod, 8 coffres, 6 400 statères gagnés ; Un, 7 coffres, 5 600 statères gagnés.");
+    expect(String((envois[2]?.call?.body as { content: string }).content)).toContain("# Manche 1 sur 15 · facile");
+    // Une autre manche gagnée : pas de tableau d'honneur.
+    const sept = await essai({ ...rpc, coffre_ouvrir: () => ouverture({ id: 40, mot: "menhir", essais: 2, rang: 7 }) }, "C'est un menhir");
+    expect(sept.webhook.filter((w) => w.method === "POST").map((w) => w.call?.files?.[0]?.name ?? "texte")).toEqual([BILAN_FILE, "texte"]);
+    const image = await lirePng(await pngDeLHonneur({ manches: quinze.map((m) => ({ rang: m.rang, gardien: GARDIENS[m.rang - 1] ?? "druide", nom: m.nom, stateres: m.stateres })) }));
+    expect(image).toMatchObject({ largeur: IMAGE_DU_COFFRE.largeur, hauteur: IMAGE_DU_COFFRE.hauteur });
+  });
+
+  it("la lecture du cycle n'écrit rien, ne rend que les gains du coffre, et n'est ouverte qu'au robot", () => {
+    const sql = lire("20261117001000_coffre_lecture_du_cycle");
+    expect(sql).toContain("'rang_suivant', case when (select r.base from r) is null then null else 1 + ((select count(*) from rangs)::integer % 15) end,");
+    expect(sql).toContain("v.nature in ('coffre_gain', 'coffre_prime') and v.ref = 'manche/' || g.id::text");
+    expect(sql).toContain("revoke all on function public.coffre_cycle(bigint) from public, anon, authenticated;");
+    expect(sql).toContain("grant execute on function public.coffre_cycle(bigint) to service_role;");
+    expect(sql).not.toMatch(/\b(insert|update|delete|truncate|drop|alter)\b/i);
   });
 });

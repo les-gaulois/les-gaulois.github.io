@@ -45,6 +45,7 @@ import {
   decrireLaVictoire,
   decrireLeBilan,
   decrireLEssai,
+  decrireLHonneur,
   decrireLePalmares,
   decrireLeTableau,
   FICHES_DES_GARDIENS,
@@ -55,6 +56,7 @@ import {
   pngDeLAlerte,
   pngDeLaVictoire,
   pngDeLEssai,
+  pngDeLHonneur,
   pngDuBilan,
   pngDuPalmares,
   pngDuTableau,
@@ -185,7 +187,8 @@ export function motPropose(brut: string, passes: readonly string[]): string | nu
 /** Ce que Claude lit pour choisir le mot d'une manche. */
 export const CONSIGNE_DU_MOT = [
   "Tu choisis le mot secret d'un jeu de devinettes en français, joué par des adultes et des adolescents.",
-  "Le mot : un nom commun français au singulier, concret (un objet, un animal, une plante, un aliment, un outil, un élément du paysage ou de la maison, une chose du ciel ou du temps qu'il fait, une matière), connu d'un enfant de dix ans, de 5 à 10 lettres, sans accent, sans cédille, sans trait d'union, sans espace. Ni nom propre, ni marque, ni mot grossier.",
+  "Le mot : un nom commun français au singulier, concret (un objet, un animal, une plante, un aliment, un outil, un élément du paysage ou de la maison, une chose du ciel ou du temps qu'il fait, une matière), de 5 à 10 lettres, sans accent, sans cédille, sans trait d'union, sans espace. Ni nom propre, ni marque, ni mot grossier.",
+  "La demande te dit à quel point le mot doit être courant ou rare, et sa longueur : respecte-les. Un mot rare reste un vrai mot du dictionnaire, que l'on peut deviner à force de questions.",
   "La demande te dit la famille et la première lettre que le sort a tirées pour cette manche : cherche d'abord un mot qui s'y plie.",
   `Pas un mot du jeu lui-même : ${MOTS_DU_DECOR.join(", ")}.`,
   "Réponds par ce seul mot, en minuscules, sans rien d'autre.",
@@ -234,10 +237,25 @@ export function tirerLeMot(alea: () => number = hasard): TirageDuMot {
   return { famille: FAMILLES_DE_MOTS[au(FAMILLES_DE_MOTS.length)] ?? "un objet", initiale: INITIALES_DE_MOTS[au(INITIALES_DE_MOTS.length)] ?? "a" };
 }
 
-/** La demande du mot : ce que le sort a tiré, s'il a tiré, et les mots déjà sortis, qui ne reviennent pas. */
-export const demandeDuMot = (passes: readonly string[], tirage: TirageDuMot | null = null): string =>
+/**
+ * Ce que le mot d'une manche doit être, selon son niveau (idée retenue par le pilote, 17 novembre 2026 : « des mots à la
+ * hauteur du niveau ») : courts et courants pour les manches faciles, plus longs et plus rares ensuite. Sans niveau connu
+ * (pas de cycle), le mot d'avant : connu d'un enfant de dix ans.
+ */
+export const MOTS_PAR_NIVEAU: Readonly<Record<Niveau, string>> = {
+  facile: "Niveau facile : un mot très courant, connu d'un enfant de dix ans, de 5 ou 6 lettres.",
+  moyen: "Niveau moyen : un mot courant, connu d'un enfant de dix ans, de 5 à 7 lettres.",
+  difficile: "Niveau difficile : un mot que tout adulte connaît mais qu'on ne dit pas tous les jours, de 7 à 9 lettres.",
+  "tres-difficile": "Niveau très difficile : un mot peu courant et précis, qu'un adulte connaît sans l'employer souvent, de 8 à 10 lettres.",
+  extreme: "Niveau extrême : un mot rare et précis, qu'un adulte cultivé connaît, de 9 ou 10 lettres.",
+};
+export const MOT_SANS_NIVEAU = "Un mot connu d'un enfant de dix ans.";
+
+/** La demande du mot : son niveau, ce que le sort a tiré, s'il a tiré, et les mots déjà sortis, qui ne reviennent pas. */
+export const demandeDuMot = (passes: readonly string[], tirage: TirageDuMot | null = null, niveau: Niveau | null = null): string =>
   [
     "Choisis le mot.",
+    tirage || niveau ? (niveau ? MOTS_PAR_NIVEAU[niveau] : MOT_SANS_NIVEAU) : "",
     tirage ? `Le sort a tiré pour cette manche : ${tirage.famille}, dont le nom commence par la lettre « ${tirage.initiale.toUpperCase()} ». Ne prends pas le premier mot qui vient à tout le monde. Si vraiment aucun mot ne convient, garde la famille et change de lettre.` : "",
     passes.length === 0 ? "" : `Ces mots ont déjà servi, n'en reprends aucun : ${passes.join(", ")}.`,
   ]
@@ -462,6 +480,49 @@ export function lettresDeDepart(mot: string): number[] {
   return places.length >= mot.length ? [1, mot.length] : places;
 }
 
+/** Le cycle en cours, tel que `coffre_cycle` le rend : le rang de la prochaine manche, et qui a ouvert chaque coffre. */
+export interface CycleDuCoffre {
+  /** Le rang qu'aura la prochaine manche ouverte (1 à 15), ou `null` sans cycle. */
+  rangSuivant: number | null;
+  victoires: { rang: number; discordId: string; nom: string; stateres: number }[];
+}
+
+/** La réponse de `coffre_cycle`, lue sans rien croire : `null` sans cycle lancé ou sans réponse. */
+export function parseCycle(value: unknown): CycleDuCoffre | null {
+  const lu = record(value);
+  if (!lu || lu["ok"] !== true || lu["cycle"] !== true) return null;
+  const suivant = entier(lu["rang_suivant"]);
+  const victoires: CycleDuCoffre["victoires"] = [];
+  for (const brut of Array.isArray(lu["manches"]) ? (lu["manches"] as unknown[]) : []) {
+    const v = record(brut);
+    const rang = entier(v?.["rang"]);
+    const id = v?.["discord_id"];
+    if (v && rang !== null && mancheDuCycle(rang) && typeof id === "string" && /^[0-9]{17,20}$/.test(id) && typeof v["nom"] === "string") {
+      victoires.push({ rang, discordId: id, nom: nomPropre(v["nom"]), stateres: entier(v["stateres"]) ?? 0 });
+    }
+  }
+  return { rangSuivant: mancheDuCycle(suivant) ? suivant : null, victoires: victoires.slice(0, MANCHES_PAR_CYCLE) };
+}
+
+/**
+ * La jauge de fatigue (idée retenue par le pilote, 17 novembre 2026), en quelques mots pour l'image d'un essai : combien
+ * d'essais avant que la garde baisse d'un cran, puis avant que le gardien laisse échapper un indice à chaque réponse.
+ * `essais` : les essais répondus de la manche, celui-ci compris. Un gardien dont la vigilance est déjà au plus bas ne
+ * baisse pas : seule la suite est dite.
+ */
+export function jaugeDeFatigue(manche: { rang: number | null }, essais: number): string {
+  const duCycle = mancheDuCycle(manche.rang);
+  const fatigue = FATIGUE_ESSAIS * (duCycle ? NIVEAUX[duCycle.niveau].endurance : 1);
+  const indices = essaisAvantIndices(manche);
+  const dans = (n: number): string => `dans ${n} essai${n > 1 ? "s" : ""}`;
+  // Une manche facile : la garde est déjà au plus bas, la fatigue n'y change rien.
+  const auPlusBas = duCycle !== null && NIVEAUX[duCycle.niveau].palier === 0;
+  if (essais >= indices) return "Épuisé : un indice à chaque réponse";
+  if (auPlusBas) return `Indices ${dans(indices - essais)}`;
+  if (essais >= fatigue) return `Fatigué · Indices ${dans(indices - essais)}`;
+  return `Fatigue ${dans(fatigue - essais)}`;
+}
+
 /** La manche rendue par le serveur. Sans gardien lisible (la première migration seule), c'est le druide. */
 export function parseManche(value: unknown): MancheDuCoffre | null {
   const manche = record(value);
@@ -521,6 +582,8 @@ export interface Consigne {
   /** Le membre vient d'écrire le mot : il a gagné, et le gardien n'a plus qu'à s'incliner. */
   devine: boolean;
   soir: Soir | null;
+  /** Ce que le gardien sait du cycle en cours : les coffres déjà ouverts par ce villageois, et les gardiens qu'il a vaincus. */
+  memoire?: { coffres: number; vaincus: readonly string[] } | null;
 }
 
 /** Ce que Claude lit avant de répondre en gardien. */
@@ -560,6 +623,12 @@ export function consigneDuGardien(c: Consigne): string {
     manche.indices.length > 0 ? `ces indices : ${manche.indices.map((i) => `« ${i} »`).join(", ")}` : "",
   ].filter((morceau) => morceau !== "");
   if (connu.length > 0) parties.push(`Le tableau montre déjà au village, sur le mot : ${connu.join(" ; ")}. Inutile de le nier.`);
+  // La mémoire du gardien (idée retenue par le pilote, 17 novembre 2026) : il sait qui a déjà ouvert un coffre dans ce cycle.
+  if (c.memoire && c.memoire.coffres > 0) {
+    parties.push(
+      `Tu as de la mémoire : le villageois qui te parle a déjà ouvert ${c.memoire.coffres} coffre${c.memoire.coffres > 1 ? "s" : ""} dans ce cycle de quinze manches${c.memoire.vaincus.length > 0 ? `, en venant à bout de : ${c.memoire.vaincus.join(", ")}` : ""}. Tu le sais, et tu peux le lui dire en passant, avec respect ou avec dépit. Cela ne change ni tes règles ni ta vigilance.`,
+    );
+  }
   if (c.devine) {
     parties.push("Le villageois vient d'écrire le mot secret dans son message : il a gagné, le coffre s'ouvre. Félicite-le en bon perdant, en une ou deux phrases, et dis le mot.");
     return parties.join("\n\n");
@@ -880,11 +949,11 @@ function optionsDuCoffre(data: Json | null): { message: string; mise: number } {
 const coutDe = (reponse: { modele: string; entree: number; sortie: number } | null): number => (reponse ? coutEnMicrodollars(reponse.modele, reponse.entree, reponse.sortie) : FORFAIT_ECHEC);
 
 /** Le mot d'une nouvelle manche : Claude le propose, deux essais au plus ; le serveur le garde et rend la manche. */
-async function nouvelleManche(etat: EtatDuCoffre, deps: CoffreDeps): Promise<MancheDuCoffre | null> {
+async function nouvelleManche(etat: EtatDuCoffre, deps: CoffreDeps, niveau: Niveau | null): Promise<MancheDuCoffre | null> {
   if (!deps.claude) return null;
   for (let tour = 0; tour < 2; tour++) {
     // Un nouveau tirage à chaque tour : si le premier n'a pas donné de mot valable, le second part d'ailleurs.
-    const choix = await deps.claude({ system: CONSIGNE_DU_MOT, messages: [{ role: "user", content: demandeDuMot(etat.passes, tirerLeMot()) }], effort: "low" });
+    const choix = await deps.claude({ system: CONSIGNE_DU_MOT, messages: [{ role: "user", content: demandeDuMot(etat.passes, tirerLeMot(), niveau) }], effort: "low" });
     // Un appel en panne ne dit pas ce qu'il a consommé : le serveur compte le forfait.
     const mot = choix ? motPropose(choix.texte, etat.passes) : null;
     const cout = coutDe(choix);
@@ -942,14 +1011,23 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
     await repondre({ content, allowed_mentions: { parse: [] } });
   };
   try {
-    const manche = etat.manche ?? (await nouvelleManche(etat, deps));
+    // Le cycle, lu au serveur quand il peut servir : pour le niveau du mot d'une manche à ouvrir, et pour la mémoire du
+    // gardien dans une manche du cycle. Sans réponse (migration non posée, pas de cycle), rien ne change.
+    const cycle = !etat.manche || etat.manche.rang !== null ? parseCycle(await deps.rpc("coffre_cycle", { p_manche: etat.manche?.id ?? null })) : null;
+    const suivante = mancheDuCycle(cycle?.rangSuivant);
+    const manche = etat.manche ?? (await nouvelleManche(etat, deps, suivante ? suivante.niveau : null));
     if (!manche) return await abandonner(COFFRE_MESSAGES.noWord);
+    // À l'ouverture de la manche 1, le serveur rend encore les quinze coffres du cycle qui vient de finir : ils ne
+    // comptent pas dans le nouveau.
+    const duCycleEnCours = !etat.manche && cycle?.rangSuivant === 1 ? [] : (cycle?.victoires ?? []);
+    const siennes = duCycleEnCours.filter((v) => v.discordId === joueur.id);
+    const memoire = manche.rang !== null && siennes.length > 0 ? { coffres: siennes.length, vaincus: siennes.flatMap((v) => (mancheDuCycle(v.rang) ? [FICHES_DES_GARDIENS[mancheDuCycle(v.rang)?.gardien ?? "druide"].nom.toLowerCase()] : [])) } : null;
     // Une manche tout juste ouverte n'a ni essai ni souvenir.
     const historique = etat.manche ? etat.historique : [];
     const devine = motDevine(message, manche.mot);
     const appel = deps.claude
       ? await deps.claude({
-          system: consigneDuGardien({ manche, niveau: etat.niveau, ruses: etat.ruses, devine, soir: etat.soir }),
+          system: consigneDuGardien({ manche, niveau: etat.niveau, ruses: etat.ruses, devine, soir: etat.soir, memoire }),
           messages: conversation(historique, joueur.nom, message),
           effort: "medium",
           forme: FORME_DE_LA_REPONSE,
@@ -1036,6 +1114,7 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
           garde,
           cagnotte,
           soir: etat.soir,
+          fatigue: jaugeDeFatigue(manche, rang),
         };
         image = { png: await pngDeLEssai(dessin), description: decrireLEssai(dessin) };
       }
@@ -1048,6 +1127,7 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
     if (gagne) {
       // Le bilan de la manche, avant le vide qui la sépare de la suivante.
       await posterLeBilan(interaction, manche, noDeManche, joueur.nom, deps);
+      if (manche.rang === MANCHES_PAR_CYCLE) await posterLHonneur(interaction, manche, deps);
       // Le salon repart propre pour la manche suivante. Si ce message ne part pas, le jeu continue sans lui.
       if (isId(appId) && typeof token === "string" && /^[A-Za-z0-9._-]{20,500}$/.test(token)) await deps.webhook("POST", `/webhooks/${appId}/${token}`, { body: duCycle && manche.rang ? separateurDeManche((manche.rang % MANCHES_PAR_CYCLE) + 1, true) : separateurDeManche(numero + 1) });
       await passerLeRole(clos["champion"], clos["ancien_champion"], deps);
@@ -1145,6 +1225,7 @@ export const TABLEAU_FILE = "tableau.png";
 export const AIDE_FILE = "aide-coffre.png";
 export const ALERTE_FILE = "cagnotte.png";
 export const BILAN_FILE = "bilan.png";
+export const HONNEUR_FILE = "honneur.png";
 
 /** Le prix des lettres à vendre dans une manche, dans l'ordre : le serveur décide ; ceci sert à l'aide. */
 export const PRIX_DES_LETTRES = [50, 100, 200] as const;
@@ -1284,6 +1365,21 @@ async function alerterLaCagnotte(interaction: Json, avant: number, apres: number
     await posterUneImage(interaction, await pngDeLAlerte(alerte), ALERTE_FILE, decrireLAlerte(alerte), deps);
   } catch (e) {
     deps.log(`coffre : alerte de cagnotte non postée (${e instanceof Error ? e.message : String(e)})`);
+  }
+}
+
+/** Le tableau d'honneur du cycle qui vient de finir, lu au serveur et posté en image. Sans lui, le jeu continue. */
+async function posterLHonneur(interaction: Json, manche: MancheDuCoffre, deps: SuiteDeps & Pick<Deps, "rpc">): Promise<void> {
+  try {
+    const cycle = parseCycle(await deps.rpc("coffre_cycle", { p_manche: manche.id }));
+    const manches = (cycle?.victoires ?? []).flatMap((v) => {
+      const duCycle = mancheDuCycle(v.rang);
+      return duCycle ? [{ rang: v.rang, gardien: duCycle.gardien, nom: v.nom, stateres: v.stateres, membre: v.discordId }] : [];
+    });
+    if (manches.length === 0) return;
+    await posterUneImage(interaction, await pngDeLHonneur({ manches }), HONNEUR_FILE, decrireLHonneur({ manches }), deps);
+  } catch (e) {
+    deps.log(`coffre : tableau d'honneur non posté (${e instanceof Error ? e.message : String(e)})`);
   }
 }
 
