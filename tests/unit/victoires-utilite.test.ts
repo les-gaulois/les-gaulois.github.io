@@ -8,6 +8,7 @@ import { spriteRect } from "../../src/lib/gaulois-sprite";
 import { ApiVictoryGame, type StoredMembers, type StoredSession } from "../../src/lib/schemas";
 import { MAX_UTILITY_TRIES, mergeStates, PAUSE_MS, readVictoryGame, utilitiesToRetry, UTILITY_PAUSE_MS, UTILITY_RETRY_MS, victoryPass, VictoryState, type UtilityOutcome, type VictoryPassDeps } from "../../src/lib/victoires";
 import { bilanDeLaVictoire, lignesDUtilite, NOTE_DE_LA_MOYENNE, NOTE_DES_LIMITES, sendUtility, utilityContent, utilityPayload, type LigneDUtilite } from "../../src/lib/victoires-utilite";
+import { auCadreDeDiscord, CADRE_DISCORD } from "../../src/lib/victoires-image";
 import { largeurDeBarre, LIGNES_HAUTES_MAX, NOTE_DE_LA_SOURCE, renderUtilityCard, TON_DE_L_AXE, utilityCard, utilityImageAlt } from "../../src/lib/victoires-utilite-image";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_123";
@@ -228,7 +229,7 @@ describe("l'image du score d'utilité", () => {
     const hautes = utilityCard(PARTIE_ANNONCEE, Array.from({ length: 5 }, (_, i) => ligne({ rang: i + 1 })), "GAL", SITE, measure);
     const basses = utilityCard(PARTIE_ANNONCEE, Array.from({ length: 12 }, (_, i) => ligne({ rang: i + 1, nom: i === 0 ? "W".repeat(40) : `Gaulois ${i}` })), "GAL", SITE, measure);
     const ligneDe = (card: typeof hautes) => card.rects.filter((r) => r.width === card.width - 72 && r.stroke === CARD_COLORS.LINE);
-    expect(ligneDe(hautes).map((r) => r.height)).toEqual(Array(5).fill(78));
+    expect(ligneDe(hautes).map((r) => r.height)).toEqual(Array(5).fill(70));
     expect(ligneDe(basses).map((r) => r.height)).toEqual(Array(12).fill(62));
     const long = basses.texts.find((t) => t.text.startsWith("WWW"))!;
     // Réduit pour tenir avant l'utilité ; plus large encore, il serait coupé.
@@ -273,6 +274,20 @@ describe("l'image du score d'utilité", () => {
         expect(fin).toBeLessThan(nombre.x - fonts.width(nombre.text, "onciale", nombre.size));
       }
     }
+  });
+  it("remplit le cadre de Discord comme l'image de la victoire : 1 200 de large pour cinq Gaulois, plus large au-delà", () => {
+    const ratio = CADRE_DISCORD.width / CADRE_DISCORD.height;
+    const cinq = auCadreDeDiscord((width) => utilityCard(PARTIE_ANNONCEE, Array.from({ length: 5 }, (_, i) => ligne({ rang: i + 1 })), "GAL", SITE, measure, undefined, width));
+    expect(cinq.width).toBe(1200);
+    expect(cinq.width / cinq.height).toBeGreaterThanOrEqual(ratio - 0.01);
+    const huit = auCadreDeDiscord((width) => utilityCard(PARTIE_ANNONCEE, Array.from({ length: 8 }, (_, i) => ligne({ rang: i + 1 })), "GAL", SITE, measure, undefined, width));
+    expect(huit.width).toBeGreaterThan(1200);
+    expect(huit.width / huit.height).toBeGreaterThanOrEqual(ratio - 0.01);
+    // La largeur en plus va aux barres, qui restent dans l'image ; le trait de la moyenne reste au milieu.
+    for (const r of huit.rects) expect(r.x + r.width).toBeLessThanOrEqual(huit.width - 36);
+    const barres = huit.rects.filter((r) => r.color === TON_DE_L_AXE.economie);
+    expect(barres[0]!.width).toBeGreaterThan(69);
+    expect(barres[0]!.width).toBe(largeurDeBarre(100, barres[0]!.width * 2));
   });
   it("dit tout à un lecteur d'écran, sans couper une ligne", () => {
     const alt = plain(utilityImageAlt(PARTIE_ANNONCEE, lignes(), "GAL"));

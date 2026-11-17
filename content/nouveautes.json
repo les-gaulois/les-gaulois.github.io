@@ -24,7 +24,7 @@
     "date": "2026-11-17",
     "kind": "nouveau",
     "title": "Les plus utiles de chaque victoire, sur Discord",
-    "body": "Dans le salon des victoires, une seconde image suit chaque victoire : le score d'utilité de chaque Gaulois de la partie, quand elle a pu être rejouée et compte au moins deux Gaulois.",
+    "body": "Dans le salon des victoires, une seconde image suit chaque victoire rejouée d'au moins deux Gaulois : le score d'utilité de chacun. Les deux images s'affichent en grand, à la même largeur.",
     "link": {
       "href": "/utiles",
       "label": "Les plus utiles"

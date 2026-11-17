@@ -19,8 +19,8 @@ import { victoryTitle } from "./victoires-discord";
 import { victoryWhen } from "./victoires-image";
 
 const WIDTH = 1200;
-const CONTENT_WIDTH = WIDTH - 2 * MARGIN;
-const FOOTER_HEIGHT = 92;
+/** Le bas de l'image, sous les notes : l'adresse du site et la source. */
+const FOOTER_HEIGHT = 84;
 /** Au-delà de tant de Gaulois, les lignes deviennent plus basses. */
 export const LIGNES_HAUTES_MAX = 5;
 
@@ -33,7 +33,7 @@ export const NOTE_DE_LA_SOURCE = "D'après la fiche de la partie et son rejeu";
 export const NOTE_DES_BARRES = "Le trait au milieu de chaque barre : cette moyenne.";
 
 /** Les mesures d'une ligne : hautes jusqu'à `LIGNES_HAUTES_MAX` Gaulois, basses au-delà. */
-const HAUTE = { height: 78, gap: 10, inset: 11, rang: 30, nom: 30, nomSeul: 50, nomAvecTitres: 37, titres: 16, titresY: 62, utilite: 44, utiliteY: 54, mot: 20, axe: 15, valeur: 24, texteY: 36, barreY: 50, barre: 8, cut: BUST_CUT } as const;
+const HAUTE = { height: 70, gap: 7, inset: 9, rang: 28, nom: 29, nomSeul: 45, nomAvecTitres: 32, titres: 15, titresY: 55, utilite: 42, utiliteY: 49, mot: 20, axe: 15, valeur: 24, texteY: 31, barreY: 44, barre: 8, cut: BUST_CUT } as const;
 const BASSE = { height: 62, gap: 8, inset: 8, rang: 23, nom: 25, nomSeul: 40, nomAvecTitres: 29, titres: 13, titresY: 49, utilite: 36, utiliteY: 44, mot: 17, axe: 13, valeur: 21, texteY: 28, barreY: 40, barre: 6, cut: HEAD_CUT } as const;
 
 const RANG_WIDTH = 60;
@@ -51,6 +51,11 @@ const TITRES_GAP = 14;
 const TITRES_MIN = 11;
 const TRACKING = 0.06;
 
+/**
+ * Avec cinq Gaulois, l'image fait 1 200 sur 762 : elle remplit le cadre où Discord montre une image (550 sur 350), comme
+ * celle de la victoire juste au-dessus d'elle. Plus haute, elle s'élargit pour le remplir encore (`auCadreDeDiscord`).
+ */
+
 /** La largeur de la partie pleine d'une barre : 100 au milieu, 200 et plus au bout ; une part non nulle se voit toujours. */
 export function largeurDeBarre(valeur: number, largeur = AXE_WIDTH): number {
   if (valeur <= 0) return 0;
@@ -61,7 +66,10 @@ export function largeurDeBarre(valeur: number, largeur = AXE_WIDTH): number {
  * Quoi écrire et où : se teste sans police. `gaulois` : le Gaulois du village de chaque membre au pseudo public de la partie
  * qui a créé le sien, posé après son nom.
  */
-export function utilityCard(partie: PartieDeLUtilite, lignes: readonly LigneDUtilite[], tag: string, siteUrl: string, measure: Measure, gaulois: GauloisParJoueur = AUCUN_GAULOIS): GazetteCard {
+export function utilityCard(partie: PartieDeLUtilite, lignes: readonly LigneDUtilite[], tag: string, siteUrl: string, measure: Measure, gaulois: GauloisParJoueur = AUCUN_GAULOIS, cardWidth = WIDTH): GazetteCard {
+  const CONTENT_WIDTH = cardWidth - 2 * MARGIN;
+  // Une image plus large donne sa largeur en plus aux barres des trois axes.
+  const axeWidth = AXE_WIDTH + Math.floor((cardWidth - WIDTH) / AXES.length);
   const head = pageHead({ path: PAGE_DES_UTILES, title: TITRE_DE_L_UTILITE, kicker: `${victoryTitle(tag)} · ${mapLabel(partie.map)}`, period: `${victoryWhen(partie)}, heure de Paris` }, measure);
   const rects: CardRect[] = [...head.rects];
   const texts: CardText[] = [...head.texts];
@@ -70,7 +78,7 @@ export function utilityCard(partie: PartieDeLUtilite, lignes: readonly LigneDUti
   const tracked: Measure = (text, font, size) => drawnWidth({ text, font, size, tracking: TRACKING }, measure);
 
   const right = MARGIN + CONTENT_WIDTH;
-  const axesLeft = right - AXE_BORD - (AXES.length * AXE_WIDTH + (AXES.length - 1) * AXE_GAP);
+  const axesLeft = right - AXE_BORD - (AXES.length * axeWidth + (AXES.length - 1) * AXE_GAP);
   const utiliteRight = axesLeft - 28;
   // Les Gaulois du village, en buste, dans une colonne entre le rang et le nom : le bas posé sur le bord de la ligne, l'axe du
   // corps de tous sur la même verticale. La colonne a la largeur du plus large, arme comprise ; sans aucun Gaulois, pas de colonne.
@@ -123,31 +131,31 @@ export function utilityCard(partie: PartieDeLUtilite, lignes: readonly LigneDUti
 
     // Les trois axes : le nom à gauche, le nombre à droite, la barre dessous.
     AXES.forEach((a, k) => {
-      const x = axesLeft + k * (AXE_WIDTH + AXE_GAP);
+      const x = axesLeft + k * (axeWidth + AXE_GAP);
       const valeur = ligne.axes[a];
       const premier = ligne.titres.includes(a);
       texts.push({ text: NOM_DE_L_AXE[a].toLocaleUpperCase("fr"), x, y: y + m.texteY, size: m.axe, font: "monoStrong", color: C.MUTED, tracking: TRACKING });
       if (valeur === null) {
         // Rien à partager sur cet axe : un tiret, sans barre. Ce n'est pas zéro.
-        texts.push({ text: "–", x: x + AXE_WIDTH, y: y + m.texteY, size: m.valeur, font: "body", color: C.MUTED, anchor: "end" });
+        texts.push({ text: "–", x: x + axeWidth, y: y + m.texteY, size: m.valeur, font: "body", color: C.MUTED, anchor: "end" });
         return;
       }
-      texts.push({ text: fmtInt(valeur), x: x + AXE_WIDTH, y: y + m.texteY, size: m.valeur, font: "onciale", color: premier ? TON_DE_L_AXE[a] : C.WHITE, anchor: "end" });
-      rects.push({ x, y: y + m.barreY, width: AXE_WIDTH, height: m.barre, radius: Math.floor(m.barre / 2), color: C.SURFACE_2 });
-      const pleine = largeurDeBarre(valeur);
+      texts.push({ text: fmtInt(valeur), x: x + axeWidth, y: y + m.texteY, size: m.valeur, font: "onciale", color: premier ? TON_DE_L_AXE[a] : C.WHITE, anchor: "end" });
+      rects.push({ x, y: y + m.barreY, width: axeWidth, height: m.barre, radius: Math.floor(m.barre / 2), color: C.SURFACE_2 });
+      const pleine = largeurDeBarre(valeur, axeWidth);
       if (pleine > 0) rects.push({ x, y: y + m.barreY, width: pleine, height: m.barre, radius: Math.floor(m.barre / 2), color: TON_DE_L_AXE[a] });
       // Le trait de la moyenne, au milieu, un peu plus haut que la barre.
-      rects.push({ x: x + AXE_WIDTH / 2 - 1, y: y + m.barreY - 3, width: 2, height: m.barre + 6, radius: 0, color: C.WHITE });
+      rects.push({ x: x + Math.round(axeWidth / 2) - 1, y: y + m.barreY - 3, width: 2, height: m.barre + 6, radius: 0, color: C.WHITE });
     });
   });
 
   // Sous les lignes : ce que vaut 100, comment lire une barre, et ce que le score ne mesure pas.
   const rowsBottom = head.bottom + lignes.length * (m.height + m.gap) - m.gap;
   const notes = [`${NOTE_DE_LA_MOYENNE} ${NOTE_DES_BARRES}`, NOTE_DES_LIMITES];
-  notes.forEach((note, i) => texts.push({ ...fitted(note, "body", 21, 15, CONTENT_WIDTH, measure), x: MARGIN, y: rowsBottom + 38 + i * 28, font: "body", color: C.MUTED }));
-  const height = rowsBottom + 38 + (notes.length - 1) * 28 + 14 + FOOTER_HEIGHT;
-  texts.push(...pageFoot(shownAddress(siteUrl, PAGE_DES_UTILES), NOTE_DE_LA_SOURCE, height - 24, measure).texts);
-  return { width: WIDTH, height, rects, texts, logo: LOGO, ...(sprites.length > 0 ? { gaulois: sprites } : {}) };
+  notes.forEach((note, i) => texts.push({ ...fitted(note, "body", 21, 15, CONTENT_WIDTH, measure), x: MARGIN, y: rowsBottom + 34 + i * 27, font: "body", color: C.MUTED }));
+  const height = rowsBottom + 34 + (notes.length - 1) * 27 + 10 + FOOTER_HEIGHT;
+  texts.push(...pageFoot(shownAddress(siteUrl, PAGE_DES_UTILES), NOTE_DE_LA_SOURCE, height - 24, measure, cardWidth).texts);
+  return { width: cardWidth, height, rects, texts, logo: LOGO, ...(sprites.length > 0 ? { gaulois: sprites } : {}) };
 }
 
 /**

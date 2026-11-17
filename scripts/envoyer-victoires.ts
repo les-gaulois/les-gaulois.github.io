@@ -159,12 +159,12 @@ try {
         partie,
         lignes,
         renderImage: async () => {
-          const { fonts } = await drawing;
+          const { fonts, image: victoire } = await drawing;
           const image = await import("../src/lib/victoires-utilite-image");
           // Comme pour les pastilles de la victoire : un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image.
           const drawn = lignes.map((l) => ({ ...l, nom: l.nom === null ? null : fonts.drawable(l.nom, "strong") }));
           const gaulois = await gauloisDe(lignes.map((l) => l.id));
-          const png = await avecOuSansGaulois(gaulois, (g) => image.renderUtilityCard(image.utilityCard(partie, drawn, clan.tag, clan.links.site, fonts.width, g), fonts, root));
+          const png = await avecOuSansGaulois(gaulois, (g) => image.renderUtilityCard(victoire.auCadreDeDiscord((width) => image.utilityCard(partie, drawn, clan.tag, clan.links.site, fonts.width, g, width)), fonts, root));
           return { png, alt: image.utilityImageAlt(partie, lignes, clan.tag) };
         },
         tag: clan.tag,
@@ -189,7 +189,7 @@ try {
           if (etat) {
             try {
               return await avecOuSansGaulois(gaulois, async (g) => {
-                const card = image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, image.finalMapShape(etat), undefined, g);
+                const card = image.auCadreDeDiscord((width) => image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, image.finalMapShape(etat), undefined, g, width));
                 if (!card.map) throw new Error("pas de place pour la carte");
                 const final = await image.renderFinalMap(etat, v, card.map);
                 return { png: await image.renderVictoryCard(card, fonts, root, final), alt: image.victoryImageAlt(v, clan.tag, true, undefined, image.finalMapWords(etat, v)) };
@@ -209,7 +209,7 @@ try {
           const thumb = await thumbnail;
           return avecOuSansGaulois(gaulois, async (g) => {
             // `undefined` : les statères gardent leur réglage.
-            const card = image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, thumb, undefined, g);
+            const card = image.auCadreDeDiscord((width) => image.victoryCard(drawn, clan.tag, clan.links.site, fonts.width, thumb, undefined, g, width));
             return { png: await image.renderVictoryCard(card, fonts, root, thumb), alt: image.victoryImageAlt(v, clan.tag, card.map !== null) };
           });
         },

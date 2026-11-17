@@ -1,8 +1,13 @@
 /**
- * L'image d'une victoire : l'en-tête des autres images du robot, la vignette de la carte sur la mer du jeu, les chiffres de la
- * partie à côté, puis tous les Gaulois de la partie, sous leur nom en partie, en bleu, et les clans en face, « contre » et leur
- * tag en rouge (demandés par le pilote le 13 novembre 2026). Sans vignette, les chiffres passent côte à côte, comme dans « Hier
- * chez les Gaulois ». Ce qui manque n'est pas dessiné.
+ * L'image d'une victoire : l'en-tête des autres images du robot, la vignette de la carte sur la mer du jeu, et à sa droite
+ * les chiffres de la partie, puis tous les Gaulois de la partie, sous leur nom en partie, en bleu, et les clans en face,
+ * « contre » et leur tag en rouge (demandés par le pilote le 13 novembre 2026). Sans vignette, les chiffres passent en grand
+ * sur toute la largeur, comme dans « Hier chez les Gaulois ». Ce qui manque n'est pas dessiné.
+ *
+ * Depuis le 17 novembre 2026, l'image est large et basse (demande du pilote : la même largeur que l'image du score d'utilité
+ * qui la suit, et « j'aime bien quand c'est grand ») : Discord montre une image dans un cadre de 550 sur 350, où une image
+ * haute paraît étroite. Les Gaulois sont donc à droite de la carte, plus dessous, et une image encore trop haute s'élargit
+ * (`auCadreDeDiscord`).
  *
  * La vignette est `resources/maps/<carte>/thumbnail.webp` du dépôt d'OpenFront, lue au moment de l'envoi : CC BY-SA 4.0,
  * attribution « OpenFront », agrandie ou réduite, aux coins arrondis, posée sur la couleur de la mer du jeu là où son eau est
@@ -35,9 +40,34 @@ import type { Victory } from "./victoires";
 import { countedWords, countWords, crewList, gameLength, LICENSE_URL, mapSource, MAPS_SOURCE, OPENFRONT_CREDIT, pointsLabel, pointsWords, restWords, rivalsWords, rivalTag, victoryTitle } from "./victoires-discord";
 
 const WIDTH = 1200;
-/** Avec la vignette : la carte à gauche, les chiffres empilés à droite. */
-const MAP_BOX_WIDTH = 660;
+/**
+ * Avec la vignette : la carte à gauche, sur la moitié de la largeur ; à droite, les chiffres côte à côte, puis les Gaulois de
+ * la partie et les clans en face. Tout tient ainsi dans une image large et basse : Discord montre une image dans un cadre de
+ * 550 sur 350, et une image haute y paraît étroite (demande du pilote, 17 novembre 2026 : « j'aime bien quand c'est grand »).
+ */
+const MAP_BOX_SHARE = 0.5;
 const BODY_HEIGHT = 420;
+/** Les chiffres à côté de la carte : plus petits que seuls, ils sont trois dans une demi-largeur. */
+const SIDE_VALUE_SIZE = 46;
+const SIDE_KPI_GAP = 16;
+/** Sous les chiffres, la ligne de la pièce et des statères, puis les pastilles. */
+const STATER_LINE = 46;
+const SIDE_CHIPS_LEAD = 22;
+
+/** Le cadre où Discord montre une image jointe, et la plus grande largeur qu'une image prend pour le remplir. */
+export const CADRE_DISCORD = { width: 550, height: 350 } as const;
+export const LARGEUR_MAX = 1600;
+
+/**
+ * La mise en page à la largeur qui remplit le cadre de Discord : dessinée d'abord à 1 200 de large, puis, si elle est trop
+ * haute pour sa largeur, redessinée plus large, dans la limite de `LARGEUR_MAX`. Deux images de suite ont ainsi la même
+ * largeur dans le salon.
+ */
+export function auCadreDeDiscord<T extends { width: number; height: number }>(dessiner: (width: number) => T): T {
+  const first = dessiner(WIDTH);
+  const width = Math.min(LARGEUR_MAX, Math.ceil((first.height * CADRE_DISCORD.width) / CADRE_DISCORD.height));
+  return width > WIDTH ? dessiner(width) : first;
+}
 const MAP_PADDING = 14;
 /** La vignette ne grossit pas au-delà : elle deviendrait floue. */
 const MAX_ZOOM = 2;
@@ -88,6 +118,17 @@ export function coinRects(x: number, y: number, cells: TailleStatere = COIN_CELL
     }
   }
   return rects;
+}
+
+/** La pièce et les statères sur leur propre ligne, sous les chiffres posés à côté de la carte : `y`, le haut de la ligne. */
+function staterLine(v: Victory, x: number, y: number, room: number, measure: Measure): { rects: CardRect[]; texts: CardText[] } {
+  const words = staterWords(v);
+  if (!words) return { rects: [], texts: [] };
+  const coin = COIN_CELLS * COIN_CELL;
+  return {
+    rects: coinRects(x, y),
+    texts: [{ ...fitted(words, "body", 26, 17, room - coin - COIN_GAP, measure), x: x + coin + COIN_GAP, y: y + coin / 2 + 9, font: "body", color: C.MUTED }],
+  };
 }
 
 /**
@@ -177,53 +218,64 @@ export function victoryCard(
   thumbnail: ThumbnailShape | null,
   staters = STATERES_SUR_LES_VICTOIRES,
   gaulois: GauloisParJoueur = AUCUN_GAULOIS,
+  /** La largeur de l'image : 1 200, ou plus pour remplir le cadre de Discord (`auCadreDeDiscord`). */
+  cardWidth = WIDTH,
 ): VictoryCard {
   const tiles = victoryTiles(v);
-  const contentWidth = WIDTH - 2 * MARGIN;
+  const contentWidth = cardWidth - 2 * MARGIN;
 
   // L'en-tête : la victoire et son format, le nom de la carte en titre, puis l'heure de la partie.
   const head = pageHead({ path: "/parties", title: mapLabel(v.map), kicker: `${victoryTitle(tag)}${v.format ? ` · ${formatLabel(v.format)}` : ""}`, period: `${victoryWhen(v)}, heure de Paris` }, measure);
   const top = head.bottom;
   const rects: CardRect[] = [...head.rects];
   const texts: CardText[] = [...head.texts];
+  const sprites: NonNullable<GazetteCard["gaulois"]> = [];
 
   // Tous les Gaulois de la partie, en pastilles sous leur nom en partie, jamais « et autres » ; puis ceux qui sont seulement
   // comptés ; puis « contre » et les clans en face, en rouge.
   const rivals = v.rivals.length > 0 ? [{ text: "contre", named: false, word: true }, ...v.rivals.map((t) => ({ text: rivalTag(t), named: false, red: true }))] : [];
-  const chips = chipLayout([...v.crew.map((p) => ({ text: p.name, named: true, id: p.id })), ...countedWords(v).map((text) => ({ text, named: false })), ...rivals], measure, contentWidth, gaulois);
-  const bodyBottom = top + (thumbnail ? BODY_HEIGHT : kpiHeight(ROW_VALUE_SIZE));
-  const chipsTop = bodyBottom + 28;
-  const contentBottom = chips.rows.length > 0 ? chipsTop + chipsHeight(chips) : bodyBottom;
-  const height = contentBottom + FOOTER_HEIGHT;
+  const items = [...v.crew.map((p) => ({ text: p.name, named: true, id: p.id })), ...countedWords(v).map((text) => ({ text, named: false })), ...rivals];
 
   let map: MapPlacement | null = null;
+  let contentBottom: number;
   if (thumbnail) {
+    // À droite de la carte : les chiffres côte à côte, la pièce et les statères sur leur ligne, puis les pastilles.
+    const boxWidth = Math.round(contentWidth * MAP_BOX_SHARE);
+    const x = MARGIN + boxWidth + GAP;
+    const sideWidth = cardWidth - MARGIN - x;
+    const kpis = kpiParts(tiles, { x, y: top, width: sideWidth, gap: SIDE_KPI_GAP, valueSize: SIDE_VALUE_SIZE, minValueSize: 20 }, measure);
+    rects.push(...kpis.rects);
+    texts.push(...kpis.texts);
+    let sideBottom = kpis.bottom;
+    const coin = staters ? staterLine(v, x, sideBottom + 14, sideWidth, measure) : { rects: [], texts: [] };
+    if (coin.texts.length > 0) {
+      rects.push(...coin.rects);
+      texts.push(...coin.texts);
+      sideBottom += STATER_LINE;
+    }
+    const chips = chipLayout(items, measure, sideWidth, gaulois);
+    if (chips.rows.length > 0) {
+      const drawn = chipParts(chips, x, sideBottom + SIDE_CHIPS_LEAD);
+      rects.push(...drawn.rects);
+      texts.push(...drawn.texts);
+      if (drawn.gaulois) sprites.push(...drawn.gaulois);
+      sideBottom += SIDE_CHIPS_LEAD + chipsHeight(chips);
+    }
+    // Le cadre de la carte descend aussi bas que la colonne de droite : beaucoup de Gaulois agrandissent la carte.
+    const boxHeight = Math.max(BODY_HEIGHT, sideBottom - top);
+    contentBottom = top + boxHeight;
     // La vignette, aussi grande que possible dans son cadre, au centre, sur la mer du jeu. Une carte entourée d'eau baigne dans
     // la mer jusqu'au bord du cadre ; les autres s'arrêtent à leur bord, pour ne pas couper une terre net au milieu de l'eau.
     // La carte de fin a sa mer de nuit (`MER_FINALE_CSS`), la vignette la mer du jeu.
     const sea = thumbnail.final ? MER_FINALE_CSS : SEA;
-    rects.push(thumbnail.open ? { x: MARGIN, y: top, width: MAP_BOX_WIDTH, height: BODY_HEIGHT, radius: 8, color: sea } : { x: MARGIN, y: top, width: MAP_BOX_WIDTH, height: BODY_HEIGHT, radius: 8, color: C.SURFACE, stroke: C.LINE });
-    const zoom = Math.min((MAP_BOX_WIDTH - 2 * MAP_PADDING) / thumbnail.width, (BODY_HEIGHT - 2 * MAP_PADDING) / thumbnail.height, MAX_ZOOM);
+    rects.push(thumbnail.open ? { x: MARGIN, y: top, width: boxWidth, height: boxHeight, radius: 8, color: sea } : { x: MARGIN, y: top, width: boxWidth, height: boxHeight, radius: 8, color: C.SURFACE, stroke: C.LINE });
+    const zoom = Math.min((boxWidth - 2 * MAP_PADDING) / thumbnail.width, (boxHeight - 2 * MAP_PADDING) / thumbnail.height, MAX_ZOOM);
     const width = Math.max(1, Math.round(thumbnail.width * zoom));
     const mapHeight = Math.max(1, Math.round(thumbnail.height * zoom));
-    map = { x: MARGIN + Math.round((MAP_BOX_WIDTH - width) / 2), y: top + Math.round((BODY_HEIGHT - mapHeight) / 2), width, height: mapHeight, radius: 6 };
+    map = { x: MARGIN + Math.round((boxWidth - width) / 2), y: top + Math.round((boxHeight - mapHeight) / 2), width, height: mapHeight, radius: 6 };
     if (!thumbnail.open) rects.push({ ...map, color: sea });
-    // Les chiffres, empilés à droite, comme les chiffres clés du site.
-    const x = MARGIN + MAP_BOX_WIDTH + GAP;
-    const valueSize = 56;
-    const step = (BODY_HEIGHT - kpiHeight(valueSize)) / Math.max(1, tiles.length - 1);
-    tiles.forEach((tile, i) => {
-      const kpi = kpiParts([tile], { x, y: Math.round(top + i * Math.min(step, kpiHeight(valueSize) + 24)), width: WIDTH - MARGIN - x, valueSize, minValueSize: 34 }, measure);
-      rects.push(...kpi.rects);
-      texts.push(...kpi.texts);
-      if (staters) {
-        const coin = staterParts(v, kpi.texts, WIDTH - MARGIN - x - KPI_INSET, measure);
-        rects.push(...coin.rects);
-        texts.push(...coin.texts);
-      }
-    });
   } else {
-    // Les chiffres, côte à côte.
+    // Sans vignette : les chiffres côte à côte, en grand, puis les pastilles sur toute la largeur.
     const kpis = kpiParts(tiles, { x: MARGIN, y: top, width: contentWidth, valueSize: ROW_VALUE_SIZE }, measure);
     rects.push(...kpis.rects);
     texts.push(...kpis.texts);
@@ -232,18 +284,21 @@ export function victoryCard(
       rects.push(...coin.rects);
       texts.push(...coin.texts);
     }
+    const chips = chipLayout(items, measure, contentWidth, gaulois);
+    const bodyBottom = top + kpiHeight(ROW_VALUE_SIZE);
+    const drawn = chipParts(chips, MARGIN, bodyBottom + 28);
+    rects.push(...drawn.rects);
+    texts.push(...drawn.texts);
+    if (drawn.gaulois) sprites.push(...drawn.gaulois);
+    contentBottom = chips.rows.length > 0 ? bodyBottom + 28 + chipsHeight(chips) : bodyBottom;
   }
-
-  // Les Gaulois de la partie, en pastilles, sous leur nom en partie, puis les clans en face.
-  const drawn = chipParts(chips, MARGIN, chipsTop);
-  rects.push(...drawn.rects);
-  texts.push(...drawn.texts);
+  const height = contentBottom + FOOTER_HEIGHT;
 
   // L'adresse du site et le crédit de la carte, puis, dessous, les adresses de la source et de la licence.
-  texts.push(...pageFoot(shownAddress(siteUrl, "/parties"), thumbnail ? (thumbnail.final ? FINAL_NOTE : MAP_NOTE) : NAME_NOTE, height - 54, measure).texts);
+  texts.push(...pageFoot(shownAddress(siteUrl, "/parties"), thumbnail ? (thumbnail.final ? FINAL_NOTE : MAP_NOTE) : NAME_NOTE, height - 54, measure, cardWidth).texts);
   const addresses = creditAddresses(v.map, (line) => measure(line, "body", CREDIT_MIN_SIZE) <= contentWidth);
-  texts.push({ ...fitted(addresses, "body", 20, CREDIT_MIN_SIZE, contentWidth, measure), x: WIDTH - MARGIN, y: height - 22, font: "body", color: C.MUTED, anchor: "end" });
-  return { width: WIDTH, height, rects, texts, logo: LOGO, map, ...(drawn.gaulois ? { gaulois: drawn.gaulois } : {}) };
+  texts.push({ ...fitted(addresses, "body", 20, CREDIT_MIN_SIZE, contentWidth, measure), x: cardWidth - MARGIN, y: height - 22, font: "body", color: C.MUTED, anchor: "end" });
+  return { width: cardWidth, height, rects, texts, logo: LOGO, map, ...(sprites.length > 0 ? { gaulois: sprites } : {}) };
 }
 
 /**

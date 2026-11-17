@@ -8,7 +8,7 @@ import { ApiVictoryGame, type StoredGame, type StoredMembers, type StoredSession
 import { crewName, FORGET_MS, isClanMember, isVictory, MAX_PER_PASS, MAX_RESEND, mergeStates, parseResend, passSessions, PAUSE_MS, readRecentSessions, readVictoryGame, rivalsOf, usableOfficialTags, toVerify, victoriesToAnnounce, victoryOf, victoryPass, VictoryState, PASS_MS, WAIT_FINAL_MS, waitsForFinalMap, WINDOW_MS, type Victory, type VictoryPassDeps } from "../../src/lib/victoires";
 import { frenchList, gameLength, rivalsWords, sendVictory, victoryContent, victoryPayload } from "../../src/lib/victoires-discord";
 import { CHIP_GAP, CHIP_STEPS, chipLayout } from "../../src/lib/salon-image";
-import { coinRects, creditAddresses, FINAL_NOTE, finalMapShape, finalMapWords, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderFinalMap, renderVictoryCard, SEA, staterWords, STATERES_SUR_LES_VICTOIRES, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
+import { auCadreDeDiscord, CADRE_DISCORD, LARGEUR_MAX, coinRects, creditAddresses, FINAL_NOTE, finalMapShape, finalMapWords, MAP_NOTE, NAME_NOTE, openAround, readThumbnail, renderFinalMap, renderVictoryCard, SEA, staterWords, STATERES_SUR_LES_VICTOIRES, thumbnailUrl, tileLength, victoryCard, victoryImageAlt } from "../../src/lib/victoires-image";
 import { MER_FINALE_CSS, type EtatFinal } from "../../src/lib/carte-finale";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_123";
@@ -732,7 +732,7 @@ describe("victoryCard", () => {
       expect(texts).toContain(expected);
     }
     // La vignette : agrandie dans son cadre, au centre, sur la mer.
-    expect(card.map).toEqual({ x: 170, y: 244, width: 392, height: 392, radius: 6 });
+    expect(card.map).toEqual({ x: 122, y: 244, width: 392, height: 392, radius: 6 });
     expect(card.rects).toContainEqual({ ...card.map, color: SEA });
     expectClean(card);
   });
@@ -740,14 +740,41 @@ describe("victoryCard", () => {
     expect([tileLength(943.4), tileLength(3_590), tileLength(10_253)]).toEqual(["16 min", "60 min", "2 h 50 min"]);
     expect(victoryCard({ ...VICTORY, seconds: 10_253 }, "GAL", SITE, measure, SQUARE).texts.map((t) => t.text)).toContain("2 h 50 min");
   });
+  it("remplit le cadre de Discord : large et basse, et plus large encore quand beaucoup de Gaulois la font descendre", () => {
+    // Discord montre une image dans 550 sur 350 : à moins de 1,571 fois plus large que haute, elle y paraît étroite.
+    const ratio = CADRE_DISCORD.width / CADRE_DISCORD.height;
+    const few = auCadreDeDiscord((width) => victoryCard(VICTORY, "GAL", SITE, measure, SQUARE, undefined, undefined, width));
+    expect([few.width, few.height]).toEqual([1200, 754]);
+    expect(few.width / few.height).toBeGreaterThanOrEqual(ratio);
+    const crew = Array.from({ length: 14 }, (_, i) => ({ name: `Gaulois numéro ${i}`, id: null }));
+    const narrow = victoryCard({ ...VICTORY, crew }, "GAL", SITE, measure, SQUARE);
+    const wide = auCadreDeDiscord((width) => victoryCard({ ...VICTORY, crew }, "GAL", SITE, measure, SQUARE, undefined, undefined, width));
+    expect(narrow.width / narrow.height).toBeLessThan(ratio);
+    expect(wide.width).toBeGreaterThan(1200);
+    expect(wide.width).toBeLessThanOrEqual(LARGEUR_MAX);
+    expect(wide.width / wide.height).toBeGreaterThanOrEqual(ratio);
+    // Tout reste dans l'image élargie, et tous les Gaulois y sont.
+    for (const r of wide.rects) expect(r.x + r.width).toBeLessThanOrEqual(wide.width - 36);
+    for (const t of wide.texts) expect(t.y).toBeLessThan(wide.height);
+    expect(wide.texts.filter((t) => t.text.startsWith("Gaulois numéro"))).toHaveLength(14);
+    // Le cadre de la carte descend avec la colonne de droite : la carte s'agrandit.
+    expect(narrow.map!.height).toBeGreaterThan(few.map!.height);
+    // Jamais plus large que la limite, même pour une image très haute.
+    expect(auCadreDeDiscord((width) => ({ width, height: 3000 })).width).toBe(LARGEUR_MAX);
+  });
+  it("avec les vraies polices, les trois chiffres à côté de la carte s'écrivent en entier, même une partie de près de trois heures", () => {
+    const fonts = new GazetteFonts(process.cwd());
+    const texts = victoryCard({ ...VICTORY, seconds: 10_253, points: 12.34 }, "GAL", SITE, fonts.width, SQUARE).texts.map((t) => plain(t.text));
+    for (const expected of ["2 h 50 min", "+12,34", "POINTS GAGNÉS", "sur 23 joueurs", "de partie"]) expect(texts).toContain(expected);
+  });
   it("une carte entourée d'eau baigne dans la mer jusqu'au bord du cadre", () => {
     const card = victoryCard(VICTORY, "GAL", SITE, measure, { ...SQUARE, open: true });
-    expect(card.rects).toContainEqual({ x: 36, y: 230, width: 660, height: 420, radius: 8, color: SEA });
+    expect(card.rects).toContainEqual({ x: 36, y: 230, width: 564, height: 420, radius: 8, color: SEA });
     expect(card.rects.filter((r) => r.color === SEA)).toHaveLength(1);
   });
   it("une petite vignette ne grossit pas plus du double, une grande se réduit", () => {
     expect(victoryCard(VICTORY, "GAL", SITE, measure, { width: 100, height: 50, open: false }).map).toMatchObject({ width: 200, height: 100 });
-    expect(victoryCard(VICTORY, "GAL", SITE, measure, { width: 2000, height: 1000, open: false }).map).toMatchObject({ width: 632, height: 316 });
+    expect(victoryCard(VICTORY, "GAL", SITE, measure, { width: 2000, height: 1000, open: false }).map).toMatchObject({ width: 536, height: 268 });
   });
   it("sans vignette : les chiffres côte à côte, le crédit du seul nom, et l'image est plus courte", () => {
     const card = victoryCard(VICTORY, "GAL", SITE, measure, null);
@@ -760,7 +787,9 @@ describe("victoryCard", () => {
     const card = victoryCard({ ...VICTORY, points: null, crew: [], unnamed: 0, outsiders: 0 }, "GAL", SITE, measure, SQUARE);
     const texts = card.texts.map((t) => t.text);
     expect(texts.join(" ")).not.toMatch(/point|Gaulois sans nom|hors du clan|alpha/);
-    expect(card.height).toBeLessThan(victoryCard(VICTORY, "GAL", SITE, measure, SQUARE).height);
+    // À côté de la carte, la colonne de droite ne fait jamais descendre l'image sous la hauteur de la carte.
+    expect(card.height).toBeLessThanOrEqual(victoryCard(VICTORY, "GAL", SITE, measure, SQUARE).height);
+    expect(card.rects.some((r) => r.color === CARD_COLORS.BLUE && r.height >= 40)).toBe(false);
     expectClean(card);
   });
   it("beaucoup de Gaulois : tous en pastilles, plus petites au-delà de trois lignes, jamais « et autres »", () => {
@@ -831,20 +860,26 @@ describe("victoryCard", () => {
       const words = card.texts.find((t) => t.text === "54 statères par villageois")!;
       const points = card.texts.find((t) => t.text === "+1,81")!;
       expect(words).toMatchObject({ font: "body", color: CARD_COLORS.MUTED });
-      // Juste sous le chiffre des points, à la place d'une ligne d'explication ; la pièce devant, sans toucher le texte.
-      expect(words.y - points.y).toBe(42);
-      const coin = card.rects.filter((r) => !before.rects.some((b) => b.x === r.x && b.y === r.y && b.width === r.width && b.height === r.height && b.color === r.color));
-      expect(coin).toEqual(coinRects(points.x, words.y - 9 - 16));
-      expect(Math.min(...coin.map((r) => r.x))).toBe(points.x);
+      // Sans vignette : juste sous le chiffre des points, à la place d'une ligne d'explication. À côté de la carte : sur sa
+      // propre ligne, sous les trois chiffres, au bord gauche de leur colonne. La pièce devant, sans toucher le texte.
+      const left = shape ? card.texts.find((t) => t.text === "GAULOIS")!.x - 22 : points.x;
+      if (shape) expect(words.y).toBeGreaterThan(Math.max(...card.texts.filter((t) => ["sur 23 joueurs", "de partie"].includes(t.text)).map((t) => t.y)));
+      else expect(words.y - points.y).toBe(42);
+      const coin = card.rects.filter((r) => r.height === 2 && !before.rects.some((b) => b.x === r.x && b.y === r.y && b.width === r.width && b.height === r.height && b.color === r.color));
+      expect(coin).toEqual(coinRects(left, words.y - 9 - 16));
+      expect(Math.min(...coin.map((r) => r.x))).toBe(left);
       expect(Math.max(...coin.map((r) => r.x + r.width))).toBeLessThan(words.x);
       expect(Math.min(...coin.map((r) => r.y))).toBeGreaterThan(points.y);
       // La pièce de 16 cases, à 2 pixels la case : chaque case pleine est couverte une fois, de sa couleur.
       const cells = casesDuStatere(16);
       expect(coin.reduce((sum, r) => sum + (r.width / 2) * (r.height / 2), 0)).toBe(cells.filter(Boolean).length);
-      for (const r of coin) expect(cells[((r.y - (words.y - 25)) / 2) * 16 + (r.x - points.x) / 2]).toBe(r.color);
-      // Rien d'autre ne bouge : la même hauteur, les mêmes textes, plus un.
-      expect(card.height).toBe(before.height);
-      expect(card.texts.filter((t) => t !== words)).toEqual(before.texts);
+      for (const r of coin) expect(cells[((r.y - (words.y - 25)) / 2) * 16 + (r.x - left) / 2]).toBe(r.color);
+      // Sans vignette, rien d'autre ne bouge : la même hauteur, les mêmes textes, plus un. À côté de la carte, les
+      // pastilles descendent d'une ligne ; les mêmes textes, plus un.
+      if (!shape) {
+        expect(card.height).toBe(before.height);
+        expect(card.texts.filter((t) => t !== words)).toEqual(before.texts);
+      } else expect(card.texts.filter((t) => t !== words).map((t) => t.text)).toEqual(before.texts.map((t) => t.text));
       expectClean(card);
     }
     expect(plain(victoryImageAlt(VICTORY, "GAL", true, true))).toContain("+1,81 point gagné, partie de 16 min. Chaque Gaulois du village présent dans la partie reçoit 54 statères, pour les points rapportés au clan. Gaulois de la partie");
@@ -929,7 +964,7 @@ describe("la carte de fin dans l'image", () => {
     const card = victoryCard(VICTORY, "GAL", SITE, measure, shape);
     expect(card.texts.map((t) => t.text)).toContain(FINAL_NOTE);
     expect(card.texts.map((t) => t.text)).not.toContain(MAP_NOTE);
-    expect(card.rects).toContainEqual({ x: 36, y: 230, width: 660, height: 420, radius: 8, color: MER_FINALE_CSS });
+    expect(card.rects).toContainEqual({ x: 36, y: 230, width: 564, height: 420, radius: 8, color: MER_FINALE_CSS });
     expect(card.rects.some((r) => r.color === SEA)).toBe(false);
     // Une carte coupée à son bord : la mer de nuit sous la carte seulement.
     const closed = victoryCard(VICTORY, "GAL", SITE, measure, { ...shape, open: false });
