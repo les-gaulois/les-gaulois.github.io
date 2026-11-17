@@ -40,6 +40,7 @@ const COUCHES = [5, 4, 3, 2, 1, 0];
               </span>
             )}
             <canvas class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} aria-hidden="true" />
+            {c.familier && <img class="podium-carte-familier" src={`${base}${c.familier.image}`} width={c.familier.largeur} height={c.familier.hauteur} alt="" decoding="async" draggable="false" style={`--fw:${c.familier.largeur};--fh:${c.familier.hauteur};--fe:${c.familier.echelle.toFixed(3)};--lever:${c.familier.lever}`} />}
             <span class="podium-carte-rang">{fmtRank(c.place)}</span>{" "}
             <span class="podium-carte-bas">
               <span class="podium-carte-nom">{c.username}</span>{" "}

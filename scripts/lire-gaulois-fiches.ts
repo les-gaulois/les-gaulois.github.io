@@ -20,6 +20,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { loadMembers } from "../src/lib/data";
 import { BANNIERES_MEMBRES_FILE, cacheDesBannieres, journalDesBannieres, lireBannieresDesJoueurs } from "../src/lib/bannieres-joueurs";
+import { cacheDesFamiliers, FAMILIERS_MEMBRES_FILE, journalDesFamiliers, lireFamiliersDesJoueurs } from "../src/lib/familiers-joueurs";
 import { cacheDesFinitions, FINITIONS_MEMBRES_FILE, journalDesFinitions, lireFinitionsDesJoueurs } from "../src/lib/finitions-joueurs";
 import { cacheDesGaulois, GAULOIS_FICHES_FILE, journalDesGaulois, lireGauloisDesJoueurs } from "../src/lib/gaulois-joueurs";
 
@@ -27,6 +28,7 @@ import { cacheDesGaulois, GAULOIS_FICHES_FILE, journalDesGaulois, lireGauloisDes
 rmSync(GAULOIS_FICHES_FILE, { force: true });
 rmSync(BANNIERES_MEMBRES_FILE, { force: true });
 rmSync(FINITIONS_MEMBRES_FILE, { force: true });
+rmSync(FAMILIERS_MEMBRES_FILE, { force: true });
 
 const list = loadMembers();
 if (!list) {
@@ -72,5 +74,18 @@ if (finitions.etat === "lu") {
   writeFileSync(FINITIONS_MEMBRES_FILE, `${JSON.stringify(cacheDesFinitions(finitions.finitions, new Date()))}\n`);
   console.log(`Finitions des cartes : ${finitions.finitions.size} finition${finitions.finitions.size > 1 ? "s" : ""} pour ${ids.length} membres au pseudo public.`);
 } else if (finitions.etat === "panne") {
+  process.exitCode = 1;
+}
+
+// Le familier des cartes : une lecture à part, elle aussi.
+const familiers = await lireFamiliersDesJoueurs(ids, process.env["SUPABASE_URL"], process.env["SUPABASE_SECRET_KEY"]);
+const ligneDesFamiliers = journalDesFamiliers(familiers);
+if (ligneDesFamiliers) console.log(ligneDesFamiliers);
+
+if (familiers.etat === "lu") {
+  mkdirSync(dirname(FAMILIERS_MEMBRES_FILE), { recursive: true });
+  writeFileSync(FAMILIERS_MEMBRES_FILE, JSON.stringify(cacheDesFamiliers(familiers.familiers, new Date())) + "\n");
+  console.log(`Familiers des cartes : ${familiers.familiers.size} familier${familiers.familiers.size > 1 ? "s" : ""} pour ${ids.length} membres au pseudo public.`);
+} else if (familiers.etat === "panne") {
   process.exitCode = 1;
 }

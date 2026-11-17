@@ -5,11 +5,11 @@
  * ni liseré de métal. Son Gaulois sort de la carte, devant la bannière qu'il montre et la finition qu'il a choisie au rayon
  * « Cartes » de la boutique ; sans finition, le reflet offert. Décorative : le pseudo et ses chiffres sont écrits sur la page.
  *
- * À prévoir (demande du pilote, même jour : « faut qu'on puisse un jour ajouter le familier s'ils en ont ») : le familier
- * du membre aura sa place sur la carte, à côté du Gaulois, dans `.podium-carte-gaulois` ou juste après lui. Toute retouche
- * de la carte doit garder cette place libre, en bas à droite du Gaulois.
+ * Son familier, s'il en montre un, est posé en bas à droite, devant le Gaulois (demande du pilote, même jour : « faut
+ * qu'on puisse ajouter le familier s'ils en ont » ; `src/lib/carte-familier.ts`).
  */
 import { HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE } from "../lib/fx/finitions-carte";
+import type { FamilierDeCarte } from "../lib/carte-familier";
 import { echelleDuGaulois } from "../lib/cartes-podium";
 import type { PortraitDeGaulois } from "../lib/gaulois-site";
 import { finitionParId } from "../lib/village/cartes";
@@ -20,12 +20,14 @@ interface Props {
   banniere: string | null;
   /** La finition qu'il montre, ou `null` : le reflet offert. Un nom inconnu est ignoré. */
   finition: string | null;
+  /** Le familier qu'il montre à côté de son Gaulois, ou `null`. */
+  familier?: FamilierDeCarte | null;
   nom: string;
   /** La ligne sous le nom : « 212 victoires ». */
   mot?: string | null;
   class?: string;
 }
-const { portrait, banniere, finition, nom, mot = null, class: classe } = Astro.props;
+const { portrait, banniere, finition, familier = null, nom, mot = null, class: classe } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const choisie = finitionParId(finition);
 const echelle = echelleDuGaulois(portrait);
@@ -45,6 +47,7 @@ const COUCHES = [5, 4, 3, 2, 1, 0];
         {COUCHES.map((k) => <img src={`${base}${portrait.image}`} width={portrait.largeur} height={portrait.hauteur} alt="" decoding="async" draggable="false" style={`--k:${k}`} />)}
       </span>
       <canvas class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE}></canvas>
+      {familier && <img class="podium-carte-familier" src={`${base}${familier.image}`} width={familier.largeur} height={familier.hauteur} alt="" decoding="async" draggable="false" style={`--fw:${familier.largeur};--fh:${familier.hauteur};--fe:${familier.echelle.toFixed(3)};--lever:${familier.lever}`} />}
       <span class="podium-carte-bas">
         <span class="podium-carte-nom">{nom}</span>{" "}
         {mot && <span class="podium-carte-score tnum">{mot}</span>}

@@ -12,7 +12,7 @@ Tout doit passer avant qu'un changement parte. Si un contrôle échoue : corrige
 1. `npm run lint`
 2. `npm run typecheck` — `astro check` puis `tsc --noEmit`.
 3. `npm test` — Vitest. Les calculs de `src/lib/` ont chacun leur test dans `tests/unit/` : un calcul ajouté ou modifié sans test n'est pas fini.
-4. `npm run build` — régénère `public/generated/` et `dist/`. Le build signale dans ses journaux un fichier JSON de `content/` invalide : le lire, pas seulement le code de sortie.
+4. `GAL_ESSAI=1 npm run build` — régénère `public/generated/` et `dist/`, avec la page d'essai des cartes (`/essai/cartes`, jamais publiée : la GitHub Action construit sans cette variable). Sans `GAL_ESSAI=1`, les tests des cartes (`tests/e2e/cartes.spec.ts`) sont sautés : le dire dans le rapport. Le build signale dans ses journaux un fichier JSON de `content/` invalide : le lire, pas seulement le code de sortie.
 5. `npm run test:e2e` — Playwright sur `dist/` (détails et pannes : skill `tests-e2e`). Les tests lisent `data/leaderboard.json` et `data/members.json` : s'ils manquent, `npm run data:fetch` d'abord.
 6. Coup d'œil visuel sur ce qui a changé : avec `dist/` servi sur <http://127.0.0.1:4321> (`npm run preview -- --host 127.0.0.1 --port 4321`, ou le serveur que Playwright a laissé), capturer la page en mobile et en desktop, puis regarder les images :
 

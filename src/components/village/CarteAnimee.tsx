@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from "preact/hooks";
+import { familierAPoser } from "../../../supabase/functions/code-discord/familiers/familier.ts";
+import { poseSurLaCarte } from "../../lib/carte-familier-pose";
 import { HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE } from "../../lib/fx/finitions-carte";
 import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois, type Tenue } from "../../lib/gaulois";
 import type { FinitionDuRayon } from "../../lib/village/cartes";
+import type { Familier } from "../../lib/village/familiers";
 import { monterLesCartes } from "../../scripts/cartes-mouvement";
 import { peindre } from "./BoutiquePixels";
 
@@ -10,17 +13,21 @@ import { peindre } from "./BoutiquePixels";
  * avec son Gaulois devant une bannière et une finition. Elle se dresse dans le livre des cartes (`Cartes.tsx`) et paraît
  * dans les aperçus du livre des bannières (`LivreDesBannieres.tsx`). Sans finition : le reflet offert. Décorative.
  *
- * À prévoir (demande du pilote, 17 novembre 2026) : le familier du membre aura sa place sur la carte, en bas à droite du
- * Gaulois. Toute retouche de la carte la garde libre.
+ * Le familier du membre, s'il en montre un, est posé en bas à droite, devant le Gaulois (demande du pilote, 17 novembre
+ * 2026 ; `src/lib/carte-familier-pose.ts`).
  */
-export function CarteAnimee({ finition, tenue, fond, classe, sonde = false }: { finition: FinitionDuRayon | null; tenue: Tenue; fond: string | undefined; classe: string; sonde?: boolean }) {
+export function CarteAnimee({ finition, tenue, fond, classe, sonde = false, familier = null }: { finition: FinitionDuRayon | null; tenue: Tenue; fond: string | undefined; classe: string; sonde?: boolean; familier?: Familier | null }) {
   const racine = useRef<HTMLDivElement>(null);
   const gaulois = useRef<HTMLCanvasElement>(null);
   const cases = useMemo(() => casesDuGaulois(tenue), [tenue]);
   const cle = finition?.id ?? "offert";
+  const compagnon = useRef<HTMLCanvasElement>(null);
+  const pose = useMemo(() => (familier ? familierAPoser(familier) : null), [familier]);
+  const place = pose ? poseSurLaCarte(pose) : null;
   useEffect(() => {
     peindre(gaulois.current, GAULOIS_LARGEUR, GAULOIS_HAUTEUR, cases);
-  }, [cases, cle]);
+    if (pose) peindre(compagnon.current, pose.largeur, pose.hauteur, pose.cases);
+  }, [cases, cle, pose]);
   // À chaque finition, la carte est refaite (`key`) et son mouvement repart.
   useEffect(() => (racine.current ? monterLesCartes(racine.current, { sonde }) : undefined), [cle, sonde]);
   return (
@@ -36,6 +43,7 @@ export function CarteAnimee({ finition, tenue, fond, classe, sonde = false }: { 
             <canvas ref={gaulois} width={GAULOIS_LARGEUR} height={GAULOIS_HAUTEUR} />
           </span>
           <canvas class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
+          {pose && place && <canvas ref={compagnon} class="podium-carte-familier" width={pose.largeur} height={pose.hauteur} style={`--fw:${pose.largeur};--fh:${pose.hauteur};--fe:${place.echelle.toFixed(3)};--lever:${place.lever}`} />}
         </div>
       </div>
     </div>

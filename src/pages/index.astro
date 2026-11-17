@@ -24,6 +24,7 @@ import { fmtDateTime, fmtInt, fmtPct, fmtRank, fmtScore } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { gazetteEditions, playersPeriod, weekLabel } from "../lib/gazette";
 import { cartesDuPodium, legendeDuPodium } from "../lib/cartes-podium";
+import { FAMILIERS_MEMBRES_FILE, familiersDuCache } from "../lib/familiers-joueurs";
 import { FINITIONS_MEMBRES_FILE, finitionsDuCache } from "../lib/finitions-joueurs";
 import { portraitDuGaulois } from "../lib/gaulois-site";
 import { clanJournal } from "../lib/journal";
@@ -75,7 +76,8 @@ const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: l
 // (src/lib/cartes-podium.ts). Sinon, le guerrier en relief reste.
 const fondsDuPodium = fondsDesLignes(bannieresDuCache(BANNIERES_MEMBRES_FILE, (gazette?.players ?? []).map((p) => p.id)));
 const finitionsDuPodium = finitionsDuCache(FINITIONS_MEMBRES_FILE, (gazette?.players ?? []).map((p) => p.id));
-const cartesPodium = cartesDuPodium(gazette?.players, portraitDuGaulois, (id) => fondsDuPodium[id]?.image ?? null, (id) => finitionsDuPodium.get(id) ?? null);
+const familiersDuPodium = familiersDuCache(FAMILIERS_MEMBRES_FILE, (gazette?.players ?? []).map((p) => p.id));
+const cartesPodium = cartesDuPodium(gazette?.players, portraitDuGaulois, (id) => fondsDuPodium[id]?.image ?? null, (id) => finitionsDuPodium.get(id) ?? null, (id) => familiersDuPodium.get(id) ?? null);
 const legendeCartes = gazette ? legendeDuPodium(playersPeriod(gazette), weekLabel(gazette)) : "";
 // Le fil du clan : les paliers franchis depuis le relevé du lundi, et les records des sept derniers jours. Règles dans src/lib/vie-du-clan.ts.
 const currentMilestones = milestonesSinceMonday(memberWeeks.reading, members);

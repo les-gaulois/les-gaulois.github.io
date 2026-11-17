@@ -6,6 +6,7 @@ import type { EtatDeLaBanniere } from "../../lib/village/bannieres";
 import { peindreLaVignette } from "../../lib/village/cartes-vignette";
 import { CARTES, finitionParId, lireMesCartes, refusDeCarte, type FinitionDuRayon, type IdDeFinition, type MesCartes } from "../../lib/village/cartes";
 import { manque, stateres } from "../../lib/village/ecran-boutique";
+import type { Familier } from "../../lib/village/familiers";
 import { Problem, Success, messageOf } from "../compte/common";
 import { BANNIERE_CHOISIE } from "./Bannieres";
 import { Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
@@ -38,7 +39,7 @@ function ImageDeLAnnonce({ finition }: { finition: FinitionDuRayon }) {
   return <canvas ref={toile} width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} class="pixels cartes-apercu-annonce" aria-hidden="true" />;
 }
 
-export function SectionDesCartes({ tenue, onSolde, onRefus }: { tenue: Tenue | null; onSolde: (reste: number) => void; onRefus: () => void }) {
+export function SectionDesCartes({ tenue, familier = null, onSolde, onRefus }: { tenue: Tenue | null; familier?: Familier | null; onSolde: (reste: number) => void; onRefus: () => void }) {
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
   const [vue, setVue] = useState<IdDeFinition>(CARTES[0]!.id);
   const [rarete, setRarete] = useState<(typeof RARETES_DES_CARTES)[number] | null>(null);
@@ -118,12 +119,12 @@ export function SectionDesCartes({ tenue, onSolde, onRefus }: { tenue: Tenue | n
       },
       decor: (id) => {
         const f = finitionParId(id);
-        return f ? <CarteAnimee finition={f} tenue={tenueVue} fond={fond} classe="livre-carte" sonde /> : null;
+        return f ? <CarteAnimee finition={f} tenue={tenueVue} fond={fond} classe="livre-carte" sonde familier={familier} /> : null;
       },
       parId: finitionParId,
       place: PLACE_DE_LA_CARTE,
     }),
-    [imageDeBanniere, tenueVue, fond],
+    [imageDeBanniere, tenueVue, fond, familier],
   );
 
   /**

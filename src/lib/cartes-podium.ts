@@ -10,6 +10,7 @@
  * carte, sans personnage ; un joueur sans bannière, une carte au fond uni ; un joueur qui n'a pas choisi de finition au
  * rayon « Cartes » de la boutique (`village/cartes.ts`), celle de sa place.
  */
+import { familierDeCarte, type FamilierDeCarte } from "./carte-familier";
 import { finitionParId, type IdDeFinition } from "./village/cartes";
 import type { PortraitDeGaulois } from "./gaulois-site";
 
@@ -35,6 +36,8 @@ export interface CarteDuPodium {
   echelle: number;
   /** L'adresse de l'image de sa bannière (sans la base du site), ou `null` s'il n'en a pas choisi. */
   banniere: string | null;
+  /** Le familier qu'il montre à côté de son Gaulois (`carte-familier.ts`), ou `null`. Jamais sans Gaulois. */
+  familier: FamilierDeCarte | null;
 }
 
 /** La carte fait 48 cases sur 80 : le Gaulois y tient dans 42 cases de large et 58 de haut, jamais plus grand que 0,78. */
@@ -54,13 +57,15 @@ export function cartesDuPodium(
   banniereDe: (id: string) => string | null,
   /** La finition que le joueur montre (`finitions-joueurs.ts`), ou `null` : celle de sa place. Un nom inconnu est ignoré. */
   finitionDe: (id: string) => string | null = () => null,
+  /** Le familier que le joueur montre (`familiers-joueurs.ts`), ou `null`. Un nom inconnu est ignoré. */
+  familierDe: (id: string) => string | null = () => null,
 ): CarteDuPodium[] | null {
   if (!players || players.length === 0 || players.length > CARTES_DU_PODIUM) return null;
   const cartes = players.map(({ id, username, place, wins }): CarteDuPodium => {
     const portrait = portraitDe(id);
     const metal = metalDeLaPlace(place);
     const finition = finitionParId(finitionDe(id)) ?? finitionParId(finitionDuMetal(metal))!;
-    return { id, username, place, wins, metal, finition: finition.id, animee: finition.animee, portrait, echelle: portrait ? echelleDuGaulois(portrait) : 0, banniere: banniereDe(id) };
+    return { id, username, place, wins, metal, finition: finition.id, animee: finition.animee, portrait, echelle: portrait ? echelleDuGaulois(portrait) : 0, banniere: banniereDe(id), familier: portrait ? familierDeCarte(familierDe(id)) : null };
   });
   return cartes.some((c) => c.portrait !== null) ? cartes : null;
 }

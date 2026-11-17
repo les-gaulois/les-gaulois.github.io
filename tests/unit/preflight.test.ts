@@ -38,6 +38,7 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/acheter_billets_loterie": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_bannieres": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_cartes": { status: 401, body: {} },
+  "/rest/v1/rpc/familiers_des_joueurs": { status: 401, body: {} },
   "/rest/v1/rpc/acheter_carte": { status: 401, body: {} },
   "/rest/v1/rpc/choisir_carte": { status: 401, body: {} },
   "/rest/v1/rpc/cartes_des_joueurs": { status: 401, body: {} },

@@ -487,7 +487,7 @@ export function LivreDesBannieres({ lib, dessin, mode = "choix", miennes, montre
         </figure>
         <figure class="livre-apercu" data-testid="livre-apercu-carte">
           <figcaption>Ma carte</figcaption>
-          <CarteAnimee finition={finition} tenue={tenue} fond={vue ? `--banniere:url("${basePath()}/bannieres/${vue}.png")` : undefined} classe="livre-apercu-carte" />
+          <CarteAnimee finition={finition} tenue={tenue} fond={vue ? `--banniere:url("${basePath()}/bannieres/${vue}.png")` : undefined} classe="livre-apercu-carte" familier={familier} />
           <p class="livre-apercu-note">Sur ma fiche, et en haut de l'accueil si je suis sur le podium de la semaine.</p>
         </figure>
         <figure class="livre-apercu">

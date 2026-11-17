@@ -3,6 +3,17 @@
     "date": "2026-11-17",
     "kind": "ameliore",
     "rank": "minor",
+    "title": "Le familier sur la carte",
+    "body": "Les cartes s'inclinent davantage, pour mieux voir le relief du Gaulois. Dans la boutique, votre familier paraît sur votre carte, en bas à droite de votre Gaulois.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
+    "rank": "minor",
     "title": "Des cartes plus vives, et plus légères",
     "body": "L'arc-en-ciel des cartes glisse de nouveau tout seul, le Gaulois retrouve son relief et son halo. Sur un appareil qui rame, la page s'allège toute seule.",
     "link": {

@@ -649,9 +649,10 @@ footer h2 {
   border-radius: calc(var(--px) * 3.2);
   color: var(--carte-ecriture);
   text-decoration: none;
-  /* Six degrés au plus de côté, quatre de haut en bas (22 et 14 au départ : le pilote a demandé deux fois, le
-     17 novembre 2026, un mouvement plus court). */
-  transform: rotateY(calc(var(--carte-mx) * 6deg)) rotateX(calc(var(--carte-my) * -4deg));
+  /* Onze degrés au plus de côté, sept de haut en bas : 22 et 14 au départ, 6 et 4 après deux demandes d'un mouvement plus
+     court, puis remonté à mi-chemin le soir du 17 novembre 2026, à la demande du pilote, pour retrouver le relief de la
+     maquette. */
+  transform: rotateY(calc(var(--carte-mx) * 11deg)) rotateX(calc(var(--carte-my) * -7deg));
   transform-style: preserve-3d;
   /* La carte tourne sans être repeinte : le navigateur la garde sur son propre calque. */
   will-change: transform;
@@ -1043,6 +1044,19 @@ footer h2 {
 /* La couche de devant porte le halo clair autour du Gaulois : une ombre calculée une fois, sur une image fixe. */
 .podium-carte-gaulois > img:last-child {
   filter: drop-shadow(0 0 calc(var(--px) * 1.2) color-mix(in srgb, var(--carte-ecriture) 55%, transparent));
+}
+/* Le familier du membre (src/lib/carte-familier.ts) : en bas à droite, devant le Gaulois, les pattes à la hauteur des
+   siennes ; un familier qui vole garde sa hauteur (--lever, en pixels de son image). */
+.podium-carte-familier {
+  position: absolute;
+  right: calc(var(--px) * 3);
+  bottom: calc(max(calc(var(--px) * 15), 2.4rem) + var(--lever, 0) * var(--px) * var(--fe));
+  width: calc(var(--fw) * var(--px) * var(--fe));
+  height: calc(var(--fh) * var(--px) * var(--fe));
+  max-width: none;
+  image-rendering: pixelated;
+  pointer-events: none;
+  transform: translateZ(calc(var(--px) * 13.5));
 }
 .podium-carte-rang {
   position: absolute;

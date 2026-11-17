@@ -1068,6 +1068,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               <div hidden={rayon !== RAYON_CARTES}>
                 <SectionDesCartes
                   tenue={etat.enregistree}
+                  familier={familiers.montre}
                   onSolde={(reste) => {
                     setBoutique((b) => b && { ...b, solde: reste });
                     setSolde(reste);

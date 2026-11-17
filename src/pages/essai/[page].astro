@@ -1,0 +1,46 @@
+---
+/**
+ * La page d'essai des cartes (src/lib/essai-cartes.ts) : les cartes du podium, la carte d'un membre et le reflet d'un
+ * bloc de fiche, avec des Gaulois d'essai, pour les tests du navigateur (tests/e2e/cartes.spec.ts). Elle n'existe que si
+ * la construction est lancée avec GAL_ESSAI=1 : jamais sur le site publié.
+ */
+import type { GetStaticPaths } from "astro";
+import Base from "../../layouts/Base.astro";
+import CarteDeMembre from "../../components/CarteDeMembre.astro";
+import CartesPodium from "../../components/CartesPodium.astro";
+import { cartesDEssai, essaiDemande } from "../../lib/essai-cartes";
+
+export const getStaticPaths = (() => (essaiDemande() ? [{ params: { page: "cartes" } }] : [])) satisfies GetStaticPaths;
+
+const essai = await cartesDEssai();
+---
+
+<Base title="Essai des cartes" description="Page d'essai, jamais publiée." noindex>
+  <div class="wrap py-8" data-testid="essai-cartes">
+    <h1 class="text-2xl">Essai des cartes</h1>
+    <p class="text-muted">Gaulois et noms d'essai. Cette page n'est pas publiée.</p>
+    {
+      essai && (
+        <>
+          <div class="mt-6" data-testid="essai-podium">
+            <CartesPodium cartes={essai.podium} legende="Cartes d'essai" />
+          </div>
+          <div class="mt-6" data-testid="essai-membre">
+            <CarteDeMembre portrait={essai.portrait} banniere="/bannieres/aurore-du-lac-gele.png" finition="prisme" familier={essai.familier} nom="Essai un" mot="30 victoires" />
+          </div>
+          <section class="stage stage-blue stage-avec-effet mt-6" style="clear:both" data-testid="essai-bloc">
+            <span class="bloc-effet" data-carte-bloc aria-hidden="true">
+              <span class="podium-carte" data-finition="arc-en-ciel" data-reflet="">
+                <span class="podium-carte-face">
+                  <i class="podium-carte-holo" />
+                  <i class="podium-carte-eclat" />
+                </span>
+              </span>
+            </span>
+            <h2 class="section-title">Bloc d'essai</h2>
+          </section>
+        </>
+      )
+    }
+  </div>
+</Base>

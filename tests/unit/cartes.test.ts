@@ -6,6 +6,9 @@ import { cacheDesFinitions, finitionsDuCache, journalDesFinitions, lireFinitions
 import { FINITIONS, FINITIONS_ANIMEES } from "../../src/lib/fx/finitions-carte";
 import { empreinte } from "../../src/lib/gaulois-joueurs";
 import { CARTES, REFLETS, finitionParId, lireMesCartes, refusDeCarte } from "../../src/lib/village/cartes";
+import { familierDeCarte, pngDuFamilier, poseSurLaCarte } from "../../src/lib/carte-familier";
+import { cacheDesFamiliers, familiersDuCache, lireFamiliersDesJoueurs } from "../../src/lib/familiers-joueurs";
+import { FAMILIERS } from "../../supabase/functions/code-discord/familiers/index";
 import { PLACE_DE_LA_BANNIERE, volVersLeDecor } from "../../src/lib/village/livre-bannieres";
 import { VIGNETTE_HAUTEUR, VIGNETTE_LARGEUR, lireLePng, vignetteDeLaCarte } from "../../src/lib/village/cartes-vignettes";
 import { lireReponseDesAchats, nouveautes, titreEnMots, vignetteDeLAchat, choseDe } from "../../src/lib/achats-discord";
@@ -173,5 +176,46 @@ describe("le régime économe des cartes", () => {
     expect(fenetreLente(51, 100)).toBe(true);
     expect(fenetreLente(8, 8)).toBe(true);
     expect(fenetreLente(2, 2)).toBe(false);
+  });
+});
+
+describe("le familier sur la carte d'un membre", () => {
+  const MIGRATION_FAMILIERS = readFileSync("supabase/migrations/20261117001400_familiers_des_joueurs.sql", "utf8");
+
+  it("tient dans seize cases de large et vingt-deux de haut, jamais plus grand que le Gaulois, à la hauteur où il vole", () => {
+    expect(poseSurLaCarte({ largeur: 10, hauteur: 12, haut: 52 })).toEqual({ echelle: 0.78, lever: 0 });
+    expect(poseSurLaCarte({ largeur: 32, hauteur: 12, haut: 52 }).echelle).toBeCloseTo(0.5);
+    expect(poseSurLaCarte({ largeur: 10, hauteur: 44, haut: 20 }).echelle).toBeCloseTo(0.5);
+    // Un familier qui vole : ses pattes sont à dix rangées du sol.
+    expect(poseSurLaCarte({ largeur: 10, hauteur: 10, haut: 44 }).lever).toBe(10);
+    for (const f of FAMILIERS) {
+      const carte = familierDeCarte(f.id);
+      expect(carte, f.id).not.toBeNull();
+      expect(carte!.largeur * carte!.echelle, f.id).toBeLessThanOrEqual(16.01);
+      expect(carte!.hauteur * carte!.echelle, f.id).toBeLessThanOrEqual(22.01);
+      expect(carte!.image).toBe(`/familiers/${f.id}.png`);
+    }
+    expect(familierDeCarte("nexiste-pas")).toBeNull();
+    expect(familierDeCarte(null)).toBeNull();
+  });
+
+  it("publie l'image de chaque familier, et rien pour un inconnu", async () => {
+    const png = await pngDuFamilier(FAMILIERS[0]!.id);
+    expect(png?.subarray(1, 4).toString("latin1")).toBe("PNG");
+    expect(await pngDuFamilier("nexiste-pas")).toBeNull();
+  });
+
+  it("ne lit que le familier montré, par empreinte, avec la clé de service", async () => {
+    expect(MIGRATION_FAMILIERS).toContain("grant execute on function public.familiers_des_joueurs(text[]) to service_role;");
+    expect(MIGRATION_FAMILIERS).toContain("revoke all on function public.familiers_des_joueurs(text[]) from public, anon, authenticated;");
+    expect(MIGRATION_FAMILIERS).toContain("internal.gaulois_montre(g.user_id)");
+    const id = FAMILIERS[0]!.id;
+    const lecture = await lireFamiliersDesJoueurs(["a", "b"], "https://exemple.test", "cle", () => Promise.resolve({ ok: true, familiers: { [empreinte("a")]: id, [empreinte("b")]: "nexiste-pas" } }));
+    expect([...lecture.familiers]).toEqual([["a", id]]);
+    const absente = await lireFamiliersDesJoueurs(["a"], "https://exemple.test", "cle", () => Promise.reject(Object.assign(new Error("x"), { code: "PGRST202" })));
+    expect(absente.etat).toBe("fonction-absente");
+    const fichier = join(mkdtempSync(join(tmpdir(), "familiers-")), "familiers.json");
+    writeFileSync(fichier, JSON.stringify(cacheDesFamiliers(new Map([["a", id]]), new Date("2026-11-17T12:00:00Z"))));
+    expect([...familiersDuCache(fichier, ["a", "z"])]).toEqual([["a", id]]);
   });
 });
