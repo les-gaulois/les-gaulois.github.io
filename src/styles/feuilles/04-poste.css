@@ -592,7 +592,7 @@ footer h2 {
 
 /* Les cartes du podium de l'accueil (src/components/CartesPodium.astro, 17 novembre 2026) : à la place du guerrier, une
    carte par joueur du podium de la semaine. Tout se mesure en cases (--px, une case de la carte : 48 sur 80), réglées sur
-   la largeur de la colonne. Le script ne pose que --mx et --my, de -1 à 1 : sans lui, en pause ou avec « réduire les
+   la largeur de la colonne. Le script ne pose que --carte-mx et --carte-my, de -1 à 1 : sans lui, en pause ou avec « réduire les
    animations », la carte est à plat. Les couleurs de la carte sont les siennes (fond marine, liseré de métal, plaque
    sombre) : elles se lisent dans les deux thèmes. */
 .podium-cartes {
@@ -638,8 +638,8 @@ footer h2 {
   }
 }
 .podium-carte {
-  --mx: 0;
-  --my: 0;
+  --carte-mx: 0;
+  --carte-my: 0;
   --metal: #c07a45;
   --carte-ecriture: #eef2ff;
   position: relative;
@@ -649,8 +649,10 @@ footer h2 {
   border-radius: calc(var(--px) * 3.2);
   color: var(--carte-ecriture);
   text-decoration: none;
-  transform: rotateY(calc(var(--mx) * 22deg)) rotateX(calc(var(--my) * -14deg));
+  transform: rotateY(calc(var(--carte-mx) * 22deg)) rotateX(calc(var(--carte-my) * -14deg));
   transform-style: preserve-3d;
+  /* La carte tourne sans être repeinte : le navigateur la garde sur son propre calque. */
+  will-change: transform;
   box-shadow: 0 calc(var(--px) * 4) calc(var(--px) * 9) rgb(10 18 48 / 0.3);
 }
 .podium-carte[data-metal="or"] {
@@ -679,7 +681,7 @@ footer h2 {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at calc(50% - var(--mx) * 55%) calc(45% - var(--my) * 55%), color-mix(in srgb, var(--carte-ecriture) 50%, transparent), transparent 52%);
+  background: radial-gradient(circle at calc(50% - var(--carte-mx) * 55%) calc(45% - var(--carte-my) * 55%), color-mix(in srgb, var(--carte-ecriture) 50%, transparent), transparent 52%);
   mix-blend-mode: overlay;
 }
 /* La finition animée de la carte (src/lib/fx/finitions-carte.ts) : deux toiles en pixels, une sur la face, derrière le
@@ -708,7 +710,7 @@ footer h2 {
   background: repeating-linear-gradient(115deg, #ff5a8a 0, #ffd24a 7%, #5aff9e 14%, #4ad2ff 21%, #a56bff 28%, #ff5a8a 35%) 0 0 / 300% 300%;
   mix-blend-mode: screen;
   opacity: 0.3;
-  translate: calc(var(--mx) * 16%) calc(var(--my) * 16%);
+  translate: calc(var(--carte-mx) * 16%) calc(var(--carte-my) * 16%);
   animation: podium-carte-holo 16s linear infinite;
 }
 .podium-carte-eclat {
@@ -731,7 +733,7 @@ footer h2 {
   background: none;
 }
 .podium-carte[data-finition="arc-en-ciel"] .podium-carte-holo {
-  background: repeating-linear-gradient(115deg, #ff5a8a 0, #ffd24a 7%, #5aff9e 14%, #4ad2ff 21%, #a56bff 28%, #ff5a8a 35%) calc(50% + var(--mx) * 70%) calc(50% + var(--my) * 70%) / 320% 320%;
+  background: repeating-linear-gradient(115deg, #ff5a8a 0, #ffd24a 7%, #5aff9e 14%, #4ad2ff 21%, #a56bff 28%, #ff5a8a 35%) calc(50% + var(--carte-mx) * 70%) calc(50% + var(--carte-my) * 70%) / 320% 320%;
   mix-blend-mode: color-dodge;
   opacity: 0.5;
 }
@@ -741,7 +743,7 @@ footer h2 {
   mix-blend-mode: overlay;
 }
 .podium-carte[data-finition="tricolore"] .podium-carte-holo {
-  background: linear-gradient(100deg, transparent 18%, #2b6bff 34%, #f4f7ff 50%, #ff3b4d 66%, transparent 82%) calc(50% + var(--mx) * 85%) 0 / 300% 100%;
+  background: linear-gradient(100deg, transparent 18%, #2b6bff 34%, #f4f7ff 50%, #ff3b4d 66%, transparent 82%) calc(50% + var(--carte-mx) * 85%) 0 / 300% 100%;
   mix-blend-mode: screen;
   opacity: 0.7;
 }
@@ -750,20 +752,20 @@ footer h2 {
     radial-gradient(circle, #f4f7ff 0 1px, transparent 1.7px) 0 0 / 11px 13px,
     radial-gradient(circle, #f4f7ff 0 1.4px, transparent 2.2px) 5px 7px / 17px 19px,
     radial-gradient(circle, #ffe9a8 0 1px, transparent 1.8px) 3px 2px / 23px 29px;
-  -webkit-mask: linear-gradient(115deg, transparent 22%, #000 44%, #000 56%, transparent 78%) calc(50% + var(--mx) * 85%) 0 / 260% 100%;
-  mask: linear-gradient(115deg, transparent 22%, #000 44%, #000 56%, transparent 78%) calc(50% + var(--mx) * 85%) 0 / 260% 100%;
+  -webkit-mask: linear-gradient(115deg, transparent 22%, #000 44%, #000 56%, transparent 78%) calc(50% + var(--carte-mx) * 85%) 0 / 260% 100%;
+  mask: linear-gradient(115deg, transparent 22%, #000 44%, #000 56%, transparent 78%) calc(50% + var(--carte-mx) * 85%) 0 / 260% 100%;
 }
 .podium-carte[data-finition="pluie-d-eclats"] .podium-carte-eclat {
-  background: linear-gradient(115deg, #ff8ad0, #8ad0ff, #b8ff8a) calc(50% + var(--mx) * 60%) 0 / 250% 100%;
+  background: linear-gradient(115deg, #ff8ad0, #8ad0ff, #b8ff8a) calc(50% + var(--carte-mx) * 60%) 0 / 250% 100%;
   mix-blend-mode: soft-light;
   opacity: 0.7;
 }
 .podium-carte[data-finition="cristal"] .podium-carte-holo {
-  background: repeating-conic-gradient(from 45deg, color-mix(in srgb, var(--carte-ecriture) 34%, transparent) 0 25%, transparent 0 50%) calc(var(--mx) * 14px) calc(var(--my) * 14px) / calc(var(--px) * 8) calc(var(--px) * 8);
+  background: repeating-conic-gradient(from 45deg, color-mix(in srgb, var(--carte-ecriture) 34%, transparent) 0 25%, transparent 0 50%) calc(var(--carte-mx) * 14px) calc(var(--carte-my) * 14px) / calc(var(--px) * 8) calc(var(--px) * 8);
   mix-blend-mode: overlay;
 }
 .podium-carte[data-finition="cristal"] .podium-carte-eclat {
-  background: linear-gradient(135deg, #8af3ff, #f4f7ff 35%, #c9a8ff 60%, #8af3ff) calc(50% + var(--mx) * 70%) calc(50% + var(--my) * 70%) / 260% 260%;
+  background: linear-gradient(135deg, #8af3ff, #f4f7ff 35%, #c9a8ff 60%, #8af3ff) calc(50% + var(--carte-mx) * 70%) calc(50% + var(--carte-my) * 70%) / 260% 260%;
   mix-blend-mode: color-dodge;
   opacity: 0.45;
 }
@@ -783,7 +785,7 @@ footer h2 {
   animation: podium-reflet-etincelles 9s linear infinite;
 }
 .podium-carte[data-finition="feuille-d-or"] .podium-carte-holo {
-  background: linear-gradient(115deg, transparent 28%, #fff3b0 44%, #ffcf4a 50%, #fff3b0 56%, transparent 72%) calc(50% + var(--mx) * 85%) 0 / 300% 100%;
+  background: linear-gradient(115deg, transparent 28%, #fff3b0 44%, #ffcf4a 50%, #fff3b0 56%, transparent 72%) calc(50% + var(--carte-mx) * 85%) 0 / 300% 100%;
   mix-blend-mode: hard-light;
   opacity: 0.75;
 }
@@ -794,7 +796,7 @@ footer h2 {
 }
 .podium-carte[data-finition="prisme"] .podium-carte-holo {
   inset: -60%;
-  background: conic-gradient(from calc(var(--mx) * 200deg + var(--my) * 90deg), #ff5a8a, #ffd24a, #5aff9e, #4ad2ff, #a56bff, #ff5a8a, #ffd24a, #5aff9e, #4ad2ff, #a56bff, #ff5a8a);
+  background: conic-gradient(from calc(var(--carte-mx) * 200deg + var(--carte-my) * 90deg), #ff5a8a, #ffd24a, #5aff9e, #4ad2ff, #a56bff, #ff5a8a, #ffd24a, #5aff9e, #4ad2ff, #a56bff, #ff5a8a);
   mix-blend-mode: color-dodge;
   opacity: 0.45;
 }
@@ -820,7 +822,7 @@ footer h2 {
   filter: blur(calc(var(--px) * 2.5));
   mix-blend-mode: screen;
   opacity: 0.75;
-  translate: calc(var(--mx) * 12%) calc(var(--my) * 12%);
+  translate: calc(var(--carte-mx) * 12%) calc(var(--carte-my) * 12%);
   animation: podium-reflet-aurore 14s ease-in-out infinite alternate;
 }
 .podium-carte[data-finition="cosmos"] .podium-carte-holo {
@@ -829,12 +831,12 @@ footer h2 {
     radial-gradient(circle, #f4f7ff 0 1px, transparent 1.6px) 0 0 / 19px 23px,
     radial-gradient(circle, #cfe0ff 0 1.3px, transparent 2px) 9px 5px / 31px 37px,
     radial-gradient(circle, #f4f7ff 0 0.8px, transparent 1.4px) 4px 11px / 13px 17px;
-  translate: calc(var(--mx) * -6%) calc(var(--my) * -6%);
+  translate: calc(var(--carte-mx) * -6%) calc(var(--carte-my) * -6%);
   animation: podium-reflet-scintille 8s ease-in-out infinite alternate;
 }
 .podium-carte[data-finition="cosmos"] .podium-carte-eclat {
   background:
-    radial-gradient(ellipse at calc(50% + var(--mx) * 40%) 30%, #ff6bd6, transparent 55%),
+    radial-gradient(ellipse at calc(50% + var(--carte-mx) * 40%) 30%, #ff6bd6, transparent 55%),
     radial-gradient(ellipse at 30% 80%, #4a6bff, transparent 60%);
   mix-blend-mode: screen;
   opacity: 0.6;

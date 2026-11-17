@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "title": "Le rayon Cartes de la boutique",
+    "body": "Dans « La boutique », un nouvel onglet vend 33 finitions pour votre carte du podium de l'accueil : des reflets et des animations, à essayer avant l'achat, au prix d'une bannière.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "Le podium de la semaine en grandes cartes",
     "body": "En haut de l'accueil, les trois joueurs du podium de la semaine ont chacun leur carte animée : leur Gaulois en relief devant leur bannière, avec un effet différent selon la place.",
     "link": {

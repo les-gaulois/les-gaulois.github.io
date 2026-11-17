@@ -2,8 +2,8 @@
  * Le mouvement des cartes à finition (les cartes du podium de l'accueil, `src/components/CartesPodium.astro`, et la carte
  * d'essai du rayon « Cartes » de la boutique, `src/components/village/Cartes.tsx`) : chaque carte se tourne vers le
  * curseur de la souris ; sans souris depuis trois secondes, ou au doigt, elle se balance lentement. Le script ne pose que
- * deux nombres par carte, `--mx` et `--my`, de -1 à 1 : l'inclinaison et le reflet sont dans la feuille de style
- * (04-poste.css). Il dessine aussi, une image sur deux, la finition animée de chaque carte sur ses deux toiles
+ * deux nombres par carte, `--carte-mx` et `--carte-my`, de -1 à 1 : l'inclinaison et le reflet sont dans la feuille de style
+ * (04-poste.css). Il dessine aussi, vingt fois par seconde, la finition animée de chaque carte sur ses deux toiles
  * (src/lib/fx/finitions-carte.ts). Il ne change aucun texte ni aucun chiffre.
  *
  * En pause (bouton de l'en-tête, `fx-off`), avec « réduire les animations », hors de l'écran ou dans un onglet caché,
@@ -26,14 +26,19 @@ export function monterLesCartes(racine: HTMLElement): () => void {
   let vue = -Infinity;
   let visible = true;
   let image = 0;
-  let images = 0;
   let arrete = false;
+  // Pour ne pas faire chuter les images par seconde : l'inclinaison n'est reposée que trente fois par seconde, et les
+  // toiles des finitions ne sont redessinées que vingt fois. Entre deux, le navigateur n'a rien à repeindre.
+  const PAS_DE_L_INCLINAISON = 1000 / 30;
+  const PAS_DU_DESSIN = 1000 / 20;
+  let inclineA = -Infinity;
+  let dessineA = -Infinity;
 
   const actif = () => !arrete && !calme.matches && !html.classList.contains("fx-off") && visible && !document.hidden;
   const borne = (v: number) => Math.max(-1, Math.min(1, v));
   const poser = (c: (typeof cartes)[number]) => {
-    c.el.style.setProperty("--mx", c.mx.toFixed(3));
-    c.el.style.setProperty("--my", c.my.toFixed(3));
+    c.el.style.setProperty("--carte-mx", c.mx.toFixed(3));
+    c.el.style.setProperty("--carte-my", c.my.toFixed(3));
   };
   const effacer = (c: (typeof cartes)[number]) => {
     for (const t of [c.fond, c.devant]) {
@@ -54,6 +59,13 @@ export function monterLesCartes(racine: HTMLElement): () => void {
       }
       return;
     }
+    if (t - inclineA < PAS_DE_L_INCLINAISON) {
+      image = requestAnimationFrame(tour);
+      return;
+    }
+    inclineA = t;
+    const dessiner = t - dessineA >= PAS_DU_DESSIN;
+    if (dessiner) dessineA = t;
     const suit = souris !== null && t - vue < 3000;
     for (const c of cartes) {
       let tx: number;
@@ -65,19 +77,22 @@ export function monterLesCartes(racine: HTMLElement): () => void {
         ty = borne((souris[1] - (r.top + r.height / 2)) / (r.height * 1.2));
       } else {
         // Un balancement lent, décalé d'une carte à l'autre : un tour en une quinzaine de secondes.
-        tx = Math.sin(t / 2600 + c.i * 1.3) * 0.6;
-        ty = Math.sin(t / 3800 + c.i * 0.8) * 0.32;
+        tx = Math.sin(t / 2600 + c.i * 1.3) * 0.5;
+        ty = Math.sin(t / 3800 + c.i * 0.8) * 0.28;
       }
-      c.mx += (tx - c.mx) * 0.07;
-      c.my += (ty - c.my) * 0.07;
-      poser(c);
-      // La finition, une image sur deux : une trentaine d'images par seconde suffisent à des pixels.
-      if (images % 2 === 0 && c.finition && c.fond && c.devant) {
+      const mx = c.mx + (tx - c.mx) * 0.13;
+      const my = c.my + (ty - c.my) * 0.13;
+      // Une carte presque immobile n'est pas reposée : rien à repeindre.
+      if (Math.abs(mx - c.mx) > 0.0015 || Math.abs(my - c.my) > 0.0015) {
+        c.mx = mx;
+        c.my = my;
+        poser(c);
+      }
+      if (dessiner && c.finition && c.fond && c.devant) {
         effacer(c);
         c.finition(c.fond, c.devant, t / 1000, c.mx, c.my);
       }
     }
-    images++;
     image = requestAnimationFrame(tour);
   };
   const relancer = () => {

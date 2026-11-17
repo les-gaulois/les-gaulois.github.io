@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ServerError, call } from "../../lib/compte/api";
-import { HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE } from "../../lib/fx/finitions-carte";
+import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDeLaFinition, type FinitionDeCarte } from "../../lib/fx/finitions-carte";
 import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois, type Tenue } from "../../lib/gaulois";
 import { CARTES, finitionParId, lireMesCartes, refusDeCarte, type FinitionDuRayon, type IdDeFinition, type MesCartes } from "../../lib/village/cartes";
 import { manque, stateres } from "../../lib/village/ecran-boutique";
@@ -18,6 +18,52 @@ import { MarqueDeRarete, Prix, peindre } from "./BoutiquePixels";
 type Etat = { kind: "lecture" } | { kind: "panne" } | { kind: "pret"; mes: MesCartes };
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
+
+/**
+ * L'instant où chaque animation est la plus parlante, en secondes : l'image fixe de sa case. Les autres sont prises à 2,4 s.
+ */
+const INSTANT_DE_LA_VIGNETTE: Partial<Record<FinitionDeCarte, number>> = {
+  "champignon-atomique": 4.2,
+  explosion: 0.8,
+  "feu-d-artifice": 1.9,
+  foudre: 0.12,
+  piratage: 4,
+  lancement: 2.6,
+  supernova: 1,
+};
+
+/**
+ * L'image d'une case, comme celle d'une bannière : la carte en petit, avec sa finition. Un reflet est celui de la feuille
+ * de style ; une animation, une image fixe dessinée une fois sur ses toiles. Rien ne bouge dans les cases : la finition
+ * regardée s'anime sur la carte d'essai.
+ */
+function VignetteDeFinition({ finition }: { finition: FinitionDuRayon }) {
+  const fond = useRef<HTMLCanvasElement>(null);
+  const devant = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const nom = finitionAnimee(finition.id);
+    const f = fond.current?.getContext("2d");
+    const d = devant.current?.getContext("2d");
+    if (!nom || !f || !d || !fond.current) return;
+    fond.current.style.mixBlendMode = fusionDeLaFinition(nom);
+    for (const t of [f, d]) t.clearRect(0, 0, LARGEUR_DE_TOILE, HAUTEUR_DE_TOILE);
+    FINITIONS[nom](f, d, INSTANT_DE_LA_VIGNETTE[nom] ?? 2.4, 0.3, -0.15);
+  }, [finition.id]);
+  return (
+    <span class="case-image cartes-vignette" aria-hidden="true">
+      <span class="podium-carte-case">
+        <span class="podium-carte" data-metal="argent" data-finition={finition.id} data-reflet={finition.animee ? undefined : ""} style="--carte-mx:0.3;--carte-my:-0.15">
+          <span class="podium-carte-face">
+            <canvas ref={fond} class="podium-carte-fx" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
+            <i class="podium-carte-holo" />
+            <i class="podium-carte-eclat" />
+          </span>
+          <canvas ref={devant} class="podium-carte-fx podium-carte-fx-devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
+        </span>
+      </span>
+    </span>
+  );
+}
 
 /** La carte d'essai : le Gaulois du membre devant la finition regardée, animée comme sur l'accueil. */
 function CarteDEssai({ finition, tenue }: { finition: FinitionDuRayon; tenue: Tenue | null }) {
@@ -151,14 +197,15 @@ export function SectionDesCartes({ tenue, onSolde, onRefus }: { tenue: Tenue | n
             </div>
           )}
         </div>
-        <ul class="cartes-cases" aria-label="Les finitions">
+        <ul class="cases cartes-cases" aria-label="Les finitions">
           {CARTES.map((c) => {
             const aMoi = mes?.possedees.includes(c.id) ?? false;
             const p = mes?.prix[c.rarete] ?? null;
             return (
               <li key={c.id}>
-                <button type="button" class="cartes-case" data-rarete={c.rarete} aria-pressed={vue === c.id} onClick={() => regarder(c.id)} data-testid="carte-case">
-                  <span class="cartes-case-nom">{c.nom}</span>
+                <button type="button" class="case cartes-case" data-rarete={c.rarete} data-etat={aMoi ? "possedee" : undefined} aria-pressed={vue === c.id} onClick={() => regarder(c.id)} data-testid="carte-case">
+                  <VignetteDeFinition finition={c} />
+                  <span class="case-nom">{c.nom}</span>
                   <MarqueDeRarete rarete={c.rarete} />
                   <span class="cartes-case-etat">{aMoi ? (mes?.porte === c.id ? "Montrée" : "À vous") : p !== null ? <Prix montant={p} /> : c.animee ? "Animée" : "Reflet"}</span>
                 </button>
