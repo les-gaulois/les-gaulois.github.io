@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "nouveau",
+    "title": "Le podium de la semaine en grandes cartes",
+    "body": "En haut de l'accueil, les trois joueurs du podium de la semaine ont chacun leur carte : leur Gaulois en relief devant leur bannière. Les cartes se tournent vers la souris et brillent.",
+    "link": {
+      "href": "/",
+      "label": "Accueil"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "ameliore",
     "title": "Le coffre du druide récompense la ruse",
     "body": "Sur Discord, la cagnotte n'est multipliée que si le gardien lâche le mot ; deviné, il la gagne sans plus. Un cinquième va aux autres joueurs de la manche. 20 secondes entre deux essais.",

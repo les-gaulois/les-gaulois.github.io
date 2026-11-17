@@ -1,0 +1,55 @@
+---
+/**
+ * Les cartes du podium de l'accueil (src/lib/cartes-podium.ts) : le Gaulois de chaque joueur du podium de la semaine sort
+ * de sa carte, devant sa bannière, et la carte se tourne vers le curseur avec un reflet (src/scripts/cartes-podium.ts).
+ * Sans JavaScript, en pause ou avec « réduire les animations », les cartes restent à plat. Chaque carte mène à la fiche
+ * du joueur. Les couches empilées du Gaulois sont décoratives : le pseudo, la place et les victoires sont écrits.
+ */
+import { fmtCount, fmtRank } from "../lib/format";
+import type { CarteDuPodium } from "../lib/cartes-podium";
+
+interface Props {
+  cartes: readonly CarteDuPodium[];
+  /** « Le plus de victoires de la semaine du 9 nov. au 15 nov. 2026 » : la période des chiffres, toujours écrite. */
+  legende: string;
+  class?: string;
+}
+const { cartes, legende, class: classe } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// Six couches de la même image, de la plus lointaine à la plus proche : l'épaisseur du Gaulois.
+const COUCHES = [5, 4, 3, 2, 1, 0];
+---
+
+<div class:list={["podium-cartes", classe]} data-podium-cartes data-testid="hero-podium">
+  <ol class="podium-cartes-rangee" aria-labelledby="podium-cartes-legende">
+    {
+      cartes.map((c) => (
+        <li class="podium-carte-case">
+          <a class="podium-carte" data-metal={c.metal} href={`${base}/membres/${encodeURIComponent(c.id)}`} data-testid="hero-card">
+            <span class="podium-carte-face" aria-hidden="true" style={c.banniere ? `--banniere:url("${base}${c.banniere}")` : undefined}>
+              <i class="podium-carte-holo" />
+              <i class="podium-carte-eclat" />
+            </span>
+            {c.portrait && (
+              <span class="podium-carte-gaulois" aria-hidden="true" style={`--w:${c.portrait.largeur};--h:${c.portrait.hauteur};--e:${c.echelle.toFixed(3)}`}>
+                {COUCHES.map((k) => (
+                  <img src={`${base}${c.portrait!.image}`} width={c.portrait!.largeur} height={c.portrait!.hauteur} alt="" decoding="async" draggable="false" style={`--k:${k}`} />
+                ))}
+              </span>
+            )}
+            <span class="podium-carte-rang">{fmtRank(c.place)}</span>{" "}
+            <span class="podium-carte-bas">
+              <span class="podium-carte-nom">{c.username}</span>{" "}
+              <span class="podium-carte-score tnum">{fmtCount(c.wins, "victoire")}</span>
+            </span>
+          </a>
+        </li>
+      ))
+    }
+  </ol>
+  <p class="info-discrete tnum mt-2 text-center" id="podium-cartes-legende" data-testid="hero-podium-legende">{legende}</p>
+</div>
+
+<script>
+  import "../scripts/cartes-podium";
+</script>

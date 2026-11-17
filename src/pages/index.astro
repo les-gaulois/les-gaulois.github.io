@@ -5,6 +5,7 @@ import { join } from "node:path";
 import Base from "../layouts/Base.astro";
 import AccueilCarte from "../components/AccueilCarte.astro";
 import AccueilVillage from "../components/AccueilVillage.astro";
+import CartesPodium from "../components/CartesPodium.astro";
 import ClanWeek from "../components/ClanWeek.astro";
 import DataStatus from "../components/DataStatus.astro";
 import Invite from "../components/Invite.astro";
@@ -15,12 +16,15 @@ import SinceLastVisit from "../components/SinceLastVisit.tsx";
 import { AUTH_ENABLED } from "../lib/compte/api";
 import { clan } from "../../config/clan";
 import { ACCUEIL_IMAGE, accueilFacts, accueilImageAlt, accueilRanking } from "../lib/accueil-image";
+import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib/bannieres-joueurs";
 import { bestGameOf, bestGameSentence, yesterdayOf } from "../lib/belle-partie";
 import { brandFile } from "../lib/brand";
 import { loadAnnouncements, loadClanMapFilm, loadEvents, loadGames, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
 import { fmtDateTime, fmtInt, fmtPct, fmtRank, fmtScore } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
-import { gazetteEditions } from "../lib/gazette";
+import { gazetteEditions, playersPeriod, weekLabel } from "../lib/gazette";
+import { cartesDuPodium, legendeDuPodium } from "../lib/cartes-podium";
+import { portraitDuGaulois } from "../lib/gaulois-site";
 import { clanJournal } from "../lib/journal";
 import { ME_KEY } from "../lib/moi";
 import { clanRecords } from "../lib/results";
@@ -66,6 +70,11 @@ const onMap = film?.galSummary ?? null;
 const mapStill = film !== null && existsSync(join("public", "generated", "carte", "finale-800.webp"));
 const memberWeeks = loadMemberWeeks();
 const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: memberWeeks.tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0] ?? null;
+// Le grand visuel de l'accueil : les cartes du podium de la semaine, quand au moins un de ses joueurs a créé son Gaulois
+// (src/lib/cartes-podium.ts). Sinon, le guerrier en relief reste.
+const fondsDuPodium = fondsDesLignes(bannieresDuCache(BANNIERES_MEMBRES_FILE, (gazette?.players ?? []).map((p) => p.id)));
+const cartesPodium = cartesDuPodium(gazette?.players, portraitDuGaulois, (id) => fondsDuPodium[id]?.image ?? null);
+const legendeCartes = gazette ? legendeDuPodium(playersPeriod(gazette), weekLabel(gazette)) : "";
 // Le fil du clan : les paliers franchis depuis le relevé du lundi, et les records des sept derniers jours. Règles dans src/lib/vie-du-clan.ts.
 const currentMilestones = milestonesSinceMonday(memberWeeks.reading, members);
 const recordLines = recentRecordLines(clanRecords(sessions), meta.sessions.coveredUntil);
@@ -89,7 +98,8 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
 
 <Base image={image} imageAlt={imageAlt}>
   <section class="relative overflow-hidden">
-    <div class="wrap relative grid items-center gap-4 pb-16 pt-5 md:grid-cols-[3fr_2fr] md:gap-10 md:pb-12 md:pt-10">
+    {/* Avec les cartes du podium, les deux colonnes sont égales : trois cartes demandent plus de largeur que le guerrier. */}
+    <div class:list={["wrap relative grid items-center gap-4 pb-16 pt-5 md:gap-10 md:pb-12 md:pt-10", cartesPodium ? "md:grid-cols-2" : "md:grid-cols-[3fr_2fr]"]}>
       <div class="reveal order-2 md:order-1">
         <span class="tribar mb-4 md:mb-6"></span>
         <Invite path="/" />
@@ -106,7 +116,9 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
       <div class="fx-stage reveal relative order-1 flex justify-center md:order-2">
         <div class="hero-glow" aria-hidden="true"></div>
         {
-          logoHeros ? (
+          cartesPodium ? (
+            <CartesPodium cartes={cartesPodium} legende={legendeCartes} />
+          ) : logoHeros ? (
             <GuerrierRelief
               data={logoHeros}
               id="logo-accueil"

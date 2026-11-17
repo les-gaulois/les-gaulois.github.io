@@ -589,3 +589,210 @@ footer h2 {
   color: inherit;
 }
 
+
+/* Les cartes du podium de l'accueil (src/components/CartesPodium.astro, 17 novembre 2026) : à la place du guerrier, une
+   carte par joueur du podium de la semaine. Tout se mesure en cases (--px, une case de la carte : 48 sur 80), réglées sur
+   la largeur de la colonne. Le script ne pose que --mx et --my, de -1 à 1 : sans lui, en pause ou avec « réduire les
+   animations », la carte est à plat. Les couleurs de la carte sont les siennes (fond marine, liseré de métal, plaque
+   sombre) : elles se lisent dans les deux thèmes. */
+.podium-cartes {
+  container-type: inline-size;
+  width: 100%;
+  max-width: 42rem;
+}
+.podium-cartes-rangee {
+  --px: clamp(2px, 0.62cqw, 4.4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--px) * 4);
+  margin: 0;
+  padding: calc(var(--px) * 9) 0 calc(var(--px) * 5);
+  list-style: none;
+  perspective: calc(var(--px) * 200);
+}
+.podium-carte-case {
+  flex: none;
+  transform-style: preserve-3d;
+  animation: podium-carte-flotte 9s ease-in-out infinite;
+}
+/* Le premier au milieu, un peu plus haut ; l'ordre de lecture reste premier, deuxième, troisième. */
+.podium-carte-case:nth-child(1) {
+  order: 2;
+  margin-top: calc(var(--px) * -8);
+}
+.podium-carte-case:nth-child(2) {
+  order: 1;
+  --retard: -3s;
+  animation-delay: var(--retard);
+}
+.podium-carte-case:nth-child(3) {
+  order: 3;
+  --retard: -6s;
+  animation-delay: var(--retard);
+}
+@keyframes podium-carte-flotte {
+  50% {
+    transform: translateY(calc(var(--px) * -2));
+  }
+}
+.podium-carte {
+  --mx: 0;
+  --my: 0;
+  --metal: #c07a45;
+  --carte-ecriture: #eef2ff;
+  position: relative;
+  display: block;
+  width: calc(var(--px) * 48);
+  height: calc(var(--px) * 80);
+  border-radius: calc(var(--px) * 3.2);
+  color: var(--carte-ecriture);
+  text-decoration: none;
+  transform: rotateY(calc(var(--mx) * 22deg)) rotateX(calc(var(--my) * -14deg));
+  transform-style: preserve-3d;
+  box-shadow: 0 calc(var(--px) * 4) calc(var(--px) * 9) rgb(10 18 48 / 0.3);
+}
+.podium-carte[data-metal="or"] {
+  --metal: #e2ab2c;
+}
+.podium-carte[data-metal="argent"] {
+  --metal: #aab4c8;
+}
+/* L'anneau du site (var(--anneau)), un peu écarté : l'or et l'argent seraient trop pâles sur la page blanche. */
+.podium-carte:focus-visible {
+  outline: 3px solid var(--anneau);
+  outline-offset: 4px;
+}
+/* La face : la bannière du joueur, ou un fond marine, puis le reflet offert à tous, à l'opposé du curseur. */
+.podium-carte-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  border: calc(var(--px) * 1.1) solid var(--metal);
+  border-radius: inherit;
+  background: var(--banniere, linear-gradient(165deg, #2148b8, #0a1230 72%)) center / cover;
+  image-rendering: pixelated;
+}
+.podium-carte-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at calc(50% - var(--mx) * 55%) calc(45% - var(--my) * 55%), color-mix(in srgb, var(--carte-ecriture) 50%, transparent), transparent 52%);
+  mix-blend-mode: overlay;
+}
+/* La feuille holographique, offerte à tous : un arc-en-ciel qui dérive lentement et glisse avec le curseur, puis un éclat
+   de la couleur du liseré qui traverse la carte toutes les sept secondes, une carte après l'autre. Rien ne clignote. */
+.podium-carte-holo,
+.podium-carte-eclat {
+  position: absolute;
+  image-rendering: auto;
+}
+.podium-carte-holo {
+  inset: -40%;
+  background: repeating-linear-gradient(115deg, #ff5a8a 0, #ffd24a 7%, #5aff9e 14%, #4ad2ff 21%, #a56bff 28%, #ff5a8a 35%) 0 0 / 300% 300%;
+  mix-blend-mode: screen;
+  opacity: 0.3;
+  translate: calc(var(--mx) * 16%) calc(var(--my) * 16%);
+  animation: podium-carte-holo 16s linear infinite;
+}
+.podium-carte-eclat {
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, color-mix(in srgb, var(--metal) 55%, var(--carte-ecriture)) 50%, transparent 62%) 130% 0 / 300% 100% no-repeat;
+  mix-blend-mode: screen;
+  opacity: 0.85;
+  animation: podium-carte-eclat 7s ease-in-out infinite;
+  animation-delay: var(--retard, 0s);
+}
+@keyframes podium-carte-holo {
+  to {
+    background-position: 100% 100%;
+  }
+}
+@keyframes podium-carte-eclat {
+  0% {
+    background-position: 130% 0;
+  }
+  30%,
+  100% {
+    background-position: -30% 0;
+  }
+}
+/* Le Gaulois fait un petit saut de temps en temps, sans quitter sa profondeur (translate, à part de transform). */
+@keyframes podium-carte-saut {
+  0%,
+  78%,
+  100% {
+    translate: 0 0;
+  }
+  86% {
+    translate: 0 calc(var(--px) * -3);
+  }
+  93% {
+    translate: 0 calc(var(--px) * 0.4);
+  }
+}
+.podium-carte-gaulois {
+  animation: podium-carte-saut 6s ease-in-out infinite;
+  animation-delay: var(--retard, 0s);
+  position: absolute;
+  /* Au-dessus de la plaque du nom, dont l'écriture ne descend pas sous 10 px sur téléphone. */
+  bottom: max(calc(var(--px) * 15), 2.4rem);
+  left: 50%;
+  width: calc(var(--w) * var(--px) * var(--e));
+  height: calc(var(--h) * var(--px) * var(--e));
+  margin-left: calc(var(--w) * var(--px) * var(--e) / -2);
+  transform: translateZ(calc(var(--px) * 12));
+  transform-style: preserve-3d;
+}
+.podium-carte-gaulois > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  image-rendering: pixelated;
+  transform: translateZ(calc(var(--k) * var(--px) * var(--e) * -0.5));
+  filter: brightness(0.5);
+}
+.podium-carte-gaulois > img:last-child {
+  filter: drop-shadow(0 0 calc(var(--px) * 1.2) color-mix(in srgb, var(--carte-ecriture) 55%, transparent));
+}
+.podium-carte-rang {
+  position: absolute;
+  top: calc(var(--px) * 3);
+  left: calc(var(--px) * 3);
+  padding: 0.3em 0.7em;
+  border-radius: 999px;
+  background: var(--metal);
+  color: #0a1230;
+  /* La police du texte, pas l'onciale de cases : elle ne va pas sur un pseudo, et se lit mal en petit. */
+  font-size: max(0.6875rem, calc(var(--px) * 4.6));
+  font-weight: 800;
+  line-height: 1;
+  /* Devant le Gaulois (12 cases) : une grande coiffe ne cache jamais la place. */
+  transform: translateZ(calc(var(--px) * 14));
+}
+.podium-carte-bas {
+  position: absolute;
+  right: calc(var(--px) * 3);
+  bottom: calc(var(--px) * 3);
+  left: calc(var(--px) * 3);
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--px) * 1.3) 2px;
+  border-radius: calc(var(--px) * 1.8);
+  background: rgb(10 18 48 / 0.84);
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+  transform: translateZ(calc(var(--px) * 7));
+}
+.podium-carte-nom {
+  font-size: max(0.6875rem, calc(var(--px) * 4.4));
+  font-weight: 800;
+}
+.podium-carte-score {
+  color: #b9c4ec;
+  font-size: max(0.625rem, calc(var(--px) * 2.9));
+}
