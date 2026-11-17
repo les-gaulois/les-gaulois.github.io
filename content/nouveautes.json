@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "ameliore",
+    "title": "Votre profil OpenFront, vu par l'équipe le temps de la demande",
+    "body": "Le lien de profil donné avec une demande de validation est gardé tant qu'elle attend, pour que l'équipe gauloise vous reconnaisse. Il est effacé dès la décision.",
+    "link": {
+      "href": "/confidentialite",
+      "label": "Ce que le site garde"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "nouveau",
     "title": "Les plus utiles de chaque victoire, sur Discord",
     "body": "Dans le salon des victoires, une seconde image suit chaque victoire : le score d'utilité de chaque Gaulois de la partie, quand elle a pu être rejouée et compte au moins deux Gaulois.",

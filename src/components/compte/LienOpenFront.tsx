@@ -12,7 +12,7 @@ const NBSP = String.fromCharCode(0xa0);
 /**
  * Le lien du profil OpenFront, obligatoire pour demander sa validation : un bouton ouvre la fenêtre « Compte » du jeu, où le
  * joueur copie son lien, puis il le colle ici. Le site n'envoie que l'identifiant lu dans le lien ; le serveur revérifie sa
- * forme et n'en garde que l'empreinte. `onSent` : la demande partie, relire le compte.
+ * forme, en garde l'empreinte et, tant que la demande attend, le lien du profil pour l'officier. `onSent` : la demande partie, relire le compte.
  */
 export function DemandeLienOpenFront({ me, onSent }: { me: Me; onSent: () => Promise<void> }) {
   const [lien, setLien] = useState("");
@@ -49,7 +49,7 @@ export function DemandeLienOpenFront({ me, onSent }: { me: Me; onSent: () => Pro
       <h2 id="lien-openfront-titre" class="text-xl">
         Votre lien OpenFront
       </h2>
-      <p class="mt-2 text-muted">Obligatoire pour finir votre connexion. Un officier confirme ensuite que c'est bien vous.</p>
+      <p class="mt-2 text-muted">Obligatoire pour finir votre connexion. Un officier confirme ensuite que c'est bien vous : il voit ce lien tant que la demande attend.</p>
       {request?.status === "refused" && (
         <p class="form-problem mt-3" data-testid="request-refused">
           Votre dernière demande a été refusée{request.reason ? ` : ${request.reason}` : "."}

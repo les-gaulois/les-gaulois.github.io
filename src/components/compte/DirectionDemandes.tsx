@@ -21,6 +21,7 @@ import {
   keepDrafts,
   reasonToggleLabel,
   requestDetails,
+  requestProfile,
   requestTone,
   requestWait,
   requestWho,
@@ -164,6 +165,7 @@ export default function DirectionDemandes({ active = true }: { active?: boolean 
               const shown = open[r.id] === true;
               const toggle = reasonToggleLabel(shown, reason);
               const gameRole = gameRoleLabel(r.game_role);
+              const profile = requestProfile(r);
               const inFlight = sendingId === r.id;
               return (
                 <li key={r.id} class="dir-ligne dir-demandes-ligne" data-dir-ton={requestTone(r)} data-testid="request-row" aria-busy={inFlight || undefined}>
@@ -175,6 +177,14 @@ export default function DirectionDemandes({ active = true }: { active?: boolean 
                     <p data-testid="request-roster">
                       <Pastille ton={requestTone(r)}>{rosterLabel(r)}</Pastille> <span class="dir-demandes-pseudo">{rosterDetail(r)}</span>
                     </p>
+                    {profile && (
+                      <p>
+                        <a class="dir-demandes-profil tnum" href={profile.href} target="_blank" rel="noopener" data-testid="request-profile">
+                          Profil OpenFront : {profile.id}
+                          <span class="sr-only"> (nouvel onglet)</span>
+                        </a>
+                      </p>
+                    )}
                     {gameRole && (
                       <p>
                         <Pastille ton="ally" plain testid="request-game-role">

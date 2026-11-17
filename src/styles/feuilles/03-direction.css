@@ -429,6 +429,15 @@
   display: inline-block;
   overflow-wrap: anywhere;
 }
+.dir-demandes-profil {
+  overflow-wrap: anywhere;
+  color: var(--color-ally);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.dir-demandes-profil:hover {
+  color: var(--ecriture);
+}
 .dir-demandes-attente {
   grid-area: attente;
   text-align: right;

@@ -10,9 +10,10 @@
  * (`/w<numéro>`) ; l'ancienne forme du lien, `#modal=profile&publicID=<identifiant>`, s'ouvre encore. Un identifiant public
  * tient en 22 signes au plus : lettres, chiffres, « _ » et « - ».
  *
- * Le site ne garde jamais cet identifiant : il l'envoie au serveur, qui n'en garde que l'empreinte et revérifie sa forme
- * (`request_membership_link`, migration 20261114000800_lien_openfront_obligatoire.sql). Si le jeu change ces adresses,
- * les corriger ici.
+ * Le site envoie cet identifiant au serveur, qui revérifie sa forme et en garde l'empreinte ; depuis le 17 novembre 2026, il
+ * garde aussi le lien du profil tant que la demande attend, pour l'officier, et l'efface à la décision
+ * (`request_membership_link`, migrations 20261114000800_lien_openfront_obligatoire.sql et
+ * 20261117000900_lien_openfront_montre_a_l_equipe.sql). Si le jeu change ces adresses, les corriger ici.
  */
 import type { Me } from "./types";
 

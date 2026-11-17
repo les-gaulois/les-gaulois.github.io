@@ -4,6 +4,7 @@
  * Le serveur les donne déjà de la plus ancienne à la plus récente (`list_membership_requests`).
  */
 import { fmtDateTime, fmtDuration, fmtInt } from "../format";
+import { identifiantDuLien, profilOpenFront } from "./lien-openfront";
 import type { RequestRow } from "./types";
 
 /** Au-delà de ce délai, une demande attend trop : elle passe en jaune. */
@@ -69,12 +70,25 @@ export const requestTone = (r: Pick<RequestRow, "in_roster">): "ok" | "danger" =
 export const rosterLabel = (r: Pick<RequestRow, "in_roster">): string => (r.in_roster ? "Dans la liste" : "Absent de la liste");
 
 /**
- * Le texte à côté de la pastille : le pseudo trouvé dans la liste, « membre sans pseudo public » s'il y est sans pseudo, ou ce
- * que le joueur a indiqué s'il n'y est pas. Vide quand il n'y a rien à dire.
+ * Le profil OpenFront donné avec la demande : depuis le 17 novembre 2026, le serveur garde le lien collé tant que la demande
+ * attend (migration 20261117000900), dans `claimed_text`. `null` pour une demande plus ancienne, qui n'a que son empreinte, ou
+ * pour le texte tapé d'une demande d'avant le 14 novembre 2026.
+ */
+export function requestProfile(r: Pick<RequestRow, "claimed_text">): { id: string; href: string } | null {
+  const id = r.claimed_text ? identifiantDuLien(r.claimed_text) : null;
+  return id === null ? null : { id, href: profilOpenFront(id) };
+}
+
+/**
+ * Le texte à côté de la pastille : le pseudo trouvé dans la liste, « membre sans pseudo public » s'il y est sans pseudo. Hors
+ * de la liste, le joueur a pourtant donné son lien, obligatoire : la ligne le dit, pour qu'une demande ne paraisse pas vide.
+ * Le lien lui-même, quand le serveur l'a gardé, est montré à part (`requestProfile`). Une demande d'avant le 14 novembre 2026
+ * montre le texte tapé.
  */
 export function rosterDetail(r: Pick<RequestRow, "in_roster" | "roster_username" | "claimed_text">): string {
   if (r.in_roster) return r.roster_username ?? "membre sans pseudo public";
-  return r.claimed_text ? `a indiqué « ${r.claimed_text} »` : "";
+  if (requestProfile(r)) return "lien donné, joueur absent de la liste du clan";
+  return r.claimed_text ? `a indiqué « ${r.claimed_text} »` : "lien donné, identifiant non gardé";
 }
 
 /** Le rang dans le jeu, quand il aide à décider. Un simple membre n'a pas de mention. */

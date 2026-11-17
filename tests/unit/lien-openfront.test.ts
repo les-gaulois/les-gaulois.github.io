@@ -4,6 +4,7 @@ import { COMPTE_OPENFRONT_URL, DEBUT_DU_LIEN, identifiantDuLien, lienAttendu, pr
 import type { Me, MyRequest } from "../../src/lib/compte/types";
 
 const SQL = readFileSync("supabase/migrations/20261114000800_lien_openfront_obligatoire.sql", "utf8").replace(/\r\n/g, "\n");
+const SUITE = readFileSync("supabase/migrations/20261117000900_lien_openfront_montre_a_l_equipe.sql", "utf8").replace(/\r\n/g, "\n");
 const LIB = readFileSync("src/lib/compte/lien-openfront.ts", "utf8");
 
 describe("le lien du profil OpenFront", () => {
@@ -91,10 +92,38 @@ describe("le lien attendu d'un compte", () => {
   });
 });
 
-describe("la demande par le lien, côté serveur", () => {
+describe("le lien montré à l'équipe le temps de la demande (17 novembre 2026)", () => {
+  const corps = (sql: string): string => sql.slice(sql.indexOf("create or replace function public.request_membership_link("), sql.indexOf("revoke all on function public.request_membership_link"));
+  // Sans les commentaires ni l'insertion, seule ligne qui change : le reste de la fonction doit être celui du 14 novembre.
+  const nu = (sql: string): string =>
+    corps(sql)
+      .split("\n")
+      .filter((ligne) => !ligne.trim().startsWith("--") && !ligne.includes("values (v_uid, v_hash,"))
+      .join("\n");
+
+  it("garde le lien du profil avec la demande, sans rien changer d'autre à la fonction", () => {
+    expect(corps(SUITE)).toContain("values (v_uid, v_hash, 'https://openfront.io/player/' || v_id, v_entry.username, v_entry.public_id_hash is not null, v_note);");
+    expect(nu(SUITE)).toBe(nu(SQL));
+    expect(identifiantDuLien("https://openfront.io/player/" + "AbC-123_x")).toBe("AbC-123_x");
+  });
+
+  it("l'efface dès que la demande n'attend plus, quelle que soit la décision", () => {
+    expect(SUITE).toContain("if old.status = 'pending' and new.status <> 'pending' then\n    new.claimed_text := null;");
+    expect(SUITE).toContain("create or replace trigger membership_forgets_claim before update on public.membership_requests\n  for each row execute function internal.forget_claim_once_decided();");
+  });
+
+  it("n'ouvre rien de plus et ne retire aucune donnée", () => {
+    expect(SUITE).toContain("revoke all on function public.request_membership_link(text, text) from public, anon, authenticated;\ngrant execute on function public.request_membership_link(text, text) to authenticated;");
+    expect(SUITE).toContain("revoke all on function internal.forget_claim_once_decided() from public, anon, authenticated;");
+    expect(SUITE).not.toMatch(/grant execute on function public\.request_membership\(/);
+    expect(SUITE).not.toMatch(/\b(drop|truncate|delete)\b/i);
+  });
+});
+
+describe("la demande par le lien, côté serveur, le 14 novembre 2026", () => {
   const corps = SQL.slice(SQL.indexOf("create or replace function public.request_membership_link("), SQL.indexOf("revoke all on function public.request_membership_link"));
 
-  it("ne garde jamais l'identifiant en clair, et ne le prend jamais pour un pseudo", () => {
+  it("ne gardait pas l'identifiant en clair, et ne le prend jamais pour un pseudo", () => {
     expect(corps).toContain("values (v_uid, v_hash, null, v_entry.username, v_entry.public_id_hash is not null, v_note);");
     expect(corps).toContain("v_hash := internal.hash_public_id(v_id);");
     expect(corps).toContain("select * into v_entry from public.clan_roster where public_id_hash = v_hash;");

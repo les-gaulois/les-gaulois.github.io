@@ -10,6 +10,7 @@ import {
   keepDrafts,
   reasonToggleLabel,
   requestDetails,
+  requestProfile,
   requestTone,
   requestWait,
   requestWho,
@@ -137,8 +138,19 @@ describe("une ligne de demande", () => {
     expect(rosterDetail({ in_roster: true, roster_username: "VercingetorixLeTresGrandChef", claimed_text: "autre chose" })).toBe("VercingetorixLeTresGrandChef");
     expect(rosterDetail({ in_roster: true, roster_username: null, claimed_text: null })).toBe("membre sans pseudo public");
     expect(rosterDetail({ in_roster: false, roster_username: null, claimed_text: "Épona_GAL" })).toBe("a indiqué « Épona_GAL »");
-    expect(rosterDetail({ in_roster: false, roster_username: null, claimed_text: null })).toBe("");
-    expect(rosterDetail({ in_roster: false, roster_username: null, claimed_text: "" })).toBe("");
+  });
+
+  it("dit qu'un lien a été donné quand le joueur est absent de la liste : une demande n'est jamais vide", () => {
+    expect(rosterDetail({ in_roster: false, roster_username: null, claimed_text: null })).toBe("lien donné, identifiant non gardé");
+    expect(rosterDetail({ in_roster: false, roster_username: null, claimed_text: "" })).toBe("lien donné, identifiant non gardé");
+    expect(rosterDetail({ in_roster: false, roster_username: null, claimed_text: "https://openfront.io/player/AbC-123_x" })).toBe("lien donné, joueur absent de la liste du clan");
+  });
+
+  it("donne le profil OpenFront que le serveur a gardé avec la demande, et rien pour un texte tapé", () => {
+    expect(requestProfile({ claimed_text: "https://openfront.io/player/AbC-123_x" })).toEqual({ id: "AbC-123_x", href: "https://openfront.io/player/AbC-123_x" });
+    expect(requestProfile({ claimed_text: "Épona_GAL" })).toBeNull();
+    expect(requestProfile({ claimed_text: "https://evil.com/?u=openfront.io/player/AbC" })).toBeNull();
+    expect(requestProfile({ claimed_text: null })).toBeNull();
   });
 
   it("écrit ses détails : nom sur le site, Discord, date de la demande à l'heure de Paris", () => {
