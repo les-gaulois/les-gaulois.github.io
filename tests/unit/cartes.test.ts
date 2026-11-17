@@ -6,6 +6,7 @@ import { cacheDesFinitions, finitionsDuCache, journalDesFinitions, lireFinitions
 import { FINITIONS, FINITIONS_ANIMEES } from "../../src/lib/fx/finitions-carte";
 import { empreinte } from "../../src/lib/gaulois-joueurs";
 import { CARTES, REFLETS, finitionParId, lireMesCartes, refusDeCarte } from "../../src/lib/village/cartes";
+import { PLACE_DE_LA_BANNIERE, volVersLeDecor } from "../../src/lib/village/livre-bannieres";
 
 const MIGRATION = readFileSync("supabase/migrations/20261117001200_cartes_du_gaulois.sql", "utf8").replace(/\r\n/g, "\n");
 const FEUILLE = readFileSync("src/styles/feuilles/04-poste.css", "utf8");
@@ -18,6 +19,12 @@ describe("le rayon « Cartes » de la boutique", () => {
     for (const id of FINITIONS_ANIMEES) expect(typeof FINITIONS[id]).toBe("function");
     for (const id of REFLETS) expect(FEUILLE, id).toContain(`.podium-carte[data-finition="${id}"] .podium-carte-holo`);
     for (const c of CARTES) expect(c.id).toMatch(/^[a-z]+(-[a-z]+)*$/);
+    // La fiche du rayon : une phrase par finition, courte et terminée.
+    for (const c of CARTES) {
+      expect(c.description.length, c.id).toBeGreaterThan(20);
+      expect(c.description.length, c.id).toBeLessThanOrEqual(110);
+      expect(c.description, c.id).toMatch(/[.»]$/);
+    }
   });
 
   it("range les finitions de la plus commune à la plus rare, sans rareté hors de celles des bannières", () => {
@@ -95,5 +102,18 @@ describe("la finition des cartes du podium, lue avant la construction", () => {
     writeFileSync(fichier, JSON.stringify(cache));
     expect([...finitionsDuCache(fichier, ["a", "z"])]).toEqual([["a", "radar"]]);
     expect(finitionsDuCache(join(tmpdir(), "absent.json"), ["a"]).size).toBe(0);
+  });
+});
+
+describe("le livre des bannières avec un autre dessin", () => {
+  it("fait voler une vignette vers la place d'une bannière par défaut, et vers celle d'une carte si on la donne", () => {
+    const livre = { largeur: 1000, hauteur: 800 };
+    const vignette = { x: 100, y: 500, largeur: 100 };
+    expect(volVersLeDecor(livre, vignette)).toEqual(volVersLeDecor(livre, vignette, PLACE_DE_LA_BANNIERE));
+    // Une carte : un quart de la largeur du livre, au milieu, plus haute que large.
+    const vol = volVersLeDecor(livre, vignette, { gauche: 0.375, largeur: 0.25, hauteurSurLargeur: 160 / 96 });
+    expect(vol?.echelle).toBeCloseTo(2.5);
+    expect(vol?.dx).toBeCloseTo(275);
+    expect(vol?.dy).toBeCloseTo(400 - 250 * (160 / 96) - 500);
   });
 });

@@ -11,8 +11,12 @@
  */
 import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDeLaFinition } from "../lib/fx/finitions-carte";
 
-/** Anime les cartes (`.podium-carte`) de cette racine. Rend de quoi tout arrêter : l'écran qui les retire l'appelle. */
-export function monterLesCartes(racine: HTMLElement): () => void {
+/**
+ * Anime les cartes (`.podium-carte`) de cette racine. Rend de quoi tout arrêter : l'écran qui les retire l'appelle.
+ * `sonde` : dans le livre de la boutique, la carte est dressée en relief et le navigateur la croit parfois hors de l'écran ;
+ * sa place est alors remesurée, deux fois par seconde au plus, tant qu'elle est au repos pour cette seule raison.
+ */
+export function monterLesCartes(racine: HTMLElement, { sonde = false }: { sonde?: boolean } = {}): () => void {
   const html = document.documentElement;
   const calme = matchMedia("(prefers-reduced-motion: reduce)");
   const toile = (el: HTMLElement, nom: string) => el.querySelector<HTMLCanvasElement>(`canvas[data-toile="${nom}"]`)?.getContext("2d") ?? null;
@@ -27,6 +31,11 @@ export function monterLesCartes(racine: HTMLElement): () => void {
   let visible = true;
   let image = 0;
   let arrete = false;
+  let rappel: ReturnType<typeof setTimeout> | undefined;
+  const aLEcran = (): boolean => {
+    const r = racine.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+  };
   // Pour ne pas faire chuter les images par seconde : l'inclinaison n'est reposée que trente fois par seconde, et les
   // toiles des finitions ne sont redessinées que vingt fois. Entre deux, le navigateur n'a rien à repeindre.
   const PAS_DE_L_INCLINAISON = 1000 / 30;
@@ -51,6 +60,7 @@ export function monterLesCartes(racine: HTMLElement): () => void {
 
   const tour = (t: number) => {
     image = 0;
+    if (sonde && !visible) visible = aLEcran();
     const tourne = actif();
     // Au repos, les animations de la feuille de style s'arrêtent aussi (data-repos, 04-poste.css).
     if (racine.hasAttribute("data-repos") === tourne) racine.toggleAttribute("data-repos", !tourne);
@@ -59,6 +69,11 @@ export function monterLesCartes(racine: HTMLElement): () => void {
         c.mx = c.my = 0;
         poser(c);
         effacer(c);
+      }
+      // Au repos seulement parce qu'elle paraît hors de l'écran : on y revient dans une demi-seconde.
+      if (sonde && !visible && !arrete && !calme.matches && !html.classList.contains("fx-off") && !document.hidden) {
+        clearTimeout(rappel);
+        rappel = setTimeout(relancer, 500);
       }
       return;
     }
@@ -121,6 +136,7 @@ export function monterLesCartes(racine: HTMLElement): () => void {
 
   return () => {
     arrete = true;
+    clearTimeout(rappel);
     if (image) cancelAnimationFrame(image);
     image = 0;
     removeEventListener("pointermove", suivre);

@@ -23,52 +23,54 @@ export interface FinitionDuRayon {
   id: IdDeFinition;
   nom: string;
   rarete: RareteDeBanniere;
+  /** Ce que la finition montre, en une phrase : la fiche du rayon. */
+  description: string;
   /** Animée en pixels sur ses deux toiles ; sinon, un reflet. */
   animee: boolean;
 }
 
-const NOMS_ET_RARETES: Readonly<Record<IdDeFinition, readonly [string, RareteDeBanniere]>> = {
-  "arc-en-ciel": ["Arc-en-ciel", "commun"],
-  tricolore: ["Tricolore", "commun"],
-  confettis: ["Confettis", "commun"],
-  averse: ["Averse", "commun"],
-  bulles: ["Bulles", "commun"],
-  "tube-neon": ["Tube néon", "commun"],
-  "pluie-d-eclats": ["Pluie d'éclats", "peu-commun"],
-  cristal: ["Cristal", "peu-commun"],
-  braise: ["Braise", "peu-commun"],
-  "pluie-de-code": ["Pluie de code", "peu-commun"],
-  radar: ["Radar", "peu-commun"],
-  "feu-d-artifice": ["Feu d'artifice", "peu-commun"],
-  blizzard: ["Blizzard", "peu-commun"],
-  "boule-a-facettes": ["Boule à facettes", "peu-commun"],
-  "bain-de-canards": ["Bain de canards", "peu-commun"],
-  "feuille-d-or": ["Feuille d'or", "epique"],
-  prisme: ["Prisme", "epique"],
-  hologramme: ["Hologramme", "epique"],
-  piratage: ["Piratage", "epique"],
-  foudre: ["Foudre", "epique"],
-  "coulee-de-lave": ["Coulée de lave", "epique"],
-  "vitesse-lumiere": ["Vitesse lumière", "epique"],
-  lancement: ["Lancement", "epique"],
-  "pluie-de-stateres": ["Pluie de statères", "epique"],
-  aurore: ["Aurore", "mystique"],
-  cosmos: ["Cosmos", "mystique"],
-  "trou-noir": ["Trou noir", "mystique"],
-  portail: ["Portail", "mystique"],
-  "voile-boreal": ["Voile boréal", "mystique"],
-  plasma: ["Plasma", "mystique"],
-  "champignon-atomique": ["Champignon atomique", "legendaire"],
-  explosion: ["Explosion", "legendaire"],
-  supernova: ["Supernova", "legendaire"],
+const NOMS_ET_RARETES: Readonly<Record<IdDeFinition, readonly [string, RareteDeBanniere, string]>> = {
+  "arc-en-ciel": ["Arc-en-ciel", "commun", "Un arc-en-ciel en travers de la carte, qui glisse quand elle s'incline."],
+  tricolore: ["Tricolore", "commun", "Une bande bleu, blanc, rouge qui traverse la carte avec l'inclinaison."],
+  confettis: ["Confettis", "commun", "Des confettis de toutes les couleurs tombent, devant et derrière le Gaulois."],
+  averse: ["Averse", "commun", "La pluie tombe en biais et éclabousse le bas de la carte."],
+  bulles: ["Bulles", "commun", "Des bulles montent lentement, irisées."],
+  "tube-neon": ["Tube néon", "commun", "Deux lumières font le tour de la carte, comme dans un tube."],
+  "pluie-d-eclats": ["Pluie d'éclats", "peu-commun", "Une traînée de paillettes qui s'allume là où la carte accroche la lumière."],
+  cristal: ["Cristal", "peu-commun", "Des facettes de cristal qui miroitent quand la carte tourne."],
+  braise: ["Braise", "peu-commun", "Une lueur de braise monte du bas de la carte, avec ses étincelles."],
+  "pluie-de-code": ["Pluie de code", "peu-commun", "Des colonnes de 0 et de 1 verts tombent derrière le Gaulois."],
+  radar: ["Radar", "peu-commun", "Un balayage de radar tourne et allume ses échos."],
+  "feu-d-artifice": ["Feu d'artifice", "peu-commun", "Des fusées montent et éclatent en gerbes de couleur."],
+  blizzard: ["Blizzard", "peu-commun", "La neige file en travers, poussée par l'inclinaison de la carte."],
+  "boule-a-facettes": ["Boule à facettes", "peu-commun", "Une boule à facettes et ses taches de lumière qui tournent."],
+  "bain-de-canards": ["Bain de canards", "peu-commun", "Le Gaulois a les pieds dans l'eau, et trois canards passent devant lui."],
+  "feuille-d-or": ["Feuille d'or", "epique", "Un reflet d'or massif qui balaie la carte."],
+  prisme: ["Prisme", "epique", "Un éventail de couleurs qui tourne autour du Gaulois avec la carte."],
+  hologramme: ["Hologramme", "epique", "Des lignes bleues et un balayage, comme une projection."],
+  piratage: ["Piratage", "epique", "Un écran vert qui s'écrit tout seul, et des parasites par moments."],
+  foudre: ["Foudre", "epique", "Des éclairs frappent derrière le Gaulois, un à la fois."],
+  "coulee-de-lave": ["Coulée de lave", "epique", "La lave remue au bas de la carte et lance ses braises."],
+  "vitesse-lumiere": ["Vitesse lumière", "epique", "Les étoiles filent depuis le centre de la carte."],
+  lancement: ["Lancement", "epique", "Trois fusées décollent avec leur fumée ; l'une passe devant le Gaulois."],
+  "pluie-de-stateres": ["Pluie de statères", "epique", "Des statères d'or tombent en tournant sur eux-mêmes."],
+  aurore: ["Aurore", "mystique", "Des lueurs vertes, bleues et violettes qui se déplacent doucement."],
+  cosmos: ["Cosmos", "mystique", "Un ciel d'étoiles et une nébuleuse rose et bleue."],
+  "trou-noir": ["Trou noir", "mystique", "Un disque de poussières tourne et tombe dans un trou noir."],
+  portail: ["Portail", "mystique", "Des anneaux de couleur s'ouvrent sans fin derrière le Gaulois."],
+  "voile-boreal": ["Voile boréal", "mystique", "Trois voiles d'aurore ondulent sous les étoiles."],
+  plasma: ["Plasma", "mystique", "Des nappes de couleur vive qui se mêlent sur toute la carte."],
+  "champignon-atomique": ["Champignon atomique", "legendaire", "Un éclair, puis la colonne et le nuage montent derrière le Gaulois."],
+  explosion: ["Explosion", "legendaire", "Une boule de feu, des ondes, des éclats devant le Gaulois et un « BOUM »."],
+  supernova: ["Supernova", "legendaire", "Des rayons de toutes les couleurs tournent autour d'une étoile qui pulse."],
 };
 
 const ANIMEES: ReadonlySet<string> = new Set(FINITIONS_ANIMEES);
 
 /** Les finitions du rayon, de la plus commune à la plus rare, dans l'ordre de la liste ci-dessus. */
 export const CARTES: readonly FinitionDuRayon[] = (Object.keys(NOMS_ET_RARETES) as IdDeFinition[]).map((id) => {
-  const [nom, rarete] = NOMS_ET_RARETES[id];
-  return { id, nom, rarete, animee: ANIMEES.has(id) };
+  const [nom, rarete, description] = NOMS_ET_RARETES[id];
+  return { id, nom, rarete, description, animee: ANIMEES.has(id) };
 });
 
 const PAR_ID: ReadonlyMap<string, FinitionDuRayon> = new Map(CARTES.map((c) => [c.id, c]));

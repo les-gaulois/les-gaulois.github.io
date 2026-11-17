@@ -66,6 +66,14 @@ export const DECOR_LARGEUR = 0.66;
 /** Une bannière : 124 cases sur 80. */
 const HAUTEUR_SUR_LARGEUR = 80 / 124;
 
+/** La place du décor couché dans le livre : son bord gauche et sa largeur, en parts de la largeur du livre, et sa forme. */
+export interface PlaceDuDecor {
+  gauche: number;
+  largeur: number;
+  hauteurSurLargeur: number;
+}
+export const PLACE_DE_LA_BANNIERE: PlaceDuDecor = { gauche: DECOR_GAUCHE, largeur: DECOR_LARGEUR, hauteurSurLargeur: HAUTEUR_SUR_LARGEUR };
+
 /** Le vol d'une vignette jusqu'au décor couché : de combien la déplacer et l'agrandir, depuis son coin haut gauche. */
 export interface VolDeVignette {
   dx: number;
@@ -77,8 +85,13 @@ export interface VolDeVignette {
  * Le vol d'une vignette (son coin haut gauche et sa largeur, dans le livre) jusqu'à la place du décor couché, dont le pied
  * est au pli, au milieu de la hauteur du livre. `null` si une mesure manque (livre pas encore affiché).
  */
-export function volVersLeDecor(livre: { largeur: number; hauteur: number }, vignette: { x: number; y: number; largeur: number }): VolDeVignette | null {
+export function volVersLeDecor(
+  livre: { largeur: number; hauteur: number },
+  vignette: { x: number; y: number; largeur: number },
+  /** La place du décor : celle d'une bannière par défaut ; le livre des cartes (`Cartes.tsx`) y dresse une carte, plus étroite et plus haute. */
+  place: PlaceDuDecor = PLACE_DE_LA_BANNIERE,
+): VolDeVignette | null {
   if (!(livre.largeur > 0) || !(livre.hauteur > 0) || !(vignette.largeur > 0)) return null;
-  const largeur = livre.largeur * DECOR_LARGEUR;
-  return { dx: livre.largeur * DECOR_GAUCHE - vignette.x, dy: livre.hauteur / 2 - largeur * HAUTEUR_SUR_LARGEUR - vignette.y, echelle: largeur / vignette.largeur };
+  const largeur = livre.largeur * place.largeur;
+  return { dx: livre.largeur * place.gauche - vignette.x, dy: livre.hauteur / 2 - largeur * place.hauteurSurLargeur - vignette.y, echelle: largeur / vignette.largeur };
 }

@@ -1,11 +1,11 @@
-import type { JSX } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { motionAllowed } from "../../lib/fx/motion";
 import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, RARETES, casesDuGaulois, type Tenue } from "../../lib/gaulois";
 import type { Banniere, EtatDeLaBanniere } from "../../lib/village/bannieres";
 import { BANNIERE_HAUTEUR, BANNIERE_LARGEUR } from "../../lib/village/ecran-bannieres";
 import type { Familier } from "../../lib/village/familiers";
-import { casesDuLivre, pageDeLaCase, pageVoisine, pagesDuLivre, sensDuGeste, volVersLeDecor, type CaseDuLivre } from "../../lib/village/livre-bannieres";
+import { casesDuLivre, pageDeLaCase, pageVoisine, pagesDuLivre, sensDuGeste, volVersLeDecor, type CaseDuLivre, type PlaceDuDecor } from "../../lib/village/livre-bannieres";
 import { Problem } from "../compte/common";
 import type { Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, peindre } from "./BoutiquePixels";
@@ -36,14 +36,48 @@ function Toile({ largeur, hauteur, cases, class: classe }: { largeur: number; ha
   return <canvas ref={toile} width={largeur} height={hauteur} class={`pixels ${classe}`} aria-hidden="true" />;
 }
 
-/** Une bannière seule, cadre compris ; une place en pointillés pour le décor du lieu ou une bannière inconnue du dessin. */
-function Vignette({ lib, id }: { lib: Lib; id: CaseDuLivre }) {
-  const vignette = useMemo(() => (id ? lib.vignetteDeLaBanniere(id) : null), [lib, id]);
-  return vignette ? <Toile largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} class="livre-ban" /> : <span class="livre-lieu" aria-hidden="true" />;
+/** Ce que le livre sait de ce qu'il montre : une bannière, ou tout ce qui a un nom et une rareté (une finition de carte). */
+export type ElementDuLivre = Pick<Banniere, "id" | "nom" | "rarete">;
+
+/** L'image d'une case : ses mesures, et de quoi la peindre sur une toile de cette taille. */
+export interface ImageDeCase {
+  largeur: number;
+  hauteur: number;
+  peindre: (toile: HTMLCanvasElement) => void;
+}
+
+/**
+ * Un autre dessin que celui des bannières (17 novembre 2026, le rayon « Cartes », à la demande du pilote : « exactement
+ * comme la boutique bannière, le style de livre ») : le même livre, les mêmes gestes, d'autres images. Sans ce réglage, le
+ * livre est celui des bannières, inchangé.
+ */
+export interface DessinDuLivre {
+  /** Le genre de ce que le livre montre, pour la feuille de style (`data-genre`). */
+  genre: string;
+  /** Le nom du groupe des cases, pour les lecteurs d'écran. */
+  label: string;
+  /** L'image d'une case, et de son vol. `null` : rien à dessiner. */
+  image: (id: string) => ImageDeCase | null;
+  /** Ce qui se dresse au-dessus du livre, à la place de la vignette et du Gaulois. */
+  decor: (id: CaseDuLivre) => ComponentChildren;
+  /** L'élément de cet identifiant quand une rareté filtrée l'a sorti de la liste. */
+  parId: (id: string) => ElementDuLivre | null;
+  /** La place du décor couché, pour le vol de la vignette. */
+  place: PlaceDuDecor;
+}
+
+/** Une image seule ; une place en pointillés pour le décor du lieu ou une image inconnue du dessin. */
+function Vignette({ image, id }: { image: (id: string) => ImageDeCase | null; id: CaseDuLivre }) {
+  const toile = useRef<HTMLCanvasElement>(null);
+  const vignette = useMemo(() => (id ? image(id) : null), [image, id]);
+  useEffect(() => {
+    if (vignette && toile.current) vignette.peindre(toile.current);
+  }, [vignette]);
+  return vignette ? <canvas ref={toile} width={vignette.largeur} height={vignette.hauteur} class="pixels livre-ban" style={`aspect-ratio:${vignette.largeur} / ${vignette.hauteur}`} aria-hidden="true" /> : <span class="livre-lieu" aria-hidden="true" />;
 }
 
 /** L'aperçu de /gaulois : le Gaulois du membre devant la bannière, comme le robot le montrera, sans le logo ni les insignes. */
-function ApercuDeGaulois({ lib, banniere, tenue, familier }: { lib: Lib; banniere: Banniere | null; tenue: Tenue; familier: Familier | null }) {
+function ApercuDeGaulois({ lib, banniere, tenue, familier }: { lib: Lib; banniere: ElementDuLivre | null; tenue: Tenue; familier: Familier | null }) {
   const toile = useRef<HTMLCanvasElement>(null);
   const scene = useMemo(() => (banniere ? lib.sceneDeLaBanniere(banniere.id, tenue, familier) : null), [lib, banniere, tenue, familier]);
   useEffect(() => {
@@ -66,10 +100,12 @@ function ApercuDeGaulois({ lib, banniere, tenue, familier }: { lib: Lib; bannier
  * la montrer ; `etatDe` marque celles du compte, `motDe` dit leur prix ou leur état à qui ne voit pas la vignette.
  */
 export interface LivreDesBannieresProps {
-  lib: Lib;
+  /** Le dessin des bannières. Inutile avec `dessin`, qui apporte le sien (mode « boutique » seulement). */
+  lib?: Lib;
+  dessin?: DessinDuLivre;
   mode?: "choix" | "boutique";
-  miennes: readonly Banniere[];
-  montree: Banniere | null;
+  miennes: readonly ElementDuLivre[];
+  montree: ElementDuLivre | null;
   /** Le nom du membre, pour sa carte de la vitrine (mode « choix »). */
   nom?: string;
   tenue: Tenue;
@@ -79,8 +115,18 @@ export interface LivreDesBannieresProps {
   motDe?: (id: string) => string;
 }
 
-export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom = "Moi", tenue, familier, choisir, etatDe, motDe }: LivreDesBannieresProps) {
+export function LivreDesBannieres({ lib, dessin, mode = "choix", miennes, montree, nom = "Moi", tenue, familier, choisir, etatDe, motDe }: LivreDesBannieresProps) {
   const enBoutique = mode === "boutique";
+  // L'image d'une case : celle du dessin donné, sinon la vignette de la bannière, cadre compris.
+  const image = useMemo(
+    () =>
+      dessin?.image ??
+      ((id: string): ImageDeCase | null => {
+        const v = lib?.vignetteDeLaBanniere(id) ?? null;
+        return v ? { largeur: v.largeur, hauteur: v.hauteur, peindre: (toile) => peindre(toile, v.largeur, v.hauteur, v.cases) } : null;
+      }),
+    [dessin, lib],
+  );
   const actuel: CaseDuLivre = montree?.id ?? null;
   const parId = useMemo(() => new Map(miennes.map((b) => [b.id, b])), [miennes]);
   const cases = useMemo(() => casesDuLivre(miennes.map((b) => b.id), !enBoutique), [miennes, enBoutique]);
@@ -147,7 +193,7 @@ export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom =
   }, [actuel]);
 
   /** La bannière de cet identifiant : dans la liste du livre, sinon au catalogue (une rareté filtrée l'a sortie de la liste). */
-  const banniereDe = (id: string): Banniere | null => parId.get(id) ?? lib.banniereParId(id);
+  const banniereDe = (id: string): ElementDuLivre | null => parId.get(id) ?? (dessin ? dessin.parId(id) : (lib?.banniereParId(id) ?? null));
   const nomDe = (c: CaseDuLivre): string => (c === null ? NOM_DU_LIEU : (banniereDe(c)?.nom ?? "Cette bannière"));
   const nomEtRarete = (c: CaseDuLivre): string => {
     const banniere = c === null ? null : banniereDe(c);
@@ -187,7 +233,7 @@ export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom =
   /** La vignette quitte sa case et vole jusqu'à la place du décor couché. */
   async function voler(id: string, bouton: HTMLElement, duree: number): Promise<void> {
     const livre = corps.current;
-    const vignette = lib.vignetteDeLaBanniere(id);
+    const vignette = image(id);
     if (!livre || !vignette || typeof livre.animate !== "function") return;
     let x = 0;
     let y = 0;
@@ -196,7 +242,10 @@ export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom =
       y += e.offsetTop;
     }
     const largeur = livre.offsetWidth;
-    const vol = volVersLeDecor({ largeur, hauteur: livre.offsetHeight }, { x, y, largeur: bouton.offsetWidth });
+    // Avec un autre dessin, l'image ne remplit pas forcément sa case : le vol part de l'image, au milieu de la case.
+    const depart = dessin ? (bouton.querySelector("canvas")?.offsetWidth ?? bouton.offsetWidth) : bouton.offsetWidth;
+    x += (bouton.offsetWidth - depart) / 2;
+    const vol = volVersLeDecor({ largeur, hauteur: livre.offsetHeight }, { x, y, largeur: depart }, dessin?.place);
     if (!vol) return;
     const toile = document.createElement("canvas");
     toile.width = vignette.largeur;
@@ -205,8 +254,8 @@ export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom =
     toile.setAttribute("aria-hidden", "true");
     toile.style.left = `${x}px`;
     toile.style.top = `${y}px`;
-    toile.style.width = `${bouton.offsetWidth}px`;
-    peindre(toile, vignette.largeur, vignette.hauteur, vignette.cases);
+    toile.style.width = `${depart}px`;
+    vignette.peindre(toile);
     livre.append(toile);
     await toile
       .animate(
@@ -334,12 +383,12 @@ export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom =
   const enEssai = essai !== undefined && essai !== dresse;
 
   return (
-    <div class="livre" data-testid="livre-bannieres" data-mode={mode} aria-busy={occupe}>
+    <div class="livre" data-testid="livre-bannieres" data-mode={mode} data-genre={dessin?.genre} aria-busy={occupe}>
       <div class="livre-vue" onPointerMove={pencher} onPointerLeave={redresser} onKeyDown={auClavier}>
         <div ref={corps} class={`livre-corps${leve ? " leve" : ""}${fete ? " fete" : ""}${enVol !== undefined ? " vol" : ""}`}>
           <div class="livre-haut" />
           <div class="livre-bas">
-            <div ref={grille} class="livre-grille" role="group" aria-label={enBoutique ? "Les bannières" : "Mes bannières"} onPointerDown={prendre} onPointerMove={tirer} onPointerUp={lacher} onPointerCancel={lacher} onClickCapture={retenirLeClic}>
+            <div ref={grille} class="livre-grille" role="group" aria-label={dessin ? dessin.label : enBoutique ? "Les bannières" : "Mes bannières"} onPointerDown={prendre} onPointerMove={tirer} onPointerUp={lacher} onPointerCancel={lacher} onClickCapture={retenirLeClic}>
               {(pages[page] ?? []).map((c) => (
                 <button
                   key={c ?? "lieu"}
@@ -360,7 +409,7 @@ export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom =
                   }}
                   onBlur={finDEssai}
                 >
-                  <Vignette lib={lib} id={c} />
+                  <Vignette image={image} id={c} />
                 </button>
               ))}
             </div>
@@ -392,18 +441,19 @@ export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom =
           <span class="livre-ombre" />
           <span class="livre-eventail" />
           <div class="livre-decor" data-testid="livre-decor" data-banniere={dresse ?? "lieu"}>
-            <div class="livre-decor-in">
-              <Vignette lib={lib} id={dresse} />
-            </div>
+            <div class="livre-decor-in">{dessin ? dessin.decor(dresse) : <Vignette image={image} id={dresse} />}</div>
           </div>
           <span class="livre-fanion" data-cote="gauche" />
           <span class="livre-fanion" data-cote="droite" />
-          <div class="livre-gaulois">
-            <Toile largeur={GAULOIS_LARGEUR} hauteur={GAULOIS_HAUTEUR} cases={dessinDuGaulois} class="livre-gaulois-dessin" />
-          </div>
+          {/* Avec un autre dessin, le décor dressé porte déjà le Gaulois (la carte). */}
+          {!dessin && (
+            <div class="livre-gaulois">
+              <Toile largeur={GAULOIS_LARGEUR} hauteur={GAULOIS_HAUTEUR} cases={dessinDuGaulois} class="livre-gaulois-dessin" />
+            </div>
+          )}
         </div>
       </div>
-      {!enBoutique && (
+      {!enBoutique && lib && (
       <div class="livre-apercus" data-essai={enEssai ? "" : undefined}>
         <p class="livre-apercus-titre" data-testid="livre-apercu-nom">
           {enEssai ? `Essai : « ${nomDe(vue)} »` : nomDe(vue)}
@@ -418,7 +468,7 @@ export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom =
             <p class="livre-apercu-lieu">Pas de bannière sur votre fiche.</p>
           ) : (
             <div class="fiche-banniere">
-              <Vignette lib={lib} id={vue} />
+              <Vignette image={image} id={vue} />
               <span class="fiche-banniere-titre">Ses parties sous le tag</span>
             </div>
           )}
