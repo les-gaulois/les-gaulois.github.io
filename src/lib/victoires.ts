@@ -33,6 +33,13 @@
  *   sans secret rejoue d'abord chaque victoire à annoncer avec le moteur du jeu (`scripts/rejouer-victoires.ts`), dans le même
  *   ordre (`victoriesToAnnounce`). Une victoire que ce rejeu n'a pas encore vue attend le passage suivant, au plus
  *   `WAIT_FINAL_MS` après la fin de la partie, puis part avec la vignette de la carte. Voir `carte-finale.ts`.
+ * - Le score d'utilité des Gaulois de la partie, demandé par le pilote le 17 novembre 2026 : un second message, une seconde
+ *   après celui de la victoire (`UTILITY_PAUSE_MS`), « toujours bien envoyé ». Il est noté dû (`utility` de l'état) dès que
+ *   la victoire est partie, avant même d'être tenté : un passage coupé entre les deux messages le reprend. Refusé par
+ *   Discord, il est retenté tout de suite une fois, puis au début de chaque passage suivant, la partie étant rejouée de
+ *   nouveau pour lui (`utilitiesToRetry`) ; de même si le rejeu n'avait pas encore vu la partie. Au bout de
+ *   `MAX_UTILITY_TRIES` passages, il est abandonné, avec un avertissement. Une partie sans score (rejeu impossible, un seul
+ *   Gaulois) n'a pas de second message : rien n'est inventé. Voir `victoires-utilite.ts`.
  */
 import { z } from "zod";
 import { digestGame, faceOffs } from "./games";
@@ -53,6 +60,12 @@ export const PAUSE_MS = 2_000;
  * les 10 minutes au plus que demande le pilote (« au maximum 10 min après la victoire »). Voir `waitsForFinalMap`.
  */
 export const WAIT_FINAL_MS = 10 * 60_000;
+/** Entre le message d'une victoire et celui du score d'utilité de ses Gaulois : la seconde que demande le pilote. */
+export const UTILITY_PAUSE_MS = 1_000;
+/** Avant de retenter, dans le même passage, un score d'utilité que Discord n'a pas accepté. */
+export const UTILITY_RETRY_MS = 3_000;
+/** Le nombre de passages où un score d'utilité est tenté avant d'être abandonné : une demi-heure, à un passage toutes les 5 minutes. */
+export const MAX_UTILITY_TRIES = 6;
 /** Entre deux passages du workflow des victoires, lancé toutes les 5 minutes par la tâche « Victoires GAL » de cron-job.org. */
 export const PASS_MS = 5 * 60_000;
 
@@ -69,12 +82,21 @@ const NAME_MAX = 40;
 
 /** Une victoire notée : [partie, début]. */
 const Noted = z.tuple([z.string().min(1), z.iso.datetime()]);
+/**
+ * Le score d'utilité d'une victoire annoncée : [partie, début, passages où il a été tenté sans partir, réglé]. Réglé : parti,
+ * sans objet (la partie n'a pas de score), ou abandonné. Les deux copies de l'état se réunissent sans jamais revenir en
+ * arrière : réglé l'emporte, et le plus grand nombre d'essais.
+ */
+const UtilityNoted = z.tuple([z.string().min(1), z.iso.datetime(), z.number().int().min(0), z.boolean()]);
+type UtilityNoted = z.infer<typeof UtilityNoted>;
 
 export const VictoryState = z.object({
   /** Les victoires passées, annoncées ou déjà là au premier passage : [partie, début]. Oubliées au bout de `FORGET_MS`. */
   done: z.array(Noted),
   /** Les victoires renvoyées à la demande de `config/victoires-rattrapage.json`, oubliées de même. Absent : aucun renvoi. */
   resent: z.array(Noted).optional(),
+  /** Les scores d'utilité des victoires annoncées, dus ou réglés, oubliés de même. Absent : aucun. */
+  utility: z.array(UtilityNoted).optional(),
 });
 export type VictoryState = z.infer<typeof VictoryState>;
 
@@ -245,14 +267,23 @@ export function victoryOf(session: StoredSession, game: ApiVictoryGame, members:
   };
 }
 
-/** Lit le détail d'une partie, en deux essais. Lève une erreur sans réponse lisible : la victoire attend alors le passage suivant. */
-export async function readVictoryGame(gameId: string, get: typeof fetch, sleep: (ms: number) => Promise<void>): Promise<ApiVictoryGame> {
+/**
+ * Lit le détail d'une partie, en deux essais. Lève une erreur sans réponse lisible : la victoire attend alors le passage suivant.
+ * `raw` reçoit la réponse entière, telle que l'API la donne, quand elle convient : le score d'utilité y lit les stats des
+ * joueurs, que `ApiVictoryGame` ne garde pas (`victoires-utilite.ts`).
+ */
+export async function readVictoryGame(gameId: string, get: typeof fetch, sleep: (ms: number) => Promise<void>, raw?: (body: unknown) => void): Promise<ApiVictoryGame> {
   let last = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) await sleep(3_000);
     try {
       const response = await get(`${API_BASE}/game/${encodeURIComponent(gameId)}?turns=false`, { headers: { "User-Agent": "GAL-clan-site/1.0" }, signal: AbortSignal.timeout(20_000) });
-      if (response.ok) return ApiVictoryGame.parse(await response.json());
+      if (response.ok) {
+        const body: unknown = await response.json();
+        const game = ApiVictoryGame.parse(body);
+        raw?.(body);
+        return game;
+      }
       last = `HTTP ${response.status}`;
       // Une partie inconnue ne le sera pas moins trois secondes plus tard.
       if (response.status !== 429 && response.status < 500) break;
@@ -302,8 +333,24 @@ function unionNoted(lists: readonly (readonly (readonly [string, string])[])[]):
   return [...byId].sort((a, b) => a[1].localeCompare(b[1]) || a[0].localeCompare(b[0]));
 }
 
-/** L'état à écrire : sans renvoi, le fichier garde sa forme d'avant les renvois. */
-const stateOf = (done: [string, string][], resent: [string, string][]): VictoryState => (resent.length > 0 ? { done: [...done], resent: [...resent] } : { done: [...done] });
+/** L'état à écrire : sans renvoi ni score d'utilité, le fichier garde sa forme d'avant eux. */
+const stateOf = (done: [string, string][], resent: [string, string][], utility: readonly UtilityNoted[] = []): VictoryState => ({
+  done: [...done],
+  ...(resent.length > 0 ? { resent: [...resent] } : {}),
+  ...(utility.length > 0 ? { utility: utility.map((u): UtilityNoted => [...u]) } : {}),
+});
+
+/** Les scores d'utilité de plusieurs états, chaque partie une fois, dans l'ordre des débuts : réglé l'emporte, et le plus d'essais. */
+function unionUtility(lists: readonly (readonly UtilityNoted[])[]): UtilityNoted[] {
+  const byId = new Map<string, UtilityNoted>();
+  for (const list of lists) {
+    for (const [id, start, tries, settled] of list) {
+      const known = byId.get(id);
+      byId.set(id, known ? [id, known[1], Math.max(known[2], tries), known[3] || settled] : [id, start, tries, settled]);
+    }
+  }
+  return [...byId.values()].sort((a, b) => a[1].localeCompare(b[1]) || a[0].localeCompare(b[0]));
+}
 
 /** Deux états notés (dans `data/` et dans le cache du workflow), réunis : une victoire notée ou renvoyée dans l'un ne repart pas. */
 export function mergeStates(...states: readonly (VictoryState | null)[]): VictoryState | null {
@@ -312,6 +359,7 @@ export function mergeStates(...states: readonly (VictoryState | null)[]): Victor
   return stateOf(
     unionNoted(present.map((s) => s.done)),
     unionNoted(present.map((s) => s.resent ?? [])),
+    unionUtility(present.map((s) => s.utility ?? [])),
   );
 }
 
@@ -341,7 +389,21 @@ export interface VictoryPassDeps {
    * Absent : rien n'attend.
    */
   waitFor?: (gameId: string, end: number) => boolean;
+  /**
+   * Envoie le score d'utilité des Gaulois de la partie, après le message de sa victoire. Absent : pas de second message, et
+   * rien n'est noté pour lui. Ne lève pas d'erreur attendue ; une erreur compte comme un refus de Discord.
+   */
+  sendUtility?: (session: UtilitySession, game: ApiVictoryGame) => Promise<UtilityOutcome>;
 }
+
+/** Ce que le score d'utilité sait de la partie : son identifiant et son début, que l'état noté porte déjà. */
+export type UtilitySession = Pick<StoredSession, "gameId" | "gameStart">;
+
+/**
+ * Ce qu'il advient du score d'utilité d'une victoire : `sent`, parti ; `none`, la partie n'a pas de score, pour de bon ;
+ * `later`, le rejeu n'a pas encore vu la partie ; `failed`, Discord ne l'a pas accepté. Les deux derniers se retentent.
+ */
+export type UtilityOutcome = "sent" | "none" | "later" | "failed";
 
 /** Ce qu'un passage fait de chaque victoire : les notées gardées, celles trop vieilles pour partir, celles à annoncer. */
 function passPlan(stored: VictoryState, wins: readonly StoredSession[], now: Date, resend: ReadonlySet<string>) {
@@ -349,13 +411,26 @@ function passPlan(stored: VictoryState, wins: readonly StoredSession[], now: Dat
   const kept = ([, start]: readonly [string, string]) => now.getTime() - Date.parse(start) <= FORGET_MS;
   const done = stored.done.filter(kept);
   const resent = (stored.resent ?? []).filter(kept);
+  const utility = (stored.utility ?? []).filter(([, start]) => kept(["", start])).map((u): UtilityNoted => [...u]);
   const seen = new Set(done.map(([id]) => id));
   const seenAgain = new Set(resent.map(([id]) => id));
   // Demandée par le fichier des renvois, pas encore renvoyée, et commencée il y a moins d'un jour.
   const again = (s: StoredSession) => resend.has(s.gameId) && !seenAgain.has(s.gameId) && recent(s);
   const late = wins.filter((s) => !seen.has(s.gameId) && recent(s) && ageOf(s, now) > WINDOW_MS && !again(s));
   const todo = wins.filter((s) => again(s) || (!seen.has(s.gameId) && ageOf(s, now) <= WINDOW_MS)).sort(byStart);
-  return { done, resent, seen, again, late, todo };
+  return { done, resent, utility, seen, again, late, todo };
+}
+
+/** Un score d'utilité encore dû : ni réglé, ni tenté `MAX_UTILITY_TRIES` fois. */
+const utilityDue = ([, , tries, settled]: UtilityNoted) => !settled && tries < MAX_UTILITY_TRIES;
+
+/**
+ * Les parties dont le score d'utilité est encore dû, dans l'ordre des débuts : le rejeu les rejoue de nouveau avant l'envoi,
+ * après les victoires à annoncer. Aucune sans état.
+ */
+export function utilitiesToRetry(stored: VictoryState | null, now: Date): string[] {
+  if (!stored) return [];
+  return (stored.utility ?? []).filter((u) => now.getTime() - Date.parse(u[1]) <= FORGET_MS && utilityDue(u)).map(([id]) => id);
 }
 
 /**
@@ -372,7 +447,7 @@ export function victoriesToAnnounce(stored: VictoryState | null, sessions: reado
  * refuse, reste à annoncer : le passage suivant réessaie, tant qu'elle a moins de `WINDOW_MS`, ou moins de `FORGET_MS` si elle
  * est à renvoyer.
  */
-export async function victoryPass({ stored, sessions, members, tag, official = [], now, readGame, isMember, send, pause, progress, log, resend = new Set(), waitFor }: VictoryPassDeps): Promise<{ state: VictoryState | null; failed: boolean }> {
+export async function victoryPass({ stored, sessions, members, tag, official = [], now, readGame, isMember, send, pause, progress, log, resend = new Set(), waitFor, sendUtility }: VictoryPassDeps): Promise<{ state: VictoryState | null; failed: boolean }> {
   if (!sessions) {
     log("::warning::Victoires : aucune session lisible, rien n'est envoyé.");
     return { state: null, failed: false };
@@ -387,7 +462,7 @@ export async function victoryPass({ stored, sessions, members, tag, official = [
     log(`Victoires : premier passage, les victoires du moment servent de départ (${done.length}). Les suivantes partiront.`);
     return { state: stateOf(done, done.filter(([id]) => resend.has(id))), failed: false };
   }
-  const { done, resent, seen, again, late, todo } = passPlan(stored, wins, now, resend);
+  const { done, resent, utility, seen, again, late, todo } = passPlan(stored, wins, now, resend);
   if (late.length > 0) log(`::warning::Victoires : ${late.length > 1 ? `${late.length} victoires trop anciennes ne seront pas annoncées` : "1 victoire trop ancienne ne sera pas annoncée"}.`);
   for (const s of late) done.push(noted(s));
   const asked = todo.filter(again).length;
@@ -398,6 +473,61 @@ export async function victoryPass({ stored, sessions, members, tag, official = [
   let sent = 0;
   let waiting = 0;
   let failed = false;
+  // Un message vient-il de partir ? Le suivant attend alors `PAUSE_MS`.
+  let spoke = false;
+  let utilityChanged = false;
+  const save = () => progress?.(stateOf(done, resent, utility));
+  /**
+   * Tente le score d'utilité d'une victoire déjà annoncée, et note ce qu'il en advient. `game` : `null` si le détail de la
+   * partie ne se lit pas, ce qui compte comme un essai. Un refus de Discord est retenté une fois, tout de suite.
+   */
+  const tryUtility = async (entry: UtilityNoted, session: UtilitySession, game: ApiVictoryGame | null) => {
+    if (!sendUtility) return;
+    const attempt = async (): Promise<UtilityOutcome> => {
+      try {
+        return await sendUtility(session, game!);
+      } catch (e) {
+        log(`::warning::Utilité : le score de la partie ${session.gameId} ne se prépare pas (${e instanceof Error ? e.message : String(e)}).`);
+        return "failed";
+      }
+    };
+    let outcome: UtilityOutcome = game ? await attempt() : "later";
+    if (outcome === "failed") {
+      await pause(UTILITY_RETRY_MS);
+      outcome = await attempt();
+    }
+    utilityChanged = true;
+    if (outcome === "sent" || outcome === "none") {
+      entry[3] = true;
+      if (outcome === "sent") spoke = true;
+    } else {
+      entry[2]++;
+      if (outcome === "failed") failed = true;
+      if (entry[2] >= MAX_UTILITY_TRIES) {
+        entry[3] = true;
+        log(`::warning::Utilité : le score de la partie ${session.gameId} n'a pas pu partir en ${MAX_UTILITY_TRIES} passages, il est abandonné.`);
+      } else log(`Utilité : le score de la partie ${session.gameId} ${outcome === "later" ? "attend son rejeu" : "n'est pas parti"}, nouvel essai au prochain passage.`);
+    }
+    save();
+  };
+  // D'abord les scores d'utilité restés dus aux passages d'avant : leur victoire est déjà dans le salon. L'état noté dit la
+  // partie et son début : un score dû ne dépend pas des sessions lues à ce passage, qui peuvent manquer. Une victoire à
+  // renvoyer à ce passage repart plus bas avec son score : il ne part pas ici en plus.
+  if (sendUtility) {
+    const resending = new Set(todo.slice(0, MAX_PER_PASS).map((s) => s.gameId));
+    for (const entry of utility.filter((u) => utilityDue(u) && !resending.has(u[0]))) {
+      const session: UtilitySession = { gameId: entry[0], gameStart: entry[1] };
+      let game: ApiVictoryGame | null = null;
+      try {
+        game = await readGame(session.gameId);
+      } catch (e) {
+        log(`::warning::Utilité : le détail de la partie ${session.gameId} ne se lit pas (${e instanceof Error ? e.message : String(e)}).`);
+      }
+      if (spoke) await pause(PAUSE_MS);
+      spoke = false;
+      await tryUtility(entry, session, game);
+    }
+  }
   for (const session of todo.slice(0, MAX_PER_PASS)) {
     let game: ApiVictoryGame;
     try {
@@ -431,7 +561,8 @@ export async function victoryPass({ stored, sessions, members, tag, official = [
       log(`::warning::Victoires : un Gaulois de la partie ${session.gameId} n'a pas pu être vérifié sur l'API. Nouvel essai au prochain passage.`);
       continue;
     }
-    if (sent > 0) await pause(PAUSE_MS);
+    if (sent > 0 || spoke) await pause(PAUSE_MS);
+    spoke = false;
     if (!(await send(victoryOf(session, game, members, tag, confirmed, official)))) {
       failed = true;
       break;
@@ -440,9 +571,21 @@ export async function victoryPass({ stored, sessions, members, tag, official = [
     if (!seen.has(session.gameId)) done.push(noted(session));
     // Une victoire demandée qui part, renvoi ou premier envoi, est notée renvoyée : elle ne repartira plus.
     if (resend.has(session.gameId)) resent.push(noted(session));
-    progress?.(stateOf(done, resent));
+    // Son score d'utilité est noté dû dans la même écriture, avant d'être tenté : un passage coupé ici le reprendra.
+    let owed: UtilityNoted | null = null;
+    if (sendUtility) {
+      owed = [session.gameId, session.gameStart, 0, false];
+      const at = utility.findIndex(([id]) => id === session.gameId);
+      if (at >= 0) utility[at] = owed;
+      else utility.push(owed);
+    }
+    save();
+    if (owed) {
+      await pause(UTILITY_PAUSE_MS);
+      await tryUtility(owed, session, game);
+    }
   }
   if (waiting > 0) log(`Victoires : ${waiting > 1 ? `${waiting} victoires attendent leur` : "1 victoire attend sa"} carte de fin, au passage suivant.`);
   log(todo.length === 0 ? "Victoires : aucune nouvelle victoire." : `Victoires : ${sent > 1 ? `${sent} victoires annoncées` : `${sent} victoire annoncée`}.`);
-  return { state: sent > 0 || late.length > 0 ? stateOf(done, resent) : null, failed };
+  return { state: sent > 0 || late.length > 0 || utilityChanged ? stateOf(done, resent, utility) : null, failed };
 }

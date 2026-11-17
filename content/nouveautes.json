@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "title": "Les plus utiles de chaque victoire, sur Discord",
+    "body": "Dans le salon des victoires, une seconde image suit chaque victoire : le score d'utilité de chaque Gaulois de la partie, quand elle a pu être rejouée et compte au moins deux Gaulois.",
+    "link": {
+      "href": "/utiles",
+      "label": "Les plus utiles"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "Le coffre du druide en quinze manches",
     "body": "Sur Discord, chaque manche a son gardien, son décor et son niveau : la cagnotte vaut fois 2, fois 3, puis fois 4. /help coffre explique le jeu, /indice vend une lettre du mot.",
     "link": {

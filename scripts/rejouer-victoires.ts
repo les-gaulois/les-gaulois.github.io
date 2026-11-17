@@ -14,6 +14,10 @@
  * (`src/lib/carte-finale.ts`), avec la liste des parties vues (`passage.json`) : une victoire que ce passage n'a pas vue attend
  * le suivant, au plus `WAIT_FINAL_MS` après la fin de la partie. Si ce script s'arrête en route, rien n'attend. Rien n'est
  * écrit dans le dépôt.
+ *
+ * Le même rejeu note les dons de la partie, d'où vient le score d'utilité envoyé après chaque victoire
+ * (`src/lib/victoires-utilite.ts`). Une victoire déjà annoncée dont le score n'est pas encore parti est donc rejouée de
+ * nouveau, après les victoires à annoncer (`utilitiesToRetry`).
  */
 import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -24,7 +28,7 @@ import { mapKey } from "../src/lib/map-names";
 import { ApiClient } from "../src/lib/pipeline";
 import { DOSSIER_CARTES, dossierDeCarte, FicheDePartie, FICHIER_PASSAGE, fichiersDeLaPartie, NOTICE_DES_CARTES, noticeDesCartes, type PassageDuRejeu } from "../src/lib/rejeu-openfront";
 import { parseNoted } from "../src/lib/salon-discord";
-import { mergeStates, parseResend, passSessions, readRecentSessions, VictoryState, victoriesToAnnounce } from "../src/lib/victoires";
+import { mergeStates, parseResend, passSessions, readRecentSessions, utilitiesToRetry, VictoryState, victoriesToAnnounce } from "../src/lib/victoires";
 import { construireMoteur, FicheInattendue, lancerMoteur, lireCarte, lireFiche, message, type Moteur, RACINE, rangerCartes, rangerMoteurs, sleep, TropLong } from "./rejeu-commun";
 
 /** Le job a 12 minutes : le rejeu s'arrête de commencer des parties au bout de 7, et une partie n'en prend jamais plus de 4. */
@@ -133,6 +137,10 @@ if (demandee >= 0) {
   }
   const { sessions } = passSessions(unreadableSessionFiles().length > 0 ? null : loadSessions(), fresh);
   parties = victoriesToAnnounce(stored, sessions, now, resend).map((s) => s.gameId);
+  // Puis les victoires déjà annoncées dont le score d'utilité n'est pas encore parti : il se calcule sur leur rejeu.
+  const dues = utilitiesToRetry(stored, now).filter((id) => !parties.includes(id));
+  if (dues.length > 0) console.log(`Rejeu : ${dues.length > 1 ? `${dues.length} parties rejouées de nouveau pour leur` : "1 partie rejouée de nouveau pour son"} score d'utilité.`);
+  parties.push(...dues);
 }
 
 const moteurs = new Map<string, Promise<Moteur>>();

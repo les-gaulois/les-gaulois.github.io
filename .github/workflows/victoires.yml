@@ -121,7 +121,7 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       # Une seconde copie de l'état des envois, hors de Git : si l'enregistrement sur main échoue, les victoires déjà parties sont
       # notées quand même, et ne repartent pas toutes les 5 minutes. Le fichier ne contient que des identifiants de partie et des
-      # heures de début, déjà publics.
+      # heures de début, déjà publics, et, pour le score d'utilité, un nombre d'essais et s'il est réglé.
       - name: Restaurer l'état des envois
         uses: actions/cache/restore@v6
         with:
@@ -138,6 +138,9 @@ jobs:
       # Le lien réglé dans la Direction, sinon le secret DISCORD_WEBHOOK_VICTOIRES ; sans l'un ni l'autre, l'étape ne fait rien.
       # Au premier passage, les victoires du moment servent de départ. Une panne de Discord ou de l'API ne bloque rien : le
       # passage suivant réessaie.
+      # Une seconde après chaque victoire, le score d'utilité de ses Gaulois (demande du pilote, 17 novembre 2026), calculé sur
+      # la même fiche et sur les dons notés par le rejeu. Un score qui n'est pas parti est noté dû, et retenté aux passages
+      # suivants : le job « rejouer » rejoue alors la partie de nouveau. Voir src/lib/victoires-utilite.ts.
       - name: Envoyer les nouvelles victoires
         continue-on-error: true
         timeout-minutes: 6

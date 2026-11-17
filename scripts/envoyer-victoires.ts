@@ -18,6 +18,9 @@
  * qui n'a aucun secret : relue et vérifiée ici comme une donnée venue de l'extérieur. Sans elle, la vignette de la carte. Une
  * victoire que ce rejeu n'a pas vue attend le passage suivant, s'il vient encore dans les 10 minutes après la fin de la partie
  * (waitsForFinalMap). Voir src/lib/carte-finale.ts.
+ * Une seconde après chaque victoire, le score d'utilité de ses Gaulois, dans le même salon : la même fiche de la partie, et les
+ * dons que le même rejeu a notés. Sans rejeu, pas de score. Un score qui n'est pas parti est retenté aux passages suivants.
+ * Voir src/lib/victoires-utilite.ts.
  */
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
@@ -34,6 +37,7 @@ import type { StoredSession } from "../src/lib/schemas";
 import { garderSessionsDuPassage, SESSIONS_DU_PASSAGE } from "../src/lib/sessions-du-passage";
 import { isClanMember, mergeStates, parseResend, passSessions, readRecentSessions, readVictoryGame, usableOfficialTags, VictoryState, victoryPass, waitsForFinalMap, type VictoryState as State } from "../src/lib/victoires";
 import { sendVictory } from "../src/lib/victoires-discord";
+import { bilanDeLaVictoire, lignesDUtilite, sendUtility, type LigneDUtilite } from "../src/lib/victoires-utilite";
 
 const STATE_FILE = "data/victoires-envoi.json";
 const CACHED_STATE_FILE = ".cache/victoires-envoi.json";
@@ -116,6 +120,24 @@ try {
   const members = loadMembers();
   // Les Gaulois du village : une seule lecture par passage, à la première image, pour tous ceux qu'une pastille peut nommer.
   const gauloisDe = gauloisDuPassage({ tous: () => idsAuPseudoPublic(members) });
+  // La fiche de chaque partie lue à ce passage, telle que l'API la donne : le score d'utilité y lit les stats des joueurs.
+  const fiches = new Map<string, unknown>();
+  /**
+   * Les lignes du score d'utilité d'une partie, d'après sa fiche et la description laissée par son rejeu, relue et vérifiée
+   * comme la carte de fin. `later` : le rejeu de ce passage n'a pas vu la partie ; `none` : elle n'a pas de score.
+   */
+  const utilityOf = (gameId: string): LigneDUtilite[] | "later" | "none" => {
+    const files = fichiersDeLaPartie(gameId);
+    if (!files || !existsSync(files.meta)) return files && (seenByReplay === null || !seenByReplay.has(gameId)) ? "later" : "none";
+    try {
+      if (statSync(files.meta).size > MAX_OCTETS_DESCRIPTION) throw new Error("fichier trop lourd");
+      const bilan = bilanDeLaVictoire(readFileSync(files.meta, "utf8"), fiches.get(gameId), gameId, members, clan.tag, officialTags);
+      return (bilan && lignesDUtilite(bilan, members)) ?? "none";
+    } catch (e) {
+      console.log(`::warning::Utilité : le score de la partie ${gameId} est écarté (${e instanceof Error ? e.message : String(e)}).`);
+      return "none";
+    }
+  };
   const result = await victoryPass({
     stored,
     sessions,
@@ -123,7 +145,35 @@ try {
     tag: clan.tag,
     official,
     now,
-    readGame: (gameId) => readVictoryGame(gameId, fetch, sleep),
+    readGame: (gameId) => readVictoryGame(gameId, fetch, sleep, (body) => fiches.set(gameId, body)),
+    sendUtility: async (session, game) => {
+      const lignes = utilityOf(session.gameId);
+      if (lignes === "later") return "later";
+      if (lignes === "none") {
+        console.log(`Utilité : la partie ${session.gameId} n'a pas de score (pas de rejeu, pas de dons notés, ou un seul Gaulois).`);
+        return "none";
+      }
+      const partie = { id: session.gameId, start: session.gameStart, map: game.info.config.gameMap };
+      const accepted = await sendUtility({
+        link,
+        partie,
+        lignes,
+        renderImage: async () => {
+          const { fonts } = await drawing;
+          const image = await import("../src/lib/victoires-utilite-image");
+          // Comme pour les pastilles de la victoire : un caractère qu'aucune police ne sait dessiner devient « ? » sur l'image.
+          const drawn = lignes.map((l) => ({ ...l, nom: l.nom === null ? null : fonts.drawable(l.nom, "strong") }));
+          const gaulois = await gauloisDe(lignes.map((l) => l.id));
+          const png = await avecOuSansGaulois(gaulois, (g) => image.renderUtilityCard(image.utilityCard(partie, drawn, clan.tag, clan.links.site, fonts.width, g), fonts, root));
+          return { png, alt: image.utilityImageAlt(partie, lignes, clan.tag) };
+        },
+        tag: clan.tag,
+        siteUrl: clan.links.site,
+        fetch,
+        log: console.log,
+      });
+      return accepted ? "sent" : "failed";
+    },
     isMember: (publicID) => isClanMember(api, publicID, clan.tag),
     send: (victory) =>
       sendVictory({

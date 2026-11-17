@@ -154,7 +154,7 @@ function victoryTiles(v: Victory): Kpi[] {
 }
 
 /** « Mardi 11 novembre à 18:04 », à l'heure de Paris. */
-export const victoryWhen = (v: Victory) => `${dayTitle(parisParts(v.start).date)} à ${fmtEpochTime(Date.parse(v.start) / 1000)}`;
+export const victoryWhen = (v: Pick<Victory, "start">) => `${dayTitle(parisParts(v.start).date)} à ${fmtEpochTime(Date.parse(v.start) / 1000)}`;
 
 /** Ce que la mise en page sait de la vignette. `open` : son pourtour n'est que de l'eau, la mer peut remplir tout le cadre. */
 export interface ThumbnailShape {
