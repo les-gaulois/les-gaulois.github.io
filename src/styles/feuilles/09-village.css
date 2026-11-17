@@ -6161,28 +6161,34 @@ button.tenue-gardee-remettre:disabled {
    son livre (LivreDesBannieres.tsx), avec un autre dessin (data-genre="cartes"). Les cases gardent la forme de celles des
    bannières ; la carte, plus haute que large, y tient debout au milieu. Le décor dressé est la carte de l'accueil
    (04-poste.css), un quart de la largeur du livre, sans le cadre de papier d'une bannière. */
-.livre[data-genre="cartes"] .livre-case {
+.livre:is([data-genre="cartes"], [data-genre="cadres"]) .livre-case {
   display: grid;
   place-items: center;
   aspect-ratio: 124 / 80;
 }
-.livre[data-genre="cartes"] .livre-ban {
+.livre:is([data-genre="cartes"], [data-genre="cadres"]) .livre-ban {
   position: absolute;
   inset: 0;
   width: auto;
   height: 100%;
   margin: auto;
 }
-.livre[data-genre="cartes"] .livre-decor {
+.livre:is([data-genre="cartes"], [data-genre="cadres"]) .livre-decor {
   left: 37.5%;
   width: 25%;
 }
-.livre[data-genre="cartes"] .livre-decor-in {
+.livre:is([data-genre="cartes"], [data-genre="cadres"]) .livre-decor-in {
   border: 0;
   box-shadow: none;
 }
 .livre-carte {
   --px: calc(74cqw * 0.25 / 48);
+}
+/* La carte et son cadre (rayon « Cadres ») : la toile du cadre dépasse de douze cases de chaque côté, la carte se fait
+   plus petite pour que le tout tienne dans le livre. */
+.livre-carte-cadree {
+  --px: calc(74cqw * 0.33 / 72);
+  padding: calc(var(--px) * 12);
 }
 /* Dans le livre, la carte ne flotte pas : son pied reste au pli. */
 .livre-carte .podium-carte-case {

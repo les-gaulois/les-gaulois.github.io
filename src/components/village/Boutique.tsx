@@ -6,11 +6,13 @@ import type { MesStateres } from "../../lib/stateres";
 import {
   ANCRE_MARCHE,
   IMAGE_DU_RAYON_BANNIERE,
+  IMAGE_DU_RAYON_CADRES,
   IMAGE_DU_RAYON_CARTES,
   IMAGE_DU_RAYON_UNIQUES,
   NOMS_RAYONS,
   RAYONS_BOUTIQUE,
   RAYON_BANNIERE,
+  RAYON_CADRES,
   RAYON_CARTES,
   RAYON_POCHETTES,
   RAYON_UNIQUES,
@@ -55,6 +57,7 @@ import { EtalDesPochettes } from "./Etal";
 import { DessinPochette, Pochette } from "./Pochette";
 import { DessinPochetteFamiliers, DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
 import { DessinPochetteStateres, DialogueStateres, PochetteStateres, usePochetteStateres } from "./PochetteStateres";
+import { SectionDesCadres } from "./Cadres";
 import { SectionDesCartes } from "./Cartes";
 import { DessinDeLaPochette, DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles } from "./SectionModeles";
 import { pochetteDeRarete } from "./SentierDessins";
@@ -206,7 +209,16 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
       (e: unknown) => setCartesInstallees(e instanceof ServerError && e.code !== "network"),
     );
   }, []);
-  const rayonsMontres = useMemo(() => (cartesInstallees ? RAYONS_BOUTIQUE : RAYONS_BOUTIQUE.filter((r) => r !== RAYON_CARTES)), [cartesInstallees]);
+  // De même pour les cadres : l'onglet ne paraît que si le serveur connaît `get_mes_cadres`.
+  const [cadresOuverts, setCadresOuverts] = useState(false);
+  const [cadresInstalles, setCadresInstalles] = useState(false);
+  useEffect(() => {
+    call<unknown>("get_mes_cadres").then(
+      () => setCadresInstalles(true),
+      (e: unknown) => setCadresInstalles(e instanceof ServerError && e.code !== "network"),
+    );
+  }, []);
+  const rayonsMontres = useMemo(() => RAYONS_BOUTIQUE.filter((r) => (r !== RAYON_CARTES || cartesInstallees) && (r !== RAYON_CADRES || cadresInstalles)), [cartesInstallees, cadresInstalles]);
   const [filtres, setFiltres] = useState<Filtres>({});
   const [fenetre, setFenetre] = useState<Fenetre>(null);
   // Les pochettes gagnées à la loterie du mardi, qui restent à ouvrir : relues à l'ouverture de l'onglet et à chaque
@@ -399,6 +411,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   useEffect(() => {
     if (rayon === RAYON_BANNIERE || rayon === RAYON_POCHETTES) setBannieresOuvertes(true);
     if (rayon === RAYON_CARTES) setCartesOuvertes(true);
+    if (rayon === RAYON_CADRES) setCadresOuverts(true);
   }, [rayon]);
 
   // Les Gaulois uniques ne se lisent qu'au premier passage dans leur onglet, comme les bannières.
@@ -924,7 +937,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               rayons={rayonsMontres}
               noms={NOMS_RAYONS}
               rayon={rayonChoisi}
-              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : id === RAYON_CARTES ? IMAGE_DU_RAYON_CARTES : IMAGE_DU_RAYON_BANNIERE)}
+              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : id === RAYON_CARTES ? IMAGE_DU_RAYON_CARTES : id === RAYON_CADRES ? IMAGE_DU_RAYON_CADRES : IMAGE_DU_RAYON_BANNIERE)}
               // Les offres des membres d'abord ; sinon la collection du rayon, ce qu'il possède sur ce qui existe.
               mention={(id) => (!estUnRayonDObjets(id) ? null : comptesDesOffres[id] > 0 ? motsDesOffres(comptesDesOffres[id]) : boutique ? motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet))) : null)}
               onChoisir={setRayon}
@@ -1067,6 +1080,20 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
             {(cartesOuvertes || rayon === RAYON_CARTES) && (
               <div hidden={rayon !== RAYON_CARTES}>
                 <SectionDesCartes
+                  tenue={etat.enregistree}
+                  familier={familiers.montre}
+                  onSolde={(reste) => {
+                    setBoutique((b) => b && { ...b, solde: reste });
+                    setSolde(reste);
+                  }}
+                  onRefus={() => void lireLaBoutique()}
+                />
+              </div>
+            )}
+            {/* Les cadres animés de la carte, essayés sur le Gaulois enregistré : mêmes règles que les cartes. */}
+            {(cadresOuverts || rayon === RAYON_CADRES) && (
+              <div hidden={rayon !== RAYON_CADRES}>
+                <SectionDesCadres
                   tenue={etat.enregistree}
                   familier={familiers.montre}
                   onSolde={(reste) => {

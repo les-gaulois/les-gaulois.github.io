@@ -21,6 +21,7 @@ import { dirname } from "node:path";
 import { loadMembers } from "../src/lib/data";
 import { BANNIERES_MEMBRES_FILE, cacheDesBannieres, journalDesBannieres, lireBannieresDesJoueurs } from "../src/lib/bannieres-joueurs";
 import { cacheDesFamiliers, FAMILIERS_MEMBRES_FILE, journalDesFamiliers, lireFamiliersDesJoueurs } from "../src/lib/familiers-joueurs";
+import { cacheDesCadres, CADRES_MEMBRES_FILE, journalDesCadres, lireCadresDesJoueurs } from "../src/lib/cadres-joueurs";
 import { cacheDesFinitions, FINITIONS_MEMBRES_FILE, journalDesFinitions, lireFinitionsDesJoueurs } from "../src/lib/finitions-joueurs";
 import { cacheDesGaulois, GAULOIS_FICHES_FILE, journalDesGaulois, lireGauloisDesJoueurs } from "../src/lib/gaulois-joueurs";
 
@@ -87,5 +88,17 @@ if (familiers.etat === "lu") {
   writeFileSync(FAMILIERS_MEMBRES_FILE, JSON.stringify(cacheDesFamiliers(familiers.familiers, new Date())) + "\n");
   console.log(`Familiers des cartes : ${familiers.familiers.size} familier${familiers.familiers.size > 1 ? "s" : ""} pour ${ids.length} membres au pseudo public.`);
 } else if (familiers.etat === "panne") {
+  process.exitCode = 1;
+}
+
+// Les cadres des cartes (rayon « Cadres ») : une lecture à part, elle aussi.
+const cadres = await lireCadresDesJoueurs(ids, process.env["SUPABASE_URL"], process.env["SUPABASE_SECRET_KEY"]);
+const ligneDesCadres = journalDesCadres(cadres);
+if (ligneDesCadres) console.log(ligneDesCadres);
+if (cadres.etat === "lu") {
+  mkdirSync(".cache", { recursive: true });
+  writeFileSync(CADRES_MEMBRES_FILE, `${JSON.stringify(cacheDesCadres(cadres.cadres, new Date()))}\n`);
+  console.log(`Cadres des cartes : ${cadres.cadres.size} cadre${cadres.cadres.size > 1 ? "s" : ""} pour ${ids.length} membres au pseudo public.`);
+} else if (cadres.etat === "panne") {
   process.exitCode = 1;
 }

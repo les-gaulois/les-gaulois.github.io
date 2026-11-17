@@ -46,8 +46,8 @@ describe("les rayons de la boutique", () => {
     // L'ordre voulu par le pilote le 15 novembre 2026 : tête, haut, bas, pieds, arme, bannière ; tout ajout à la suite.
     expect(RAYONS_OBJETS).toEqual(EMPLACEMENTS_OBJETS);
     // Les cartes, huitième onglet depuis le 17 novembre 2026, à la suite.
-    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES, "cartes"]);
-    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière", "Uniques", "Cartes"]);
+    expect(RAYONS_BOUTIQUE).toEqual([...EMPLACEMENTS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES, "cartes", "cadres"]);
+    expect(RAYONS_BOUTIQUE.map((rayon) => NOMS_RAYONS[rayon])).toEqual(["Tête", "Haut", "Bas", "Pieds", "Arme", "Bannière", "Uniques", "Cartes", "Cadres"]);
     expect(RAYONS_BOUTIQUE.filter(estUnRayonDObjets)).toEqual(EMPLACEMENTS_OBJETS);
     expect(estUnRayonDObjets(RAYON_BANNIERE)).toBe(false);
     expect(estUnRayonDObjets(RAYON_UNIQUES)).toBe(false);

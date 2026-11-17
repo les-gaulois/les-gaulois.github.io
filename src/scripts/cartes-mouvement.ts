@@ -9,6 +9,7 @@
  * En pause (bouton de l'en-tête, `fx-off`), avec « réduire les animations », hors de l'écran ou dans un onglet caché,
  * les cartes reviennent à plat, les toiles sont effacées et le script ne dessine plus rien.
  */
+import { HAUTEUR_DU_CADRE, INSTANT_DU_CADRE_FIGE, LARGEUR_DU_CADRE, cadreAnime, peindreLeCadre } from "../lib/fx/cadres-carte";
 import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, etincellesDuChampion, finitionAnimee, fusionDeLaFinition } from "../lib/fx/finitions-carte";
 
 /*
@@ -65,8 +66,12 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
     const nom = finitionAnimee(el.dataset["finition"]);
     const fond = toile(el, "fond");
     if (fond) fond.canvas.style.mixBlendMode = nom ? fusionDeLaFinition(nom) : "";
+    // Le cadre animé du rayon « Cadres » : sa toile déborde de la carte, son image est peinte case par case.
+    const cadre = cadreAnime(el.dataset["cadre"]);
+    const toileDuCadre = cadre ? toile(el, "cadre") : null;
+    const imageDuCadre = toileDuCadre ? toileDuCadre.createImageData(LARGEUR_DU_CADRE, HAUTEUR_DU_CADRE) : null;
     // Le champion de la semaine : des étincelles d'or par-dessus sa finition (sa couronne est dans la page).
-    return { el, i, mx: 0, my: 0, finition: nom ? FINITIONS[nom] : null, fond, devant: toile(el, "devant"), champion: el.dataset["champion"] !== undefined };
+    return { el, i, mx: 0, my: 0, finition: nom ? FINITIONS[nom] : null, fond, devant: toile(el, "devant"), champion: el.dataset["champion"] !== undefined, cadre, toileDuCadre, imageDuCadre };
   });
   let souris: [number, number] | null = null;
   let vue = -Infinity;
@@ -107,6 +112,13 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
     }
   };
 
+  // Le cadre est un objet du membre, pas un effet : en pause ou au repos il reste, figé (INSTANT_DU_CADRE_FIGE).
+  const peindreCadre = (c: (typeof cartes)[number], secondes: number) => {
+    if (!c.cadre || !c.toileDuCadre || !c.imageDuCadre) return;
+    peindreLeCadre(c.cadre, secondes, c.imageDuCadre.data);
+    c.toileDuCadre.putImageData(c.imageDuCadre, 0, 0);
+  };
+
   const tour = (t: number) => {
     image = 0;
     if (sonde && !visible) visible = aLEcran();
@@ -118,6 +130,7 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
         c.mx = c.my = 0;
         poser(c);
         effacer(c);
+        peindreCadre(c, INSTANT_DU_CADRE_FIGE);
       }
       imageAvant = 0;
       // Au repos seulement parce qu'elle paraît hors de l'écran : on y revient dans une demi-seconde.
@@ -177,6 +190,7 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
         c.my = my;
         poser(c);
       }
+      if (dessiner) peindreCadre(c, t / 1000);
       if (dessiner && c.devant && (c.finition || c.champion)) {
         effacer(c);
         if (c.finition && c.fond) c.finition(c.fond, c.devant, t / 1000, c.mx, c.my);
@@ -220,6 +234,9 @@ export function monterLesCartes(racine: HTMLElement, { sonde = false, immobile =
     classes.disconnect();
     calme.removeEventListener("change", relancer);
     document.removeEventListener("visibilitychange", relancer);
-    for (const c of cartes) effacer(c);
+    for (const c of cartes) {
+      effacer(c);
+      peindreCadre(c, INSTANT_DU_CADRE_FIGE);
+    }
   };
 }

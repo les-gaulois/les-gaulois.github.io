@@ -177,6 +177,44 @@ test("la couronne du champion est sur la tête du premier, et de lui seul", asyn
   expect(places).toEqual({ dedans: true, surLaTete: true, auDessusDuGaulois: true, lisible: true });
 });
 
+test("le cadre animé entoure la carte du membre, bouge, et reste en place en pause", async ({ page }) => {
+  const carte = page.getByTestId("member-card");
+  await carte.scrollIntoViewIfNeeded();
+  const toile = carte.locator('canvas[data-toile="cadre"]');
+  await expect(toile).toHaveCount(1);
+  const empreinte = () =>
+    toile.evaluate((c: HTMLCanvasElement) => {
+      const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+      let peints = 0;
+      let somme = 0;
+      for (let k = 3; k < d.length; k += 4) {
+        if (d[k]! > 0) peints++;
+        somme = (somme * 31 + d[k - 2]!) >>> 0;
+      }
+      return { peints, somme };
+    });
+  await expect.poll(async () => (await empreinte()).peints).toBeGreaterThan(3000);
+  const avant = await empreinte();
+  await expect.poll(async () => (await empreinte()).somme).not.toBe(avant.somme);
+  // La toile dépasse la carte de tous les côtés ; la plaque du nom reste dans le cadre. La carte flotte de quelques
+  // pixels : sa place est contrôlée à ce flottement près.
+  const places = await carte.evaluate((el) => {
+    const c = el.querySelector(".podium-carte")!.getBoundingClientRect();
+    const t = el.querySelector('canvas[data-toile="cadre"]')!.getBoundingClientRect();
+    const n = el.querySelector(".podium-carte-bas")!.getBoundingClientRect();
+    const hote = el.getBoundingClientRect();
+    return { deborde: t.left < c.left && t.right > c.right && t.top < c.top && t.bottom > c.bottom, nomDedans: n.left > c.left + 6 && n.right < c.right - 6 && n.bottom < c.bottom - 6, aSaPlace: t.top >= hote.top - 14 && t.bottom <= hote.bottom + 14 };
+  });
+  expect(places).toEqual({ deborde: true, nomDedans: true, aSaPlace: true });
+  // En pause, le cadre reste peint et ne bouge plus : c'est un objet du membre, pas un effet.
+  await page.locator("[data-fx-toggle]").click();
+  await page.waitForTimeout(500);
+  const fige = await empreinte();
+  expect(fige.peints).toBeGreaterThan(3000);
+  await page.waitForTimeout(500);
+  expect((await empreinte()).somme).toBe(fige.somme);
+});
+
 test("le familier se pose en bas à droite de la carte, devant le Gaulois, sans en sortir", async ({ page }) => {
   await page.locator("[data-fx-toggle]").click();
   const carte = page.getByTestId("essai-podium").locator(".podium-carte").first();

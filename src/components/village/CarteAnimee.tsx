@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "preact/hooks";
 import { familierAPoser } from "../../../supabase/functions/code-discord/familiers/familier.ts";
 import { poseSurLaCarte } from "../../lib/carte-familier-pose";
+import { HAUTEUR_DU_CADRE, LARGEUR_DU_CADRE, type CadreDeCarte } from "../../lib/fx/cadres-carte";
 import { HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE } from "../../lib/fx/finitions-carte";
 import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois, type Tenue } from "../../lib/gaulois";
 import type { FinitionDuRayon } from "../../lib/village/cartes";
@@ -16,11 +17,11 @@ import { peindre } from "./BoutiquePixels";
  * Le familier du membre, s'il en montre un, est posé en bas à droite, devant le Gaulois (demande du pilote, 17 novembre
  * 2026 ; `src/lib/carte-familier-pose.ts`).
  */
-export function CarteAnimee({ finition, tenue, fond, classe, sonde = false, familier = null }: { finition: FinitionDuRayon | null; tenue: Tenue; fond: string | undefined; classe: string; sonde?: boolean; familier?: Familier | null }) {
+export function CarteAnimee({ finition, tenue, fond, classe, sonde = false, familier = null, cadre = null }: { finition: FinitionDuRayon | null; tenue: Tenue; fond: string | undefined; classe: string; sonde?: boolean; familier?: Familier | null; cadre?: CadreDeCarte | null }) {
   const racine = useRef<HTMLDivElement>(null);
   const gaulois = useRef<HTMLCanvasElement>(null);
   const cases = useMemo(() => casesDuGaulois(tenue), [tenue]);
-  const cle = finition?.id ?? "offert";
+  const cle = `${finition?.id ?? "offert"}/${cadre ?? ""}`;
   const compagnon = useRef<HTMLCanvasElement>(null);
   const pose = useMemo(() => (familier ? familierAPoser(familier) : null), [familier]);
   const place = pose ? poseSurLaCarte(pose) : null;
@@ -33,7 +34,7 @@ export function CarteAnimee({ finition, tenue, fond, classe, sonde = false, fami
   return (
     <div ref={racine} class={classe} aria-hidden="true">
       <div class="podium-carte-case">
-        <div key={cle} class="podium-carte" data-metal="or" data-finition={finition?.id} data-reflet={finition && !finition.animee ? "" : undefined}>
+        <div key={cle} class="podium-carte" data-metal="or" data-finition={finition?.id} data-reflet={finition && !finition.animee ? "" : undefined} data-cadre={cadre ?? undefined}>
           <span class="podium-carte-face" style={fond}>
             <canvas class="podium-carte-fx" data-toile="fond" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
             <i class="podium-carte-holo" />
@@ -43,6 +44,7 @@ export function CarteAnimee({ finition, tenue, fond, classe, sonde = false, fami
             <canvas ref={gaulois} width={GAULOIS_LARGEUR} height={GAULOIS_HAUTEUR} />
           </span>
           <canvas class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
+          {cadre && <canvas class="podium-carte-cadre" data-toile="cadre" width={LARGEUR_DU_CADRE} height={HAUTEUR_DU_CADRE} />}
           {pose && place && <canvas ref={compagnon} class="podium-carte-familier" width={pose.largeur} height={pose.hauteur} style={`--fw:${pose.largeur};--fh:${pose.hauteur};--fe:${place.echelle.toFixed(3)};--lever:${place.lever}`} />}
         </div>
       </div>

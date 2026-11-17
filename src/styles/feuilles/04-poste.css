@@ -754,6 +754,43 @@ footer h2 {
   image-rendering: pixelated;
   pointer-events: none;
 }
+/* Le cadre animé du rayon « Cadres » (src/lib/fx/cadres-carte.ts) : sa toile dépasse la carte de douze cases de chaque
+   côté, pour ses flammes, ses rayons et son blason. Il est posé juste devant l'image, derrière le Gaulois, et couvre le liseré
+   de la carte, qui reste dessous : sans le script, la carte garde son bord. La plaque du nom et le familier se serrent. */
+.podium-carte-cadre {
+  position: absolute;
+  top: calc(var(--px) * -12);
+  left: calc(var(--px) * -12);
+  width: calc(100% + var(--px) * 24);
+  height: calc(100% + var(--px) * 24);
+  max-width: none;
+  image-rendering: pixelated;
+  pointer-events: none;
+  transform: translateZ(calc(var(--px) * 2));
+}
+.podium-carte[data-cadre] .podium-carte-bas {
+  right: calc(var(--px) * 6);
+  bottom: calc(var(--px) * 6);
+  left: calc(var(--px) * 6);
+}
+.podium-carte[data-cadre] .podium-carte-familier {
+  right: calc(var(--px) * 6);
+  bottom: calc(max(calc(var(--px) * 18), 2.4rem + var(--px) * 3) + var(--lever, 0) * var(--px) * var(--fe));
+}
+/* Dans un cadre, l'image est plus étroite : le Gaulois se fait un peu plus petit et remonte avec la plaque du nom. */
+.podium-carte[data-cadre] .podium-carte-gaulois {
+  bottom: max(calc(var(--px) * 18), 2.4rem + var(--px) * 3);
+  transform: translateZ(calc(var(--px) * 12)) scale(0.86);
+  transform-origin: 50% 100%;
+}
+.carte-membre-cadree {
+  padding: calc(var(--px) * 12);
+}
+/* La carte seule ne remonte pas comme le premier du podium : son cadre resterait hors de sa place. */
+.carte-membre-cadree .podium-carte-case,
+.livre-carte-cadree .podium-carte-case {
+  margin-top: 0;
+}
 .podium-carte-fx-devant {
   transform: translateZ(calc(var(--px) * 13)) scale(0.935);
 }
