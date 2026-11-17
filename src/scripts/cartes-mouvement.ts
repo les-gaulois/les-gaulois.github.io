@@ -51,7 +51,10 @@ export function monterLesCartes(racine: HTMLElement): () => void {
 
   const tour = (t: number) => {
     image = 0;
-    if (!actif()) {
+    const tourne = actif();
+    // Au repos, les animations de la feuille de style s'arrêtent aussi (data-repos, 04-poste.css).
+    if (racine.hasAttribute("data-repos") === tourne) racine.toggleAttribute("data-repos", !tourne);
+    if (!tourne) {
       for (const c of cartes) {
         c.mx = c.my = 0;
         poser(c);
@@ -77,8 +80,8 @@ export function monterLesCartes(racine: HTMLElement): () => void {
         ty = borne((souris[1] - (r.top + r.height / 2)) / (r.height * 1.2));
       } else {
         // Un balancement lent, décalé d'une carte à l'autre : un tour en une quinzaine de secondes.
-        tx = Math.sin(t / 2600 + c.i * 1.3) * 0.5;
-        ty = Math.sin(t / 3800 + c.i * 0.8) * 0.28;
+        tx = Math.sin(t / 2600 + c.i * 1.3) * 0.45;
+        ty = Math.sin(t / 3800 + c.i * 0.8) * 0.25;
       }
       const mx = c.mx + (tx - c.mx) * 0.13;
       const my = c.my + (ty - c.my) * 0.13;

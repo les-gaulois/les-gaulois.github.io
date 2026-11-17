@@ -6212,6 +6212,16 @@ button.tenue-gardee-remettre:disabled {
 }
 .cartes-vignette .podium-carte-case {
   display: block;
+  perspective: none;
+}
+/* Trente-trois petites cartes : à plat, sans calque à elles ni ombre, pour ne rien peser. */
+.cartes-vignette .podium-carte {
+  box-shadow: none;
+  transform: none;
+  will-change: auto;
+}
+.cartes-vignette .podium-carte-fx-devant {
+  transform: none;
 }
 /* Rien ne bouge dans les cases : ni le flottement, ni la dérive de l'arc-en-ciel, ni l'éclat. */
 .cartes-vignette,

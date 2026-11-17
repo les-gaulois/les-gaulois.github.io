@@ -649,7 +649,9 @@ footer h2 {
   border-radius: calc(var(--px) * 3.2);
   color: var(--carte-ecriture);
   text-decoration: none;
-  transform: rotateY(calc(var(--carte-mx) * 22deg)) rotateX(calc(var(--carte-my) * -14deg));
+  /* Six degrés au plus de côté, quatre de haut en bas (22 et 14 au départ : le pilote a demandé deux fois, le
+     17 novembre 2026, un mouvement plus court). */
+  transform: rotateY(calc(var(--carte-mx) * 6deg)) rotateX(calc(var(--carte-my) * -4deg));
   transform-style: preserve-3d;
   /* La carte tourne sans être repeinte : le navigateur la garde sur son propre calque. */
   will-change: transform;
@@ -698,8 +700,11 @@ footer h2 {
 .podium-carte-fx-devant {
   transform: translateZ(calc(var(--px) * 13)) scale(0.935);
 }
-/* La feuille holographique, offerte à tous : un arc-en-ciel qui dérive lentement et glisse avec le curseur, puis un éclat
-   de la couleur du liseré qui traverse la carte toutes les sept secondes, une carte après l'autre. Rien ne clignote. */
+/* La feuille holographique, offerte à tous : un arc-en-ciel qui glisse avec l'inclinaison de la carte, puis un éclat de
+   la couleur du liseré qui traverse la carte toutes les sept secondes, une carte après l'autre. Rien ne clignote.
+   Pour ne rien coûter aux joueurs (demande du pilote, 17 novembre 2026 : « je ne veux pas que ça bug pour les joueurs ou
+   que ça bouffe leur ram »), rien ici n'est repeint en continu : l'arc-en-ciel et l'éclat ne font que se déplacer
+   (translate, transform), ce que la carte graphique fait sans redessiner. L'arc-en-ciel ne dérive plus tout seul. */
 .podium-carte-holo,
 .podium-carte-eclat {
   position: absolute;
@@ -710,14 +715,14 @@ footer h2 {
   background: repeating-linear-gradient(115deg, #ff5a8a 0, #ffd24a 7%, #5aff9e 14%, #4ad2ff 21%, #a56bff 28%, #ff5a8a 35%) 0 0 / 300% 300%;
   mix-blend-mode: screen;
   opacity: 0.3;
-  translate: calc(var(--carte-mx) * 16%) calc(var(--carte-my) * 16%);
-  animation: podium-carte-holo 16s linear infinite;
+  translate: calc(var(--carte-mx) * 24%) calc(var(--carte-my) * 24%);
 }
 .podium-carte-eclat {
   inset: 0;
-  background: linear-gradient(105deg, transparent 38%, color-mix(in srgb, var(--metal) 55%, var(--carte-ecriture)) 50%, transparent 62%) 130% 0 / 300% 100% no-repeat;
+  background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--metal) 55%, var(--carte-ecriture)) 50%, transparent 70%);
   mix-blend-mode: screen;
   opacity: 0.85;
+  transform: translateX(-130%);
   animation: podium-carte-eclat 7s ease-in-out infinite;
   animation-delay: var(--retard, 0s);
 }
@@ -728,6 +733,7 @@ footer h2 {
   inset: 0;
   opacity: 1;
   translate: none;
+  transform: none;
   animation: none;
   mix-blend-mode: normal;
   background: none;
@@ -882,19 +888,19 @@ footer h2 {
     opacity: 1;
   }
 }
-@keyframes podium-carte-holo {
-  to {
-    background-position: 100% 100%;
-  }
-}
 @keyframes podium-carte-eclat {
   0% {
-    background-position: 130% 0;
+    transform: translateX(130%);
   }
   30%,
   100% {
-    background-position: -30% 0;
+    transform: translateX(-130%);
   }
+}
+/* Hors de l'écran, en pause ou dans un onglet caché, le script pose data-repos : plus aucune animation ne tourne. */
+[data-repos] .podium-carte-case,
+[data-repos] .podium-carte-case * {
+  animation-play-state: paused;
 }
 /* Le Gaulois fait un petit saut de temps en temps, sans quitter sa profondeur (translate, à part de transform). */
 @keyframes podium-carte-saut {
@@ -930,7 +936,8 @@ footer h2 {
   height: 100%;
   max-width: none;
   image-rendering: pixelated;
-  transform: translateZ(calc(var(--k) * var(--px) * var(--e) * -0.5));
+  /* Quatre couches (six jusqu'au 17 novembre 2026), un peu plus écartées : la même épaisseur, moins de calques. */
+  transform: translateZ(calc(var(--k) * var(--px) * var(--e) * -0.8));
   filter: brightness(0.5);
 }
 /* Dans la boutique, le Gaulois de la carte d'essai est une seule toile, sans couches. */
@@ -941,8 +948,9 @@ footer h2 {
   height: 100%;
   image-rendering: pixelated;
 }
+/* La couche de devant est l'image telle quelle, sans filtre. */
 .podium-carte-gaulois > img:last-child {
-  filter: drop-shadow(0 0 calc(var(--px) * 1.2) color-mix(in srgb, var(--carte-ecriture) 55%, transparent));
+  filter: none;
 }
 .podium-carte-rang {
   position: absolute;

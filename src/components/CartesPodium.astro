@@ -17,8 +17,8 @@ interface Props {
 }
 const { cartes, legende, class: classe } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-// Six couches de la même image, de la plus lointaine à la plus proche : l'épaisseur du Gaulois.
-const COUCHES = [5, 4, 3, 2, 1, 0];
+// Quatre couches de la même image, de la plus lointaine à la plus proche : l'épaisseur du Gaulois.
+const COUCHES = [3, 2, 1, 0];
 ---
 
 <div class:list={["podium-cartes", classe]} data-podium-cartes data-testid="hero-podium">
