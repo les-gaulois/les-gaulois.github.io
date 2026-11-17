@@ -75,8 +75,14 @@ const imageAlt = hasImage && facts && list ? ficheImageAlt(facts, clan.tag, list
 const groupe = member.publicId ? groupStats(loadMemberResultsOnce()[member.publicId], loadSessionIndex()) : null;
 const groupLine = groupe ? groupSentence(groupe, username, fmtPct) : null;
 // La bannière que son Gaulois montre, relevée avant la construction comme pour la liste (src/lib/bannieres-joueurs.ts) : le
-// serveur décide de qui en montre une. Sans relevé, la fiche reste comme avant.
+// serveur décide de qui en montre une. Sans relevé, la fiche reste comme avant. Elle est le fond des scènes de la fiche, à
+// la place de leur bleu (demande du pilote, 17 novembre 2026) : « .stage-banniere » de 01-socle.css.
 const banniere = banniereParId(member.publicId ? bannieresDuCache(BANNIERES_MEMBRES_FILE, [member.publicId]).get(member.publicId)?.id : null);
+// La rareté dite en toutes lettres à qui ne voit pas le cadre, comme sur la liste (MembersTable.tsx).
+const RARETE_DITE = { commun: "commune", "peu-commun": "peu commune", epique: "épique", mystique: "mystique", legendaire: "légendaire" } as const;
+const fond = banniere
+  ? { classe: " stage-banniere", style: `--banniere: url("${base}/bannieres/${encodeURIComponent(banniere.id)}.png")`, id: banniere.id, rarete: banniere.rarete }
+  : { classe: "", style: undefined, id: undefined, rarete: undefined };
 const tiles = member.team
   ? [
       { label: "Victoires", value: fmtInt(member.team.wins) },
@@ -93,17 +99,8 @@ const tiles = member.team
       {/* Vide pour un visiteur : sa photo Discord, s'il a choisi de se montrer, pour un membre validé connecté (src/scripts/visages.ts). */}
       <span class="face-slot face-slot-lg mt-4" aria-hidden="true" data-face={face} hidden></span>
       {ROLE[member.role] && <p class="mt-2 font-semibold" data-testid="member-role">{ROLE[member.role]}</p>}
-      {/* La bannière de son Gaulois, celle de /gaulois et de sa ligne dans la liste : son dessin entier, cadre de rareté compris. */}
-      {
-        banniere && (
-          <figure class="fiche-banniere" data-testid="member-banner" data-banniere={banniere.id}>
-            <img src={`${base}/bannieres/${encodeURIComponent(banniere.id)}.png`} alt={banniere.description} width="124" height="80" decoding="async" />
-            <figcaption>
-              La bannière de son Gaulois : « {banniere.nom} »
-            </figcaption>
-          </figure>
-        )
-      }
+      {/* Le fond des scènes ne se lit pas : son nom et sa rareté sont dits une fois, à qui ne voit pas l'image. */}
+      {banniere && <p class="sr-only" data-testid="member-banner">Les blocs de sa fiche ont pour fond la bannière de son Gaulois, « {banniere.nom} », {RARETE_DITE[banniere.rarete]}.</p>}
       {/* La flamme de série (src/lib/serie-en-cours.ts) : à partir de 5 victoires d'affilée sous le tag, au dernier relevé. Elle
           vient avant le niveau, qui est tout le jeu ; deux blocs à part. Sous 5, ou sans données : rien. */}
       {
@@ -153,7 +150,7 @@ const tiles = member.team
       </div>
     </PageHeader>
 
-    <section class="stage stage-blue reveal" aria-labelledby="member-stats-title" data-testid="member-stats">
+    <section class={`stage stage-blue reveal${fond.classe}`} style={fond.style} data-banniere={fond.id} data-rarete={fond.rarete} aria-labelledby="member-stats-title" data-testid="member-stats">
       <h2 id="member-stats-title" class="section-title">Ses parties sous le tag</h2>
       {
         !member.team ? (
@@ -199,7 +196,7 @@ const tiles = member.team
 
     {
       groupe && (
-        <section class="stage stage-indigo reveal mt-section" aria-labelledby="member-group-title" data-testid="member-group">
+        <section class={`stage stage-indigo reveal mt-section${fond.classe}`} style={fond.style} data-banniere={fond.id} data-rarete={fond.rarete} aria-labelledby="member-group-title" data-testid="member-group">
           <h2 id="member-group-title" class="section-title">Seul ou en groupe</h2>
           {groupLine && (
             <p class="mt-4 max-w-3xl text-lg" data-testid="member-group-line">
@@ -261,7 +258,7 @@ const tiles = member.team
 
     {
       games !== null && games > 0 && (
-        <section class="stage stage-night reveal mt-section" aria-labelledby="member-recent-title" data-testid="member-recent">
+        <section class={`stage stage-night reveal mt-section${fond.classe}`} style={fond.style} data-banniere={fond.id} data-rarete={fond.rarete} aria-labelledby="member-recent-title" data-testid="member-recent">
           <h2 id="member-recent-title" class="section-title">Ses dernières parties</h2>
           {recent && recentTitle ? (
             <>

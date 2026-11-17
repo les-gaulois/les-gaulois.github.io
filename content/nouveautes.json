@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "La bannière en fond de la fiche",
+    "body": "Sur la fiche d'un membre, les blocs bleus prennent la bannière choisie pour son Gaulois. La petite image du haut de la fiche est retirée.",
+    "link": {
+      "href": "/liste",
+      "label": "La liste des membres"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
     "title": "« Mon Gaulois » fait plus jeu",
     "body": "Votre Gaulois se tient devant sa bannière et cligne des yeux. Un bandeau montre votre palier du sentier et votre bourse. Les cases ont du relief, et un objet reçu arrive devant des rayons.",
     "link": {

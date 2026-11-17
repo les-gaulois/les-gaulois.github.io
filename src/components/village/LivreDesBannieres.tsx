@@ -419,6 +419,7 @@ export function LivreDesBannieres({ lib, mode = "choix", miennes, montree, nom =
           ) : (
             <div class="fiche-banniere">
               <Vignette lib={lib} id={vue} />
+              <span class="fiche-banniere-titre">Ses parties sous le tag</span>
             </div>
           )}
           <p class="livre-apercu-note">À la prochaine mise à jour du site, si votre pseudo est public.</p>

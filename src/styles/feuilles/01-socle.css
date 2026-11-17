@@ -1347,9 +1347,11 @@ tr.ligne-banniere > td:last-child {
     font-size: 1rem;
   }
 }
-/* La même bannière en tête de la fiche du membre (src/pages/membres/[id].astro), et dans l'aperçu « Sur ma fiche » du livre
-   des bannières : le dessin entier, agrandi sans lissage, son cadre de rareté dessiné dedans. */
+/* L'aperçu « Sur ma fiche » du livre des bannières (LivreDesBannieres.tsx) : le dessin agrandi sans lissage, et dessus le
+   titre d'un bloc de la fiche, clair et cerné de marine comme sur la fiche, où la bannière est le fond des scènes
+   (« .stage-banniere », plus bas). Jusqu'au 17 novembre 2026, la fiche montrait cette image en tête. */
 .fiche-banniere {
+  position: relative;
   display: grid;
   gap: 0.375rem;
   max-width: 31rem;
@@ -1364,9 +1366,100 @@ tr.ligne-banniere > td:last-child {
   border-radius: 0.25rem;
   box-shadow: 0 0.5rem 1rem -0.5rem var(--ombre);
 }
-.fiche-banniere figcaption {
-  font-size: 0.875rem;
-  color: var(--color-muted);
+.fiche-banniere-titre {
+  --cerne: #0a1230;
+  position: absolute;
+  top: 12%;
+  left: 7%;
+  right: 7%;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--sur-couleur);
+  text-shadow:
+    -2px 0 var(--cerne),
+    2px 0 var(--cerne),
+    0 -2px var(--cerne),
+    0 2px var(--cerne),
+    -1.5px -1.5px var(--cerne),
+    1.5px -1.5px var(--cerne),
+    -1.5px 1.5px var(--cerne),
+    1.5px 1.5px var(--cerne);
+}
+/* La bannière en fond des scènes de la fiche d'un membre, à la place de leur bleu (demande du pilote, 17 novembre 2026 :
+   « je veux que les parties bleues deviennent la bannière choisie par le joueur », « au lieu de la petite image carrée »).
+   Comme sur sa ligne de la liste : l'image en pleine couleur, sans voile, l'écriture claire cernée de marine, la rareté
+   au cadre. L'image couvre la scène, agrandie sans lissage. `--banniere` est posée par src/pages/membres/[id].astro.
+   « :root:root:root » : les scènes reçoivent leur fond de sélecteurs lourds (feuilles 04 et 07) ; celui-ci passe devant. */
+:root:root:root .stage.stage-banniere {
+  --cerne: #0a1230;
+  --cadre: var(--rarete-commun);
+  --trait: 2px;
+  --stage-muted: var(--sur-couleur);
+  --ecriture: var(--sur-couleur);
+  --color-line: color-mix(in srgb, var(--sur-couleur) 55%, transparent);
+  --hairline: color-mix(in srgb, var(--sur-couleur) 55%, transparent);
+  border: 0;
+  background-color: var(--cerne);
+  background-image:
+    linear-gradient(to bottom left, transparent 50%, var(--cadre) 50%, var(--cadre) calc(50% + var(--trait) * 1.5), transparent calc(50% + var(--trait) * 1.5)),
+    var(--banniere);
+  background-size:
+    var(--coupe, 0px) var(--coupe, 0px),
+    cover;
+  background-position:
+    top right,
+    center 58%;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 var(--trait) var(--cadre);
+  image-rendering: pixelated;
+  color: var(--sur-couleur);
+  font-weight: 700;
+  text-shadow:
+    -2px 0 var(--cerne),
+    2px 0 var(--cerne),
+    0 -2px var(--cerne),
+    0 2px var(--cerne),
+    -1.5px -1.5px var(--cerne),
+    1.5px -1.5px var(--cerne),
+    -1.5px 1.5px var(--cerne),
+    1.5px 1.5px var(--cerne),
+    0 3px 4px color-mix(in srgb, var(--cerne) 70%, transparent);
+}
+:root:root:root .stage.stage-banniere[data-rarete="peu-commun"] {
+  --cadre: var(--rarete-peu-commun);
+}
+:root:root:root .stage.stage-banniere[data-rarete="epique"] {
+  --cadre: var(--rarete-epique);
+}
+:root:root:root .stage.stage-banniere[data-rarete="mystique"] {
+  --cadre: var(--rarete-mystique);
+  --trait: 3px;
+}
+:root:root:root .stage.stage-banniere[data-rarete="legendaire"] {
+  --cadre: var(--rarete-legendaire);
+  --trait: 4px;
+}
+/* Tout ce qui s'écrit dans la scène prend l'écriture claire et cernée : titres, liens, replis, tableaux. Le tableau des
+   dernières parties perd son fond et ses bandes, pour rester posé sur le dessin. */
+:root:root:root .stage.stage-banniere * {
+  color: inherit;
+}
+:root:root:root .stage.stage-banniere :is(.panel, .data-table, .data-table :is(thead, tbody, tr, th, td)) {
+  background: none;
+  border-color: var(--color-line);
+  box-shadow: none;
+}
+/* La jauge du palier, cernée elle aussi : sans cela, elle se perd sur une bannière claire. */
+:root:root:root .stage.stage-banniere .meter {
+  overflow: visible;
+  background: color-mix(in srgb, var(--cerne) 55%, transparent);
+  box-shadow: 0 0 0 2px var(--cerne);
+}
+/* La trame de carte du coin des scènes ne se pose pas sur le dessin. */
+:root:root:root .stage.stage-banniere::after {
+  display: none;
 }
 /* Sur téléphone, la ligne est une carte : la bannière la couvre en hauteur, le cadre en fait le tour. */
 /* « :root main li.card » : les cartes reçoivent ailleurs un halo en image de fond et une ombre (« main .card », puis la
