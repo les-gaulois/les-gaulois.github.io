@@ -711,11 +711,17 @@ footer h2 {
   image-rendering: auto;
 }
 .podium-carte-holo {
-  inset: -40%;
+  inset: -50%;
   background: repeating-linear-gradient(115deg, #ff5a8a 0, #ffd24a 7%, #5aff9e 14%, #4ad2ff 21%, #a56bff 28%, #ff5a8a 35%) 0 0 / 300% 300%;
   mix-blend-mode: screen;
   opacity: 0.3;
-  translate: calc(var(--carte-mx) * 24%) calc(var(--carte-my) * 24%);
+}
+/* L'arc-en-ciel offert glisse avec l'inclinaison : de 40 % de la carte au plus, quand il la dépasse de 50 % de chaque
+   côté, pour que son bord ne paraisse jamais. Seulement sans reflet acheté : la règle est écrite pour ces cartes-là, et
+   non annulée ensuite par un « translate: none » que la compression de la feuille supprimait (les reflets glissaient
+   alors hors de la carte, remarque du pilote : « l'effet disparaît en partie »). */
+.podium-carte:not([data-reflet]) .podium-carte-holo {
+  translate: calc(var(--carte-mx) * 20%) calc(var(--carte-my) * 20%);
 }
 .podium-carte-eclat {
   inset: 0;
@@ -727,19 +733,19 @@ footer h2 {
   animation-delay: var(--retard, 0s);
 }
 /* Les dix reflets du rayon « Cartes » (src/lib/village/cartes.ts) : la carte porte data-reflet, et les deux feuilles
-   prennent le dessin de la finition à la place de l'arc-en-ciel et de l'éclat offerts. */
+   prennent le dessin de la finition à la place de l'arc-en-ciel et de l'éclat offerts. Un dessin qui suit l'inclinaison
+   ne se déplace jamais de plus de 45 % : au-delà, on verrait la couture où son motif recommence. */
 .podium-carte[data-reflet] .podium-carte-holo,
 .podium-carte[data-reflet] .podium-carte-eclat {
   inset: 0;
   opacity: 1;
-  translate: none;
   transform: none;
   animation: none;
   mix-blend-mode: normal;
   background: none;
 }
 .podium-carte[data-finition="arc-en-ciel"] .podium-carte-holo {
-  background: repeating-linear-gradient(115deg, #ff5a8a 0, #ffd24a 7%, #5aff9e 14%, #4ad2ff 21%, #a56bff 28%, #ff5a8a 35%) calc(50% + var(--carte-mx) * 70%) calc(50% + var(--carte-my) * 70%) / 320% 320%;
+  background: repeating-linear-gradient(115deg, #ff5a8a 0, #ffd24a 7%, #5aff9e 14%, #4ad2ff 21%, #a56bff 28%, #ff5a8a 35%) calc(50% + var(--carte-mx) * 45%) calc(50% + var(--carte-my) * 45%) / 320% 320%;
   mix-blend-mode: color-dodge;
   opacity: 0.5;
 }
@@ -749,7 +755,7 @@ footer h2 {
   mix-blend-mode: overlay;
 }
 .podium-carte[data-finition="tricolore"] .podium-carte-holo {
-  background: linear-gradient(100deg, transparent 18%, #2b6bff 34%, #f4f7ff 50%, #ff3b4d 66%, transparent 82%) calc(50% + var(--carte-mx) * 85%) 0 / 300% 100%;
+  background: linear-gradient(100deg, transparent 18%, #2b6bff 34%, #f4f7ff 50%, #ff3b4d 66%, transparent 82%) calc(50% + var(--carte-mx) * 45%) 0 / 300% 100%;
   mix-blend-mode: screen;
   opacity: 0.7;
 }
@@ -758,11 +764,11 @@ footer h2 {
     radial-gradient(circle, #f4f7ff 0 1px, transparent 1.7px) 0 0 / 11px 13px,
     radial-gradient(circle, #f4f7ff 0 1.4px, transparent 2.2px) 5px 7px / 17px 19px,
     radial-gradient(circle, #ffe9a8 0 1px, transparent 1.8px) 3px 2px / 23px 29px;
-  -webkit-mask: linear-gradient(115deg, transparent 22%, #000 44%, #000 56%, transparent 78%) calc(50% + var(--carte-mx) * 85%) 0 / 260% 100%;
-  mask: linear-gradient(115deg, transparent 22%, #000 44%, #000 56%, transparent 78%) calc(50% + var(--carte-mx) * 85%) 0 / 260% 100%;
+  -webkit-mask: linear-gradient(115deg, transparent 22%, #000 44%, #000 56%, transparent 78%) calc(50% + var(--carte-mx) * 45%) 0 / 260% 100%;
+  mask: linear-gradient(115deg, transparent 22%, #000 44%, #000 56%, transparent 78%) calc(50% + var(--carte-mx) * 45%) 0 / 260% 100%;
 }
 .podium-carte[data-finition="pluie-d-eclats"] .podium-carte-eclat {
-  background: linear-gradient(115deg, #ff8ad0, #8ad0ff, #b8ff8a) calc(50% + var(--carte-mx) * 60%) 0 / 250% 100%;
+  background: linear-gradient(115deg, #ff8ad0, #8ad0ff, #b8ff8a) calc(50% + var(--carte-mx) * 45%) 0 / 250% 100%;
   mix-blend-mode: soft-light;
   opacity: 0.7;
 }
@@ -771,7 +777,7 @@ footer h2 {
   mix-blend-mode: overlay;
 }
 .podium-carte[data-finition="cristal"] .podium-carte-eclat {
-  background: linear-gradient(135deg, #8af3ff, #f4f7ff 35%, #c9a8ff 60%, #8af3ff) calc(50% + var(--carte-mx) * 70%) calc(50% + var(--carte-my) * 70%) / 260% 260%;
+  background: linear-gradient(135deg, #8af3ff, #f4f7ff 35%, #c9a8ff 60%, #8af3ff) calc(50% + var(--carte-mx) * 45%) calc(50% + var(--carte-my) * 45%) / 260% 260%;
   mix-blend-mode: color-dodge;
   opacity: 0.45;
 }
@@ -791,7 +797,7 @@ footer h2 {
   animation: podium-reflet-etincelles 9s linear infinite;
 }
 .podium-carte[data-finition="feuille-d-or"] .podium-carte-holo {
-  background: linear-gradient(115deg, transparent 28%, #fff3b0 44%, #ffcf4a 50%, #fff3b0 56%, transparent 72%) calc(50% + var(--carte-mx) * 85%) 0 / 300% 100%;
+  background: linear-gradient(115deg, transparent 28%, #fff3b0 44%, #ffcf4a 50%, #fff3b0 56%, transparent 72%) calc(50% + var(--carte-mx) * 45%) 0 / 300% 100%;
   mix-blend-mode: hard-light;
   opacity: 0.75;
 }

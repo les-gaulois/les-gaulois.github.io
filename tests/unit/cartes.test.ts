@@ -105,6 +105,20 @@ describe("la finition des cartes du podium, lue avant la construction", () => {
   });
 });
 
+describe("les reflets et l'inclinaison de la carte", () => {
+  it("ne fait glisser que l'arc-en-ciel offert, jamais la feuille d'un reflet acheté", () => {
+    // La compression de la feuille supprimait un « translate: none » : la règle du glissement vise donc les seules cartes
+    // sans reflet, au lieu d'être annulée ensuite. Sans cela, un reflet glissait hors de la carte en s'inclinant.
+    expect(FEUILLE).toContain(".podium-carte:not([data-reflet]) .podium-carte-holo {");
+    const base = FEUILLE.slice(FEUILLE.indexOf("}\n.podium-carte-holo {"), FEUILLE.indexOf(".podium-carte:not([data-reflet]) .podium-carte-holo {"));
+    // Sans les commentaires de la feuille, qui racontent l'ancienne règle.
+    expect(base.replace(/\/\*[\s\S]*?\*\//g, "")).not.toContain("translate:");
+    // Un motif qui suit l'inclinaison ne se déplace pas de plus de 45 % : au-delà, sa couture se verrait.
+    const reflets = FEUILLE.slice(FEUILLE.indexOf("/* Les dix reflets du rayon"), FEUILLE.indexOf("@keyframes podium-reflet-braise"));
+    for (const m of reflets.matchAll(/var\(--carte-m[xy]\) \* (\d+)%/g)) expect(Number(m[1])).toBeLessThanOrEqual(45);
+  });
+});
+
 describe("le livre des bannières avec un autre dessin", () => {
   it("fait voler une vignette vers la place d'une bannière par défaut, et vers celle d'une carte si on la donne", () => {
     const livre = { largeur: 1000, hauteur: 800 };
