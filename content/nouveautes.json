@@ -2,6 +2,17 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "rank": "top",
+    "title": "Des cadres animés pour votre carte",
+    "body": "Nouvel onglet « Cadres » dans la boutique : 26 cadres animés à mettre autour de votre carte, de la corde au soleil. Plus le cadre est rare, plus il est travaillé. Il se voit aussi sur votre fiche.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "Votre carte animée sur Discord",
     "body": "Sur Discord, /macarte montre à tout le salon votre carte animée : votre Gaulois, sa bannière et sa finition. Elle est filmée après les mises à jour du site : si elle manque, réessayez plus tard.",
     "link": {
