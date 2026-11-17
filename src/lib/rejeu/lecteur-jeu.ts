@@ -16,7 +16,7 @@
  * remettre (conditions ajoutées à sa licence, section 7 : pas de titre « OpenFront » pour une version modifiée, « © OpenFront and
  * Contributors » visible). Sans partie choisie, la page renvoie vers « Revoir une partie » : l'accueil du jeu (boutique,
  * connexion) n'est jamais montré. Une règle de sécurité du navigateur (CSP) n'autorise que l'adresse du lecteur et les fichiers
- * du dépôt du jeu sur jsDelivr : aucune publicité ni mesure ne peut se charger. Retiré de la fiche : l'identifiant public et
+ * du dépôt du jeu sur GitHub : aucune publicité ni mesure ne peut se charger. Retiré de la fiche : l'identifiant public et
  * persistant de chaque joueur (un anonyme ne doit pas être reconnaissable, CLAUDE.md) et ses cosmétiques payants (propriété
  * d'OpenFront), sauf son drapeau, fichier libre du jeu ; des tribus de robots ne reste que le nom, dont le moteur a besoin pour
  * rejouer la partie (noms achetés en boutique : l'exception est dite dans la notice). Les pseudos restent, comme dans le jeu :
@@ -82,11 +82,20 @@ export function adresseDuLecteur(origine: string, commit: string, partie: string
   return `${origine}/${dossierDuLecteur(commit)}#replay-viewer=${encodeURIComponent(partie)}`;
 }
 
-/** Les fichiers du dépôt du jeu, au commit, sur jsDelivr (miroir public du dépôt, CORS ouvert, cache d'un an). */
-export const racineJsDelivr = (commit: string) => `https://cdn.jsdelivr.net/gh/openfrontio/OpenFrontIO@${commit}/`;
-/** Un fichier de `resources/` du jeu, au commit, sur jsDelivr. */
-export function adresseJsDelivr(commit: string, chemin: string): string {
-  return `${racineJsDelivr(commit)}resources/${chemin.split("/").map(encodeURIComponent).join("/")}`;
+/**
+ * Les fichiers du dépôt du jeu, au commit, lus tels quels sur GitHub (raw.githubusercontent.com, CORS ouvert). Jusqu'au
+ * 17 novembre 2026, ils venaient de jsDelivr, qui refuse les fichiers d'un dépôt de plus de 50 Mo qu'il n'a pas déjà gardés
+ * (et tout fichier de plus de 20 Mo), tantôt oui, tantôt non selon le serveur qui répond : des replays ne s'ouvraient pas, et
+ * le lien de secours du jeu menait à une page « 404 ». Ces adresses sont aussi écrites dans le code construit du lecteur : un
+ * lecteur d'avant la recette 5 (`RECETTE_DES_FICHIERS_SUR_GITHUB`) garde jsDelivr, page et règle de sécurité comprises, le temps
+ * d'être refait.
+ */
+export const RECETTE_DES_FICHIERS_SUR_GITHUB = 5;
+export const racineDuDepot = (commit: string, recette: number = RECETTE_DES_FICHIERS_SUR_GITHUB) =>
+  recette >= RECETTE_DES_FICHIERS_SUR_GITHUB ? `https://raw.githubusercontent.com/openfrontio/OpenFrontIO/${commit}/` : `https://cdn.jsdelivr.net/gh/openfrontio/OpenFrontIO@${commit}/`;
+/** Un fichier de `resources/` du jeu, au commit, sur GitHub (sur jsDelivr pour un lecteur d'avant la recette 5). */
+export function adresseDuDepot(commit: string, chemin: string, recette?: number): string {
+  return `${racineDuDepot(commit, recette)}resources/${chemin.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 /**
@@ -100,11 +109,11 @@ export const svgRepris = (chemin: string) => chemin.endsWith(".svg") && fichierR
 
 /**
  * Le manifeste des fichiers du lecteur : pour chaque fichier de `resources/` (chemin relatif), son adresse. Les images SVG sont
- * servies par le site du lecteur (jsDelivr les donne en texte, que les navigateurs refusent d'afficher) : les drapeaux dans un
+ * servies par le site du lecteur (GitHub les donne en texte, que les navigateurs refusent d'afficher) : les drapeaux dans un
  * dossier commun, les autres avec le lecteur ; celles que le site ne reprend pas n'ont pas d'adresse. Tout le reste vient de
- * jsDelivr, au commit. `base` : la racine du site du lecteur (`/`).
+ * GitHub, au commit. `base` : la racine du site du lecteur (`/`). `recette` : celle du lecteur à qui la page est destinée.
  */
-export function manifesteDuLecteur(fichiers: readonly string[], commit: string, base: string): Record<string, string> {
+export function manifesteDuLecteur(fichiers: readonly string[], commit: string, base: string, recette?: number): Record<string, string> {
   const racine = base.endsWith("/") ? base : `${base}/`;
   const dossier = dossierDuLecteur(commit);
   const manifeste: Record<string, string> = {};
@@ -113,14 +122,14 @@ export function manifesteDuLecteur(fichiers: readonly string[], commit: string, 
     if (f.startsWith("flags/") && f.endsWith(".svg")) manifeste[f] = `${racine}${DOSSIER_DES_DRAPEAUX}${f.slice("flags/".length)}`;
     else if (f.endsWith(".svg")) {
       if (svgRepris(f)) manifeste[f] = `${racine}${dossier}res/${f}`;
-    } else manifeste[f] = adresseJsDelivr(commit, f);
+    } else manifeste[f] = adresseDuDepot(commit, f, recette);
   }
   return manifeste;
 }
 
-/** Les seules adresses que la page du lecteur peut joindre : la sienne et les fichiers du dépôt du jeu, au commit, sur jsDelivr. */
-export function regleDeSecurite(commit: string): string {
-  const jeu = racineJsDelivr(commit);
+/** Les seules adresses que la page du lecteur peut joindre : la sienne et les fichiers du dépôt du jeu, au commit, sur GitHub. */
+export function regleDeSecurite(commit: string, recette?: number): string {
+  const jeu = racineDuDepot(commit, recette);
   return [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
@@ -149,6 +158,8 @@ export interface ValeursDeLaPage {
   /** Les liens du bandeau : retour à « Revoir une partie » (sur le site du clan), notice de licence. */
   retour: string;
   notice: string;
+  /** La recette du lecteur construit : avant la 5, son code lit encore les fichiers du jeu sur jsDelivr. Sans elle, celle du jour. */
+  recette?: number;
 }
 
 /**
@@ -197,7 +208,7 @@ export function pageDuLecteur(modele: string, v: ValeursDeLaPage): string {
   page = page.replace(/<link\s+[^>]*rel="(?:manifest|icon|canonical|apple-touch-icon|shortcut icon)"[^>]*>/gi, "");
   page = page.replace(/<link\s+[^>]*rel="(?:preconnect|dns-prefetch|preload|prefetch|modulepreload)"[^>]*>/gi, (lien) => (/href="\/(?!\/)/.test(lien) ? lien : ""));
   if (/googletag|intergient|cloudflareinsights|crazygames/i.test(page.replace(/<!--[\s\S]*?-->/g, "").replace(/<style[\s\S]*?<\/style>/gi, ""))) throw new Error("un script de publicité ou de mesure reste dans la page");
-  const regle = `<meta http-equiv="Content-Security-Policy" content="${regleDeSecurite(v.commit)}">`;
+  const regle = `<meta http-equiv="Content-Security-Policy" content="${regleDeSecurite(v.commit, v.recette)}">`;
   const tete = [
     regle,
     `<meta name="robots" content="noindex, nofollow">`,
@@ -285,8 +296,9 @@ export const MANIFESTE_DU_SITE = '__ASSET_MANIFEST__: process.env.GAL_MANIFEST ?
  * 2 (16 novembre 2026) : la retouche CrazyGames, pour le lecteur encadré dans « Revoir une partie ».
  * 3 (16 novembre 2026) : la carte remplit toujours la vue (caméra du lecteur de replay).
  * 4 (16 novembre 2026) : la lecture confiée à la page du lecteur (`galLecture`), qui la lance d'office en ×8 dans le cadre.
+ * 5 (17 novembre 2026) : les fichiers du jeu lus sur GitHub, plus sur jsDelivr, qui en refusait une partie (`racineDuDepot`).
  */
-export const RECETTE_DU_LECTEUR = 4;
+export const RECETTE_DU_LECTEUR = 5;
 
 /**
  * La plus ancienne recette encore publiable. Un lecteur gardé en cache d'une recette plus ancienne que celle du jour, mais pas
@@ -387,18 +399,18 @@ export function noticeDuLecteur(commits: readonly string[]): string {
     ...commits.map((c) => `  ${c}`),
     "© OpenFront and Contributors, sous licence GNU AGPL-3.0 avec les conditions de sa section 7 (fichier LICENSE du dépôt du jeu).",
     "Modifié par le site du clan depuis le 15 novembre 2026 : construit sans les fichiers propriétaires du jeu ; manifeste des",
-    "fichiers remplacé pour lire les fichiers libres du jeu sur jsDelivr ou sur ce site, par cette seule ligne de vite.config.ts :",
+    "fichiers remplacé pour lire les fichiers libres du jeu sur GitHub ou sur ce site, par cette seule ligne de vite.config.ts :",
     `  avant : ${MANIFESTE_DU_JEU}`,
     `  après : ${MANIFESTE_DU_SITE}`,
     ...RETOUCHES_DU_CODE.flatMap((r) => [`depuis le 16 novembre 2026, dans ${r.fichier} (${r.raison}) :`, `  avant : ${r.avant}`, `  après : ${r.apres.replace(/\n\s*/g, " ")}`]),
     "page sans aucun script de publicité ni de mesure, avec une règle de sécurité qui n'autorise que ce site et le dépôt du jeu sur",
-    "jsDelivr, un titre, un bandeau, et un renvoi vers le site du clan quand aucune partie n'est choisie ; sans logos ni icônes de",
+    "GitHub, un titre, un bandeau, et un renvoi vers le site du clan quand aucune partie n'est choisie ; sans logos ni icônes de",
     "l'application.",
     "La façon de le construire : scripts/construire-lecteurs.ts, src/lib/rejeu/lecteur-jeu.ts et scripts/publier-films.ts du dépôt",
     "du site, https://github.com/les-gaulois/les-gaulois.github.io (AGPL-3.0).",
     "",
     "Fichiers du jeu (images, cartes, drapeaux, sons, langues) : dossier resources/ du même dépôt, © OpenFront and Contributors,",
-    "sous licence CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/deed.fr), lus sur jsDelivr ou copiés tels quels",
+    "sous licence CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/deed.fr), lus sur GitHub ou copiés tels quels",
     "sur ce site (images SVG du lecteur, drapeaux des joueurs). Aucun fichier du dossier proprietary/ du jeu, aucun logo de marque.",
     "",
     "Fiches des parties : l'API publique d'OpenFront (/public/game/<partie>), sans l'identifiant public ni les cosmétiques des",

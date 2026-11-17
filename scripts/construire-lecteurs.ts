@@ -118,7 +118,7 @@ async function construire(commit: string, drapeaux: boolean): Promise<void> {
     await lancer("git", ["-C", travail, "config", "core.sparseCheckout", "true"], 30_000);
     writeFileSync(join(travail, ".git", "info", "sparse-checkout"), `${MOTIFS_DU_LECTEUR.join("\n")}\n`);
     await lancer("git", ["-C", travail, "checkout", "-q", "--detach", "FETCH_HEAD"], 180_000);
-    // La liste de tous les fichiers de resources/, cartes comprises (elles restent sur jsDelivr), sans les télécharger.
+    // La liste de tous les fichiers de resources/, cartes comprises (elles restent sur GitHub), sans les télécharger.
     const liste = await new Promise<string>((ok, ko) => {
       const enfant = spawn("git", ["-C", travail, "ls-tree", "-r", "--name-only", "FETCH_HEAD", "resources/"], { stdio: ["ignore", "pipe", "ignore"] });
       let s = "";
@@ -129,7 +129,7 @@ async function construire(commit: string, drapeaux: boolean): Promise<void> {
       .split("\n")
       .filter((l) => l.startsWith("resources/"))
       .map((l) => l.slice("resources/".length));
-    writeFileSync(join(travail, "gal-manifest.json"), JSON.stringify(manifesteDuLecteur(fichiers, commit, "/")));
+    writeFileSync(join(travail, "gal-manifest.json"), JSON.stringify(manifesteDuLecteur(fichiers, commit, "/", RECETTE_DU_LECTEUR)));
     const config = readFileSync(join(travail, "vite.config.ts"), "utf8");
     if (!config.includes(MANIFESTE_DU_JEU)) throw new Error("la configuration du jeu a changé (manifeste)");
     writeFileSync(join(travail, "vite.config.ts"), config.replace(MANIFESTE_DU_JEU, MANIFESTE_DU_SITE));

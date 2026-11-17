@@ -2,7 +2,7 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import {
   adresseDuLecteur,
-  adresseJsDelivr,
+  adresseDuDepot,
   appliquerRetouche,
   commandeDeConstruction,
   dependanceHorsRegistre,
@@ -71,7 +71,7 @@ const MODELE = `<!doctype html>
   </body>
 </html>`;
 
-const VALEURS = { commit: COMMIT, manifeste: { "atlases/icon-atlas.png": adresseJsDelivr(COMMIT, "atlases/icon-atlas.png") }, apiHost: "/jeu/api", retour: "https://les-gaulois.github.io/revoir", notice: "/jeu/LISEZ-MOI.txt" };
+const VALEURS = { commit: COMMIT, manifeste: { "atlases/icon-atlas.png": adresseDuDepot(COMMIT, "atlases/icon-atlas.png") }, apiHost: "/jeu/api", retour: "https://les-gaulois.github.io/revoir", notice: "/jeu/LISEZ-MOI.txt" };
 
 describe("le vrai lecteur du jeu : où il vit, d'où il lit", () => {
   it("vit sur une adresse à lui, jamais celle du clan, et range chaque version dans son dossier", () => {
@@ -94,10 +94,10 @@ describe("le vrai lecteur du jeu : où il vit, d'où il lit", () => {
     expect(ficheDuLecteur("https://ailleurs.example/jeu/8b5d071eed/#replay-viewer=abc123")).toBeNull();
     expect(ficheDuLecteur("https://gal-replay.github.io/jeu/8b5d071eed/#replay-viewer=../x")).toBeNull();
   });
-  it("lit les fichiers du jeu sur jsDelivr, au commit, sauf les SVG, servis par son site, et sans logos de marques", () => {
+  it("lit les fichiers du jeu sur GitHub, au commit, sauf les SVG, servis par son site, et sans logos de marques", () => {
     const m = manifesteDuLecteur(["atlases/icon-atlas.png", "maps/world/map.bin", "images/CityIconWhite.svg", "images/DiscordLogo.svg", "images/PlutoniumIcon.svg", "icons/github-mark-white.svg", "flags/fr.svg", "public/robots.txt", "../x.png"], COMMIT, "/");
-    expect(m["atlases/icon-atlas.png"]).toBe(`https://cdn.jsdelivr.net/gh/openfrontio/OpenFrontIO@${COMMIT}/resources/atlases/icon-atlas.png`);
-    expect(m["maps/world/map.bin"]).toBe(`https://cdn.jsdelivr.net/gh/openfrontio/OpenFrontIO@${COMMIT}/resources/maps/world/map.bin`);
+    expect(m["atlases/icon-atlas.png"]).toBe(`https://raw.githubusercontent.com/openfrontio/OpenFrontIO/${COMMIT}/resources/atlases/icon-atlas.png`);
+    expect(m["maps/world/map.bin"]).toBe(`https://raw.githubusercontent.com/openfrontio/OpenFrontIO/${COMMIT}/resources/maps/world/map.bin`);
     expect(m["images/CityIconWhite.svg"]).toBe("/jeu/8b5d071eed/res/images/CityIconWhite.svg");
     expect(m["flags/fr.svg"]).toBe("/jeu/drapeaux/fr.svg");
     for (const ecarte of ["images/DiscordLogo.svg", "images/PlutoniumIcon.svg", "icons/github-mark-white.svg", "public/robots.txt", "../x.png"]) expect(m[ecarte]).toBeUndefined();
@@ -230,8 +230,21 @@ describe("la page du lecteur", () => {
     expect(tete).toContain(`content="${regle}"`);
     expect(tete).toContain('<meta name="robots" content="noindex, nofollow">');
     expect(tete).toContain('localStorage.setItem("apiHost"');
-    expect(regle).toContain(`connect-src 'self' https://cdn.jsdelivr.net/gh/openfrontio/OpenFrontIO@${COMMIT}/`);
-    expect(regle).not.toMatch(/googletag|intergient|cloudflare|\*|https:\/\/cdn\.jsdelivr\.net[ ;]/);
+    expect(regle).toContain(`connect-src 'self' https://raw.githubusercontent.com/openfrontio/OpenFrontIO/${COMMIT}/`);
+    expect(regle).not.toMatch(/googletag|intergient|cloudflare|\*|jsdelivr|https:\/\/raw\.githubusercontent\.com[ ;]/);
+  });
+  it("garde jsDelivr pour un lecteur d'avant la recette 5, dont le code construit le nomme encore : manifeste et règle de sécurité", () => {
+    const jsDelivr = `https://cdn.jsdelivr.net/gh/openfrontio/OpenFrontIO@${COMMIT}/`;
+    const gitHub = `https://raw.githubusercontent.com/openfrontio/OpenFrontIO/${COMMIT}/`;
+    for (const ancienne of [3, 4]) {
+      expect(manifesteDuLecteur(["maps/mars/map.bin"], COMMIT, "/", ancienne)["maps/mars/map.bin"]).toBe(`${jsDelivr}resources/maps/mars/map.bin`);
+      expect(regleDeSecurite(COMMIT, ancienne)).toContain(`connect-src 'self' ${jsDelivr}`);
+      expect(regleDeSecurite(COMMIT, ancienne)).not.toContain("githubusercontent");
+      expect(pageDuLecteur(MODELE, { ...VALEURS, recette: ancienne })).toContain(`connect-src 'self' ${jsDelivr}`);
+    }
+    expect(manifesteDuLecteur(["maps/mars/map.bin"], COMMIT, "/", RECETTE_DU_LECTEUR)["maps/mars/map.bin"]).toBe(`${gitHub}resources/maps/mars/map.bin`);
+    expect(regleDeSecurite(COMMIT, RECETTE_DU_LECTEUR)).toBe(regleDeSecurite(COMMIT));
+    expect(pageDuLecteur(MODELE, { ...VALEURS, recette: RECETTE_DU_LECTEUR })).toContain(`connect-src 'self' ${gitHub}`);
   });
   it("écrit le bandeau du site en français : retour, version non officielle, « © OpenFront and Contributors », licences", () => {
     const bandeau = /<div id="gal-bandeau" lang="fr">[\s\S]*?<\/div>/.exec(page)?.[0] ?? "";

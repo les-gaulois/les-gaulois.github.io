@@ -75,7 +75,7 @@ for (const commit of origine && existsSync(DOSSIER_DES_LECTEURS) ? readdirSync(D
     if (recette !== RECETTE_DU_LECTEUR) console.log(`::notice::Films : le lecteur du jeu de la version ${commit.slice(0, 10)} est de la recette ${recette} : publié en attendant d'être refait selon la recette ${RECETTE_DU_LECTEUR} au prochain passage du job « films ».`);
     const cible = join(DOSSIER_SITE_DU_LECTEUR, dossierDuLecteur(commit));
     const fichiers = readFileSync(join(source, "fichiers.txt"), "utf8").split("\n").filter(Boolean);
-    const page = pageDuLecteur(readFileSync(join(source, "modele.html"), "utf8"), { commit, manifeste: manifesteDuLecteur(fichiers, commit, "/"), apiHost: `/${DOSSIER_DES_FICHES}`.replace(/\/$/, ""), retour: `${SITE_DU_CLAN}/revoir`, notice: "/jeu/LISEZ-MOI.txt" });
+    const page = pageDuLecteur(readFileSync(join(source, "modele.html"), "utf8"), { commit, manifeste: manifesteDuLecteur(fichiers, commit, "/", recette ?? undefined), recette: recette ?? undefined, apiHost: `/${DOSSIER_DES_FICHES}`.replace(/\/$/, ""), retour: `${SITE_DU_CLAN}/revoir`, notice: "/jeu/LISEZ-MOI.txt" });
     copierFichiers(join(source, "assets"), join(cible, "assets"));
     // Les images du jeu triées de nouveau : un lecteur gardé en cache a pu être construit avant un changement de la règle.
     if (existsSync(join(source, "res"))) copierFichiers(join(source, "res"), join(cible, "res"), svgRepris);
