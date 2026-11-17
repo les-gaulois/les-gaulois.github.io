@@ -866,7 +866,7 @@ export function parsePerceurs(value: unknown): Perceur[] {
   for (const brut of Array.isArray(record(value)?.["perceurs"]) ? (record(value)?.["perceurs"] as unknown[]) : []) {
     const p = record(brut);
     const coffres = entier(p?.["coffres"]);
-    if (p && typeof p["nom"] === "string" && coffres !== null && coffres > 0) perceurs.push({ nom: nomPropre(p["nom"]), coffres, tenue: lireTenue(p["tenue"]), banniere: typeof p["banniere"] === "string" && /^[a-z]+(-[a-z]+)*$/.test(p["banniere"]) ? p["banniere"] : null });
+    if (p && typeof p["nom"] === "string" && coffres !== null && coffres > 0) perceurs.push({ nom: nomPropre(p["nom"]), coffres, tenue: lireTenue(p["tenue"]), stateres: (entier(p["stateres"]) ?? 0) > 0 ? entier(p["stateres"]) : null, banniere: typeof p["banniere"] === "string" && /^[a-z]+(-[a-z]+)*$/.test(p["banniere"]) ? p["banniere"] : null });
   }
   return perceurs.slice(0, 3);
 }

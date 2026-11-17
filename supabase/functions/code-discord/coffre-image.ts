@@ -562,14 +562,24 @@ export interface Perceur {
   tenue: Tenue | null;
   /** La bannière que ce membre montre derrière son Gaulois (son identifiant), ou rien : le décor de la place reste alors. */
   banniere?: string | null;
+  /** Les statères gagnés au coffre dans la semaine (cagnottes et primes), ou rien si le serveur ne les dit pas. */
+  stateres?: number | null;
 }
+
+/** Un nombre de statères, les milliers séparés d'une espace : « 12 400 ». */
+export const enMilliers = (n: number): string => {
+  const chiffres = String(Math.max(0, Math.round(n)));
+  let dit = "";
+  for (let i = 0; i < chiffres.length; i++) dit += (i > 0 && (chiffres.length - i) % 3 === 0 ? " " : "") + chiffres[i];
+  return dit;
+};
 
 /** L'échelle des Gaulois du podium, et leurs marches : le milieu de chacune et le haut de son Gaulois, en pixels. */
 export const ECHELLE_DU_PODIUM = 4;
 export const MARCHES_DU_PODIUM = [
   { cx: 310, haut: 6, mot: "1er" },
-  { cx: 112, haut: 32, mot: "2e" },
-  { cx: 508, haut: 44, mot: "3e" },
+  { cx: 112, haut: 22, mot: "2e" },
+  { cx: 508, haut: 31, mot: "3e" },
 ] as const;
 
 /**
@@ -651,7 +661,9 @@ export function imageDuPalmares(perceurs: readonly Perceur[], semaine: string | 
     t.r(cx - 82, y + 6, 164, 3, metal.fond);
     t.r(cx - 82, y + 9, 164, 1, metal.sombre);
     t.cases(casesDuGaulois(perceur.tenue ?? TENUE_DE_DEPART), GAULOIS_LARGEUR, cx - (GAULOIS_LARGEUR * ECHELLE_DU_PODIUM) / 2, haut, ECHELLE_DU_PODIUM);
-    // Le médaillon de la place, puis le nom et les coffres ouverts sur une plaque sombre.
+    // Le médaillon de la place, puis le nom, les coffres ouverts et, s'ils sont connus, les statères gagnés (la pièce et
+    // la somme, demande du pilote, 17 novembre 2026) sur une plaque sombre.
+    const gagnes = typeof perceur.stateres === "number" && perceur.stateres > 0 ? perceur.stateres : 0;
     const mx = cx - 76;
     const my = y + 12;
     t.r(mx + 3, my - 1, 20, 28, CONTOUR);
@@ -661,9 +673,13 @@ export function imageDuPalmares(perceurs: readonly Perceur[], semaine: string | 
     t.r(mx + 3, my + 3, 20, 20, NUIT);
     t.r(mx + 3, my, 20, 1, metal.clair);
     ecrire(t, GRANDE, mx + 8, my + 6, String(rang + 1), metal.clair, 2);
-    t.r(cx - 44, y + 12, 122, 26, NUIT, 0.82);
+    t.r(cx - 44, y + 12, 122, gagnes > 0 ? 39 : 26, NUIT, 0.82);
     ecrire(t, PETITE, cx - 38, y + 15, raccourci(PETITE, perceur.nom, 2, 110), BLANC, 2);
     ecrire(t, PETITE, cx - 38, y + 27, `${perceur.coffres} coffre${perceur.coffres > 1 ? "s" : ""}`, metal.clair, 2);
+    if (gagnes > 0) {
+      t.cases(casesDuStatere(12), 12, cx - 38, y + 38, 1);
+      ecrire(t, PETITE, cx - 22, y + 39, `+ ${enMilliers(gagnes)}`, OR, 2);
+    }
   });
   // Trois éclats d'or autour du premier.
   if (perceurs.length > 0) {
@@ -721,6 +737,7 @@ export const decrireLePalmares = (perceurs: readonly Perceur[]): string =>
     .slice(0, 3)
     .map((p, i) => {
       const banniere = banniereParId(p.banniere);
-      return `${i + 1}. ${p.nom}, ${p.coffres} coffre${p.coffres > 1 ? "s" : ""}${banniere ? `, devant sa bannière « ${banniere.nom} »` : ""}`;
+      const gagnes = typeof p.stateres === "number" && p.stateres > 0 ? `, ${enMilliers(p.stateres)} statère${p.stateres > 1 ? "s" : ""} gagné${p.stateres > 1 ? "s" : ""}` : "";
+      return `${i + 1}. ${p.nom}, ${p.coffres} coffre${p.coffres > 1 ? "s" : ""}${gagnes}${banniere ? `, devant sa bannière « ${banniere.nom} »` : ""}`;
     })
     .join(" ; ")}.`.slice(0, 1024);

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { BANNIERES } from "../../supabase/functions/code-discord/bannieres/index";
 import { lirePng } from "../../supabase/functions/code-discord/billets";
@@ -36,6 +37,7 @@ import {
   decrireLEssai,
   decrireLaVictoire,
   decrireLePalmares,
+  enMilliers,
   indicesDuTableau,
   largeurDuTexte,
   pngDeLEssai,
@@ -229,11 +231,11 @@ describe("les images", () => {
   it("sur le podium, chaque Gaulois tient tout entier dans l'image, de la tête aux pieds", () => {
     const scene = IMAGE_DU_COFFRE.hauteur - IMAGE_DU_COFFRE.bandeau;
     for (const marche of MARCHES_DU_PODIUM) {
-      // Sa grille fait 48 cases sur 64 : rien ne dépasse en haut, sur les côtés, ni sous la scène, et sa marche garde la place de deux lignes.
+      // Sa grille fait 48 cases sur 64 : rien ne dépasse en haut, sur les côtés, ni sous la scène, et sa marche garde la place de trois lignes (nom, coffres, statères gagnés).
       expect(marche.haut).toBeGreaterThanOrEqual(0);
       expect(marche.cx - 24 * ECHELLE_DU_PODIUM).toBeGreaterThanOrEqual(0);
       expect(marche.cx + 24 * ECHELLE_DU_PODIUM).toBeLessThanOrEqual(IMAGE_DU_COFFRE.largeur);
-      expect(scene - (marche.haut + 63 * ECHELLE_DU_PODIUM)).toBeGreaterThanOrEqual(38);
+      expect(scene - (marche.haut + 63 * ECHELLE_DU_PODIUM)).toBeGreaterThanOrEqual(51);
     }
     expect(MARCHES_DU_PODIUM[0].haut).toBeLessThan(MARCHES_DU_PODIUM[1].haut);
     expect(MARCHES_DU_PODIUM[1].haut).toBeLessThan(MARCHES_DU_PODIUM[2].haut);
@@ -389,14 +391,35 @@ describe("/coffre, avec le tableau, la mise et le rôle", () => {
 });
 
 describe("/perceurs", () => {
+  it("écrit les statères gagnés sous les coffres, en image et en mots, seulement s'ils sont connus", async () => {
+    expect([0, 7, 360, 1240, 12400, 124000, 1000000].map(enMilliers)).toEqual(["0", "7", "360", "1 240", "12 400", "124 000", "1 000 000"]);
+    const sans = [{ nom: "Un", coffres: 2, tenue: null }];
+    const avec = [{ nom: "Un", coffres: 2, tenue: null, stateres: 1240 }];
+    expect(decrireLePalmares(avec)).toBe("Les perceurs de coffres de la semaine : 1. Un, 2 coffres, 1 240 statères gagnés.");
+    expect(decrireLePalmares([{ nom: "Un", coffres: 1, tenue: null, stateres: 1 }])).toBe("Les perceurs de coffres de la semaine : 1. Un, 1 coffre, 1 statère gagné.");
+    expect(decrireLePalmares([{ nom: "Un", coffres: 2, tenue: null, stateres: 0 }])).toBe(decrireLePalmares(sans));
+    const pixels = async (p: Parameters<typeof pngDuPalmares>[0]) => (await lirePng(await pngDuPalmares(p)))?.rgba ?? new Uint8Array();
+    const a = await pixels(sans);
+    expect(Buffer.from(await pixels(avec)).equals(Buffer.from(a))).toBe(false);
+    expect(Buffer.from(await pixels([{ nom: "Un", coffres: 2, tenue: null, stateres: 0 }])).equals(Buffer.from(a))).toBe(true);
+    expect(Buffer.from(await pixels([{ nom: "Un", coffres: 2, tenue: null, stateres: null }])).equals(Buffer.from(a))).toBe(true);
+    // Le serveur fait la somme des cagnottes et des primes des coffres de la semaine, et n'ouvre la lecture qu'au robot.
+    const sql = readFileSync("supabase/migrations/20261117000600_coffre_stateres_du_podium.sql", "utf8");
+    expect(sql).toContain("'stateres', t.stateres,");
+    expect(sql).toContain("v.nature in ('coffre_gain', 'coffre_prime') and v.ref = 'manche/' || m.id::text");
+    expect(sql).toContain("revoke all on function public.coffre_palmares() from public, anon, authenticated;");
+  });
+
   const appel = { type: 2, guild_id: GUILD, data: { name: "perceurs" } };
 
   it("lit le podium sans rien croire : trois au plus, un nom propre, un compte de coffres", () => {
     expect(parsePerceurs({ perceurs: [{ nom: " [GAL]  Jod ", coffres: 3, tenue: { peau: "x" } }, { nom: "Sans coffre", coffres: 0 }, { coffres: 2 }, { nom: "B", coffres: 2, tenue: null }, { nom: "C", coffres: 1 }, { nom: "D", coffres: 1 }] })).toEqual([
-      { nom: "GAL Jod", coffres: 3, tenue: null, banniere: null },
-      { nom: "B", coffres: 2, tenue: null, banniere: null },
-      { nom: "C", coffres: 1, tenue: null, banniere: null },
+      { nom: "GAL Jod", coffres: 3, tenue: null, stateres: null, banniere: null },
+      { nom: "B", coffres: 2, tenue: null, stateres: null, banniere: null },
+      { nom: "C", coffres: 1, tenue: null, stateres: null, banniere: null },
     ]);
+    // Les statères gagnés : un entier positif, sinon rien (zéro, absent ou illisible ne s'écrit pas).
+    expect(parsePerceurs({ perceurs: [{ nom: "A", coffres: 2, stateres: 1240 }, { nom: "B", coffres: 1, stateres: 0 }, { nom: "C", coffres: 1, stateres: "360" }] }).map((p) => p.stateres)).toEqual([1240, null, null]);
     // La bannière : un identifiant de la forme de ceux du catalogue, sinon rien.
     expect(parsePerceurs({ perceurs: [{ nom: "A", coffres: 1, banniere: BANNIERES[0]?.id }, { nom: "B", coffres: 1, banniere: "../secret" }, { nom: "C", coffres: 1, banniere: 4 }] }).map((p) => p.banniere)).toEqual([BANNIERES[0]?.id, null, null]);
     expect(parsePerceurs(null)).toEqual([]);
