@@ -1102,7 +1102,7 @@ Migration `20261117000400_revente_au_jeu.sql` (elle ne fait qu'ajouter : une tab
 - Qui a acheté un objet, l'a vendu au marché, puis le reçoit d'un palier peut revendre ce dernier : le droit va à l'objet, pas à l'exemplaire. Le jeu ne rend alors que 70 % d'un achat qu'il a bien encaissé.
 - À savoir : dans l'onglet Village de la Direction, « dépensés » additionne les achats et les pochettes sans retrancher les reventes.
 - Essayée le 17 novembre sur une base de test (PGlite, tables réduites) : 21 cas, dont le même droit refusé deux fois, la pochette gagnée, le palier, le divin, le marché, la gravure et le mode GOD.
-- Tant que la migration n'est pas collée, le bouton « Revendre au jeu » ne paraît pas ; la nouveauté reste à écrire après.
+- Migration collée par le pilote le 17 novembre 2026 : contrôlé sans compte, `get_ma_revente` et `revendre_objet` existent et refusent un visiteur (`permission denied`). Sur un serveur qui ne la connaîtrait pas, le bouton « Revendre au jeu » ne paraît pas.
 
 ### Le mode GOD du village
 

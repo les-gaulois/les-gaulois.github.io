@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-17",
+    "kind": "nouveau",
+    "title": "Revendre un objet au jeu",
+    "body": "À la boutique, « Revendre au jeu » rend un objet contre des statères : 70 % de son prix s'il y a été acheté, 50 % s'il vient d'une pochette payée. Un objet reçu sans payer ne se revend pas.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-17",
     "kind": "ameliore",
     "title": "Le fil « Entre Gaulois » en lignes serrées, avec niveau et flamme",
     "body": "À côté du replay, le fil prend toute la hauteur et montre près de deux fois plus de lignes. Après le nom d'un membre au pseudo public : son niveau, à la couleur de son prestige, et sa flamme.",
