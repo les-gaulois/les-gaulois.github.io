@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-11-18",
+    "kind": "ameliore",
+    "title": "/gaulois s'anime sur Discord",
+    "body": "Sur Discord, /gaulois montre votre Gaulois sur sa carte animée, en large : sa bannière, votre niveau et votre flamme de série. Tant que la carte n'est pas filmée, l'image d'avant reste.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
     "date": "2026-11-17",
     "kind": "nouveau",
     "rank": "top",
