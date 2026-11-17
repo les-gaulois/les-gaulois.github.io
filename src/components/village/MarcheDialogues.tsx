@@ -1,6 +1,9 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { fmtInt } from "../../lib/format";
+import { OBJETS, type RareteDObjet } from "../../lib/gaulois";
+import { motsDeLaClasse, regleDeLaRevente, type MaRevente, type ObjetRevendable } from "../../lib/village/revente";
+import { stateres } from "../../lib/village/ecran-boutique";
 import { MARCHE_DUREE_JOURS } from "../../lib/village/contrat";
 import { MESSAGES_DU_MARCHE, examinerAchat, lirePrix, raisonDeLOffre, seVend, type BoutiqueLue, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
 import { Problem } from "../compte/common";
@@ -261,6 +264,65 @@ export function DialogueVente({
           </button>
         </div>
       )}
+    </Dialogue>
+  );
+}
+
+/**
+ * Revendre un objet au jeu (17 novembre 2026, demande du pilote) : la fenêtre montre ce qui peut partir, avec ce que le jeu
+ * rend pour chacun, puis demande de confirmer. Le serveur a déjà dit ce qui se revend et combien (`get_ma_revente`) ;
+ * l'écran ne calcule rien. La revente retire l'objet : le bouton qui la fait est à part, sous son avertissement.
+ */
+export function DialogueRevente({ revente, occupe, probleme, onRevendre, onFermer }: { revente: MaRevente; occupe: boolean; probleme: string | null; onRevendre: (objet: ObjetRevendable, nom: string) => void; onFermer: () => void }) {
+  const [choix, setChoix] = useState<ObjetRevendable | null>(null);
+  // L'objet choisi, tel que le serveur le donne maintenant : après une revente, la liste a changé.
+  const choisi = choix ? (revente.objets.find((o) => o.emplacement === choix.emplacement && o.objet === choix.objet) ?? null) : null;
+  const nomDe = (o: ObjetRevendable): string => OBJETS[o.emplacement][o.objet]?.nom ?? "";
+  return (
+    <Dialogue titre="Revendre au jeu" onFermer={onFermer}>
+      <p class="marche-regle" data-testid="revente-regle">
+        {regleDeLaRevente(revente.taux)}
+      </p>
+      {revente.objets.length === 0 ? (
+        <p class="text-muted" data-testid="revente-rien">
+          Rien dans votre inventaire ne se revend au jeu pour l'instant.
+        </p>
+      ) : (
+        <div class="marche-choix" role="group" aria-label="Les objets qui se revendent">
+          {revente.objets.map((objet) => {
+            const fiche = OBJETS[objet.emplacement][objet.objet];
+            const rarete = fiche?.rarete as Exclude<RareteDObjet, "divin"> | null | undefined;
+            if (!fiche || !rarete) return null;
+            return (
+              <button key={`${objet.emplacement}-${objet.objet}`} type="button" class="marche-choix-case" aria-pressed={choisi === objet} onClick={() => setChoix(objet)} data-testid="revente-objet">
+                <CaseObjet objet={{ emplacement: objet.emplacement, objet: objet.objet, nom: fiche.nom, rarete }} quantite={objet.quantite} mention={`Rend ${fmtInt(objet.rendu)}`} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {choisi && (
+        <div class="revente-compte" data-testid="revente-compte">
+          <p>
+            Le jeu rend <strong class="tnum">{stateres(choisi.rendu)}</strong> pour « {nomDe(choisi)} ».
+          </p>
+          <p class="info-discrete">{motsDeLaClasse(choisi.classe, revente.taux)}</p>
+        </div>
+      )}
+      <Problem message={probleme} />
+      {choisi && (
+        <div class="revente-envoi">
+          <p class="revente-avis">L'objet quitte votre inventaire. Pour le ravoir, il faudra le racheter à son prix.</p>
+          <button type="button" class="btn btn-secondary" disabled={occupe} onClick={() => onRevendre(choisi, nomDe(choisi))} data-testid="revente-confirmer">
+            {occupe ? "Revente…" : `Revendre pour ${stateres(choisi.rendu)}`}
+          </button>
+        </div>
+      )}
+      <div class="marche-dialogue-actions">
+        <button type="button" class="btn btn-ghost" onClick={onFermer} data-testid="revente-fermer">
+          Fermer
+        </button>
+      </div>
     </Dialogue>
   );
 }

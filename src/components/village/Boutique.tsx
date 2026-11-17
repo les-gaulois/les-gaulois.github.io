@@ -36,6 +36,7 @@ import { actionDeLEssai, essaiDuModeleValide } from "../../lib/village/ecran-mod
 import { finDeLOffre, lireBoutique as lireBoutiqueDuMarche, lireMarche, mesOffres, messageDuMarche, raisonDeLOffre, type MarcheLu, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
 import { pochetteDOuverture, type PochetteDeLEtal } from "../../lib/village/etal";
 import { familierDe } from "../../lib/village/familiers";
+import { lireMaRevente, lireRevente, messageDeLaRevente, type MaRevente, type ObjetRevendable } from "../../lib/village/revente";
 import { demandeLesModeles, messageDuRefusDesModeles, modeleParId, raisonDeLAchat, tenueAvecModele } from "../../lib/village/modeles";
 import { TOUT, choisirFiltre, collectionDuRayon, motsDeLaCollection, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
 import { Loading, Problem, Success, messageOf, useNow } from "../compte/common";
@@ -47,7 +48,7 @@ import { ApercuGaulois, BarreDesRayons, Case, useSceneCollee } from "./Cases";
 import { useFamiliers } from "./Familiers";
 import { CaseObjet, Prix as PrixDuMarche } from "./MarcheCase";
 import { useModeles } from "./Modeles";
-import { DialogueAchat as DialogueOffre, DialogueVente } from "./MarcheDialogues";
+import { DialogueAchat as DialogueOffre, DialogueRevente, DialogueVente } from "./MarcheDialogues";
 import { EtalDesPochettes } from "./Etal";
 import { DessinPochette, Pochette } from "./Pochette";
 import { DessinPochetteFamiliers, DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
@@ -122,7 +123,7 @@ function MonOffre({ offre, maintenant, occupe, onRetirer }: { offre: OffreLisibl
 type Etat = { kind: "lecture" } | { kind: "erreur"; message: string } | { kind: "pret"; enregistree: Tenue | null };
 /** Le marché des membres : fermé à un compte pas encore validé (la phrase du serveur), en panne, ou lu. */
 type EtatDuMarche = { kind: "lecture" } | { kind: "ferme"; message: string } | { kind: "panne"; message: string } | { kind: "pret"; marche: MarcheLu };
-type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "familiers" } | { kind: "stateres" } | { kind: "modeles" } | { kind: "modele"; id: string; prix: number } | { kind: "offre"; offre: OffreLisible } | { kind: "vente" } | null;
+type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "familiers" } | { kind: "stateres" } | { kind: "modeles" } | { kind: "modele"; id: string; prix: number } | { kind: "offre"; offre: OffreLisible } | { kind: "vente" } | { kind: "revente" } | null;
 /** Le dernier objet reçu (boutique, pochette ou marché) : il se porte d'un clic. */
 type Acquis = RefObjet & { porte: boolean };
 /** Le dernier familier sorti de la pochette des familiers : il se montre d'un clic. */
@@ -253,6 +254,32 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
     setPanne(!b || !s);
   };
 
+  // La revente au jeu : ce qui peut partir, et ce que le jeu rend. Un serveur qui ne la connaît pas encore, ou en panne,
+  // ne montre pas son bouton.
+  const [revente, setRevente] = useState<MaRevente | null>(null);
+  const lireLaRevente = async (): Promise<void> => {
+    setRevente(await call<unknown>("get_ma_revente").then(lireMaRevente, () => null));
+  };
+  const revendre = async (objet: ObjetRevendable, nom: string): Promise<void> => {
+    setOccupe(true);
+    setProblemeFenetre(null);
+    setReussite(null);
+    try {
+      const faite = lireRevente(await call<unknown>("revendre_objet", { p_emplacement: objet.emplacement, p_objet: objet.objet, p_rendu_vu: objet.rendu }));
+      if (!faite) throw new ServerError("network");
+      setSolde(faite.solde);
+      await Promise.all([lireLaBoutique(), lireLaRevente()]);
+      setReussite(`« ${nom} » est revendu au jeu : vous recevez ${stateres(faite.rendu)}.`);
+      setFenetre(null);
+    } catch (e) {
+      setProblemeFenetre(e instanceof ServerError ? (messageDeLaRevente(e.code) ?? messageDuMarche(e.code) ?? e.message) : messageOf(e));
+      // Ce qui se revend a pu changer : la liste se relit derrière le message.
+      void lireLaRevente();
+    } finally {
+      setOccupe(false);
+    }
+  };
+
   const recevoirLeMarche = (reponse: unknown): MarcheLu => {
     const marche = lireMarche(reponse);
     if (!marche) throw new ServerError("network");
@@ -301,7 +328,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const lire = async () => {
     setEtat({ kind: "lecture" });
     try {
-      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), pochettes ? null : lireLeMarche(false), familiers.lire(), pochetteStateres.lire()]);
+      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), pochettes ? null : lireLeMarche(false), familiers.lire(), pochetteStateres.lire(), pochettes ? null : lireLaRevente()]);
       const enregistree = tenueDuServeur(reponse);
       setEtat({ kind: "pret", enregistree });
       if (enregistree) setTenue(enregistree);
@@ -812,7 +839,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               Le marché des membres
             </h3>
             {marcheLu && (
-              <div>
+              <div class="boutique-membres-actions">
                 <button
                   type="button"
                   class="btn btn-secondary"
@@ -824,6 +851,21 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 >
                   Vendre un objet
                 </button>
+                {/* Rendre un objet au jeu contre des statères : seulement si le serveur connaît la revente. */}
+                {revente && (
+                  <button
+                    type="button"
+                    class="btn btn-ghost"
+                    onClick={() => {
+                      setProblemeFenetre(null);
+                      setFenetre({ kind: "revente" });
+                      void lireLaRevente();
+                    }}
+                    data-testid="revente-ouvrir"
+                  >
+                    Revendre au jeu
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1102,6 +1144,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
           onFermer={fermerLaFenetre}
         />
       )}
+      {fenetre?.kind === "revente" && revente && <DialogueRevente revente={revente} occupe={occupe} probleme={problemeFenetre} onRevendre={(objet, nom) => void revendre(objet, nom)} onFermer={fermerLaFenetre} />}
       {fenetre?.kind === "vente" && marcheLu && (
         <DialogueVente boutique={pourLeMarche} offresOuvertes={miennes.length} offresMax={marcheLu.offresMax} occupe={occupe} probleme={problemeFenetre} onVendre={(objet, prix) => void vendre(objet, prix)} onFermer={fermerLaFenetre} />
       )}

@@ -6128,3 +6128,31 @@ button.tenue-gardee-remettre:disabled {
     display: none;
   }
 }
+
+/* La revente au jeu (17 novembre 2026) : dans la fenêtre du marché, ce que le jeu rend pour l'objet choisi, puis le
+   bouton qui le fait partir, à part, sous un filet et son avertissement. */
+.revente-compte {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--texte-courant);
+}
+.revente-compte strong {
+  color: var(--ecriture);
+}
+.revente-envoi {
+  display: grid;
+  justify-items: start;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--color-line-strong);
+}
+.revente-avis {
+  font-weight: 700;
+  color: var(--ecriture);
+}
+.boutique-membres-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
