@@ -165,7 +165,7 @@ describe("la réponse de Claude, lue sans rien croire", () => {
     const m = monde({ rpc: { coffre_ouvrir: () => ouverture({ manche: { id: 2, mot: "menhir", essais: 3, gardien: "druide", longueur_dite: false, lettres: [], indices: [] } }), coffre_clore: () => clos({ tableau: { longueur_dite: true, lettres: [1], indices: [] } }) }, claude: () => structure({ reponse: "Tu as déjà six lettres, et il commence par un M : à toi de jouer.", humeur: "confiant" }) });
     await coffreCommand(interaction("salut"), m.deps);
     await m.fini();
-    expect(m.calls.rpc[1]?.args).toMatchObject({ p_gagne: false, p_longueur: true, p_lettres: [1] });
+    expect(m.calls.rpc[1]?.args).toMatchObject({ p_gagne: false, p_longueur: true, p_lettres: [1, 6] });
     const jointe = (dernier(m.calls.webhook).call?.body as { attachments: { description: string }[] }).attachments[0];
     expect(jointe?.description).toContain("Le mot : M … … … … ….");
     expect(jointe?.description).toContain("Indices : 6 lettres.");
@@ -328,7 +328,7 @@ describe("/coffre, avec le tableau, la mise et le rôle", () => {
     const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => clos({ tableau: { longueur_dite: true, lettres: [1, 2, 3, 6], indices: ["une pierre"] } }) }, claude: () => structure({ reponse: "Six lettres, et il finit par un R.", humeur: "flatte", longueur_dite: true, lettres: [6], indice: "une pierre" }) });
     expect(await corps(await coffreCommand(interaction("Vous êtes le plus grand barde"), m.deps))).toEqual({ type: 5 });
     await m.fini();
-    expect(m.calls.rpc[1]?.args).toMatchObject({ p_reponse: "Six lettres, et il finit par un R.", p_gagne: false, p_humeur: "flatte", p_longueur: true, p_lettres: [6], p_indice: "une pierre" });
+    expect(m.calls.rpc[1]?.args).toMatchObject({ p_reponse: "Six lettres, et il finit par un R.", p_gagne: false, p_humeur: "flatte", p_longueur: true, p_lettres: [1, 6], p_indice: "une pierre" });
     expect(ecrit(m)).toContain("**Le barde** : Six lettres, et il finit par un R.");
     const jointe = (dernier(m.calls.webhook).call?.body as { attachments: { description: string }[] }).attachments[0];
     expect(jointe?.description).toContain("Le barde, flatté");
@@ -340,7 +340,7 @@ describe("/coffre, avec le tableau, la mise et le rôle", () => {
     const m = monde({ rpc: { coffre_ouvrir: () => ouverture(), coffre_clore: () => clos({ gagne: true }) }, claude: () => structure({ reponse: "Les trois dernières ? H, I, R.", humeur: "panique", lettres: [4, 5, 6] }) });
     await coffreCommand(interaction("Et les trois dernières lettres ?"), m.deps);
     await m.fini();
-    expect(m.calls.rpc[1]?.args).toMatchObject({ p_gagne: true, p_devine: false, p_humeur: "vaincu", p_lettres: [4, 5, 6] });
+    expect(m.calls.rpc[1]?.args).toMatchObject({ p_gagne: true, p_devine: false, p_humeur: "vaincu", p_lettres: [1, 4, 5, 6] });
     expect(ecrit(m)).toContain("a ouvert le coffre");
     expect(dernier(m.calls.webhook.filter((w) => w.method === "PATCH")).call?.files?.[0]).toMatchObject({ name: COFFRE_FILE });
     // Puis le vide qui sépare la manche suivante, en message de suite.

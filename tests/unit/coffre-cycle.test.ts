@@ -131,8 +131,9 @@ describe("le cycle des quinze manches à thème", () => {
     // Sans cycle, le titre d'avant.
     expect(String(separateurDeManche(8)["content"]).split(LF).at(-2)).toBe("# Manche 8");
     // L'aide n'annonce les quinze manches que si le cycle tourne.
-    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30, cycle: true }).regles).toContain("15 manches : fois 2, fois 3, puis fois 4.");
-    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30 }).regles).toContain("Plus le gardien se méfie, plus elle vaut.");
+    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30, cycle: true }).regles).toContain("Coffre ouvert : fois 2, 3 ou 4 selon la manche.");
+    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30 }).regles).toContain("Coffre ouvert : plus il se méfie, plus elle vaut.");
+    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30 }).regles).toContain("Première et dernière lettres données au départ.");
     expect(parseTableau({ ok: true, manche: null, numero: 3, niveau: 2, cycle: true })?.cycle).toBe(true);
     expect(parseTableau({ ok: true, manche: null, numero: 3, niveau: 2 })?.cycle).toBe(false);
     expect(parseTableau({ ok: true, manche: { id: 4, mot: "menhir", essais: 0, rang: 2 }, numero: 4, niveau: 3 })?.cycle).toBe(true);

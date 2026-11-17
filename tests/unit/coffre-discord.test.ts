@@ -33,6 +33,11 @@ import {
   conversation,
   coutEnMicrodollars,
   demandeDuMot,
+  lettresDeDepart,
+  motComplet,
+  FAMILLES_DE_MOTS,
+  INITIALES_DE_MOTS,
+  tirerLeMot,
   messageDuCoffre,
   motDevine,
   motDit,
@@ -113,6 +118,20 @@ describe("le mot : choisi par Claude", () => {
   it("la demande redit les mots déjà sortis", () => {
     expect(demandeDuMot([])).toBe("Choisis le mot.");
     expect(demandeDuMot(["enclume", "sanglier"])).toContain("enclume, sanglier");
+    // Le hasard est tiré par le robot, pas par Claude : une famille et une première lettre, dites dans la demande.
+    expect(tirerLeMot(() => 0)).toEqual({ famille: FAMILLES_DE_MOTS[0], initiale: "a" });
+    expect(tirerLeMot(() => 0.999999)).toEqual({ famille: FAMILLES_DE_MOTS.at(-1), initiale: INITIALES_DE_MOTS.at(-1) });
+    expect(tirerLeMot(() => 1)).toEqual({ famille: FAMILLES_DE_MOTS.at(-1), initiale: INITIALES_DE_MOTS.at(-1) });
+    const tires = new Set(Array.from({ length: 200 }, () => JSON.stringify(tirerLeMot())));
+    expect(tires.size).toBeGreaterThan(50);
+    for (const t of tires) {
+      const { famille, initiale } = JSON.parse(t) as { famille: string; initiale: string };
+      expect(FAMILLES_DE_MOTS).toContain(famille);
+      expect(INITIALES_DE_MOTS).toContain(initiale);
+    }
+    expect(new Set(FAMILLES_DE_MOTS).size).toBe(FAMILLES_DE_MOTS.length);
+    expect(INITIALES_DE_MOTS).toMatch(/^[a-z]+$/);
+    expect(demandeDuMot(["enclume"], { famille: "un outil", initiale: "m" })).toBe("Choisis le mot. Le sort a tiré pour cette manche : un outil, dont le nom commence par la lettre « M ». Ne prends pas le premier mot qui vient à tout le monde. Si vraiment aucun mot ne convient, garde la famille et change de lettre. Ces mots ont déjà servi, n'en reprends aucun : enclume.");
     expect(CONSIGNE_DU_MOT).toContain("sans accent");
   });
 });
@@ -326,7 +345,8 @@ describe("l'état rendu par le serveur", () => {
   it("se lit sans rien croire", () => {
     expect(parseEtat({ essai: 5, manche: { id: 2, mot: "menhir", essais: 3 }, niveau: 1, passes: ["enclume", 4], ruses: ["x"], historique: [{ nom: "A", message: "m", reponse: "r" }, { nom: "B" }], restants: 7 })).toEqual({
       essai: 5,
-      manche: { id: 2, mot: "menhir", essais: 3, gardien: "druide", longueurDite: false, lettres: [], indices: [], rang: null },
+      // La première et la dernière lettre, et la longueur, sont au tableau dès le départ.
+      manche: { id: 2, mot: "menhir", essais: 3, gardien: "druide", longueurDite: true, lettres: [1, 6], indices: [], rang: null },
       niveau: 1,
       passes: ["enclume"],
       ruses: ["x"],
@@ -338,7 +358,16 @@ describe("l'état rendu par le serveur", () => {
     });
     // Le gardien, le tableau, le soir et la cagnotte de la seconde migration ; rien n'est cru sans contrôle.
     const complet = parseEtat({ essai: 5, manche: { id: 2, mot: "menhir", essais: 3, gardien: "barde", longueur_dite: true, lettres: [4, 1, 1, 9, "x"], indices: ["une pierre", 3] }, niveau: 1, restants: 7, soir: "veillee", cagnotte: 120, tenue: { peau: "x" } });
-    expect(complet?.manche).toEqual({ id: 2, mot: "menhir", essais: 3, gardien: "barde", longueurDite: true, lettres: [1, 4], indices: ["une pierre"], rang: null });
+    expect(complet?.manche).toEqual({ id: 2, mot: "menhir", essais: 3, gardien: "barde", longueurDite: true, lettres: [1, 4, 6], indices: ["une pierre"], rang: null });
+    // Les lettres de départ : la première, la dernière, et partout où ces deux lettres reviennent ; jamais le mot entier.
+    expect(lettresDeDepart("menhir")).toEqual([1, 6]);
+    expect(lettresDeDepart("banane")).toEqual([1, 6]);
+    expect(lettresDeDepart("radar")).toEqual([1, 5]);
+    expect(lettresDeDepart("tomate")).toEqual([1, 5, 6]);
+    expect(lettresDeDepart("entree")).toEqual([1, 5, 6]);
+    expect(lettresDeDepart("ananas")).toEqual([1, 3, 5, 6]);
+    expect(lettresDeDepart("ababab")).toEqual([1, 6]);
+    for (const mot of ["menhir", "tomate", "ananas", "ababab", "chaudron"]) expect(motComplet(mot, lettresDeDepart(mot))).toBe(false);
     expect(complet).toMatchObject({ soir: "veillee", cagnotte: 120, tenue: null });
     expect(parseManche({ id: 2, mot: "menhir", essais: 0, gardien: "licorne" })?.gardien).toBe("druide");
     expect(parseEtat({ essai: 5, manche: null, niveau: 0, restants: 10, soir: "noel" })?.soir).toBeNull();
@@ -461,7 +490,7 @@ describe("/coffre", () => {
       { role: "assistant", content: "Bonjour." },
       { role: "user", content: "[Jod] Quel est le mot ?" },
     ]);
-    expect(m.calls.rpc[1]).toEqual({ name: "coffre_clore", args: { p_essai: 9, p_manche: 2, p_reponse: "Non, villageois.", p_gagne: false, p_devine: false, p_microdollars: 6000, p_humeur: "mefiant", p_longueur: false, p_lettres: [], p_indice: null } });
+    expect(m.calls.rpc[1]).toEqual({ name: "coffre_clore", args: { p_essai: 9, p_manche: 2, p_reponse: "Non, villageois.", p_gagne: false, p_devine: false, p_microdollars: 6000, p_humeur: "mefiant", p_longueur: true, p_lettres: [1, 6], p_indice: null } });
     expect(dernier(m.calls.webhook)).toMatchObject({ method: "PATCH", path: `/webhooks/${APP}/${TOKEN}/messages/@original` });
     expect(ecrit(m)).toContain("**Le druide** : Non, villageois.");
     expect(ecrit(m)).toContain("-# Jod : 6 essais aujourd'hui.");
@@ -586,7 +615,7 @@ describe("/coffre", () => {
       { name: "coffre_manche", args: { p_mot: null, p_microdollars: 600 } },
       { name: "coffre_manche", args: { p_mot: "enclume", p_microdollars: 600 } },
     ]);
-    expect(m.calls.claude[0]).toMatchObject({ effort: "low", messages: [{ role: "user", content: demandeDuMot(["menhir"]) }] });
+    expect(m.calls.claude[0]).toMatchObject({ effort: "low", messages: [{ role: "user", content: expect.stringMatching(/^Choisis le mot\. Le sort a tiré pour cette manche : .+ Ces mots ont déjà servi, n'en reprends aucun : menhir\.$/) }] });
     // La nouvelle manche repart sans souvenir de la précédente.
     expect(m.calls.claude[2]?.messages).toEqual([{ role: "user", content: "[Jod] Bonjour druide" }]);
     expect(m.calls.claude[2]?.system).toContain("« enclume »");

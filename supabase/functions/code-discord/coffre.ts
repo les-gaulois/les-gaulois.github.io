@@ -185,15 +185,64 @@ export function motPropose(brut: string, passes: readonly string[]): string | nu
 /** Ce que Claude lit pour choisir le mot d'une manche. */
 export const CONSIGNE_DU_MOT = [
   "Tu choisis le mot secret d'un jeu de devinettes en français, joué par des adultes et des adolescents.",
-  "Le mot : un nom commun français au singulier, concret (un objet, un animal, une plante, un aliment, un outil, un élément du paysage ou de la maison), connu d'un enfant de dix ans, de 5 à 10 lettres, sans accent, sans cédille, sans trait d'union, sans espace. Ni nom propre, ni marque, ni mot grossier.",
-  "Varie d'une fois à l'autre : ne reste pas dans une seule famille de mots.",
+  "Le mot : un nom commun français au singulier, concret (un objet, un animal, une plante, un aliment, un outil, un élément du paysage ou de la maison, une chose du ciel ou du temps qu'il fait, une matière), connu d'un enfant de dix ans, de 5 à 10 lettres, sans accent, sans cédille, sans trait d'union, sans espace. Ni nom propre, ni marque, ni mot grossier.",
+  "La demande te dit la famille et la première lettre que le sort a tirées pour cette manche : cherche d'abord un mot qui s'y plie.",
   `Pas un mot du jeu lui-même : ${MOTS_DU_DECOR.join(", ")}.`,
   "Réponds par ce seul mot, en minuscules, sans rien d'autre.",
 ].join("\n");
 
-/** La demande du mot : les mots déjà sortis ne reviennent pas. */
-export const demandeDuMot = (passes: readonly string[]): string =>
-  passes.length === 0 ? "Choisis le mot." : `Choisis le mot. Ces mots ont déjà servi, n'en reprends aucun : ${passes.join(", ")}.`;
+/**
+ * Les familles de mots et les premières lettres que le robot tire au sort pour chaque manche (remarque du pilote, 17
+ * novembre 2026 : « c'est pas du tout du hasard », il retombait sur les mêmes idées de mots). Laissé libre, Claude revient
+ * aux mêmes mots ; le hasard est donc tiré ici, par le robot, et Claude cherche un mot qui s'y plie. Les lettres rares en
+ * début de mot (k, q, u, w, x, y, z) ne sont pas tirées.
+ */
+export const FAMILLES_DE_MOTS: readonly string[] = [
+  "un animal de la ferme ou de la maison",
+  "un animal sauvage",
+  "un oiseau, un poisson ou un insecte",
+  "une plante, un arbre ou une fleur",
+  "un fruit ou un légume",
+  "un aliment ou un plat",
+  "un outil",
+  "un ustensile de cuisine",
+  "un objet de la maison",
+  "un meuble",
+  "un vêtement ou ce qu'on porte sur soi",
+  "un élément du paysage",
+  "un bâtiment ou une partie d'un bâtiment",
+  "un instrument de musique",
+  "un véhicule ou un bateau",
+  "un jouet ou un objet de jeu",
+  "une chose du ciel ou du temps qu'il fait",
+  "une matière ou un matériau",
+];
+export const INITIALES_DE_MOTS = "abcdefghijlmnoprstv";
+
+/** Ce que le robot a tiré au sort pour le mot d'une manche. */
+export interface TirageDuMot {
+  famille: string;
+  initiale: string;
+}
+
+/** Un nombre au hasard de 0 (compris) à 1 (non compris), tiré par le générateur sûr de la machine. */
+const hasard = (): number => (crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) / 2 ** 32;
+
+/** Tire une famille et une première lettre. `alea` : le hasard, remplacé dans les tests. */
+export function tirerLeMot(alea: () => number = hasard): TirageDuMot {
+  const au = (n: number): number => Math.min(n - 1, Math.max(0, Math.floor(alea() * n)));
+  return { famille: FAMILLES_DE_MOTS[au(FAMILLES_DE_MOTS.length)] ?? "un objet", initiale: INITIALES_DE_MOTS[au(INITIALES_DE_MOTS.length)] ?? "a" };
+}
+
+/** La demande du mot : ce que le sort a tiré, s'il a tiré, et les mots déjà sortis, qui ne reviennent pas. */
+export const demandeDuMot = (passes: readonly string[], tirage: TirageDuMot | null = null): string =>
+  [
+    "Choisis le mot.",
+    tirage ? `Le sort a tiré pour cette manche : ${tirage.famille}, dont le nom commence par la lettre « ${tirage.initiale.toUpperCase()} ». Ne prends pas le premier mot qui vient à tout le monde. Si vraiment aucun mot ne convient, garde la famille et change de lettre.` : "",
+    passes.length === 0 ? "" : `Ces mots ont déjà servi, n'en reprends aucun : ${passes.join(", ")}.`,
+  ]
+    .filter((phrase) => phrase !== "")
+    .join(" ");
 
 /* ---------- La vigilance du gardien ---------- */
 
@@ -400,6 +449,19 @@ export function placesValides(value: unknown, longueur: number): number[] {
   return [...places].sort((a, b) => a - b);
 }
 
+/**
+ * Les lettres données dès le début d'une manche (demande du pilote, 17 novembre 2026 : « que dès le départ on ait la
+ * première lettre et la dernière lettre affichées, et les doublons bien sûr ») : les places de la première et de la
+ * dernière lettre du mot, et toutes celles où ces deux lettres reviennent. La longueur du mot se lit donc aussi. Si ces
+ * lettres faisaient tout le mot, seules la première et la dernière place sont données : le mot ne se donne jamais entier.
+ */
+export function lettresDeDepart(mot: string): number[] {
+  const premiere = mot[0];
+  const derniere = mot[mot.length - 1];
+  const places = [...mot].flatMap((lettre, i) => (lettre === premiere || lettre === derniere ? [i + 1] : []));
+  return places.length >= mot.length ? [1, mot.length] : places;
+}
+
 /** La manche rendue par le serveur. Sans gardien lisible (la première migration seule), c'est le druide. */
 export function parseManche(value: unknown): MancheDuCoffre | null {
   const manche = record(value);
@@ -417,8 +479,9 @@ export function parseManche(value: unknown): MancheDuCoffre | null {
     essais,
     rang: duCycle ? rang : null,
     gardien: duCycle ? duCycle.gardien : estGardien(gardien) ? gardien : "druide",
-    longueurDite: manche["longueur_dite"] === true,
-    lettres: placesValides(manche["lettres"], mot.length),
+    // Les lettres de départ et la longueur sont au tableau dès le premier instant, que le serveur les ait déjà notées ou non.
+    longueurDite: true,
+    lettres: placesValides([...(Array.isArray(manche["lettres"]) ? (manche["lettres"] as unknown[]) : []), ...lettresDeDepart(mot)], mot.length),
     indices: textes(manche["indices"]).slice(0, INDICES_GARDES),
   };
 }
@@ -820,7 +883,8 @@ const coutDe = (reponse: { modele: string; entree: number; sortie: number } | nu
 async function nouvelleManche(etat: EtatDuCoffre, deps: CoffreDeps): Promise<MancheDuCoffre | null> {
   if (!deps.claude) return null;
   for (let tour = 0; tour < 2; tour++) {
-    const choix = await deps.claude({ system: CONSIGNE_DU_MOT, messages: [{ role: "user", content: demandeDuMot(etat.passes) }], effort: "low" });
+    // Un nouveau tirage à chaque tour : si le premier n'a pas donné de mot valable, le second part d'ailleurs.
+    const choix = await deps.claude({ system: CONSIGNE_DU_MOT, messages: [{ role: "user", content: demandeDuMot(etat.passes, tirerLeMot()) }], effort: "low" });
     // Un appel en panne ne dit pas ce qu'il a consommé : le serveur compte le forfait.
     const mot = choix ? motPropose(choix.texte, etat.passes) : null;
     const cout = coutDe(choix);
@@ -910,8 +974,9 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       p_devine: devine,
       p_microdollars: coutDe(appel),
       p_humeur: devine || dit ? "vaincu" : (lue?.humeur ?? "mefiant"),
-      p_longueur: lue?.longueurDite === true,
-      p_lettres: lue?.lettres ?? [],
+      // Les lettres de départ partent avec chaque essai : le serveur les note au tableau, où elles restent.
+      p_longueur: true,
+      p_lettres: placesValides([...(lue?.lettres ?? []), ...lettresDeDepart(manche.mot)], manche.mot.length),
       p_indice: lue && lue.indice !== "" ? lue.indice : null,
     });
     const numero = entier(clos?.["manche"]);
