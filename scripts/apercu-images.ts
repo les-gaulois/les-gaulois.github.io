@@ -35,6 +35,7 @@ import { groupsCard } from "../src/lib/groupes-image";
 import { guichetCard } from "../src/lib/guichet-image";
 import { rolesCard } from "../src/lib/roles-discord";
 import { hierCard } from "../src/lib/hier-image";
+import { isHeadline } from "../src/lib/nouveautes";
 import { newsCard } from "../src/lib/nouveautes-image";
 import { milestoneCard } from "../src/lib/paliers-franchis-image";
 import { recordCard } from "../src/lib/records-image";
@@ -209,7 +210,7 @@ await saveBoth("08-plus-actifs.png", ["a", "b", "d"], (gaulois) =>
   ),
 );
 await save("09-nouveautes.png", () => {
-  const entries = loadNouveautes().slice(0, 6);
+  const entries = loadNouveautes().filter(isHeadline).slice(0, 6);
   return entries.length > 0 ? newsCard(entries, SITE, measure) : null;
 });
 await save("10-course-du-soir.png", () =>

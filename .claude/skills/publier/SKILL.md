@@ -13,6 +13,8 @@ Tu n'as pas besoin d'accord pour publier. Tu as besoin que tout passe.
 
 Si un visiteur ou l'encadrement peut remarquer le changement, ajouter son entrée en tête de `content/nouveautes.json`, à la date du jour à Paris : `kind` (`nouveau`, `ameliore`, `corrige` ou `retire`), un titre court, une ou deux phrases simples (200 caractères au plus) sur ce qui change pour le visiteur, et au besoin `link` vers la page concernée. Rien d'inventé : le texte décrit ce que fait le changement, sans promesse. Ni les données du robot, ni les tests, ni la documentation n'y vont. Plusieurs commits d'un même changement font une seule entrée. Format détaillé : `README.md`, « Mettre à jour les contenus ».
 
+Donner son rang à l'entrée, sans quoi la page redevient illisible. Depuis le 17 novembre 2026 (demande du pilote : « trier par nouveauté utile pour les joueurs », il y a plus de 40 mises à jour par jour), chaque entrée porte au besoin un rang, `rank` : `"top"` pour ce qu'un joueur doit retenir (une nouvelle page, un nouveau jeu, une nouvelle commande : quelques-unes par jour au plus), `"minor"` pour une retouche ou une correction (apparence, rangement, prix ajusté, bug), `"staff"` pour ce qui ne concerne que l'équipe gauloise (Direction, administration, outils du staff). Sans rang, c'est une nouveauté ordinaire pour les joueurs. La page montre, par jour, les « top » en grandes cases, les ordinaires en lignes courtes, les « minor » dans un pli ; les « staff » restent dans le fichier et ne paraissent ni sur la page, ni dans le bouton de l'en-tête, ni sur Discord. Le bouton, le point rouge et le message Discord ne suivent que les « top » et les ordinaires.
+
 ## 2. Vérifier
 
 Suivre la skill `verifier` jusqu'au bout. Un contrôle qui échoue arrête la publication.

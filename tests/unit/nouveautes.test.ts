@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { fmtLongDay } from "../../src/lib/format";
-import { KIND_LABELS, latestNews, newsDays, newsDot, newsMarker, NOUVEAUTES_FIRST, splitDays, typo } from "../../src/lib/nouveautes";
+import { headlineCount, KIND_LABELS, latestNews, minorWords, newsDays, newsDot, newsMarker, NOUVEAUTES_FIRST, splitDays, typo } from "../../src/lib/nouveautes";
 import { NOUVEAUTE_KINDS, Nouveautes, type Nouveaute } from "../../src/lib/schemas";
 
 const entry = (date: string, title: string, over: Partial<Nouveaute> = {}): Nouveaute => ({ date, kind: "nouveau", title, body: "Ce qui change.", ...over });
@@ -21,6 +21,42 @@ describe("newsDays", () => {
   });
   it("sans entrée, ne crée aucun jour", () => {
     expect(newsDays([])).toEqual([]);
+  });
+});
+
+describe("le rang des entrées", () => {
+  const entries = [
+    entry("2026-11-08", "retouche", { rank: "minor" }),
+    entry("2026-11-08", "ordinaire"),
+    entry("2026-11-08", "équipe", { rank: "staff" }),
+    entry("2026-11-08", "phare", { rank: "top" }),
+    entry("2026-11-07", "équipe seule", { rank: "staff" }),
+    entry("2026-11-06", "vieille"),
+    entry("2026-11-06", "correction", { rank: "minor", kind: "corrige" }),
+  ];
+  it("met ce qui est à retenir d'abord, les retouches en dernier, et écarte l'équipe gauloise", () => {
+    const days = newsDays(entries);
+    expect(days.map((d) => d.date)).toEqual(["2026-11-08", "2026-11-06"]);
+    expect(titles(days[0]?.entries ?? [])).toEqual(["phare", "ordinaire", "retouche"]);
+    expect([titles(days[0]?.top ?? []), titles(days[0]?.usual ?? []), titles(days[0]?.minor ?? [])]).toEqual([["phare"], ["ordinaire"], ["retouche"]]);
+    expect(days.map(headlineCount)).toEqual([2, 1]);
+  });
+  it("ne compte que les entrées à lire pour replier les jours anciens", () => {
+    expect(splitDays(newsDays(entries), 2).shown.map((d) => d.date)).toEqual(["2026-11-08"]);
+    expect(splitDays(newsDays(entries), 3).shown.map((d) => d.date)).toEqual(["2026-11-08", "2026-11-06"]);
+  });
+  it("résume dans l'en-tête ce qui est à retenir d'abord, sans retouche ni entrée de l'équipe", () => {
+    expect(titles(latestNews(entries, 3))).toEqual(["phare", "ordinaire", "vieille"]);
+  });
+  it("n'allume le point que pour une entrée à lire", () => {
+    expect(newsMarker(entries)).toBe("2026-11-08/2");
+    expect(newsMarker([entry("2026-11-09", "retouche", { rank: "minor" }), entry("2026-11-09", "équipe", { rank: "staff" }), ...entries])).toBe("2026-11-08/2");
+    expect(newsMarker([entry("2026-11-09", "équipe", { rank: "staff" })])).toBeNull();
+  });
+  it("nomme le pli des retouches d'une journée", () => {
+    const minor = entry("2026-11-08", "a", { rank: "minor", kind: "ameliore" });
+    const fix = entry("2026-11-08", "b", { rank: "minor", kind: "corrige" });
+    expect([minorWords([minor]), minorWords([minor, minor]), minorWords([fix]), minorWords([fix, fix]), minorWords([minor, fix, fix])]).toEqual(["1 retouche", "2 retouches", "1 correction", "2 corrections", "3 retouches et corrections"]);
   });
 });
 

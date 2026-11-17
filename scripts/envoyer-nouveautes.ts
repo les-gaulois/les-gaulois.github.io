@@ -10,6 +10,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { clan } from "../config/clan";
 import { loadNouveautes } from "../src/lib/data";
 import { isWebhookUrl, lastSentAnyFormat } from "../src/lib/gazette-discord";
+import { isHeadline } from "../src/lib/nouveautes";
 import { NewsState, newsPass, sendNews } from "../src/lib/nouveautes-discord";
 import { parseNoted } from "../src/lib/salon-discord";
 import { salonLink } from "../src/lib/salon-lien";
@@ -36,7 +37,8 @@ try {
   if (warning) console.log(`::warning::Nouveautés : ${warning}.`);
   const result = await newsPass({
     stored,
-    entries: loadNouveautes(),
+    // Ni les retouches ni les entrées de l'équipe gauloise : le salon ne reçoit que ce que la page met en avant.
+    entries: loadNouveautes().filter(isHeadline),
     gazetteLastSent: lastSentAnyFormat(readText(GAZETTE_FILE)),
     now: new Date(),
     send: (entries) =>

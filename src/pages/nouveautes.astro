@@ -8,10 +8,9 @@ import { newsDays, splitDays } from "../lib/nouveautes";
 
 const days = newsDays(loadNouveautes());
 const { shown, folded } = splitDays(days);
-const foldedCount = folded.reduce((n, d) => n + d.entries.length, 0);
 ---
 
-<Base title="Nouveautés du site" description="Chaque mise à jour du site du clan GAL, expliquée simplement, de la plus récente à la plus ancienne.">
+<Base title="Nouveautés du site" description="Les mises à jour du site du clan GAL, expliquées simplement : ce qui change pour les joueurs d'abord, jour par jour.">
   <div class="wrap" data-nouveautes-page>
     <PageHeader title="Nouveautés du site" />
 
@@ -27,7 +26,7 @@ const foldedCount = folded.reduce((n, d) => n + d.entries.length, 0);
             <details class="fold" data-testid="nouveautes-older">
               <summary>
                 <span>
-                  Mises à jour plus anciennes <span class="tnum text-muted">({foldedCount})</span>
+                  Jours précédents
                 </span>
               </summary>
               <div class="mt-4 space-y-6">

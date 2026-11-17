@@ -12,7 +12,7 @@ La personne qui pilote le projet ne développe pas et t'a confié le site en aut
 - Avant tout push : la procédure de la skill `publier`, qui commence par `verifier`. Rien ne part tant qu'un contrôle échoue.
 - Tu ne t'arrêtes pour demander que dans ces cas : une dépense, quelle qu'elle soit ; la suppression de données du vrai projet Supabase ou de l'historique dans `data/` ; une migration qui supprime ou vide une table ou une colonne ; une action hors de ce dépôt (comptes GitHub, Supabase, Discord, cron-job.org) ; une question que ces règles ne tranchent pas. Alors : prépare tout, explique en une phrase ce qui bloque, et attends.
 - Les sections « Données », « Secrets » et « Licences » ne se négocient pas. Si une demande les contredit, explique pourquoi et propose autre chose.
-- Chaque changement visible du site ajoute son entrée en tête de `content/nouveautes.json`, en français simple et sans rien inventer : les visiteurs y lisent ce qui a changé.
+- Chaque changement visible du site ajoute son entrée en tête de `content/nouveautes.json`, en français simple et sans rien inventer : les visiteurs y lisent ce qui a changé. Chaque entrée reçoit son rang (`rank`, demande du pilote du 17 novembre 2026, « trier par nouveauté utile pour les joueurs ») : `top` pour ce qu'un joueur doit retenir, rien pour une nouveauté ordinaire, `minor` pour une retouche ou une correction, repliée sur la page, `staff` pour ce qui ne concerne que l'équipe gauloise, qui ne paraît ni sur la page ni sur Discord (skill `publier`, étape 1).
 - En fin de tâche, rapporte en français simple, sans embellir : ce qui est fait, ce qui est en ligne, ce qui a échoué et pourquoi. Une étape à la fois, sans jargon inutile.
 
 ## Commandes

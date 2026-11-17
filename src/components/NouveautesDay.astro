@@ -1,36 +1,91 @@
 ---
 import { fmtLongDay } from "../lib/format";
-import { KIND_LABELS, typo, type NewsDay } from "../lib/nouveautes";
+import { KIND_LABELS, minorWords, typo, type NewsDay } from "../lib/nouveautes";
+import type { Nouveaute } from "../lib/schemas";
 
-/** Une journée de mises à jour sur la page des nouveautés. */
+/**
+ * Une journée de mises à jour sur la page des nouveautés, triée pour les joueurs : ce qui est à retenir en grandes cases,
+ * les nouveautés ordinaires en lignes courtes, les retouches et corrections dans un pli.
+ */
 interface Props {
   day: NewsDay;
 }
 const { day } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const id = `jour-${day.date}`;
+/** La couleur du mot qui dit la sorte de mise à jour : des jetons, lisibles dans les deux thèmes. */
+const KIND_COLOR: Record<Nouveaute["kind"], string> = {
+  nouveau: "text-ok",
+  ameliore: "text-blue-text",
+  corrige: "text-warn",
+  retire: "text-muted",
+};
 ---
 
 <section class="card scroll-mt-24 p-5 md:p-6" id={id} aria-labelledby={`${id}-titre`} data-testid="nouveautes-day">
   <h2 id={`${id}-titre`} class="text-sm uppercase tracking-wide text-muted">{fmtLongDay(day.date)}</h2>
-  <ul class="divide-y divide-line">
-    {
-      day.entries.map((entry) => (
-        <li class="grid gap-2 py-4 last:pb-0 sm:grid-cols-[7rem_1fr] sm:gap-4" data-testid="nouveautes-entry">
-          <p>
-            <span class="inline-block rounded-full border border-line-strong px-2.5 py-0.5 text-xs font-semibold text-muted">{KIND_LABELS[entry.kind]}</span>
-          </p>
-          <div>
-            <h3 class="text-lg">{typo(entry.title)}</h3>
-            <p class="mt-1 max-w-3xl text-muted">{typo(entry.body)}</p>
+
+  {
+    day.top.length > 0 && (
+      <ul class="mt-4 grid gap-3 sm:grid-cols-2 2xl:grid-cols-3" data-testid="nouveautes-top">
+        {day.top.map((entry) => (
+          <li class="flex flex-col rounded-lg border border-line-strong bg-surface-2 p-4 md:p-5" data-testid="nouveautes-entry">
+            <p class:list={["text-xs font-semibold uppercase tracking-wide", KIND_COLOR[entry.kind]]}>{KIND_LABELS[entry.kind]}</p>
+            <h3 class="mt-1 text-xl">{typo(entry.title)}</h3>
+            <p class="mt-2">{typo(entry.body)}</p>
             {entry.link && (
-              <p class="mt-2">
+              <p class="mt-auto pt-3 font-semibold">
                 <a href={`${base}${entry.link.href}`}>{entry.link.label}</a>
               </p>
             )}
-          </div>
-        </li>
-      ))
-    }
-  </ul>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  {
+    day.usual.length > 0 && (
+      <ul class="mt-4 grid gap-x-8 sm:grid-cols-2 2xl:grid-cols-3" data-testid="nouveautes-usual">
+        {day.usual.map((entry) => (
+          <li class="border-t border-line py-3" data-testid="nouveautes-entry">
+            <p class:list={["text-xs font-semibold uppercase tracking-wide", KIND_COLOR[entry.kind]]}>{KIND_LABELS[entry.kind]}</p>
+            <h3 class="mt-0.5 text-base font-semibold">{typo(entry.title)}</h3>
+            <p class="mt-1 text-sm text-muted">{typo(entry.body)}</p>
+            {entry.link && (
+              <p class="mt-1 text-sm">
+                <a href={`${base}${entry.link.href}`}>{entry.link.label}</a>
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  {
+    day.minor.length > 0 && (
+      <details class="fold mt-4" data-testid="nouveautes-minor">
+        <summary>
+          <span>{minorWords(day.minor)}</span>
+        </summary>
+        <ul class="grid gap-x-8 sm:grid-cols-2 2xl:grid-cols-3">
+          {day.minor.map((entry) => (
+            <li class="py-2 text-sm" data-testid="nouveautes-entry">
+              <h3 class="text-sm font-semibold">{typo(entry.title)}</h3>
+              <p class="text-muted">
+                {typo(entry.body)}
+                {entry.link && (
+                  <>
+                    {" "}
+                    <a href={`${base}${entry.link.href}`}>{entry.link.label}</a>
+                  </>
+                )}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </details>
+    )
+  }
 </section>

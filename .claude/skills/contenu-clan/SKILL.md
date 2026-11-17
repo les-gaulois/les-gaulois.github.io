@@ -18,7 +18,7 @@ Ces fichiers parlent au nom du clan. Leur contenu vient du clan : un message de 
 | Événements | `content/events.json` | `[{ "start": "2026-11-20T20:00:00.000Z", "title": "…", "description": "… (facultatif)", "url": "https://… (facultatif)" }]` — `start` en UTC ; un événement passé disparaît au build suivant |
 | Guide du clan | `content/guide-clan/NN-nom.md` | Markdown. En-tête : `title`, `order`, `court` (nom du sommaire), `groupe` (`combat`, `economie`, `alliances`, `memo`), `icone` (un dessin de `src/lib/icones-parties.ts`), `chapeau`, `essentiel` (quatre phrases au plus, `**gras**` permis), `bloc`, `blocTitre` et `blocTexte`, `points` (avec `renvoi` vers le chapitre qui explique une ligne), `retenir`, `ouvert`. Le texte sous l'en-tête se déplie sous « Détails et formules » |
 | Fiche du clan | `config/clan.ts` | `description`, `history`, `values`, `entryConditions` ; `join.inviteOnly` et `checkedOn` relevés à la main dans le jeu |
-| Nouveautés du site | `content/nouveautes.json` | `[{ "date": "2026-11-08", "kind": "nouveau", "title": "…", "body": "…", "link": { "href": "/page", "label": "…" } }]` — la plus récente en tête, `link` facultatif |
+| Nouveautés du site | `content/nouveautes.json` | `[{ "date": "2026-11-08", "kind": "nouveau", "title": "…", "body": "…", "link": { "href": "/page", "label": "…" } }]` — la plus récente en tête, `link` facultatif, `rank` facultatif (`top`, `minor`, `staff` : skill `publier`, étape 1) |
 
 `content/nouveautes.json` est la seule exception à la règle du début, « tu ne rédiges pas à sa place » : ce n'est pas la voix du clan, c'est le journal du site, que tu tiens à chaque publication (skill `publier`, étape 1). Il ne décrit que des changements réellement faits, tels qu'un visiteur les voit.
 

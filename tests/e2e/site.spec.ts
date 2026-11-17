@@ -28,7 +28,7 @@ import { gamesOf, placeOf, recentGamesTitle } from "../../src/lib/members";
 import { mapLabel } from "../../src/lib/map-names";
 import { meVisitLines } from "../../src/lib/moi-visite";
 import { SECTIONS } from "../../src/lib/nav";
-import { latestNews, newsDays, newsMarker, NOUVEAUTES_KEY, splitDays } from "../../src/lib/nouveautes";
+import { headlineCount, isForPlayers, latestNews, newsDays, newsMarker, NOUVEAUTES_KEY, splitDays } from "../../src/lib/nouveautes";
 import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 import { LETTRINE_TITRE, largeurTexte } from "../../src/lib/police/largeur";
 import { CHOOSE_NAME_URL } from "../../src/lib/pseudo-openfront";
@@ -1597,14 +1597,28 @@ test.describe("les nouveautés du site", () => {
   /** Les points allumés : sur le bouton de l'en-tête, sur le menu du téléphone, ou dans le menu ouvert. */
   const litDots = (page: Page) => page.locator("[data-nouveautes-dot]").filter({ visible: true });
 
-  test("la page explique chaque mise à jour, de la plus récente à la plus ancienne, et replie les anciennes", async ({ page }) => {
+  test("la page trie les mises à jour pour les joueurs, replie les retouches et les jours anciens, et tait celles de l'équipe", async ({ page }) => {
     await page.goto("/nouveautes");
     const items = page.getByTestId("nouveautes-entry");
-    const { shown, folded } = splitDays(newsDays(entries));
-    await expect(items.filter({ visible: true })).toHaveCount(shown.flatMap((d) => d.entries).length);
-    if (folded.length > 0) await page.getByTestId("nouveautes-older").locator("summary").click();
-    await expect(items).toHaveCount(entries.length);
-    for (const [i, e] of entries.entries()) {
+    const days = newsDays(entries);
+    const { shown, folded } = splitDays(days);
+    // D'abord, seules les entrées à lire des premiers jours : ni retouche, ni jour ancien.
+    await expect(items.filter({ visible: true })).toHaveCount(shown.reduce((n, d) => n + headlineCount(d), 0));
+    if (folded.length > 0) await page.getByTestId("nouveautes-older").locator("> summary").click();
+    const shownOrder = days.flatMap((d) => d.entries);
+    expect(shownOrder.length).toBe(entries.filter(isForPlayers).length);
+    await expect(items).toHaveCount(shownOrder.length);
+    for (const staff of entries.filter((e) => !isForPlayers(e)).slice(0, 3)) await expect(page.getByRole("heading", { level: 3, name: staff.title, exact: true })).toHaveCount(0);
+    // Le pli d'une journée ouvre ses retouches.
+    const firstMinor = page.getByTestId("nouveautes-minor").first();
+    if ((await firstMinor.count()) > 0) {
+      await expect(firstMinor.getByTestId("nouveautes-entry").first()).toBeHidden();
+      await firstMinor.locator("summary").click();
+      await expect(firstMinor.getByTestId("nouveautes-entry").first()).toBeVisible();
+    }
+    // Les autres plis s'ouvrent d'un coup : un titre replié n'a pas de rôle à lire.
+    await page.evaluate(() => document.querySelectorAll<HTMLDetailsElement>("[data-testid=nouveautes-minor]").forEach((d) => (d.open = true)));
+    for (const [i, e] of shownOrder.entries()) {
       const item = items.nth(i);
       await expect(item.getByRole("heading", { level: 3 })).toHaveText(e.title);
       await expect(item).toContainText(e.body);

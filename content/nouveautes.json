@@ -2,6 +2,17 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "Les nouveautés triées",
+    "body": "La page montre d'abord ce qui compte pour les joueurs. Les retouches et les corrections se déplient sous chaque jour. Ce qui ne concerne que l'équipe gauloise n'y est plus.",
+    "link": {
+      "href": "/nouveautes",
+      "label": "Nouveautés du site"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
+    "rank": "minor",
     "title": "Votre profil OpenFront, vu par l'équipe le temps de la demande",
     "body": "Le lien de profil donné avec une demande de validation est gardé tant qu'elle attend, pour que l'équipe gauloise vous reconnaisse. Il est effacé dès la décision.",
     "link": {
@@ -32,6 +43,7 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Qui a porté quoi, d'un coup d'œil",
     "body": "Au-dessus du bilan, une barre par axe découpée en tranches, une par Gaulois, sa tête dessus. Les cartes prennent le cadre de la rareté du Gaulois, et les barres se remplissent doucement.",
     "link": {
@@ -42,6 +54,7 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le bilan des Gaulois, plus clair, sur la bannière de chacun",
     "body": "Chaque carte a pour fond la bannière du membre. Une jauge montre son utilité face à la moyenne, et trois cases à dessins remplacent le texte : or, combat, dons.",
     "link": {
@@ -52,6 +65,7 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les statères gagnés sur le podium du coffre",
     "body": "Sur Discord, /perceurs écrit sous les coffres de chacun des trois membres du podium les statères que ces coffres lui ont rapportés dans la semaine.",
     "link": {
@@ -62,6 +76,7 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Une page pour les Gaulois les plus utiles",
     "body": "Le classement des plus utiles a sa page, dans Résultats : la moyenne de chaque membre au pseudo public sur les parties à revoir, avec son Gaulois. Il paraît dès qu'un membre a 5 parties.",
     "link": {
@@ -72,6 +87,7 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le bilan des Gaulois sous chaque replay",
     "body": "Qui a produit l'or, mené l'attaque, donné aux autres : une carte par Gaulois, avec son score d'utilité. Et le classement des plus utiles, en moyenne. Les parties le reçoivent peu à peu.",
     "link": {
@@ -82,6 +98,7 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Revendre un objet au jeu",
     "body": "À la boutique, « Revendre au jeu » rend un objet contre des statères : 70 % de son prix s'il y a été acheté, 50 % s'il vient d'une pochette payée. Un objet reçu sans payer ne se revend pas.",
     "link": {
@@ -92,6 +109,7 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le fil « Entre Gaulois » en lignes serrées, avec niveau et flamme",
     "body": "À côté du replay, le fil prend toute la hauteur et montre près de deux fois plus de lignes. Après le nom d'un membre au pseudo public : son niveau, à la couleur de son prestige, et sa flamme.",
     "link": {
@@ -132,6 +150,7 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Tous les pseudos dans le fil « Entre Gaulois »",
     "body": "Coéquipiers et adversaires y portent aussi le pseudo qu'ils avaient dans la partie, comme dans le replay. Les parties déjà en ligne le reçoivent peu à peu.",
     "link": {
@@ -142,6 +161,7 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les vrais pseudos dans le fil « Entre Gaulois »",
     "body": "À côté du replay, un Gaulois porte le pseudo qu'il avait dans la partie, au lieu de « Gaulois 1 ». Les parties déjà en ligne le reçoivent peu à peu.",
     "link": {
@@ -152,6 +172,7 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le replay et son fil dans un seul écran",
     "body": "Sur un grand écran, le fil « Entre Gaulois » reste à droite du replay, à sa hauteur : tout se voit sans descendre dans la page.",
     "link": {
@@ -172,6 +193,7 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Un fil « Entre Gaulois » à côté du replay",
     "body": "À droite du replay : dons entre Gaulois, éliminations, bombes, émojis, alliances, avec le Gaulois de chacun. Le fil suit le replay. Les parties en ligne le reçoivent peu à peu.",
     "link": {
@@ -192,6 +214,7 @@
   {
     "date": "2026-11-17",
     "kind": "corrige",
+    "rank": "minor",
     "title": "Des replays qui ne s'ouvraient pas",
     "body": "Certains replays ne se chargeaient pas : le service qui donnait les cartes du jeu en refusait par moments. Le lecteur est refait pour les lire dans le dépôt du jeu, au prochain passage du robot.",
     "link": {
@@ -202,6 +225,7 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le Gaulois à la forge",
     "body": "Votre Gaulois est à la forge, devant sa bannière, et saute quand vous l'habillez. Chaque rayon dit ce que vous possédez. Les onglets annoncent les pochettes à ouvrir et les jours avant le tirage.",
     "link": {
@@ -212,6 +236,7 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "La bannière en fond de la fiche",
     "body": "Sur la fiche d'un membre, les blocs bleus prennent la bannière choisie pour son Gaulois. La petite image du haut de la fiche est retirée.",
     "link": {
@@ -232,6 +257,7 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le sentier des Gaulois",
     "body": "Nouvel onglet de « Mon Gaulois » : 30 paliers, du 17 novembre au 31 décembre. On avance par les missions du jour, ses jours de visite et le défi du clan. Chaque palier donne un objet de la boutique.",
     "link": {
@@ -262,6 +288,7 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Pochettes : une rareté terminée rend des statères",
     "body": "Dans la pochette des bannières et celle des Gaulois uniques, finir une rareté n'augmente plus la chance des autres. Sa chance passe aux statères rendus. Le légendaire garde sa chance de départ.",
     "link": {
@@ -272,6 +299,7 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "rank": "top",
     "title": "La loterie du lundi",
     "body": "Chaque lundi à 21 h 30, un tirage désigne l'or, l'argent et le bronze. Un billet par point rapporté au clan dans la semaine. À gagner : des statères et des pochettes. Premier tirage le 23 novembre.",
     "link": {
@@ -282,12 +310,14 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Un thème sombre",
     "body": "Le site existe aussi en sombre. Un bouton en haut de chaque page, dans le menu sur téléphone, passe du clair au sombre. Sans choix de votre part, le site suit le réglage de votre appareil."
   },
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le coffre du druide, sur Discord",
     "body": "Dans le salon « coffre-du-druide » du Discord du clan, tapez /coffre : faites dire au druide son mot secret, par la ruse. Une intelligence artificielle le joue. Dix essais par jour.",
     "link": {
@@ -318,6 +348,7 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les pochettes rangées par rareté",
     "body": "Au survol d'une pochette, les cases sont rangées par rareté, de la plus courante à la plus rare : la pochette surprise, la ménagerie des familiers et les Gaulois uniques.",
     "link": {
@@ -358,6 +389,7 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les bannières de la boutique dans le livre",
     "body": "L'onglet « Bannière » de la boutique range toutes les bannières dans le livre, de la plus courante à la plus rare. Touchez-en une : elle se dresse derrière votre Gaulois, son prix à côté.",
     "link": {
@@ -368,6 +400,7 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le replay part tout seul, en × 8",
     "body": "Dans « Revoir une partie », le replay du jeu démarre de lui-même, en accéléré × 8. Il reste en pause pour qui a demandé moins d'animations, et le bouton pause en haut de page l'arrête.",
     "link": {
@@ -378,6 +411,7 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "« Revoir la partie » mène au site",
     "body": "Sur Discord, le bouton « Revoir la partie » des victoires ouvre maintenant « Revoir une partie » sur le site, et non plus OpenFront. Une partie y arrive environ une heure après sa fin.",
     "link": {
@@ -388,6 +422,7 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le moule de la forge",
     "body": "Quand vous fondez trois objets, un moule de pierre montre en creux la forme de l'objet reçu : le métal y coule, refroidit, puis le moule s'ouvre.",
     "link": {
@@ -418,6 +453,7 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le replay du jeu remplit son cadre",
     "body": "Dans « Revoir une partie », le replay du jeu prend la forme de la carte, sans gris autour, sur fond blanc. « Film du site » est retiré : le film ne sert plus qu'en secours.",
     "link": {
@@ -458,6 +494,7 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "rank": "top",
     "title": "La vitrine des Gaulois",
     "body": "L'onglet « La vitrine » de « Mon Gaulois » montre tous les Gaulois du clan : tenue, familier, nom, et derrière chacun sa bannière. La carte a la couleur de son objet le plus rare.",
     "link": {
@@ -478,6 +515,7 @@
   {
     "date": "2026-11-16",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les pochettes dans leur onglet",
     "body": "La pochette surprise, celle des familiers, celle des bannières et celle des Gaulois uniques sont réunies dans un onglet « Pochettes », au bout de la barre des rayons de la boutique.",
     "link": {
@@ -488,6 +526,7 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Fondre ses objets à la forge",
     "body": "À la forge, 3 objets d'une même rareté en donnent 1 de la rareté suivante, tiré au hasard, du commun au légendaire. Vos doubles s'y fondent aussi.",
     "link": {
@@ -498,6 +537,7 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le divin, plus rare que le légendaire",
     "body": "Quatre tenues de cinq pièces : Origine inconnue, Enlèvement, Champignon atomique et Missile humain. Seule la pochette surprise les donne, dix fois moins souvent qu'un objet légendaire.",
     "link": {
@@ -508,6 +548,7 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Les Gaulois uniques",
     "body": "11 corps de créature pour votre Gaulois, du lézard au dragon : dans l'onglet « Uniques » de la boutique, ou dans leur pochette, qui ne donne jamais deux fois le même. Vos objets se portent dessus.",
     "link": {
@@ -538,6 +579,7 @@
   {
     "date": "2026-11-16",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le vrai replay du jeu",
     "body": "Dans « Revoir une partie », « Voir le replay du jeu » ouvre le lecteur d'OpenFront lui-même : noms, troupes, constructions, attaques, comme dans le jeu, sans publicité.",
     "link": {
@@ -548,6 +590,7 @@
   {
     "date": "2026-11-15",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les bannières dans un onglet de la boutique",
     "body": "La boutique est plus courte : les bannières ont leur onglet « Bannière », après « Arme », dans la barre des rayons.",
     "link": {
@@ -558,6 +601,7 @@
   {
     "date": "2026-11-15",
     "kind": "corrige",
+    "rank": "minor",
     "title": "« Revoir » et « Ouvrir » sur une ligne",
     "body": "Dans « Dernières parties », sur grand écran, une partie filmée garde ses deux liens côte à côte : sa ligne ne grandit plus.",
     "link": {
@@ -568,6 +612,7 @@
   {
     "date": "2026-11-15",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les films montrent noms et constructions",
     "body": "La carte de « Revoir une partie » montre villes, ports, usines, défenses, silos, navires et bombes avec les icônes du jeu, le pseudo des Gaulois et le tag des clans officiels.",
     "link": {
@@ -588,6 +633,7 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Les bannières de /gaulois",
     "body": "40 bannières à acheter en statères dans la boutique de « Mon Gaulois », de la bombe H à l'aurore boréale. Celle que vous choisissez devient le fond de votre image /gaulois sur Discord.",
     "link": {
@@ -598,6 +644,7 @@
   {
     "date": "2026-11-15",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "La boutique revient dans « Mon Gaulois »",
     "body": "La boutique, la pochette surprise et le marché sont maintenant un onglet de « Mon Gaulois », à côté de la forge. Les anciens liens de la boutique y mènent.",
     "link": {
@@ -608,6 +655,7 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Les familiers du Gaulois",
     "body": "100 familiers, de la souris au dragon, à côté de votre Gaulois, sur le site et sur /gaulois. Ils ne sortent que de la pochette des familiers, à 2 000 statères, jamais deux fois le même.",
     "link": {
@@ -634,6 +682,7 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Revoir une partie",
     "body": "Les dernières parties du clan, victoires et défaites, se revoient en film sur le site : la carte de la partie rejouée par le moteur du jeu, du départ à la fin. « Revoir » sur chaque partie filmée.",
     "link": {
@@ -654,6 +703,7 @@
   {
     "date": "2026-11-15",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "La boutique a sa page",
     "body": "La boutique, la pochette surprise et le marché entre membres ont leur page. Le même Gaulois essaie les objets du clan et ceux des membres. « Mon Gaulois » garde le vestiaire et la forge.",
     "link": {
@@ -674,6 +724,7 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "rank": "top",
     "title": "La flamme de série et le niveau sur les fiches",
     "body": "Dès 5 victoires d'affilée sous le tag, une flamme brûle sur la fiche du membre et sur son image /fiche, au dernier relevé. L'image montre aussi le niveau de son compte, tout le jeu.",
     "link": {
@@ -694,6 +745,7 @@
   {
     "date": "2026-11-15",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Votre bourse au QG",
     "body": "Au QG, dans « Mon pronostic », votre total de statères s'affiche en grand, avant comme après avoir posé. La cagnotte, à part, reste la somme des mises de tous.",
     "link": {
@@ -704,6 +756,7 @@
   {
     "date": "2026-11-15",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les pronostics ferment avant la semaine",
     "body": "Au QG, on pronostique la semaine suivante jusqu'au dimanche à minuit. Plus personne ne mise en connaissant déjà des victoires de la semaine.",
     "link": {
@@ -724,6 +777,7 @@
   {
     "date": "2026-11-15",
     "kind": "ameliore",
+    "rank": "top",
     "title": "Des pronostics avec mise",
     "body": "Au QG, le pronostic se pose une fois, avec une mise de 0 à 1 000 statères. La cagnotte va aux plus proches du résultat, selon la mise : aucun statère n'est créé. Chacun voit qui a misé quoi.",
     "link": {
@@ -744,6 +798,7 @@
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "rank": "minor",
     "title": "L'almanach des petits moments",
     "body": "De temps en temps, un moment rare passe dans le village : un vol d'oies, un renard au puits, la brume sur le gué. Il y en a 650, et on revoit rarement le même.",
     "link": {
@@ -754,12 +809,14 @@
   {
     "date": "2026-11-15",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "La Direction sur tout l'écran",
     "body": "La Direction prend toute la largeur de l'écran, le QG toute celle du site. Sur grand écran, leurs parties sont listées à gauche, toujours visibles, et la partie choisie remplit le reste."
   },
   {
     "date": "2026-11-15",
     "kind": "nouveau",
+    "rank": "minor",
     "title": "Entrer dans les bâtiments du village",
     "body": "Au village, un clic sur un bâtiment fini montre son dedans en pixels, avec votre Gaulois debout dedans. Sept bâtiments en ont un : chacun s'ouvre quand les points rapportés au clan l'ont fini.",
     "link": {
@@ -786,6 +843,7 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le guerrier de l'accueil sur Rejoindre",
     "body": "Sur ordinateur, la page Rejoindre montre le même guerrier qu'à l'accueil : il tourne la tête vers la souris et parle dans sa bulle.",
     "link": {
@@ -806,6 +864,7 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Des icônes en couleurs",
     "body": "Dans le guide du clan et les menus du QG et de la Direction, chaque icône a sa couleur, du rouge au rose, sur une petite case de la même couleur.",
     "link": {
@@ -816,12 +875,14 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Des titres plus sobres",
     "body": "Le « ## » rouge devant les titres est retiré. Les lignes « gal@… » au-dessus des parties du QG et de la Direction et des chapitres du guide ne sont plus toutes vertes."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Un village plus vivant au loin",
     "body": "Sur les terrasses du fond, les Gaulois se fondent dans la distance, les cheminées fument et des bêtes se promènent. La taverne et la salle de réunion sont redessinées.",
     "link": {
@@ -832,18 +893,21 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le curseur clignote",
     "body": "Le petit carré rouge au bout des lignes « gal@… » en haut des pages clignote comme dans un vrai terminal. Le bouton pause l'arrête."
   },
   {
     "date": "2026-11-14",
     "kind": "corrige",
+    "rank": "minor",
     "title": "Bleu, blanc, rouge sur le site blanc",
     "body": "Le filet tricolore et le guerrier retrouvent leur blanc : le guerrier ressort en relief, sans fond. Les titres du QG et de la Direction sont nets, et le bas de l'accueil reprend de la couleur."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le salon où demander son code",
     "body": "Pour se connecter avec un code, le site dit maintenant dans quel salon du Discord taper /code : le salon « authentification ».",
     "link": {
@@ -854,12 +918,14 @@
   {
     "date": "2026-11-14",
     "kind": "corrige",
+    "rank": "minor",
     "title": "Le petit Gaulois laisse les graphiques",
     "body": "Le petit Gaulois ne se pose plus sur les courbes, les barres ni les jauges : il se met à côté."
   },
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le village devient un monde",
     "body": "Le village est un grand écran en pixels : on s'y promène sans changer de page, on s'approche ou on recule, et les Gaulois marchent d'un lieu à l'autre.",
     "link": {
@@ -870,6 +936,7 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "rank": "top",
     "title": "La forge aux souvenirs",
     "body": "À la forge, gravez une de vos parties qui ont rapporté des points au clan sur un objet de votre Gaulois, pour 150 statères. Un objet gravé ne se vend pas au marché.",
     "link": {
@@ -900,6 +967,7 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "rank": "minor",
     "title": "Le monde d'OpenFront autour du village",
     "body": "Sous le village : une gare et son train, une usine, un silo d'où part un missile, un port et ses navires, et des combats de temps en temps. Des dessins faits pour le site.",
     "link": {
@@ -930,18 +998,21 @@
   {
     "date": "2026-11-14",
     "kind": "corrige",
+    "rank": "minor",
     "title": "Le petit Gaulois ne cache plus rien",
     "body": "Le petit Gaulois qui vous suit ne se pose plus sur le texte ni sur les boutons, et ne dit plus bonjour par-dessus un titre. Quand il n'y a pas de place, seule sa tête dépasse au bas de l'écran."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Des pages plus faciles à lire",
     "body": "Le titre de chaque page est plus grand que ceux de ses parties. La date de mise à jour n'est donnée qu'une fois, en haut. Les explications sont réunies en bas de la page."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Moins de chiffres répétés",
     "body": "Nos rivaux n'écrit plus trois fois le même écart. Pour les écarts avec nos voisins, l'accueil renvoie au classement et à Nos rivaux. La gazette ne redit plus ses chiffres en introduction.",
     "link": {
@@ -952,24 +1023,28 @@
   {
     "date": "2026-11-14",
     "kind": "corrige",
+    "rank": "minor",
     "title": "Des pages qui ne sautent plus",
     "body": "Sur la liste des membres, le QG et Mon compte, le bas de page ne saute plus au chargement. D'un onglet à l'autre, le titre reste à sa place. Le guide du clan prend toute la largeur."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Petites retouches",
     "body": "La division s'écrit en mots, sans signe. Sur téléphone, le lien « Ouvrir » d'une partie se touche mieux. Confidentialité commence par un sommaire. Les chiffres ne défilent plus depuis zéro."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "top",
     "title": "Le site passe au blanc",
     "body": "Le site quitte son fond bleu marine pour une page blanche, avec l'écriture en bleu marine. Les grands blocs colorés restent. Le guide, le QG et la Direction sont en blanc eux aussi."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Carte de l'alliance : inviter les joueurs d'une alliance alliée",
     "body": "L'équipe gauloise peut cocher « Alliée de la nôtre » sous une autre alliance, dans Gestion. On peut alors inviter ses joueurs : ils lisent la carte et écrivent dans la discussion.",
     "link": {
@@ -980,18 +1055,21 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Direction : le village donne tous ses chiffres",
     "body": "Dans l'onglet Village de la Direction, les statères distribués, dépensés et en circulation s'affichent même quand moins de 5 comptes en ont reçu. Toujours des totaux, sans aucun nom."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le Gaulois reste à la porte du village",
     "body": "Au village, le petit Gaulois qui vous suit ne vient plus : la place a déjà ses Gaulois. Il vous retrouve à la page suivante, avec la tenue choisie au vestiaire."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le Gaulois vous suit sur tout l'écran",
     "body": "Le petit Gaulois suit la souris partout sur l'écran, plus seulement au bas des pages. « En prison » l'enferme dans une petite cage au coin bas gauche ; un clic sur la cage le libère."
   },
@@ -1018,6 +1096,7 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Un Gaulois vous suit sur le site",
     "body": "Un petit Gaulois marche au bas des pages et suit la souris. Un clic le fait parler, « Ranger » le cache. Pour un membre connecté, c'est le sien, habillé au village.",
     "link": {
@@ -1028,6 +1107,7 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "/gaulois montre où est votre Gaulois",
     "body": "Sur Discord, l'image de /gaulois suit l'heure de Paris et le lieu de votre Gaulois : place, taverne, salle de réunion, champ de bataille ou maison. Le logo du clan est en haut à gauche.",
     "link": {
@@ -1048,6 +1128,7 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "rank": "minor",
     "title": "Touchez un Gaulois, il répond",
     "body": "Au village, touchez un Gaulois de la place : il vous répond. Si vous insistez dans l'heure, il s'agace, puis s'énerve pour de bon. Plus de 200 phrases à découvrir.",
     "link": {
@@ -1068,6 +1149,7 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "rank": "minor",
     "title": "Le village s'anime",
     "body": "La place a cinq lieux : place, taverne, salle de réunion, champ de bataille, maisons. Le décor suit l'heure de Paris. Tous les Gaulois créés y sont, avec leur nom.",
     "link": {
@@ -1078,6 +1160,7 @@
   {
     "date": "2026-11-14",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le village : statères, boutique et marché",
     "body": "Chaque point rapporté au clan donne 30 statères à chaque Gaulois de la partie. Ils servent à la boutique, à la pochette surprise et au marché entre membres. Ils ne s'achètent pas.",
     "link": {
@@ -1088,36 +1171,42 @@
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les Gaulois redessinés",
     "body": "Les braies se voient enfin sous la tunique, les capes tombent droit, et la marmite, le slip, la poêle, le lance-patates et le carnyx se reconnaissent du premier coup d'œil."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "QG : chaque onglet se lit d'un coup d'œil",
     "body": "Une ligne courte par élément, des couleurs avec leur mot (vert fait, jaune à faire), des filtres chiffrés. « Moi » commence par ce qui vous attend au QG, et l'on vote d'un clic."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Direction : tous les onglets se lisent d'un coup d'œil",
     "body": "Les douze autres onglets de la Direction suivent Comptes : une ligne courte par élément, chaque état en couleur avec son mot, moins de défilement. Les demandes et le journal se relisent seuls."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le robot parle aussi la nuit",
     "body": "Sur Discord, le robot ne se tait plus de 23 h à 8 h : places, records, paliers et avis à l'encadrement partent jour et nuit, comme les victoires. Les messages du jour gardent leur heure de départ."
   },
   {
     "date": "2026-11-14",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Direction : les comptes en couleurs",
     "body": "L'onglet Comptes s'ouvre sur la liste, qui se relit seule : une recherche à chaque lettre, des filtres chiffrés, des couleurs (vert validé, jaune en attente, rouge suspendu, bleu allié)."
   },
   {
     "date": "2026-11-13",
     "kind": "retire",
+    "rank": "minor",
     "title": "Une carte plus simple",
     "body": "Moins d'entrées sur la carte : les fronts sont dans « Chiffres », les réglages s'ouvrent par la roue du film. « Zones » et la courbe des journées sont retirées.",
     "link": {
@@ -1138,6 +1227,7 @@
   {
     "date": "2026-11-13",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le village : votre Gaulois en pixels",
     "body": "Chaque membre connecté habille son Gaulois : cheveux, barbe, coiffe, haut, bas, bottes et arme. Les premiers objets sont gratuits, les autres attendent la boutique. Sur Discord, /gaulois le montre.",
     "link": {
@@ -1148,6 +1238,7 @@
   {
     "date": "2026-11-13",
     "kind": "nouveau",
+    "rank": "minor",
     "title": "Le site compte ses visites",
     "body": "Chaque page ouverte s'ajoute aux totaux du jour, sans cookie ni adresse IP, que l'encadrement lit dans la Direction. Pour ne plus être compté : un bouton sur la page Confidentialité.",
     "link": {
@@ -1158,6 +1249,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte de l'alliance : les zones des alliés acceptées par l'encadrement",
     "body": "Une zone dessinée par un joueur allié attend l'accord de l'encadrement de GAL avant de compter. Modifiée, elle garde sa version acceptée tant que l'encadrement n'a pas répondu.",
     "link": {
@@ -1168,12 +1260,14 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Victoires sur Discord : les clans d'en face en rouge",
     "body": "Sur l'image de chaque victoire postée dans le Discord du clan, après les Gaulois : « contre », puis, dans des cases rouges, les clans du classement officiel qui jouaient dans une autre équipe."
   },
   {
     "date": "2026-11-13",
     "kind": "nouveau",
+    "rank": "staff",
     "title": "Carte de l'alliance : état des zones et message épinglé",
     "body": "L'encadrement donne à chaque zone un état (à prendre, en cours, tenue, abandonnée) et un ordre de priorité, épingle un message, et les zones s'annoncent dans un salon Discord s'il est branché.",
     "link": {
@@ -1184,6 +1278,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte de l'alliance : une fenêtre qu'on déplace",
     "body": "Sur un grand écran, la fenêtre « Alliance » se déplace par sa barre, change de taille par ses bords, s'agrandit ou se réduit, et garde sa place. La langue se choisit d'un drapeau.",
     "link": {
@@ -1194,6 +1289,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte de l'alliance : à jour chaque heure",
     "body": "Elle suit chaque passage du robot et montre ce que l'alliance a pris et perdu en 24 heures, nos voisins, le coût des zones en capsules et si les troupes déclarées suffisent.",
     "link": {
@@ -1204,6 +1300,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte de l'alliance : le relief aussi",
     "body": "Dans la fenêtre Alliance, les clans en couleur montrent eux aussi le relief du terrain : plus sombres dans les plaines, plus clairs sur les montagnes.",
     "link": {
@@ -1224,6 +1321,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte de l'alliance : voir tous les clans",
     "body": "Le bouton « Tout » colore chaque clan de la carte dans sa couleur du jeu, y compris ceux qui ne sont dans aucune alliance. La légende nomme les plus grands et la terre neutre.",
     "link": {
@@ -1234,6 +1332,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte : couleurs vives, relief visible",
     "body": "Les territoires des clans prennent des couleurs plus vives, plus sombres dans les plaines et plus claires sur les montagnes : on voit le relief du terrain à travers la couleur.",
     "link": {
@@ -1244,6 +1343,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte de l'alliance : une zone ne passe plus sur une autre",
     "body": "En dessinant une zone, le pinceau et le rectangle s'arrêtent au bord des autres zones. Une zone qui en chevauchait déjà une autre perd la partie commune quand on la modifie.",
     "link": {
@@ -1254,6 +1354,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte : les mers ressortent sur l'océan",
     "body": "Les mers fermées par un détroit (Méditerranée, mer Noire, Baltique, mer Rouge…) et les lacs sont plus clairs ; le grand océan est plus foncé jusqu'aux côtes, sans halo autour des continents.",
     "link": {
@@ -1264,6 +1365,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte : la mer redevient bleue",
     "body": "La mer reprend le bleu du jeu au lieu du presque noir : plus claire le long des côtes, un peu plus foncée au large. De petites vagues y dérivent doucement ; le bouton pause les arrête.",
     "link": {
@@ -1274,6 +1376,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte de l'alliance : boutons et légende sous le titre",
     "body": "Sur un écran moyen, les boutons de la carte de l'alliance et la légende des couleurs se rangent sous le titre, à gauche : ils ne cachent plus le titre ni la mention de licence d'OpenFront.",
     "link": {
@@ -1304,6 +1407,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Carte de l'alliance : chiffres et dessin plus clairs",
     "body": "Les chiffres de l'alliance sont en grand, ses clans en tableau. Les outils de dessin des zones sont de gros boutons illustrés, avec une phrase qui dit comment s'en servir.",
     "link": {
@@ -1314,6 +1418,7 @@
   {
     "date": "2026-11-13",
     "kind": "corrige",
+    "rank": "minor",
     "title": "Carte sur téléphone : boutons rangés",
     "body": "Sur téléphone, les boutons + et − de la carte sont côte à côte : la phrase qui nomme un clan touché ne passe plus sous le bouton « Vue d'ensemble ».",
     "link": {
@@ -1324,6 +1429,7 @@
   {
     "date": "2026-11-13",
     "kind": "retire",
+    "rank": "minor",
     "title": "Carte : deux fenêtres en moins",
     "body": "La page Carte n'a plus ses fenêtres « Légende » et « À propos ». Le crédit d'OpenFront reste sur la carte. Le code source et les mentions légales aussi, ou au bas de la fenêtre ouverte sur téléphone.",
     "link": {
@@ -1334,12 +1440,14 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les alliés acceptés par l'encadrement",
     "body": "Un joueur allié qui ouvre son lien d'invitation attend maintenant l'accord de l'encadrement, qui le reconnaît à son nom Discord. Dans la Direction, les comptes des alliés portent le repère « Allié »."
   },
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le niveau non visible, expliqué",
     "body": "La liste des membres écrit « non visible » quand OpenFront ne donne pas le niveau d'un joueur, caché dans son compte ou pas encore gagné, et « sans prestige » quand il n'en a pas encore.",
     "link": {
@@ -1350,12 +1458,14 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Carte de l'alliance : l'invitation en premier",
     "body": "Dans l'onglet Gestion, l'invitation d'un joueur allié passe en tête et dit ce qui manque pour inviter : GAL et le clan du joueur dans la même alliance. Les clans sans alliance se replient."
   },
   {
     "date": "2026-11-13",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le niveau des Gaulois",
     "body": "La liste et les fiches des membres affichent, avec un emblème, le niveau et le prestige du compte OpenFront de ceux qui ne le cachent pas. Ce niveau compte tout le jeu, pas seulement le tag.",
     "link": {
@@ -1366,6 +1476,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Confidentialité : le niveau du compte",
     "body": "La page Confidentialité dit que la liste des membres montre le niveau et le prestige de votre compte OpenFront, sauf si vous le cachez dans le jeu.",
     "link": {
@@ -1376,6 +1487,7 @@
   {
     "date": "2026-11-13",
     "kind": "nouveau",
+    "rank": "top",
     "title": "La carte de l'alliance",
     "body": "Sur la page Carte, la fenêtre Alliance : les alliances de clans en couleur, les zones à prendre dessinées au pixel près, les troupes déclarées et une discussion avec les clans alliés invités.",
     "link": {
@@ -1386,6 +1498,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Confidentialité : la carte de l'alliance",
     "body": "La page Confidentialité dit ce que garde la carte de l'alliance : le clan et le nom d'un joueur invité, les troupes déclarées, et les messages de la discussion, effacés au bout de 30 jours.",
     "link": {
@@ -1396,6 +1509,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le guichet des tickets en grandes icônes",
     "body": "Sur le Discord du clan, le guichet montre une grande icône par demande : la porte pour rejoindre le clan, le corbeau pour une question, le poignard pour un tricheur. Ses boutons portent les mêmes."
   },
@@ -1418,6 +1532,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Confidentialité : les billets des concours",
     "body": "La page Confidentialité dit que chaque participant à un concours sur le Discord du clan a un numéro de billet, effacé 30 jours après le tirage ; celui d'un gagnant reste un an.",
     "link": {
@@ -1440,18 +1555,21 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Un site plus calme, tout en bleu",
     "body": "Des hauts de page plus courts, des tableaux sur un fond à eux, des blocs de couleur presque unis, sans lueur au survol, un peu plus de rouge, et un seul bleu de fond, Carte et guide compris."
   },
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Des pages plus larges et plus aérées",
     "body": "Sur ordinateur, les pages prennent toute la largeur de l'écran. Sur téléphone comme sur ordinateur, leurs parties sont bien plus espacées. Le QG, la Direction et le guide gardent leur colonne."
   },
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Confidentialité : les concours sur Discord",
     "body": "La page Confidentialité dit ce que garde un concours de l'encadrement sur le Discord du clan : le numéro des participants, effacé 30 jours après le tirage, et celui des gagnants, un an.",
     "link": {
@@ -1462,6 +1580,7 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les blocs à déplier, tous pareils",
     "body": "Sauf à la Direction, tout ce qui se déplie a l'allure de « Détails et formules » du guide : une ligne, et un « + » au bout. « Précédent » et « Suivant » du guide ont aussi le même dessin.",
     "link": {
@@ -1472,24 +1591,28 @@
   {
     "date": "2026-11-13",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Des pages plus calmes à lire",
     "body": "Moins de gras dans les phrases, des pseudos blancs qui passent au jaune au survol et mènent tous à leur fiche, des jauges d'une seule couleur, et les dates de mise à jour en petit."
   },
   {
     "date": "2026-11-12",
     "kind": "corrige",
+    "rank": "minor",
     "title": "L'aperçu d'une fiche suit son image du jour",
     "body": "Quand Discord relit la page d'une fiche, l'aperçu du lien prend l'image du jour au lieu d'en garder une ancienne."
   },
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Une image de bienvenue, six couleurs",
     "body": "Sur le Discord du clan, l'image de bienvenue garde un seul décor, l'étendard du clan, en six couleurs : bleu, bleu royal, indigo, lie-de-vin, nuit et acier."
   },
   {
     "date": "2026-11-12",
     "kind": "corrige",
+    "rank": "minor",
     "title": "« 1er » sur une seule ligne dans les podiums",
     "body": "Dans les podiums des Gaulois de la page Records, « 1er » s'écrivait sur deux lignes depuis la nouvelle police des titres. Sa colonne est un peu plus large.",
     "link": {
@@ -1500,18 +1623,21 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Les images du robot aux couleurs du site",
     "body": "Sur Discord, la gazette, les alertes, les victoires et les autres images du robot prennent l'allure du site : fond quadrillé, invite gal@clan, titres en lettres à cases."
   },
   {
     "date": "2026-11-12",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Six commandes de plus sur Discord",
     "body": "Dans le Discord du clan, /clan, /records, /carte, /guide, /rival et /moi montrent en image le classement, les records, la carte, un chapitre du guide, un rival, ou votre fiche si le site vous connaît."
   },
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le guide du clan en console, comme la Carte",
     "body": "Le guide du clan prend le style console de la Carte et du QG : écran de terminal, fenêtres en traits doubles, une ligne de commande par chapitre. Textes et chiffres restent en blanc et en gris.",
     "link": {
@@ -1522,6 +1648,7 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Moins de vert à la Direction",
     "body": "Pour l'encadrement : à la Direction aussi, les phrases, les dates et les chiffres reprennent leur couleur, blanc ou gris, comme au QG."
   },
@@ -1538,6 +1665,7 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Des titres en minuscules, avec une grande première lettre",
     "body": "Les titres ne sont plus tout en capitales : chaque lettre a sa minuscule, plus facile à lire. La première lettre du titre d'une page est plus grande et rouge, comme dans un vieux manuscrit."
   },
@@ -1554,6 +1682,7 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Moins de vert au QG",
     "body": "Au QG, les phrases, les dates, les tableaux et les chiffres reprennent leur couleur, blanc ou gris. Le vert reste aux lignes de commande et aux icônes du menu, comme sur la carte.",
     "link": {
@@ -1564,6 +1693,7 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Moins de vert sur la carte",
     "body": "Sur la page Carte, les textes et les chiffres s'écrivent maintenant en blanc et en gris. Le vert reste surtout sur les icônes et les lignes « gal@carte ».",
     "link": {
@@ -1584,6 +1714,7 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Des lettres plus nettes et plus lisibles",
     "body": "Les petits textes en lettres gauloises ne sont plus en cases : lettres taillées, sans marches d'escalier. Le D, le L, le H et d'autres sont redessinés : toutes les lettres ont la même hauteur."
   },
@@ -1600,6 +1731,7 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "top",
     "title": "Le guide du clan, chapitre par chapitre, avec des essais",
     "body": "Le guide du clan se lit un chapitre à la fois : l'essentiel en quelques phrases, puis un essai à manipuler (attaque, croissance, bâtiments, bateaux, trains). Les fiches par mode sont retirées.",
     "link": {
@@ -1610,12 +1742,14 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Les demandes annoncées dès leur arrivée",
     "body": "Pour l'encadrement : une nouvelle demande d'adhésion est annoncée sur Discord dès qu'elle arrive, quand le salon de l'encadrement est réglé dans la Direction. La nuit, l'avis part après 8 h."
   },
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Le salon des demandes se trouve mieux",
     "body": "Pour l'encadrement : dans la Direction, onglet Discord, « Salons du robot » dit maintenant qu'on y choisit le salon où arrivent les demandes d'adhésion."
   },
@@ -1628,6 +1762,7 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Des titres en lettres gauloises",
     "body": "Titres et gros chiffres s'écrivent dans une police dessinée pour le clan : l'onciale des vieux manuscrits, posée case par case comme un territoire d'OpenFront. Le QG et la Direction ne changent pas."
   },
@@ -1654,6 +1789,7 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Un menu et des icônes au QG",
     "body": "Au QG, un menu déroulant remplace la barre d'onglets, comme à la Direction. Chaque partie des deux menus a sa petite icône gauloise dessinée en pixels : casque, feu de camp, bannière, coq.",
     "link": {
@@ -1664,12 +1800,14 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Sur Discord, des images sans texte",
     "body": "Les messages du site sur Discord (gazette, alertes, paliers, bienvenue, victoires…) ne sont plus qu'une image et son bouton. Records, nouveautés et « Jouer ensemble » ont maintenant leur image."
   },
   {
     "date": "2026-11-12",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Se connecter sans lier son compte Discord",
     "body": "Tapez /code dans le Discord du clan, puis recopiez le code sur Mon compte : pas de page « Autoriser » de Discord, et par ce chemin le site ne garde que votre identifiant et votre nom Discord.",
     "link": {
@@ -1686,12 +1824,14 @@
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "L'inventaire d'images passe à 200 images",
     "body": "Pour l'encadrement : l'inventaire tient 200 images (500 Mo en tout) et se cherche par nom. Dans un message, une image déjà choisie se remplace d'un clic par une de l'inventaire."
   },
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Ce que Discord donne au site",
     "body": "Sous le bouton « Se connecter avec Discord », un encadré dit ce que le site reçoit, ce qu'il ne reçoit jamais, et comment lui retirer cet accès une fois connecté.",
     "link": {
@@ -1714,30 +1854,35 @@
   {
     "date": "2026-11-12",
     "kind": "nouveau",
+    "rank": "staff",
     "title": "Un inventaire d'images pour les messages Discord",
     "body": "Pour l'encadrement : une image d'un message, comme le logo du clan, se garde sous un nom et se reprend d'un clic dans tout champ d'image. La rubrique « Inventaire d'images » les range."
   },
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Demandes, comptes et journal passent dans la Direction",
     "body": "Pour l'encadrement : les demandes d'adhésion, les comptes et le journal quittent le QG pour la Direction. La pastille des demandes revient sur le lien « Direction »."
   },
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Des images en grand dans les messages Discord",
     "body": "Pour l'encadrement : « Message Discord » envoie aussi des images hors des embeds, où Discord les montre en petit, pour qu'elles s'affichent en grand. Jusqu'à dix, avec description et spoiler."
   },
   {
     "date": "2026-11-12",
     "kind": "retire",
+    "rank": "minor",
     "title": "Un accueil sans doublon",
     "body": "La carte des clans, les parties des 14 derniers jours et les créneaux du jour quittent l'accueil : ils restent sur leurs pages. Le résumé de la semaine ne répète plus le rang."
   },
   {
     "date": "2026-11-12",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le QG en mode terminal, comme la Direction",
     "body": "Le QG passe en style terminal, en bleu : le logo du guerrier en mode Matrix, une commande au-dessus de chaque onglet, l'heure dans la fenêtre de session. L'encadrement garde son rouge.",
     "link": {
@@ -1748,30 +1893,35 @@
   {
     "date": "2026-11-11",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Chaque victoire sur Discord, avec la carte",
     "body": "Chaque victoire du clan peut partir dans un salon Discord à part, peu après la partie, avec l'image de la carte, tous les Gaulois sous leur nom en partie et les points gagnés."
   },
   {
     "date": "2026-11-11",
     "kind": "nouveau",
+    "rank": "staff",
     "title": "Des messages Discord écrits depuis la Direction",
     "body": "Pour l'encadrement : l'onglet Discord de la Direction devient un menu. « Message Discord » y envoie, dans un salon du clan, un message mis en forme avec embeds et images."
   },
   {
     "date": "2026-11-11",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "La Direction en mode terminal, avec un menu des parties",
     "body": "Pour l'encadrement : la Direction passe en style terminal, avec le logo du guerrier en mode Matrix et une commande au-dessus de chaque partie. Un menu déroulant donne toutes les parties d'un coup."
   },
   {
     "date": "2026-11-11",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "La Direction prend des airs de poste de commandement",
     "body": "Pour l'encadrement : la page Direction garde son rouge et passe en ambiance console, avec une grille, une écriture de terminal et des étiquettes [ OK ] ou [ À VOIR ] dans l'état du site."
   },
   {
     "date": "2026-11-11",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le simulateur de classement",
     "body": "Au QG, l'onglet Simulateur refait le score d'OpenFront et montre où serait GAL selon les parties jouées seul ou en groupe, et ce qu'il faudrait pour passer devant un clan.",
     "link": {
@@ -1798,6 +1948,7 @@
   {
     "date": "2026-11-11",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Sept outils de plus au QG",
     "body": "Au QG : votre place sans taper votre pseudo, « Ce soir je joue », l'objectif et le pronostic de la semaine, les GG, les parrains, et un bouton vers le salon vocal quand l'encadrement le règle.",
     "link": {
@@ -1808,6 +1959,7 @@
   {
     "date": "2026-11-11",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "Les salons Discord se règlent à la Direction",
     "body": "Les admins branchent maintenant le salon des nouvelles et celui de l'encadrement dans l'onglet Discord de la Direction. Le site y montre aussi si le lien d'un salon ne marche plus."
   },
@@ -1830,6 +1982,7 @@
   {
     "date": "2026-11-11",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Le ping des appels au choix",
     "body": "Au QG, une case « Ping du rôle sur Discord » choisit si l'appel mentionne le rôle. Au plus un ping toutes les 2 minutes pour le clan, et 10 minutes par membre.",
     "link": {
@@ -1850,6 +2003,7 @@
   {
     "date": "2026-11-10",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Les podiums des Gaulois",
     "body": "La page Records a deux podiums de 5 joueurs du clan : les plus longues séries de victoires et le plus de victoires en une journée. L'historique de chacun s'y ajoute dans les heures qui suivent.",
     "link": {
@@ -1860,6 +2014,7 @@
   {
     "date": "2026-11-10",
     "kind": "retire",
+    "rank": "minor",
     "title": "Moins de blocs dans Résultats",
     "body": "Les résultats par format et par carte de jeu quittent la page Records, et le bloc des face-à-face quitte Nos rivaux. Le comparateur de clans garde sa ligne de face-à-face.",
     "link": {
@@ -1870,6 +2025,7 @@
   {
     "date": "2026-11-10",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Tout plus grand, des graphiques sans case",
     "body": "Le texte et les chiffres clés sont plus grands dans les pages. Les graphiques et les grands tableaux se posent sur le décor, sans cadre autour.",
     "link": {
@@ -1890,6 +2046,7 @@
   {
     "date": "2026-11-10",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Un appel en un collage",
     "body": "Au QG, il suffit maintenant de coller le lien de son salon pour prévenir les Gaulois : plus de format à choisir.",
     "link": {
@@ -1910,6 +2067,7 @@
   {
     "date": "2026-11-10",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "L'alerte aussi pour celui qui appelle",
     "body": "Le membre qui prévient les Gaulois depuis le QG reçoit lui aussi une fenêtre, comme celle des autres, avec le son.",
     "link": {
@@ -1920,6 +2078,7 @@
   {
     "date": "2026-11-10",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Moins de texte sur tout le site",
     "body": "Les explications en trop sont retirées des pages et du QG, comme les messages « Aucun … pour l'instant ». Les précisions de calcul restent dans « Comment lire ces chiffres »."
   },
@@ -1936,12 +2095,14 @@
   {
     "date": "2026-11-09",
     "kind": "nouveau",
+    "rank": "staff",
     "title": "Refaire une demande d'adhésion",
     "body": "Un admin peut remettre en attente un compte validé que la liste officielle ne trouve pas. La personne refait sa demande dans Mon compte, puis un officier la valide comme une autre."
   },
   {
     "date": "2026-11-09",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Rejoindre un Gaulois",
     "body": "Au QG, un membre qui attend dans un salon d'OpenFront peut coller son lien : les membres qui ont le QG ouvert voient une fenêtre, avec un son, et le lien de son salon.",
     "link": {
@@ -1952,12 +2113,14 @@
   {
     "date": "2026-11-09",
     "kind": "corrige",
+    "rank": "staff",
     "title": "La liste des comptes de l'administration plus claire",
     "body": "Un compte en attente montre s'il a une demande ouverte. Un compte validé hors de la liste officielle n'est plus dit « Plus dans la liste », et une ligne explique les noms « Gaulois n° … »."
   },
   {
     "date": "2026-11-09",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Une page Carte plus courte",
     "body": "Le film se ralentit au curseur, de × 0,1 à × 1, sans × 2 ni × 4. « Revoir l'histoire » s'étale en largeur. « Faire grandir GAL », le calculateur de don et « Suivre GAL » sont retirés.",
     "link": {
@@ -2000,6 +2163,7 @@
   {
     "date": "2026-11-09",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "La Carte et les Membres plus faciles sur téléphone",
     "body": "La page Carte ne répète plus le territoire de GAL, n'a plus de bloc vide et met en avant sa plus belle journée. Sur Membres, les pseudos se touchent mieux du doigt.",
     "link": {
@@ -2010,12 +2174,14 @@
   {
     "date": "2026-11-09",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Des pages plus courtes, surtout sur téléphone",
     "body": "Rivaux, Membres et la Gazette montrent d'abord l'essentiel, la suite s'ouvre d'un geste. Sur téléphone, la page Carte replie aussi « GAL en chiffres » et le bloc des donateurs."
   },
   {
     "date": "2026-11-09",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "L'encadrement prévenu des sauvegardes",
     "body": "Le salon privé de l'encadrement reçoit un message après chaque sauvegarde chiffrée, faite ou ratée, et, une seule fois, un message qui prouve que son lien marche. Aucun nom.",
     "link": {
@@ -2036,6 +2202,7 @@
   {
     "date": "2026-11-09",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Le QG, réservé aux membres",
     "body": "Les membres reconnus par un officier y votent, proposent des idées et peuvent se montrer sur le mur avec leur photo Discord. Les sondages quittent l'accueil pour le QG.",
     "link": {
@@ -2046,6 +2213,7 @@
   {
     "date": "2026-11-08",
     "kind": "nouveau",
+    "rank": "staff",
     "title": "Demandes signalées et sauvegarde chiffrée",
     "body": "Le site peut prévenir un salon Discord privé de l'encadrement quand une demande d'adhésion attend, sans aucun nom, et faire chaque lundi une sauvegarde chiffrée des données de la connexion.",
     "link": {
@@ -2110,6 +2278,7 @@
   {
     "date": "2026-11-08",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Un site plus fluide et plus calme",
     "body": "Chaque page se précharge au survol de son lien, et les blocs apparaissent en fondu au lieu de se construire case par case. La liste des membres montre les 30 premiers, puis un bouton.",
     "link": {
@@ -2120,6 +2289,7 @@
   {
     "date": "2026-11-08",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "L'administration plus sûre et plus claire",
     "body": "Un changement de rôle demande maintenant une confirmation, chaque demande dit depuis combien de temps elle attend, et des raisons de refus toutes prêtes remplissent le champ."
   },
@@ -2136,12 +2306,14 @@
   {
     "date": "2026-11-08",
     "kind": "nouveau",
+    "rank": "staff",
     "title": "L'encadrement suit mieux le site",
     "body": "Le journal de l'administration écrit chaque action en une phrase, une pastille compte les demandes en attente, et l'espace Direction montre l'état du site."
   },
   {
     "date": "2026-11-08",
     "kind": "ameliore",
+    "rank": "staff",
     "title": "L'espace de l'encadrement passe au rouge",
     "body": "Les pages Direction et Administration prennent des couleurs rouges : on sait d'un coup d'œil qu'on est dans l'espace de l'encadrement. Les autres pages restent bleues."
   },
@@ -2168,12 +2340,14 @@
   {
     "date": "2026-11-08",
     "kind": "nouveau",
+    "rank": "staff",
     "title": "La vue joueur pour l'encadrement",
     "body": "Un bouton de l'espace Direction montre tout le site comme le voit un membre sans grade. Une bande en haut de chaque page permet d'en sortir. Seul l'affichage change, pas les droits."
   },
   {
     "date": "2026-11-08",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "Une carte plus calme",
     "body": "La caméra du film glisse en douceur au lieu de zoomer vite et fort, sans éclairs ni étincelles. La page se lit en quatre parties : l'histoire, où en est GAL, le faire grandir, les détails.",
     "link": {
@@ -2184,6 +2358,7 @@
   {
     "date": "2026-11-08",
     "kind": "ameliore",
+    "rank": "minor",
     "title": "La gazette ne compte que les victoires de la semaine",
     "body": "Le bloc « Le plus de victoires » de la gazette, sur le site comme dans son image pour Discord, ne retient que les victoires de la semaine, jamais celles de tous les temps.",
     "link": {
@@ -2194,6 +2369,7 @@
   {
     "date": "2026-11-07",
     "kind": "corrige",
+    "rank": "minor",
     "title": "Les grands nombres restent lisibles",
     "body": "Les milliers sont séparés par une espace que les polices du site savent afficher : « 121 976 » ne se lit plus « 121976 » dans les titres."
   },
@@ -2216,6 +2392,7 @@
   {
     "date": "2026-11-07",
     "kind": "corrige",
+    "rank": "minor",
     "title": "La carte World montre la vraie part de GAL",
     "body": "La carte World dessine la part réelle de GAL sur la carte officielle des clans, à la place d'une taille choisie arbitrairement.",
     "link": {
@@ -2246,6 +2423,7 @@
   {
     "date": "2026-11-07",
     "kind": "nouveau",
+    "rank": "minor",
     "title": "Le film de la carte est daté",
     "body": "Chaque image du film de la carte a sa date, et le film peut s'arrêter sur la fin exacte d'une journée. La page Carte donne aussi les grandes journées de GAL.",
     "link": {
@@ -2256,6 +2434,7 @@
   {
     "date": "2026-11-07",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Une fiche pour chaque membre",
     "body": "Chaque membre avec pseudo a sa fiche : stats d'équipe, date d'arrivée et dernières parties sous le tag. Un membre anonyme n'a pas de fiche.",
     "link": {
@@ -2266,6 +2445,7 @@
   {
     "date": "2026-11-07",
     "kind": "nouveau",
+    "rank": "top",
     "title": "La gazette du clan",
     "body": "Chaque semaine complète, du lundi au dimanche, a son édition : parties, victoires, temps forts, classement, territoire et arrivées. Ce qui n'a pas été relevé s'écrit « Pas de données ».",
     "link": {
@@ -2318,6 +2498,7 @@
   {
     "date": "2026-11-06",
     "kind": "nouveau",
+    "rank": "top",
     "title": "Les guides",
     "body": "La page Guides donne les stratégies de chaque mode, adaptées du wiki d'OpenFront, et le guide du clan en 11 chapitres, tiré de ses PDF.",
     "link": {
@@ -2334,12 +2515,14 @@
   {
     "date": "2026-11-06",
     "kind": "corrige",
+    "rank": "minor",
     "title": "Le bouton de lecture de la carte reste visible",
     "body": "Sur certains écrans en paysage, comme en 1 024 sur 768 pixels, le bouton de lecture de la carte sortait du premier écran. La carte se limite maintenant à la hauteur de l'écran."
   },
   {
     "date": "2026-11-06",
     "kind": "corrige",
+    "rank": "minor",
     "title": "La carte des clans repart",
     "body": "OpenFront refusait une de ses adresses aux machines de GitHub, et la carte restait figée au 5 novembre. La collecte passe par l'adresse publique prévue, et la carte avance de nouveau.",
     "link": {
@@ -2350,12 +2533,14 @@
   {
     "date": "2026-11-06",
     "kind": "nouveau",
+    "rank": "staff",
     "title": "L'encadrement reconnu dès sa demande",
     "body": "La direction peut noter à l'avance le rôle de son encadrement : à sa demande dans Mon compte, la personne est reconnue avec ce rôle, sans attendre la validation d'un officier."
   },
   {
     "date": "2026-11-06",
     "kind": "corrige",
+    "rank": "minor",
     "title": "Plus de défilement de côté",
     "body": "Sur les pages Rejoindre et Confidentialité, un décor et un mot très long élargissaient la page sur certains écrans, qui défilait alors de côté. C'est corrigé."
   },
@@ -2384,6 +2569,7 @@
   {
     "date": "2026-11-05",
     "kind": "nouveau",
+    "rank": "top",
     "title": "La première version du site",
     "body": "Accueil, classement, progression, membres, activité, guide avec calculateur et page Rejoindre, avec les chiffres de l'API publique d'OpenFront collectés toutes les heures."
   }

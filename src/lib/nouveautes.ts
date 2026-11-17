@@ -1,6 +1,8 @@
 /**
  * Les nouveautés du site : chaque mise à jour, expliquée simplement (`content/nouveautes.json`).
- * Le bouton de l'en-tête en montre les dernières, la page `/nouveautes` les montre toutes, par jour.
+ * Le bouton de l'en-tête en montre les dernières, la page `/nouveautes` les montre par jour, triées pour les joueurs
+ * d'après le rang de chaque entrée (`rank`) : ce qui est à retenir d'abord, les nouveautés ordinaires ensuite, les retouches
+ * repliées. Ce qui ne concerne que l'équipe gauloise (« staff ») reste dans le fichier et ne paraît ni sur le site ni sur Discord.
  * Le point qui signale une mise à jour parue depuis le dernier coup d'œil se calcule dans le navigateur du visiteur :
  * il n'y garde qu'une marque, et rien ne quitte l'appareil.
  */
@@ -9,8 +11,8 @@ import type { Nouveaute } from "./schemas";
 export const NOUVEAUTES_KEY = "gal-nouveautes";
 /** Le panneau de l'en-tête : les dernières mises à jour, la page donne les autres. */
 export const NOUVEAUTES_IN_PANEL = 3;
-/** La page montre des journées entières jusqu'à ce nombre d'entrées au moins, et replie les plus anciennes. */
-export const NOUVEAUTES_FIRST = 8;
+/** La page montre des journées entières jusqu'à ce nombre d'entrées à lire au moins, et replie les plus anciennes. */
+export const NOUVEAUTES_FIRST = 20;
 
 export const KIND_LABELS: Record<Nouveaute["kind"], string> = {
   nouveau: "Nouveau",
@@ -19,45 +21,84 @@ export const KIND_LABELS: Record<Nouveaute["kind"], string> = {
   retire: "Retiré",
 };
 
+/** Une entrée que lisent les joueurs : tout sauf ce qui ne concerne que l'équipe gauloise. */
+export const isForPlayers = (entry: Nouveaute): boolean => entry.rank !== "staff";
+/** Une entrée à lire : à retenir ou ordinaire. Ni une retouche, ni une entrée de l'équipe. */
+export const isHeadline = (entry: Nouveaute): boolean => entry.rank === undefined || entry.rank === "top";
+
 export interface NewsDay {
   /** « AAAA-MM-JJ », le jour de la mise en ligne à Paris. */
   date: string;
+  /** Tout ce que la page montre ce jour-là, dans l'ordre de la page : à retenir, ordinaires, puis retouches. */
   entries: Nouveaute[];
+  /** À retenir par les joueurs. */
+  top: Nouveaute[];
+  /** Les nouveautés ordinaires. */
+  usual: Nouveaute[];
+  /** Les retouches et corrections, repliées. */
+  minor: Nouveaute[];
 }
 
-/** Range les entrées par jour, du plus récent au plus ancien. Dans une journée, l'ordre du fichier est gardé. */
+/**
+ * Range les entrées des joueurs par jour, du plus récent au plus ancien. Dans une journée, ce qui est à retenir vient d'abord,
+ * puis les nouveautés ordinaires, puis les retouches ; dans chaque groupe, l'ordre du fichier est gardé.
+ * Les entrées de l'équipe gauloise sont écartées, et un jour qui n'avait qu'elles ne paraît pas.
+ */
 export function newsDays(entries: Nouveaute[]): NewsDay[] {
   const days: NewsDay[] = [];
-  for (const entry of [...entries].sort((a, b) => b.date.localeCompare(a.date))) {
-    const last = days.at(-1);
-    if (last?.date === entry.date) last.entries.push(entry);
-    else days.push({ date: entry.date, entries: [entry] });
+  for (const entry of entries.filter(isForPlayers).sort((a, b) => b.date.localeCompare(a.date))) {
+    let day = days.at(-1);
+    if (day?.date !== entry.date) {
+      day = { date: entry.date, entries: [], top: [], usual: [], minor: [] };
+      days.push(day);
+    }
+    (entry.rank === "top" ? day.top : entry.rank === "minor" ? day.minor : day.usual).push(entry);
   }
+  for (const day of days) day.entries = [...day.top, ...day.usual, ...day.minor];
   return days;
 }
 
-/** Les journées montrées d'abord, jusqu'à `first` entrées au moins, et les plus anciennes, à replier. Une journée n'est jamais coupée. */
+/** Le nombre d'entrées à lire d'une journée, sans ses retouches. */
+export const headlineCount = (day: NewsDay): number => day.top.length + day.usual.length;
+
+/** Les journées montrées d'abord, jusqu'à `first` entrées à lire au moins, et les plus anciennes, à replier. Une journée n'est jamais coupée. */
 export function splitDays(days: NewsDay[], first = NOUVEAUTES_FIRST): { shown: NewsDay[]; folded: NewsDay[] } {
   let count = 0;
   let cut = 0;
   while (cut < days.length && count < first) {
-    count += days[cut]?.entries.length ?? 0;
+    const day = days[cut];
+    count += day ? headlineCount(day) : 0;
     cut++;
   }
   return { shown: days.slice(0, cut), folded: days.slice(cut) };
 }
 
-/** Les dernières mises à jour, de la plus récente à la plus ancienne. */
-export const latestNews = (entries: Nouveaute[], count = NOUVEAUTES_IN_PANEL): Nouveaute[] => newsDays(entries).flatMap((d) => d.entries).slice(0, count);
+/** Les dernières entrées à lire, du jour le plus récent au plus ancien, celles à retenir d'abord : ni retouche, ni entrée de l'équipe. */
+export const latestNews = (entries: Nouveaute[], count = NOUVEAUTES_IN_PANEL): Nouveaute[] =>
+  newsDays(entries)
+    .flatMap((d) => [...d.top, ...d.usual])
+    .slice(0, count);
 
 /**
- * La marque de la dernière mise à jour : son jour et le nombre d'entrées de ce jour.
- * Elle change dès qu'une entrée paraît en tête, pas quand on corrige le texte d'une entrée. Retirer une entrée du dernier jour
- * la change aussi : le point se rallume alors chez tout le monde, une fois. `null` : aucune entrée.
+ * La marque de la dernière mise à jour : le jour de la dernière entrée à lire et le nombre d'entrées à lire de ce jour.
+ * Elle change dès qu'une telle entrée paraît en tête, pas quand on corrige un texte, ni pour une retouche ou une entrée
+ * de l'équipe gauloise : le point ne s'allume que pour ce qui compte. Retirer une entrée du dernier jour la change aussi :
+ * le point se rallume alors chez tout le monde, une fois. `null` : aucune entrée à lire.
  */
 export function newsMarker(entries: Nouveaute[]): string | null {
-  const top = newsDays(entries)[0];
-  return top ? `${top.date}/${top.entries.length}` : null;
+  const headlines = entries.filter(isHeadline);
+  const date = headlines.reduce<string | null>((latest, e) => (latest === null || e.date > latest ? e.date : latest), null);
+  return date === null ? null : `${date}/${headlines.filter((e) => e.date === date).length}`;
+}
+
+/** « 1 retouche », « 12 retouches et corrections » : le libellé du pli d'une journée. */
+export function minorWords(minor: Nouveaute[]): string {
+  const fixes = minor.some((e) => e.kind === "corrige");
+  const others = minor.some((e) => e.kind !== "corrige");
+  const n = minor.length;
+  if (fixes && !others) return n > 1 ? `${n} corrections` : "1 correction";
+  if (!fixes) return n > 1 ? `${n} retouches` : "1 retouche";
+  return `${n} retouches et corrections`;
 }
 
 /**

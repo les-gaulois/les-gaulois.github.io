@@ -569,11 +569,14 @@ export type Events = z.infer<typeof Events>;
  * qu'un visiteur ou l'encadrement peut remarquer. Les données collectées chaque heure n'y figurent pas.
  */
 export const NOUVEAUTE_KINDS = ["nouveau", "ameliore", "corrige", "retire"] as const;
+/** Le rang d'une entrée : « top » à retenir par les joueurs, « minor » retouche ou correction, « staff » pour la seule équipe gauloise. Sans rang : une nouveauté ordinaire. */
+export const NOUVEAUTE_RANKS = ["top", "minor", "staff"] as const;
 export const Nouveautes = z.array(
   z.object({
     /** Le jour de la mise en ligne, à Paris. */
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     kind: z.enum(NOUVEAUTE_KINDS),
+    rank: z.enum(NOUVEAUTE_RANKS).optional(),
     title: z.string().min(1),
     /** Ce qui change pour le visiteur, en une ou deux phrases simples. */
     body: z.string().min(1),
