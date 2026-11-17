@@ -575,35 +575,71 @@ button.dons-heure:focus-visible {
 }
 
 /* ---------- Bilan des Gaulois et classement général (17 novembre 2026) ---------- */
-/* Sous le replay (BilanDesGaulois.tsx) et sous la liste des parties (revoir.astro), demande du pilote : le score de « celui
-   qui a été le plus utile dans la partie », « en thème avec les personnages gaulois des joueurs ». Une carte par joueur :
-   son Gaulois en pied sur un socle à la couleur de sa rareté (comme sa case du fil et sa carte de la vitrine), son rang, son
-   nom, son utilité, ses titres, puis ses trois axes. Les axes se lisent à leur nom et à leur nombre ; la teinte (ambre de
-   l'or, rouge des combats, bleu des dons) ne fait que les répéter. Les trois premiers ont un filet d'or, d'argent, de
-   bronze, que le rang écrit dit déjà. Écriture et jetons seulement : tout se lit dans les deux thèmes. */
+/* Sous le replay (BilanDesGaulois.tsx) et sur la page « Les plus utiles » (utiles.astro), demandes du pilote : le score de
+   « celui qui a été le plus utile dans la partie », « en thème avec les personnages gaulois des joueurs », puis la bannière
+   du joueur sur toute sa carte et une mécanique qui se comprend sans texte. Une carte par joueur. En haut, sur sa bannière :
+   son Gaulois en pied sur un socle à la couleur de sa rareté, son rang, son nom, son utilité et une jauge dont le repère du
+   milieu est la part moyenne. Dessous, trois cases, une par axe : son dessin, sa part en grand, sa barre, les nombres du
+   jeu. Les axes se lisent à leur nom et à leur nombre ; la teinte (ambre de l'or, rouge des combats, bleu des dons) ne fait
+   que les répéter. Les trois premiers rangs ont un filet d'or, d'argent, de bronze, que le rang écrit dit déjà.
+   Sur une bannière, l'écriture du haut est claire et cernée de marine, comme sur la ligne d'un membre de la liste
+   (« .ligne-banniere » du socle : elle n'est jamais sur la page, toujours sur l'image) ; les cases gardent le fond du
+   thème, pour que barres et nombres se lisent dans les deux. Sans bannière : écriture et jetons seulement. */
 .bilan {
+  --bilan-creux: var(--color-surface);
   margin-top: 2rem;
 }
 .bilan-titre {
   font-size: clamp(1.125rem, 2vw, 1.5rem);
   line-height: 1.2;
 }
+.bilan [data-axe="economie"] {
+  --bilan-ton: var(--color-warn);
+}
+.bilan [data-axe="combat"] {
+  --bilan-ton: var(--color-danger);
+}
+.bilan [data-axe="soutien"] {
+  --bilan-ton: var(--color-win);
+}
+.bilan-icone {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  color: var(--bilan-ton);
+}
+/* La clé, en dessins, au-dessus des cartes : ce que compte chaque axe. */
+.bilan-cle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.25rem;
+  margin-top: 0.625rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.bilan-cle > li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
 .bilan-liste {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
   gap: 0.75rem;
-  margin-top: 1rem;
+  margin-top: 0.875rem;
 }
 .bilan-carte {
   --bilan-filet: var(--color-line);
+  --bilan-cerne: #0a1230;
   display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr);
-  gap: 0.875rem;
+  align-content: start;
+  gap: 0.625rem;
   padding: 0.75rem;
   border: 1px solid var(--color-line);
   border-top: 3px solid var(--bilan-filet);
   border-radius: 0.75rem;
   background: var(--color-surface);
+  font-size: 0.875rem;
 }
 .bilan-carte[data-rang="1"] {
   --bilan-filet: var(--rarete-legendaire);
@@ -613,6 +649,50 @@ button.dons-heure:focus-visible {
 }
 .bilan-carte[data-rang="3"] {
   --bilan-filet: var(--color-loss);
+}
+/* La bannière du joueur, sur toute sa carte : l'image de /bannieres/ en pleine couleur, sans voile. */
+.bilan-carte[data-banniere] {
+  background-color: var(--bilan-cerne);
+  background-image: var(--banniere);
+  background-position: center;
+  background-size: cover;
+  image-rendering: pixelated;
+}
+.bilan-carte[data-banniere] .bilan-identite {
+  color: var(--sur-couleur);
+  font-weight: 700;
+  text-shadow:
+    -2px 0 var(--bilan-cerne),
+    2px 0 var(--bilan-cerne),
+    0 -2px var(--bilan-cerne),
+    0 2px var(--bilan-cerne),
+    -1.5px -1.5px var(--bilan-cerne),
+    1.5px -1.5px var(--bilan-cerne),
+    -1.5px 1.5px var(--bilan-cerne),
+    1.5px 1.5px var(--bilan-cerne),
+    0 3px 4px color-mix(in srgb, var(--bilan-cerne) 70%, transparent);
+}
+.bilan-carte[data-banniere] :is(.bilan-utilite, .bilan-utilite > b, .bilan-jauge-mots, .bilan-nom, .bilan-moyenne) {
+  color: inherit;
+}
+.bilan-carte[data-banniere] .bilan-rang {
+  background: var(--bilan-cerne);
+  text-shadow: none;
+}
+.bilan-carte[data-banniere] .bilan-jauge {
+  border-color: var(--sur-couleur);
+  background: color-mix(in srgb, var(--bilan-cerne) 78%, transparent);
+}
+.bilan-carte[data-banniere] .bilan-jauge > i {
+  background: var(--sur-couleur);
+}
+.bilan-carte[data-banniere] .bilan-jauge-repere {
+  background: var(--rarete-legendaire);
+}
+.bilan-haut {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 0.875rem;
 }
 .bilan-socle {
   --rarete: var(--color-line-strong);
@@ -640,17 +720,16 @@ button.dons-heure:focus-visible {
   place-items: center;
   color: var(--color-muted);
 }
-.bilan-corps {
+.bilan-identite {
   display: grid;
-  align-content: start;
-  gap: 0.4375rem;
+  align-content: center;
+  gap: 0.25rem;
   min-width: 0;
-  font-size: 0.875rem;
 }
 .bilan-tete {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 0.25rem 0.5rem;
 }
 .bilan-rang {
@@ -676,61 +755,90 @@ button.dons-heure:focus-visible {
   color: var(--color-muted);
 }
 .bilan-utilite {
-  margin-left: auto;
   color: var(--color-muted);
 }
 .bilan-utilite > b {
-  font-size: 1.25rem;
+  margin-right: 0.1875rem;
+  font-size: 1.75rem;
+  line-height: 1.1;
   color: var(--ecriture);
 }
-.bilan [data-axe="economie"] {
-  --bilan-ton: var(--color-warn);
+.bilan-moyenne {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
 }
-.bilan [data-axe="combat"] {
-  --bilan-ton: var(--color-danger);
-}
-.bilan [data-axe="soutien"] {
-  --bilan-ton: var(--color-win);
-}
-.bilan-titres {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.375rem;
-}
-.bilan-titres > span {
-  padding: 0.0625rem 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--bilan-ton) 60%, var(--color-line));
+/* La jauge d'utilité : de 0 au double de la part moyenne ; le repère du milieu est cette moyenne. */
+.bilan-jauge {
+  position: relative;
+  height: 0.75rem;
+  border: 1px solid var(--color-line-strong);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bilan-ton) 14%, var(--color-navy));
-  font-size: 0.75rem;
-  font-weight: 600;
+  background: var(--color-surface-2);
 }
+.bilan-jauge > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ecriture);
+}
+.bilan-jauge-repere {
+  position: absolute;
+  top: -0.25rem;
+  bottom: -0.25rem;
+  left: calc(50% - 1px);
+  width: 2px;
+  background: var(--color-danger);
+}
+.bilan-jauge-mots {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  font-family: var(--font-console);
+  font-size: 0.6875rem;
+  color: var(--color-muted);
+}
+.bilan-jauge-mots > :last-child {
+  text-align: right;
+}
+/* Les trois cases, une par axe. */
 .bilan-axes {
   display: grid;
-  gap: 0.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.375rem;
 }
 .bilan-axes > div {
   display: grid;
-  grid-template-columns: 5.25rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.5rem;
+  align-content: start;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid var(--color-line);
+  border-top: 3px solid var(--bilan-ton);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+}
+.bilan-axes > div[data-titre] {
+  border-color: var(--bilan-ton);
+  background: color-mix(in srgb, var(--bilan-ton) 12%, var(--color-surface));
 }
 .bilan-axes dt {
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
   font-family: var(--font-console);
   font-size: 0.6875rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-muted);
 }
 .bilan-axes dd {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
+  display: grid;
+  gap: 0.1875rem;
+}
+.bilan-part {
+  font-size: 1.25rem;
+  line-height: 1.1;
 }
 .bilan-barre {
-  flex: 1 1 auto;
-  height: 0.5rem;
+  height: 0.375rem;
   border-radius: 999px;
   background: var(--color-line);
   overflow: hidden;
@@ -741,21 +849,25 @@ button.dons-heure:focus-visible {
   border-radius: inherit;
   background: var(--bilan-ton);
 }
+.bilan-nombre,
 .bilan-sans {
-  font-weight: 400;
+  font-size: 0.75rem;
+  line-height: 1.3;
   color: var(--color-muted);
 }
-.bilan-axes-nombres dd {
-  padding-left: 0.5rem;
-  border-left: 3px solid var(--bilan-ton);
-}
-.bilan-faits,
-.bilan-note {
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  color: var(--color-muted);
+.bilan-titre-axe {
+  justify-self: start;
+  margin-top: 0.125rem;
+  padding: 0.0625rem 0.4375rem;
+  border: 1px solid var(--bilan-ton);
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
 }
 .bilan-note {
   max-width: 48rem;
   margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--color-muted);
 }

@@ -15,6 +15,8 @@ export interface PortraitDuJournal {
   buste: number;
   /** La rareté la plus haute de ce qu'il porte, comme le cadre de sa carte de la vitrine (`rareteDuCadre`) ; `null` sans elle. */
   rarete: string | null;
+  /** L'image de la bannière qu'il a choisie pour son Gaulois (`/bannieres/<id>.png`), pour sa carte du bilan ; absente sans elle. */
+  banniere?: string | null;
 }
 
 /**

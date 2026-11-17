@@ -6,6 +6,7 @@ import MapNamesCredit from "../components/MapNamesCredit.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import RejeuPartie from "../components/RejeuPartie.tsx";
+import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib/bannieres-joueurs";
 import { loadFilms, loadMembers, loadRecordsPersonnels, loadSeriesEnCours } from "../lib/data";
 import { FLAMME, FLAMME_DOREE } from "../lib/flamme-serie";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
@@ -36,14 +37,18 @@ const pourLeLecteur = parties.map(({ partie, debut, carte, victoire, equipes, ga
 // Le journal « Entre Gaulois » (src/lib/rejeu/journal.ts) nomme les membres par leur pseudo public : le Gaulois de chacun, par
 // pseudo, s'il a créé le sien. Un pseudo porté par deux membres ne désigne personne : pas de Gaulois.
 // Sa case prend la couleur de la rareté la plus haute de ce qu'il porte, comme sa carte de la vitrine (`rareteDuCadre`).
-const portraits: Record<string, { image: string; largeur: number; hauteur: number; buste: number; rarete: string | null }> = {};
+const portraits: Record<string, { image: string; largeur: number; hauteur: number; buste: number; rarete: string | null; banniere: string | null }> = {};
 let insignes: Record<string, Insignes> = {};
 if (parties.some((f) => (f.faits ?? 0) > 0 || f.bilan)) {
   const membres = loadMembers()?.members ?? [];
+  // La bannière que chaque membre a choisie pour son Gaulois, relevée avant la construction comme pour la liste des membres
+  // (src/lib/bannieres-joueurs.ts) : le fond de sa carte du bilan.
+  const bannieres = fondsDesLignes(bannieresDuCache(BANNIERES_MEMBRES_FILE, membres.map((m) => (m.username ? m.publicId : null))));
   for (const [pseudo, ids] of porteursDesPseudos(membres)) {
     const portrait = ids.length === 1 ? portraitDuGaulois(ids[0]) : null;
     const tenue = portrait ? tenueOf(gauloisDuSite(), ids[0]) : null;
-    if (portrait) portraits[pseudo] = { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null };
+    const banniere = ids.length === 1 && Object.hasOwn(bannieres, ids[0]!) ? `${base}${bannieres[ids[0]!]!.image}` : null;
+    if (portrait) portraits[pseudo] = { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null, banniere };
   }
   // À côté du nom (demande du pilote, 17 novembre 2026) : le niveau et le prestige du compte, « tout le jeu », tels que la liste
   // du clan les donne aujourd'hui, et la flamme de la série en cours, à partir de 5 victoires d'affilée (`serie-en-cours.ts`).

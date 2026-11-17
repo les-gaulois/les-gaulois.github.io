@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "Le bilan des Gaulois, plus clair, sur la bannière de chacun",
+    "body": "Chaque carte a pour fond la bannière du membre. Une jauge montre son utilité face à la moyenne, et trois cases à dessins remplacent le texte : or, combat, dons.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
     "title": "Les statères gagnés sur le podium du coffre",
     "body": "Sur Discord, /perceurs écrit sous les coffres de chacun des trois membres du podium les statères que ces coffres lui ont rapportés dans la semaine.",
     "link": {

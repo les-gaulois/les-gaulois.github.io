@@ -1,8 +1,10 @@
 ---
 import Base from "../layouts/Base.astro";
+import { IconeDAxe } from "../components/BilanDesGaulois";
 import Empty from "../components/Empty.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
+import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib/bannieres-joueurs";
 import { loadBilan, loadFilms, loadMembers } from "../lib/data";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
 import { gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
@@ -28,15 +30,19 @@ const partiesComptees = bilans.filter((b) => b.gaulois.length >= 2).length;
 const porteurs = porteursDesPseudos(loadMembers()?.members ?? []);
 const unSeul = (nom: string) => porteurs.get(nom)?.length === 1;
 const classement = classementGeneral(bilans, PARTIES_MIN_DU_CLASSEMENT, unSeul);
+// La bannière que chaque membre a choisie pour son Gaulois : le fond de sa carte, comme sur la liste des membres.
+const bannieres = fondsDesLignes(bannieresDuCache(BANNIERES_MEMBRES_FILE, classement.map((l) => porteurs.get(l.nom)![0]!)));
 const lignes = classement.map((l) => {
   const id = porteurs.get(l.nom)![0]!;
   const portrait = portraitDuGaulois(id);
   const tenue = portrait ? tenueOf(gauloisDuSite(), id) : null;
-  return { ...l, fiche: `${base}/membres/${encodeURIComponent(id)}`, portrait: portrait ? { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null } : null };
+  return { ...l, fiche: `${base}/membres/${encodeURIComponent(id)}`, banniere: Object.hasOwn(bannieres, id) ? `${base}${bannieres[id]!.image}` : null, portrait: portrait ? { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null } : null };
 });
 // Le rang : à utilité égale, le même.
 const rang = (utilite: number) => 1 + classement.filter((l) => l.utilite > utilite).length;
 const plusAncienne = parties.at(-1)?.debut ?? null;
+/** La largeur d'une jauge : de 0 au double de la part moyenne (200), pleine au-delà. */
+const jauge = (valeur: number) => `width: ${Math.min(100, Math.round(valeur / 2))}%`;
 ---
 
 <Base title="Les plus utiles" description="Les Gaulois les plus utiles du clan GAL dans les parties à revoir : or produit, combat et dons, en parts de l'équipe.">
@@ -55,41 +61,57 @@ const plusAncienne = parties.at(-1)?.debut ?? null;
           <h2 id="utiles-titre" class="sr-only">Le classement</h2>
           <p class="info-discrete tnum">
             Sur {partiesComptees > 1 ? `les ${fmtInt(partiesComptees)} parties à revoir qui ont leur bilan` : "la partie à revoir qui a son bilan"}
-            {plusAncienne && `, depuis le ${fmtDayAndTime(plusAncienne)}`}, pour les membres au pseudo public qui en ont joué {PARTIES_MIN_DU_CLASSEMENT} au moins. 100 d'utilité : la part moyenne d'un Gaulois de la partie.
+            {plusAncienne && `, depuis le ${fmtDayAndTime(plusAncienne)}`}, pour les membres au pseudo public qui en ont joué {PARTIES_MIN_DU_CLASSEMENT} au moins.
           </p>
-          <ol class="bilan-liste mt-4">
+          <ul class="bilan-cle">
+            <li data-axe="economie"><IconeDAxe axe="economie" />Or produit</li>
+            <li data-axe="combat"><IconeDAxe axe="combat" />Attaques et prises</li>
+            <li data-axe="soutien"><IconeDAxe axe="soutien" />Dons aux alliés</li>
+            <li class="bilan-cle-part">100 : la part moyenne d'un Gaulois de la partie</li>
+          </ul>
+          <ol class="bilan-liste">
             {lignes.map((l) => (
-              <li class="bilan-carte" data-rang={rang(l.utilite) <= 3 ? rang(l.utilite) : undefined} data-testid="utiles-ligne">
-                {l.portrait ? (
-                  <span class="bilan-socle" data-rarete={l.portrait.rarete ?? undefined} aria-hidden="true">
-                    <img src={l.portrait.image} width={l.portrait.largeur * 2} height={l.portrait.hauteur * 2} alt="" loading="lazy" decoding="async" />
-                  </span>
-                ) : (
-                  <span class="bilan-socle bilan-socle-sans" aria-hidden="true">{[...l.nom][0]!.toLocaleUpperCase("fr")}</span>
-                )}
-                <div class="bilan-corps">
-                  <p class="bilan-tete">
-                    <span class="bilan-rang tnum">{rang(l.utilite)}</span>
-                    <a class="bilan-nom link" href={l.fiche}>{l.nom}</a>
-                    <span class="bilan-utilite tnum"><b>{fmtInt(l.utilite)}</b> d'utilité</span>
-                  </p>
-                  <p class="bilan-faits tnum">Moyenne sur {fmtInt(l.parties)} parties</p>
-                  <dl class="bilan-axes bilan-axes-nombres tnum">
-                    {AXES.map((a) => (
-                      <div data-axe={a}>
-                        <dt>{NOM_DE_L_AXE[a]}</dt>
-                        <dd>{l.axes[a] === null ? "Pas de données" : fmtInt(l.axes[a]!)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  {AXES.some((a) => l.titres[a] > 0) && (
-                    <p class="bilan-titres tnum">
-                      {AXES.filter((a) => l.titres[a] > 0).map((a) => (
-                        <span data-axe={a}>{TITRE_DE_L_AXE[a]}, {fmtInt(l.titres[a])} fois</span>
-                      ))}
-                    </p>
+              <li class="bilan-carte" data-rang={rang(l.utilite) <= 3 ? rang(l.utilite) : undefined} data-banniere={l.banniere ? "" : undefined} style={l.banniere ? `--banniere: url("${l.banniere}")` : undefined} data-testid="utiles-ligne">
+                <div class="bilan-haut">
+                  {l.portrait ? (
+                    <span class="bilan-socle" data-rarete={l.portrait.rarete ?? undefined} aria-hidden="true">
+                      <img src={l.portrait.image} width={l.portrait.largeur * 2} height={l.portrait.hauteur * 2} alt="" loading="lazy" decoding="async" />
+                    </span>
+                  ) : (
+                    <span class="bilan-socle bilan-socle-sans" aria-hidden="true">{[...l.nom][0]!.toLocaleUpperCase("fr")}</span>
                   )}
+                  <div class="bilan-identite">
+                    <p class="bilan-tete">
+                      <span class="bilan-rang tnum">{rang(l.utilite)}</span>
+                      <a class="bilan-nom link" href={l.fiche}>{l.nom}</a>
+                    </p>
+                    <p class="bilan-utilite tnum"><b>{fmtInt(l.utilite)}</b> d'utilité</p>
+                    <div class="bilan-jauge" aria-hidden="true">
+                      <i style={jauge(l.utilite)}></i>
+                      <span class="bilan-jauge-repere"></span>
+                    </div>
+                    <p class="bilan-jauge-mots" aria-hidden="true"><span>0</span><span>moyenne</span><span>le double</span></p>
+                    <p class="bilan-moyenne tnum">Moyenne sur {fmtInt(l.parties)} parties</p>
+                  </div>
                 </div>
+                <dl class="bilan-axes tnum">
+                  {AXES.map((a) => (
+                    <div data-axe={a} data-titre={l.titres[a] > 0 ? "" : undefined}>
+                      <dt><IconeDAxe axe={a} />{NOM_DE_L_AXE[a]}</dt>
+                      <dd>
+                        {l.axes[a] === null ? (
+                          <span class="bilan-sans">Pas de données</span>
+                        ) : (
+                          <>
+                            <b class="bilan-part">{fmtInt(l.axes[a]!)}</b>
+                            <span class="bilan-barre" aria-hidden="true"><i style={jauge(l.axes[a]!)}></i></span>
+                          </>
+                        )}
+                        {l.titres[a] > 0 && <span class="bilan-nombre">{TITRE_DE_L_AXE[a]}, {fmtInt(l.titres[a])} fois</span>}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               </li>
             ))}
           </ol>
