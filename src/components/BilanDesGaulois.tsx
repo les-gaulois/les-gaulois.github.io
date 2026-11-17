@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { AXES, bilanALEcran, NOM_DE_L_AXE, rangsDesScores, scoresDuBilan, TITRE_DE_L_AXE, type Axe, type BilanALEcran, type GauloisDuBilan, type ScoreDuGaulois } from "../lib/rejeu/bilan-ecran";
 import { montantDit } from "../lib/rejeu/journal-ecran";
 import type { PortraitDuJournal } from "./JournalDeLaPartie";
@@ -11,12 +11,46 @@ interface Props {
   portraits: Record<string, PortraitDuJournal>;
 }
 
+/** Un dessin en pixels, d'après ses cases (colonne, rangée) : un carré d'une case par case. */
+const chemin = (cases: readonly (readonly [number, number])[]) => cases.map(([x, y]) => `M${x} ${y}h1v1h-1z`).join("");
+/** Un rectangle de cases, bords compris. */
+const bloc = (x0: number, y0: number, x1: number, y1: number): [number, number][] => {
+  const cases: [number, number][] = [];
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) cases.push([x, y]);
+  return cases;
+};
+
 /** Les dessins des trois axes, en pixels, 12 cases de côté : dessins du site, décoratifs. `creux` : les cases évidées. */
 const DESSINS: Record<Axe, { plein: string; creux: string }> = {
   // Une pièce d'or.
   economie: { plein: "M4 1h4v1h2v2h1v4h-1v2H8v1H4v-1H2V8H1V4h1V2h2z", creux: "M5 3h2v1h1v1H5v1h3v2H7v1H5V8H4V7h3V6H4V4h1z" },
-  // Une épée, la pointe en haut à droite, la garde en bas à gauche.
-  combat: { plein: "M9 1h2v2h-1v1H9v1H8v1H7v1H6v1H5v1h1v1H5v1H4v-1H3v1H2v1H1v-2h1V9H1V8h1v1h1V8h1V7h1V6h1V5h1V4h1V3h1z", creux: "" },
+  // Une épée à lame large, la pointe en haut à droite : la lame, la garde en travers, la poignée et son pommeau.
+  combat: {
+    plein: chemin([
+      ...[0, 1, 2, 3, 4, 5].flatMap((k): [number, number][] => [
+        [9 - k, 1 + k],
+        [10 - k, 1 + k],
+        [10 - k, k],
+      ]),
+      [11, 0],
+      [2, 5],
+      [3, 6],
+      [4, 7],
+      [5, 8],
+      [6, 9],
+      [2, 6],
+      [3, 7],
+      [4, 8],
+      [5, 9],
+      [3, 8],
+      [2, 9],
+      [1, 10],
+      [0, 11],
+      [0, 10],
+      [1, 11],
+    ]),
+    creux: "",
+  },
   // Un cadeau, son ruban en croix.
   soutien: { plein: "M3 1h2v1h2V1h2v2h2v3h-1v5H2V6H1V3h2z", creux: "M5 3h2v8H5zM1 5h10v1H1z" },
 };
@@ -29,8 +63,23 @@ export const IconeDAxe = ({ axe }: { axe: Axe }) => (
   </svg>
 );
 
+/**
+ * La silhouette d'un Gaulois, en ombre (dessin du site, 20 cases sur 32) : pour un joueur sans Gaulois dessiné, à la place de
+ * son initiale (demande du pilote, 17 novembre 2026). Le casque et la tête, les tresses, le torse, les bras, les jambes.
+ */
+const SILHOUETTE = chemin([...bloc(7, 3, 12, 4), ...bloc(6, 5, 13, 12), ...bloc(5, 9, 5, 15), ...bloc(14, 9, 14, 15), ...bloc(8, 13, 11, 13), ...bloc(5, 14, 14, 22), ...bloc(3, 15, 4, 21), ...bloc(15, 15, 16, 21), ...bloc(6, 23, 9, 28), ...bloc(10, 23, 13, 28), ...bloc(5, 29, 9, 30), ...bloc(10, 29, 14, 30)]);
+/** La silhouette en pied (`tete: false`), ou sa tête seule. */
+export const Silhouette = ({ tete = false }: { tete?: boolean }) => (
+  <svg class="bilan-silhouette" viewBox={tete ? "3 2 14 14" : "0 0 20 32"} aria-hidden="true" shape-rendering="crispEdges">
+    <path fill="currentColor" d={SILHOUETTE} />
+  </svg>
+);
+
 /** L'échelle de la jauge d'utilité : 100, la part moyenne, est au milieu ; au-delà de 200, la jauge est pleine. */
 const JAUGE_MAX = 200;
+/** Le côté de la tête d'un Gaulois sur une barre d'équipe, et ce qu'elle montre sous le visage (comme la case du fil). */
+const COTE_DE_LA_TETE = 28;
+const SOUS_LE_VISAGE = 6;
 
 /** Les nombres du jeu derrière chaque axe : le premier en grand, le second dessous quand il y en a un. */
 function nombresDeLAxe(g: GauloisDuBilan, axe: Axe): { grand: string; petit: string | null } {
@@ -41,8 +90,8 @@ function nombresDeLAxe(g: GauloisDuBilan, axe: Axe): { grand: string; petit: str
   return { grand: troupes ?? or ?? "Aucun don", petit: troupes && or ? or : null };
 }
 
-/** Le Gaulois du joueur, en pied, sur le socle à la couleur de sa rareté ; sans dessin, son initiale. */
-function Socle({ g, portrait }: { g: GauloisDuBilan; portrait: PortraitDuJournal | undefined }) {
+/** Le Gaulois du joueur, en pied, sur le socle à la couleur de sa rareté ; sans dessin, une silhouette. */
+function Socle({ portrait }: { portrait: PortraitDuJournal | undefined }) {
   if (portrait) {
     return (
       <span class="bilan-socle" data-rarete={portrait.rarete ?? undefined} aria-hidden="true">
@@ -52,23 +101,76 @@ function Socle({ g, portrait }: { g: GauloisDuBilan; portrait: PortraitDuJournal
   }
   return (
     <span class="bilan-socle bilan-socle-sans" aria-hidden="true">
-      {g.nom ? [...g.nom][0]!.toLocaleUpperCase("fr") : ""}
+      <Silhouette />
     </span>
   );
 }
 
-function Carte({ g, score, rang, portrait }: { g: GauloisDuBilan; score: ScoreDuGaulois; rang: number | null; portrait: PortraitDuJournal | undefined }) {
+/** La tête du Gaulois, dans une petite case : celle des barres d'équipe. */
+function Tete({ portrait }: { portrait: PortraitDuJournal | undefined }) {
+  return (
+    <span class="bilan-tete-mini" data-rarete={portrait?.rarete ?? undefined} aria-hidden="true">
+      {portrait ? (
+        <img src={portrait.image} width={portrait.largeur} height={portrait.hauteur} style={{ top: `${-Math.max(0, portrait.buste - SOUS_LE_VISAGE - COTE_DE_LA_TETE)}px` }} alt="" loading="lazy" decoding="async" />
+      ) : (
+        <Silhouette tete />
+      )}
+    </span>
+  );
+}
+
+type Ligne = { g: GauloisDuBilan; score: ScoreDuGaulois; rang: number | null; portrait: PortraitDuJournal | undefined };
+
+/**
+ * Les barres d'équipe (demande du pilote, 17 novembre 2026, sur ma proposition) : une grande barre par axe, découpée en
+ * tranches, une par Gaulois, à la largeur de sa part, sa tête dessus. Qui a porté quoi, d'un coup d'œil. Les tranches vont de
+ * la plus grande à la plus petite ; un axe sans rien à partager n'a pas de barre. Les mêmes parts sont écrites sur les cartes.
+ */
+function BarresDEquipe({ lignes }: { lignes: readonly Ligne[] }) {
+  const axes = AXES.filter((a) => lignes.some((l) => (l.score.parts[a] ?? 0) > 0));
+  if (axes.length === 0 || lignes.length < 2) return null;
+  return (
+    <div class="bilan-equipe">
+      {axes.map((a) => (
+        <div class="bilan-equipe-axe" data-axe={a}>
+          <p class="bilan-equipe-nom">
+            <IconeDAxe axe={a} />
+            {NOM_DE_L_AXE[a]}
+          </p>
+          <ol class="bilan-equipe-barre tnum">
+            {lignes
+              .filter((l) => (l.score.parts[a] ?? 0) > 0)
+              .sort((x, y) => y.score.parts[a]! - x.score.parts[a]!)
+              .map((l) => {
+                const part = Math.round(l.score.parts[a]! * 100);
+                return (
+                  <li style={{ flexGrow: l.score.parts[a]! }} title={`${l.g.nom ?? "Un Gaulois"} : ${part} %`}>
+                    <Tete portrait={l.portrait} />
+                    <span class="bilan-equipe-part">{part} %</span>
+                    <span class="bilan-equipe-qui">{l.g.nom ?? "Un Gaulois"}</span>
+                  </li>
+                );
+              })}
+          </ol>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Carte({ g, score, rang, portrait }: Ligne) {
   const banniere = portrait?.banniere ?? null;
   return (
     <li
       class="bilan-carte"
       data-rang={rang !== null && rang <= 3 ? rang : undefined}
+      data-rarete={portrait?.rarete ?? undefined}
       data-banniere={banniere ? "" : undefined}
       style={banniere ? { "--banniere": `url("${banniere}")` } : undefined}
       data-testid="rejeu-bilan-carte"
     >
       <div class="bilan-haut">
-        <Socle g={g} portrait={portrait} />
+        <Socle portrait={portrait} />
         <div class="bilan-identite">
           <p class="bilan-tete">
             {rang !== null && <span class="bilan-rang tnum">{rang}</span>}
@@ -127,16 +229,20 @@ function Carte({ g, score, rang, portrait }: { g: GauloisDuBilan; score: ScoreDu
 }
 
 /**
- * Le bilan des Gaulois, sous le replay (demande du pilote, 17 novembre 2026 : le score de « celui qui a été le plus utile
- * dans la partie », « en thème avec les personnages gaulois des joueurs », puis, devant le premier jet : la bannière du
- * joueur sur toute sa carte, et une mécanique qui se comprend « sans expliquer à partir de texte »). Une carte par joueur
- * au tag du clan, la plus utile d'abord, sur le fond de sa bannière : son Gaulois en pied, son rang, son nom, son utilité
- * sur une jauge dont le milieu est la part moyenne ; puis trois cases, une par axe, avec son dessin, sa part de l'équipe en
- * grand, sa barre, et les nombres du jeu d'où elle vient (`src/lib/rejeu/bilan.ts`). Le premier d'un axe y porte son titre.
- * Rien n'est montré si le bilan ne se lit pas.
+ * Le bilan des Gaulois, sous le replay (demandes du pilote, 17 novembre 2026 : le score de « celui qui a été le plus utile
+ * dans la partie », « en thème avec les personnages gaulois des joueurs » ; puis la bannière du joueur sur toute sa carte et
+ * une mécanique qui se comprend « sans expliquer à partir de texte » ; puis les barres d'équipe, la silhouette, le cadre de
+ * rareté sur toute la carte et une animation douce). D'abord les barres d'équipe, une par axe. Puis une carte par joueur au
+ * tag du clan, la plus utile d'abord, sur le fond de sa bannière : son Gaulois en pied, son rang, son nom, son utilité sur
+ * une jauge dont le milieu est la part moyenne ; trois cases, une par axe, avec son dessin, sa part de l'équipe en grand, sa
+ * barre et les nombres du jeu d'où elle vient (`src/lib/rejeu/bilan.ts`). Le premier d'un axe y porte son titre. Les barres
+ * se remplissent une fois, doucement, quand le bilan arrive à l'écran (classe `bilan-vu`) : les nombres, eux, sont écrits
+ * d'emblée. Rien n'est montré si le bilan ne se lit pas.
  */
 export default function BilanDesGaulois({ partie, adresse, portraits }: Props) {
   const [bilan, setBilan] = useState<BilanALEcran | null>(null);
+  const [vu, setVu] = useState(false);
+  const section = useRef<HTMLElement>(null);
   useEffect(() => {
     let annule = false;
     setBilan(null);
@@ -152,41 +258,42 @@ export default function BilanDesGaulois({ partie, adresse, portraits }: Props) {
       annule = true;
     };
   }, [adresse, partie]);
+  // Le bilan arrive à l'écran : ses barres se remplissent, une fois. Sans observateur, elles sont pleines d'emblée.
+  useEffect(() => {
+    const cible = section.current;
+    if (!cible || vu) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVu(true);
+      return;
+    }
+    const observateur = new IntersectionObserver((entrees) => {
+      if (entrees.some((e) => e.isIntersecting)) setVu(true);
+    });
+    observateur.observe(cible);
+    return () => observateur.disconnect();
+  }, [bilan, vu]);
 
   if (bilan === null) return null;
   const scores = scoresDuBilan(bilan.gaulois);
   const rangs = rangsDesScores(scores);
-  const ordre = bilan.gaulois.map((g, i) => ({ g, score: scores[i]!, rang: rangs[i]! })).sort((a, b) => (b.score.utilite ?? -1) - (a.score.utilite ?? -1));
-  const classes = ordre.some((x) => x.score.utilite !== null);
+  const lignes: Ligne[] = bilan.gaulois
+    .map((g, i) => ({ g, score: scores[i]!, rang: rangs[i]!, portrait: g.nom && !g.enPartie && Object.hasOwn(portraits, g.nom) ? portraits[g.nom] : undefined }))
+    .sort((a, b) => (b.score.utilite ?? -1) - (a.score.utilite ?? -1));
+  const classes = lignes.some((x) => x.score.utilite !== null);
   return (
-    <section class="bilan" aria-labelledby="rejeu-bilan-titre" data-testid="rejeu-bilan">
+    <section ref={section} class={`bilan${vu ? " bilan-vu" : ""}`} aria-labelledby="rejeu-bilan-titre" data-testid="rejeu-bilan">
       <h3 id="rejeu-bilan-titre" class="bilan-titre">
         Bilan des Gaulois
       </h3>
-      {/* La clé, en dessins : ce que compte chaque axe, et ce que dit le pourcentage. */}
-      <ul class="bilan-cle">
-        <li data-axe="economie">
-          <IconeDAxe axe="economie" />
-          Or produit
-        </li>
-        <li data-axe="combat">
-          <IconeDAxe axe="combat" />
-          Attaques et prises
-        </li>
-        <li data-axe="soutien">
-          <IconeDAxe axe="soutien" />
-          Dons aux alliés
-        </li>
-        <li class="bilan-cle-part">Le pourcentage : sa part du total des Gaulois</li>
-      </ul>
+      <BarresDEquipe lignes={lignes} />
       <ol class="bilan-liste">
-        {ordre.map(({ g, score, rang }, i) => (
-          <Carte key={i} g={g} score={score} rang={rang} portrait={g.nom && !g.enPartie && Object.hasOwn(portraits, g.nom) ? portraits[g.nom] : undefined} />
+        {lignes.map((l, i) => (
+          <Carte key={i} {...l} />
         ))}
       </ol>
       <p class="bilan-note">
         {classes
-          ? "La place de départ, les dons reçus et une élimination précoce pèsent sur ce score."
+          ? "Le pourcentage est la part du joueur dans le total des Gaulois. La place de départ, les dons reçus et une élimination précoce pèsent sur ce score."
           : bilan.gaulois.length < 2
             ? "Seul Gaulois de la partie : pas de score d'utilité."
             : "Rien à partager entre les Gaulois de cette partie : pas de score d'utilité."}

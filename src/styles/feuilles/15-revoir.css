@@ -397,28 +397,28 @@
   image-rendering: pixelated;
 }
 .dons-case[data-rarete="commun"],
-.bilan-socle[data-rarete="commun"] {
+:is(.bilan-socle, .bilan-carte, .bilan-tete-mini)[data-rarete="commun"] {
   --rarete: var(--rarete-commun);
 }
 .dons-case[data-rarete="peu-commun"],
-.bilan-socle[data-rarete="peu-commun"] {
+:is(.bilan-socle, .bilan-carte, .bilan-tete-mini)[data-rarete="peu-commun"] {
   --rarete: var(--rarete-peu-commun);
 }
 .dons-case[data-rarete="epique"],
-.bilan-socle[data-rarete="epique"] {
+:is(.bilan-socle, .bilan-carte, .bilan-tete-mini)[data-rarete="epique"] {
   --rarete: var(--rarete-epique);
 }
 .dons-case[data-rarete="mystique"],
-.bilan-socle[data-rarete="mystique"] {
+:is(.bilan-socle, .bilan-carte, .bilan-tete-mini)[data-rarete="mystique"] {
   --rarete: var(--rarete-mystique);
 }
 .dons-case[data-rarete="legendaire"],
-.bilan-socle[data-rarete="legendaire"] {
+:is(.bilan-socle, .bilan-carte, .bilan-tete-mini)[data-rarete="legendaire"] {
   --rarete: var(--rarete-legendaire);
   --rarete-cadre: var(--rarete-legendaire-degrade);
 }
 .dons-case[data-rarete="divin"],
-.bilan-socle[data-rarete="divin"] {
+:is(.bilan-socle, .bilan-carte, .bilan-tete-mini)[data-rarete="divin"] {
   --rarete: var(--rarete-divin);
   --rarete-cadre: var(--rarete-divin-degrade);
 }
@@ -604,23 +604,117 @@ button.dons-heure:focus-visible {
 }
 .bilan-icone {
   flex: none;
-  width: 1rem;
-  height: 1rem;
+  width: 1.25rem;
+  height: 1.25rem;
   color: var(--bilan-ton);
 }
-/* La clé, en dessins, au-dessus des cartes : ce que compte chaque axe. */
-.bilan-cle {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem 1.25rem;
-  margin-top: 0.625rem;
-  font-size: 0.8125rem;
-  color: var(--color-muted);
+/* Les barres d'équipe, au-dessus des cartes : une par axe, en tranches, une par Gaulois, à la largeur de sa part, sa tête
+   dessus. La tranche la plus petite garde la place d'une tête. Les tranches d'un axe ont sa teinte, une sur deux plus
+   pâle, pour qu'on voie où chacune finit ; le pourcentage est écrit dessous. */
+.bilan-equipe {
+  display: grid;
+  gap: 0.625rem;
+  margin-top: 0.875rem;
 }
-.bilan-cle > li {
-  display: inline-flex;
+.bilan-equipe-axe {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+.bilan-equipe-nom {
+  display: flex;
   align-items: center;
   gap: 0.375rem;
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.bilan-equipe-barre {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+}
+.bilan-equipe-barre > li {
+  display: grid;
+  justify-items: center;
+  gap: 0.125rem;
+  flex: 1 1 0;
+  min-width: 2.25rem;
+  padding: 0.25rem 0.125rem;
+  border-bottom: 4px solid var(--bilan-ton);
+  background: color-mix(in srgb, var(--bilan-ton) 22%, var(--color-surface));
+  font-size: 0.75rem;
+  font-weight: 700;
+  overflow: hidden;
+}
+.bilan-equipe-barre > li:nth-child(even) {
+  background: color-mix(in srgb, var(--bilan-ton) 10%, var(--color-surface));
+}
+.bilan-equipe-barre > li:first-child {
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+.bilan-equipe-barre > li:last-child {
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+.bilan-equipe-part {
+  white-space: nowrap;
+}
+/* Le nom du joueur, sous sa part : coupé quand la tranche est étroite (la bulle d'aide le dit en entier). */
+.bilan-equipe-qui {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+.bilan-tete-mini {
+  --rarete: var(--color-line-strong);
+  --rarete-cadre: var(--rarete);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid transparent;
+  border-radius: 0.3125rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 50%, var(--color-navy)), color-mix(in srgb, var(--rarete) 14%, var(--color-navy)) 78%) padding-box,
+    var(--rarete-cadre) border-box;
+  overflow: hidden;
+  color: var(--color-muted);
+}
+.bilan-tete-mini > img {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  max-width: none;
+  translate: -50% 0;
+  image-rendering: pixelated;
+}
+.bilan-tete-mini > .bilan-silhouette {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+/* Sur téléphone, les tranches gardent leurs proportions : la tête est plus petite, le nom part, et une tranche trop étroite
+   pour sa tête n'en montre que le début. Les parts de chacun sont écrites sur les cartes. */
+@media (max-width: 40rem) {
+  .bilan-equipe-axe {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+  .bilan-equipe-barre > li {
+    justify-items: start;
+    min-width: 0.375rem;
+    padding: 0.25rem 0.0625rem;
+  }
+  .bilan-equipe-qui {
+    display: none;
+  }
 }
 .bilan-liste {
   display: grid;
@@ -650,8 +744,18 @@ button.dons-heure:focus-visible {
 .bilan-carte[data-rang="3"] {
   --bilan-filet: var(--color-loss);
 }
+/* Le cadre de la carte, à la couleur de la rareté la plus haute de ce que porte son Gaulois, comme le socle : un trait de
+   plus autour d'elle, plus épais pour le légendaire et le divin. Sans Gaulois dessiné : pas de cadre. */
+.bilan-carte[data-rarete] {
+  box-shadow: 0 0 0 2px var(--rarete);
+}
+.bilan-carte:is([data-rarete="legendaire"], [data-rarete="divin"]) {
+  box-shadow: 0 0 0 3px var(--rarete);
+}
 /* La bannière du joueur, sur toute sa carte : l'image de /bannieres/ en pleine couleur, sans voile. */
 .bilan-carte[data-banniere] {
+  gap: 1.25rem;
+  padding-bottom: 0.875rem;
   background-color: var(--bilan-cerne);
   background-image: var(--banniere);
   background-position: center;
@@ -717,8 +821,12 @@ button.dons-heure:focus-visible {
   image-rendering: pixelated;
 }
 .bilan-socle-sans {
-  place-items: center;
-  color: var(--color-muted);
+  color: color-mix(in srgb, var(--color-muted) 55%, transparent);
+}
+.bilan-socle > .bilan-silhouette {
+  width: 5rem;
+  height: 8rem;
+  margin-bottom: 0.25rem;
 }
 .bilan-identite {
   display: grid;
@@ -819,6 +927,13 @@ button.dons-heure:focus-visible {
   border-color: var(--bilan-ton);
   background: color-mix(in srgb, var(--bilan-ton) 12%, var(--color-surface));
 }
+/* Sur une bannière, les cases la laissent paraître un peu (demande du pilote : « laisser respirer la bannière »). */
+.bilan-carte[data-banniere] .bilan-axes > div {
+  background: color-mix(in srgb, var(--color-surface) 86%, transparent);
+}
+.bilan-carte[data-banniere] .bilan-axes > div[data-titre] {
+  background: color-mix(in srgb, color-mix(in srgb, var(--bilan-ton) 12%, var(--color-surface)) 88%, transparent);
+}
 .bilan-axes dt {
   display: flex;
   align-items: center;
@@ -870,4 +985,22 @@ button.dons-heure:focus-visible {
   font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--color-muted);
+}
+/* Les barres et la jauge se remplissent une fois, doucement, quand le bilan arrive à l'écran (`.bilan-vu`, posée par
+   BilanDesGaulois.tsx ; d'emblée sur la page « Les plus utiles »). Les nombres sont écrits dès le départ : seule la longueur
+   bouge. Rien pour qui veut moins d'animations (réglage du système, ou bouton pause). */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.fx-off) .bilan-vu :is(.bilan-barre, .bilan-jauge) > i {
+    transform-origin: left center;
+    animation: bilan-remplit 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  html:not(.fx-off) .bilan-vu .bilan-equipe-barre {
+    transform-origin: left center;
+    animation: bilan-remplit 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+@keyframes bilan-remplit {
+  from {
+    transform: scaleX(0);
+  }
 }

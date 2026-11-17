@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import { IconeDAxe } from "../components/BilanDesGaulois";
+import { IconeDAxe, Silhouette } from "../components/BilanDesGaulois";
 import Empty from "../components/Empty.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
@@ -57,28 +57,22 @@ const jauge = (valeur: number) => `width: ${Math.min(100, Math.round(valeur / 2)
           Le classement paraît quand un membre au pseudo public a joué {PARTIES_MIN_DU_CLASSEMENT} parties à revoir qui ont leur bilan.
         </Empty>
       ) : (
-        <section class="bilan" aria-labelledby="utiles-titre" data-testid="utiles-classement">
+        <section class="bilan bilan-vu" aria-labelledby="utiles-titre" data-testid="utiles-classement">
           <h2 id="utiles-titre" class="sr-only">Le classement</h2>
           <p class="info-discrete tnum">
             Sur {partiesComptees > 1 ? `les ${fmtInt(partiesComptees)} parties à revoir qui ont leur bilan` : "la partie à revoir qui a son bilan"}
-            {plusAncienne && `, depuis le ${fmtDayAndTime(plusAncienne)}`}, pour les membres au pseudo public qui en ont joué {PARTIES_MIN_DU_CLASSEMENT} au moins.
+            {plusAncienne && `, depuis le ${fmtDayAndTime(plusAncienne)}`}, pour les membres au pseudo public qui en ont joué {PARTIES_MIN_DU_CLASSEMENT} au moins. 100 : la part moyenne d'un Gaulois de la partie.
           </p>
-          <ul class="bilan-cle">
-            <li data-axe="economie"><IconeDAxe axe="economie" />Or produit</li>
-            <li data-axe="combat"><IconeDAxe axe="combat" />Attaques et prises</li>
-            <li data-axe="soutien"><IconeDAxe axe="soutien" />Dons aux alliés</li>
-            <li class="bilan-cle-part">100 : la part moyenne d'un Gaulois de la partie</li>
-          </ul>
           <ol class="bilan-liste">
             {lignes.map((l) => (
-              <li class="bilan-carte" data-rang={rang(l.utilite) <= 3 ? rang(l.utilite) : undefined} data-banniere={l.banniere ? "" : undefined} style={l.banniere ? `--banniere: url("${l.banniere}")` : undefined} data-testid="utiles-ligne">
+              <li class="bilan-carte" data-rang={rang(l.utilite) <= 3 ? rang(l.utilite) : undefined} data-rarete={l.portrait?.rarete ?? undefined} data-banniere={l.banniere ? "" : undefined} style={l.banniere ? `--banniere: url("${l.banniere}")` : undefined} data-testid="utiles-ligne">
                 <div class="bilan-haut">
                   {l.portrait ? (
                     <span class="bilan-socle" data-rarete={l.portrait.rarete ?? undefined} aria-hidden="true">
                       <img src={l.portrait.image} width={l.portrait.largeur * 2} height={l.portrait.hauteur * 2} alt="" loading="lazy" decoding="async" />
                     </span>
                   ) : (
-                    <span class="bilan-socle bilan-socle-sans" aria-hidden="true">{[...l.nom][0]!.toLocaleUpperCase("fr")}</span>
+                    <span class="bilan-socle bilan-socle-sans" aria-hidden="true"><Silhouette /></span>
                   )}
                   <div class="bilan-identite">
                     <p class="bilan-tete">

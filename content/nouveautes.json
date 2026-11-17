@@ -22,6 +22,16 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "Qui a porté quoi, d'un coup d'œil",
+    "body": "Au-dessus du bilan, une barre par axe découpée en tranches, une par Gaulois, sa tête dessus. Les cartes prennent le cadre de la rareté du Gaulois, et les barres se remplissent doucement.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
     "title": "Le bilan des Gaulois, plus clair, sur la bannière de chacun",
     "body": "Chaque carte a pour fond la bannière du membre. Une jauge montre son utilité face à la moyenne, et trois cases à dessins remplacent le texte : or, combat, dons.",
     "link": {
