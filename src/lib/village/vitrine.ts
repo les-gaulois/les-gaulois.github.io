@@ -1,5 +1,6 @@
-import { CLE_MODELE, EMPLACEMENTS, EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, POILS, RARETES_DES_OBJETS as RARETES, TEINTE_CHEVEUX, TENUE_DE_DEPART, lireTenue, modeleDuGaulois, objetPorte, type RareteDObjet as Rarete, type Tenue } from "../gaulois";
+import { RARETE_DIVINE, CLE_MODELE, EMPLACEMENTS, EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, POILS, RARETES_DES_OBJETS as RARETES, TEINTE_CHEVEUX, TENUE_DE_DEPART, lireTenue, modeleDuGaulois, objetPorte, type RareteDObjet as Rarete, type Tenue } from "../gaulois";
 import type { GauloisDeLaPlace } from "./contrat";
+import type { PochetteDeLEtal } from "./etal";
 
 /**
  * La vitrine des Gaulois (demande du pilote, 15 novembre 2026 : « une vitrine dans la page gaulois avec tous les gaulois avec
@@ -72,22 +73,57 @@ export interface LignePortee {
   partie: string;
   nom: string;
   rarete: Rarete | null;
+  /** L'objet du catalogue, pour dessiner sa case ; `modele` : l'identifiant du Gaulois unique, pour le sien. */
+  objet?: { emplacement: (typeof EMPLACEMENTS_OBJETS)[number]; id: string };
+  modele?: string;
 }
 
 /**
  * Ce que porte un Gaulois, pour sa carte ouverte en grand (17 novembre 2026) : son Gaulois unique d'abord, puis ses objets
- * de la tête à l'arme, dans l'ordre du vestiaire. Une case « rien » (sans dessin) ne se dit pas. Des faits du catalogue,
+ * de la tête à l'arme, dans l'ordre du vestiaire, chacun dans une case comme celles du vestiaire (le pilote, le 17
+ * novembre : « je préfère voir des jolies cases des items avec leur rareté que des lignes d'écriture »). Une case « rien »
+ * (sans dessin) ne se montre pas. Des faits du catalogue,
  * dans l'ordre des emplacements : rien n'est trié ni compté.
  */
 export function lignesPortees(tenue: Tenue): LignePortee[] {
   const lignes: LignePortee[] = [];
   const modele = modeleDuGaulois(tenue);
-  if (modele) lignes.push({ partie: "Gaulois unique", nom: modele.nom, rarete: modele.rarete });
+  if (modele) lignes.push({ partie: "Gaulois unique", nom: modele.nom, rarete: modele.rarete, modele: modele.id });
   for (const emplacement of EMPLACEMENTS_OBJETS) {
-    const objet = OBJETS[emplacement][objetPorte(tenue, emplacement)];
-    if (objet?.dessin) lignes.push({ partie: NOMS_EMPLACEMENTS[emplacement], nom: objet.nom, rarete: objet.rarete });
+    const id = objetPorte(tenue, emplacement);
+    const objet = OBJETS[emplacement][id];
+    if (objet?.dessin) lignes.push({ partie: NOMS_EMPLACEMENTS[emplacement], nom: objet.nom, rarete: objet.rarete, objet: { emplacement, id } });
   }
   return lignes;
+}
+
+/** Où trouver ce que porte un autre Gaulois : déjà à soi, gratuit pour tous, ou un lien vers l'endroit où ça s'obtient. */
+export type Provenance = { kind: "a-moi" } | { kind: "gratuit" } | { kind: "lien"; mots: string; ancre: string; rayon?: (typeof EMPLACEMENTS_OBJETS)[number]; pochette?: PochetteDeLEtal };
+
+/**
+ * D'où vient un objet de la garde-robe (17 novembre 2026, « où trouver cet objet ») : un objet gratuit est à tout le
+ * monde ; un objet payant qu'on possède est « à vous » ; un objet divin ne sort que de la pochette surprise ; tout autre
+ * s'achète à la boutique, dans le rayon de son emplacement. Des règles du jeu déjà écrites ailleurs, rien de plus.
+ */
+export function provenanceDeLObjet(emplacement: (typeof EMPLACEMENTS_OBJETS)[number], id: string, possede: boolean): Provenance | null {
+  const objet = OBJETS[emplacement][id];
+  if (!objet) return null;
+  if (objet.gratuit) return { kind: "gratuit" };
+  if (possede) return { kind: "a-moi" };
+  if (objet.rarete === RARETE_DIVINE) return { kind: "lien", mots: "Pochette surprise", ancre: "pochettes", pochette: "surprise" };
+  return { kind: "lien", mots: "À la boutique", ancre: "boutique", rayon: emplacement };
+}
+
+/** Un nom sans accent ni majuscule, pour le comparer à ce qu'on tape. */
+const simple = (texte: string): string => texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+
+/**
+ * La recherche de la vitrine : les Gaulois dont le nom contient ce qu'on a tapé, sans tenir compte des accents ni des
+ * majuscules, dans l'ordre reçu. Rien de tapé : tous. Rien n'est trié ni classé.
+ */
+export function chercherDansLaVitrine<G extends Pick<GauloisVitrine, "nom">>(gaulois: readonly G[], texte: string): G[] {
+  const cherche = simple(texte);
+  return cherche === "" ? [...gaulois] : gaulois.filter((g) => simple(g.nom).includes(cherche));
 }
 
 /**

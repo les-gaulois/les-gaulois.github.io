@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "title": "La vitrine en cases",
+    "body": "Dans la vitrine, les objets d'un Gaulois se voient en cases, avec l'endroit où les trouver, et un champ cherche un nom. Les étiquettes sont redessinées, et la pochette se secoue avant le tambour.",
+    "link": {
+      "href": "/village#vitrine",
+      "label": "La vitrine"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "Les pochettes sur un étal",
     "body": "L'onglet « Les pochettes » s'ouvre sur un étal : les cinq pochettes, devant la bannière que vous montrez. Un clic sur l'une montre sa carte, avec ses chances, son album et son bouton comme avant.",
     "link": {

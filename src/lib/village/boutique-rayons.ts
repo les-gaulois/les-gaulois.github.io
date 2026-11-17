@@ -8,6 +8,7 @@
  * empêche d'acheter ce qu'on essaie. Rien ne décide d'un droit ni d'un prix : le serveur le fait (`contrat.ts`), et
  * l'écran (`src/components/village/Boutique.tsx`) ne range que ce qu'il a reçu.
  */
+import type { PochetteDeLEtal } from "./etal";
 import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, type RareteDObjet, type Vignette } from "../gaulois";
 import type { RefObjet } from "./contrat";
 import { RAISON_EN_VENTE, estEnVente, manque, stateres } from "./ecran-boutique";
@@ -55,6 +56,31 @@ export const RAYON_POCHETTES = "pochettes";
  * Les pochettes n'en sont plus : elles ont leur partie de la page (`RAYON_POCHETTES`).
  */
 export const RAYONS_BOUTIQUE = [...RAYONS_OBJETS, RAYON_BANNIERE, RAYON_UNIQUES] as const;
+
+/*
+ * Un rayon demandé depuis un autre onglet (la vitrine : « où trouver cet objet ») : noté ici, puis pris une seule fois par
+ * la boutique quand elle s'ouvre. Rien n'est gardé au-delà de la page.
+ */
+let rayonDemande: RayonObjet | null = null;
+export function demanderLeRayon(rayon: RayonObjet): void {
+  rayonDemande = rayon;
+}
+export function rayonDemandeUneFois(): RayonObjet | null {
+  const rayon = rayonDemande;
+  rayonDemande = null;
+  return rayon;
+}
+
+/* De même pour une pochette de l'étal (« Pochette des bannières », depuis la vitrine) : prise une fois par l'onglet des pochettes. */
+let pochetteDemandee: PochetteDeLEtal | null = null;
+export function demanderLaPochette(pochette: PochetteDeLEtal): void {
+  pochetteDemandee = pochette;
+}
+export function pochetteDemandeeUneFois(): PochetteDeLEtal | null {
+  const pochette = pochetteDemandee;
+  pochetteDemandee = null;
+  return pochette;
+}
 export type RayonBoutique = (typeof RAYONS_BOUTIQUE)[number];
 /** Ce que l'écran de la boutique montre : un de ses rayons, ou les pochettes seules. */
 export type RayonOuvert = RayonBoutique | typeof RAYON_POCHETTES;

@@ -24,6 +24,8 @@ import {
   type Essai,
   type RayonBoutique,
   type RayonOuvert,
+  pochetteDemandeeUneFois,
+  rayonDemandeUneFois,
 } from "../../lib/village/boutique-rayons";
 import type { MaBoutique, PochetteFamiliersReponse, PochetteGagnee, PochetteReponse, PochetteStateresReponse, RefObjet } from "../../lib/village/contrat";
 import { bonsEnMots, lirePochettesGagnees } from "../../lib/village/loterie";
@@ -307,6 +309,14 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
       if (demandeLesBannieres(location.hash)) allerAuxBannieres();
       if (demandeLesModeles(location.hash)) allerAuxUniques();
       if (demandeLesFamiliers(location.hash)) allerAuxFamiliers();
+      // Venu de la vitrine (« où trouver cet objet ») : le rayon de l'objet s'ouvre, et la page y descend.
+      const pochetteVoulue = pochettes ? pochetteDemandeeUneFois() : null;
+      if (pochetteVoulue) setPochetteChoisie(pochetteVoulue);
+      const demande = pochettes ? null : rayonDemandeUneFois();
+      if (demande) {
+        setRayon(demande);
+        setAppelDesRayons((n) => n + 1);
+      }
     } catch (e) {
       setEtat({ kind: "erreur", message: messageOf(e) });
     }

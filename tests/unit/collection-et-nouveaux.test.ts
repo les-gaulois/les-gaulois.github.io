@@ -3,7 +3,8 @@ import { EMPLACEMENTS_OBJETS, OBJETS, TENUE_DE_DEPART } from "../../src/lib/gaul
 import { LIGNES_DU_LIVRE, lignesDeLaCollection, partPossedee, totalDeLaCollection } from "../../src/lib/village/collection";
 import type { ObjetPossede } from "../../src/lib/village/contrat";
 import { TROP_DE_NOUVEAUX, cleDeLObjet, cleDesObjetsVus, ecrireLesVus, faireLePoint, lireLesVus, nouveauxDuRayon } from "../../src/lib/village/nouveaux-objets";
-import { lignesPortees } from "../../src/lib/village/vitrine";
+import { demanderLeRayon, rayonDemandeUneFois } from "../../src/lib/village/boutique-rayons";
+import { chercherDansLaVitrine, lignesPortees, provenanceDeLObjet } from "../../src/lib/village/vitrine";
 
 // La pastille « Nouveau » du vestiaire, le livre de la collection et la carte de la vitrine ouverte en grand.
 
@@ -105,5 +106,50 @@ describe("ce que porte un Gaulois regardé en grand", () => {
   it("ne dit rien d'une case vide", () => {
     const vides = lignesPortees({ ...TENUE_DE_DEPART, tete: "aucun", arme: "aucune" });
     expect(vides.some((l) => l.partie === "Tête" || l.partie === "Arme")).toBe(false);
+  });
+});
+
+describe("où trouver un objet vu dans la vitrine", () => {
+  const de = (emplacement: (typeof EMPLACEMENTS_OBJETS)[number], filtre: (o: { gratuit: boolean; rarete: string | null }) => boolean): string => {
+    const trouve = Object.entries(OBJETS[emplacement]).find(([, o]) => filtre(o));
+    if (!trouve) throw new Error("pas d'objet de ce genre");
+    return trouve[0];
+  };
+
+  it("dit gratuit, à vous, à la boutique ou dans la pochette surprise", () => {
+    const gratuit = de("haut", (o) => o.gratuit);
+    const payant = de("haut", (o) => !o.gratuit && o.rarete !== null && o.rarete !== "divin");
+    expect(provenanceDeLObjet("haut", gratuit, false)).toEqual({ kind: "gratuit" });
+    expect(provenanceDeLObjet("haut", payant, true)).toEqual({ kind: "a-moi" });
+    expect(provenanceDeLObjet("haut", payant, false)).toEqual({ kind: "lien", mots: "À la boutique", ancre: "boutique", rayon: "haut" });
+    expect(provenanceDeLObjet("haut", "objet-inconnu", false)).toBeNull();
+  });
+
+  it("n'envoie jamais à la boutique pour un objet divin, que seule la pochette surprise donne", () => {
+    const divins = EMPLACEMENTS_OBJETS.flatMap((emplacement) => Object.entries(OBJETS[emplacement]).filter(([, o]) => o.rarete === "divin").map(([id]) => [emplacement, id] as const));
+    expect(divins.length).toBeGreaterThan(0);
+    for (const [emplacement, id] of divins) expect(provenanceDeLObjet(emplacement, id, false)).toEqual({ kind: "lien", mots: "Pochette surprise", ancre: "pochettes", pochette: "surprise" });
+  });
+
+  it("note le rayon demandé, et ne le rend qu'une fois", () => {
+    expect(rayonDemandeUneFois()).toBeNull();
+    demanderLeRayon("arme");
+    expect(rayonDemandeUneFois()).toBe("arme");
+    expect(rayonDemandeUneFois()).toBeNull();
+  });
+});
+
+describe("la recherche de la vitrine", () => {
+  const gaulois = [{ nom: "Éloïse" }, { nom: "Jod" }, { nom: "le Grand ELOI" }];
+
+  it("trouve sans tenir compte des accents ni des majuscules, dans l'ordre reçu", () => {
+    expect(chercherDansLaVitrine(gaulois, "elo").map((g) => g.nom)).toEqual(["Éloïse", "le Grand ELOI"]);
+    expect(chercherDansLaVitrine(gaulois, "  JOD ").map((g) => g.nom)).toEqual(["Jod"]);
+  });
+
+  it("rend tout le monde sans rien de tapé, et personne pour un nom inconnu", () => {
+    expect(chercherDansLaVitrine(gaulois, "")).toEqual(gaulois);
+    expect(chercherDansLaVitrine(gaulois, "   ")).toEqual(gaulois);
+    expect(chercherDansLaVitrine(gaulois, "zzz")).toEqual([]);
   });
 });
