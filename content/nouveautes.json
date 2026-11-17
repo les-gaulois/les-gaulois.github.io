@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "nouveau",
+    "title": "Un fil « Entre Gaulois » à côté du replay",
+    "body": "À droite du replay : dons entre Gaulois, éliminations, bombes, émojis, alliances, avec le Gaulois de chacun. Le fil suit le replay. Les parties en ligne le reçoivent peu à peu.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "nouveau",
     "title": "Une bannière pour le clan",
     "body": "Dans le classement des clans, la ligne [GAL] porte sa bannière, dessinée pour elle seule : une flotte aux voiles bleues et rouges sur une mer de nuit, sous la lune.",
     "link": {

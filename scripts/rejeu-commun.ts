@@ -198,6 +198,15 @@ export async function lireCarte(commit: string, dossierCarte: string, taille: "N
   return dossier;
 }
 
+/**
+ * Le fichier de langue français du jeu au commit de la partie (`resources/lang/fr.json`, © OpenFront and Contributors,
+ * CC BY-SA 4.0) : le journal « Entre Gaulois » y lit les phrases des messages rapides (`phrasesDuJeu`, src/lib/rejeu/journal.ts).
+ * Jamais gardé : relu à chaque passage.
+ */
+export async function lireLangueDuJeu(commit: string): Promise<string> {
+  return (await lireOctets(`${FICHIERS_BRUTS}/${commit}/resources/lang/fr.json`, 2_000_000, 60_000)).toString("utf8");
+}
+
 /** Les cartes lues pendant le passage : effacées à la fin, elles ne vont pas dans le cache. */
 export function rangerCartes() {
   rmSync(join(RACINE, "cartes"), { recursive: true, force: true });

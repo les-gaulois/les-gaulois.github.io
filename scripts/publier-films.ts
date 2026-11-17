@@ -13,9 +13,10 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { loadLeaderboard, loadMembers } from "../src/lib/data";
 import { MAX_OCTETS_FICHE } from "../src/lib/rejeu-openfront";
+import { journalPublie, lireJournal } from "../src/lib/rejeu/journal";
 import { lireFilm, secondesDeLImage } from "../src/lib/rejeu/film";
 import { adresseDuLecteur, DOSSIER_DES_DRAPEAUX, DOSSIER_DES_FICHES, DOSSIER_DES_LECTEURS, DOSSIER_SITE_DU_LECTEUR, dossierDuLecteur, drapeauxDeLaFiche, ficheNettoyee, lireRecette, manifesteDuLecteur, noticeDuLecteur, origineDuLecteur, pageDuLecteur, RECETTE_DU_LECTEUR, RECETTE_MINIMALE, recettePubliable, SITE_DU_CLAN, svgRepris } from "../src/lib/rejeu/lecteur-jeu";
-import { DOSSIER_FILMS, DOSSIER_PUBLIC_FILMS, INDEX_DES_FILMS, LISTE_DES_FILMS, ListeDesFilms, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, type FilmPublie } from "../src/lib/rejeu/films-index";
+import { DOSSIER_FILMS, DOSSIER_PUBLIC_FILMS, INDEX_DES_FILMS, LISTE_DES_FILMS, ListeDesFilms, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, nomDuJournal, type FilmPublie } from "../src/lib/rejeu/films-index";
 
 /**
  * Les noms qu'un film peut encore montrer : le pseudo d'un membre qui est toujours sur la liste du clan, avec ce pseudo, et le
@@ -92,6 +93,8 @@ if (lecteurs.size > 0) {
   writeFileSync(join(DOSSIER_SITE_DU_LECTEUR, "robots.txt"), "User-agent: *\nDisallow: /\n");
 }
 const drapeaux = new Set<string>();
+/** Un journal plus lourd n'est pas lu : 20 000 faits pèsent moins de 2 Mo. */
+const MAX_OCTETS_JOURNAL = 2_000_000;
 
 const films: FilmPublie[] = [];
 let refuses = 0;
@@ -119,7 +122,21 @@ for (const { partie, commit } of index.films) {
       for (const d of drapeauxDeLaFiche(propre)) drapeaux.add(d);
       jeu = adresseDuLecteur(origine, commit, partie);
     }
-    films.push({ partie, debut: e.debut, carte: e.carte, victoire: e.victoire, equipes: e.equipes, gaulois: e.gaulois, joueurs: e.joueurs, secondes: secondesDeLImage(e, e.images - 1), forme: Math.round((e.largeur / e.hauteur) * 10_000) / 10_000, octets: lu.size, jeu });
+    // Le journal « Entre Gaulois », relu, sans les pseudos qui ne sont plus sur la liste du clan ni les tags sortis du classement
+    // officiel. Absent ou refusé : la page ne montre pas de journal pour cette partie, le replay reste.
+    let faits: number | null = null;
+    const nomJournal = nomDuJournal(partie);
+    if (jeu && nomJournal && lstatSync(join(DOSSIER_FILMS, nomJournal), { throwIfNoEntry: false })?.isFile()) {
+      try {
+        if (lstatSync(join(DOSSIER_FILMS, nomJournal)).size > MAX_OCTETS_JOURNAL) throw new Error("trop lourd");
+        const journal = journalPublie(lireJournal(readFileSync(join(DOSSIER_FILMS, nomJournal), "utf8"), partie), nomEncorePublie);
+        if (journal.faits.length > 0) writeFileSync(join(DOSSIER_PUBLIC_FILMS, nomJournal), JSON.stringify(journal));
+        faits = journal.faits.length;
+      } catch (err) {
+        console.log(`::warning::Films : le journal de la partie ${partie} n'est pas publié (${err instanceof Error ? err.message : String(err)}).`);
+      }
+    }
+    films.push({ partie, faits, debut: e.debut, carte: e.carte, victoire: e.victoire, equipes: e.equipes, gaulois: e.gaulois, joueurs: e.joueurs, secondes: secondesDeLImage(e, e.images - 1), forme: Math.round((e.largeur / e.hauteur) * 10_000) / 10_000, octets: lu.size, jeu });
   } catch (e) {
     refuses++;
     console.log(`::warning::Films : ${nom} n'est pas publié (${e instanceof Error ? e.message : String(e)}).`);

@@ -93,6 +93,54 @@ test.describe("les messages à la place du replay", () => {
   });
 });
 
+test.describe("le journal « Entre Gaulois »", () => {
+  const avecDons = parties.find((f) => (f.faits ?? 0) > 0);
+  test.skip(!avecDons, "Aucune partie de ce build n'a de journal « Entre Gaulois » publié.");
+
+  test("le fil suit le replay, qui dit son étape, l'heure d'une ligne y mène le replay, et les filtres retirent une famille", async ({ page }) => {
+    const journal = JSON.parse(readFileSync(`${LISTE_DES_FILMS.replace(/liste\.json$/, "")}${avecDons!.partie}.journal.json`, "utf8")) as { fin: number; faits: (number | string)[][] };
+    expect(journal.faits).toHaveLength(avecDons!.faits!);
+    const premier = journal.faits[0]![0] as number;
+    const dernier = journal.fin;
+    // Le site du replay remplacé par une page qui dit son étape comme le vrai lecteur, et note où on l'envoie.
+    await page.route(LECTEUR, (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: `<!doctype html><html lang="fr"><title>Replay du jeu</title><script>let e=${Math.max(0, premier - 1)};setInterval(()=>parent.postMessage({gal:"temps",etape:e},"*"),50);addEventListener("message",(m)=>{if(m.data&&m.data.gal==="aller")e=m.data.etape;if(m.data&&m.data.gal==="fin")e=${dernier};});</script></html>`,
+      }),
+    );
+    await page.goto(`/revoir?partie=${avecDons!.partie}`);
+    await hydrated(page);
+    const dons = page.getByTestId("rejeu-dons");
+    await expect(dons.getByRole("heading", { name: "Entre Gaulois" })).toBeVisible();
+    // Avant la première ligne : aucun message, son heure annoncée, et pas encore de fin.
+    await expect(dons.getByText(/^Première ligne à \d+:\d\d$/)).toBeVisible();
+    await expect(dons.locator(".dons-message")).toHaveCount(0);
+    await expect(page.getByTestId("rejeu-dons-fin")).toHaveCount(0);
+    // À la fin du replay : toutes les lignes, chacune avec son heure, puis le résultat de la partie.
+    await page.getByTestId("rejeu-jeu-cadre").evaluate((f: HTMLIFrameElement) => f.contentWindow!.postMessage({ gal: "fin" }, "*"));
+    await expect(dons.locator(".dons-message")).toHaveCount(avecDons!.faits!);
+    await expect(page.getByTestId("rejeu-dons-fin")).toContainText(avecDons!.victoire ? "victoire" : "défaite");
+    // Un filtre relâché retire les lignes de sa famille, et les remet une fois enfoncé de nouveau.
+    const filtres = dons.getByRole("button", { pressed: true });
+    if ((await filtres.count()) > 0) {
+      const famille = (await filtres.first().getAttribute("data-ton"))!;
+      const filtre = page.getByTestId(`rejeu-filtre-${famille}`);
+      const dansLaFamille = await dons.locator(`.dons-message[data-famille="${famille}"]`).count();
+      expect(dansLaFamille).toBeGreaterThan(0);
+      await filtre.click();
+      await expect(filtre).toHaveAttribute("aria-pressed", "false");
+      await expect(dons.locator(".dons-message")).toHaveCount(avecDons!.faits! - dansLaFamille);
+      await filtre.click();
+      await expect(dons.locator(".dons-message")).toHaveCount(avecDons!.faits!);
+    }
+    // L'heure de la première ligne ramène le replay juste avant elle : le fil se vide de nouveau.
+    await dons.getByRole("button", { name: /^Aller à / }).first().click();
+    await expect(dons.locator(".dons-message")).toHaveCount(0);
+  });
+});
+
 /** La forme de la carte d'une partie, lue dans son film du cache (source indépendante de la liste publiée). */
 const formeDuFilm = (partie: string) => {
   const { entete } = lireFilm(gunzipSync(readFileSync(join(DOSSIER_FILMS, nomDuFilm(partie)!))));

@@ -245,3 +245,293 @@
   flex-wrap: wrap;
   gap: 0 1.5rem;
 }
+
+/* ---------- Entre Gaulois : le journal de la partie (17 novembre 2026) ---------- */
+/* Les faits de la partie où un Gaulois est en jeu (JournalDeLaPartie.tsx), sous les faits de la fiche, à côté du replay : un
+   fil de discussion qui se remplit avec lui. Chaque fait est une bulle : la case de son auteur, son nom, l'heure de la partie
+   (un bouton qui y mène le replay), puis ce qu'il a fait. Les classes gardent le nom du premier jet, « dons ». Le genre se
+   lit aux mots et à l'icône ; la teinte (`data-ton` : bleu des troupes, ambre de l'or, rouge des combats, gris du chat, vert
+   de la diplomatie) ne fait que le répéter. Tout se lit dans les deux thèmes : écriture et jetons seulement. */
+.dons {
+  --dons-ton: var(--color-win);
+  --dons-creux: var(--color-navy);
+  display: flex;
+  flex-direction: column;
+  margin-top: 1.25rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.dons [data-ton="or"] {
+  --dons-ton: var(--color-warn);
+}
+.dons [data-ton="combats"] {
+  --dons-ton: var(--color-danger);
+}
+.dons [data-ton="chat"] {
+  --dons-ton: var(--color-line-strong);
+}
+.dons [data-ton="diplomatie"] {
+  --dons-ton: var(--color-ok);
+}
+.dons-tete {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-surface-2);
+}
+.dons-titre {
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.dons-totaux {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.25rem;
+  font-size: 0.875rem;
+}
+.dons-totaux > li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+}
+.dons-totaux b {
+  font-size: 1rem;
+}
+/* Les filtres, quand le journal a plusieurs familles de faits : un bouton par famille, enfoncé quand ses lignes sont
+   montrées, avec leur nombre dans la partie. Relâché : pâle et barré, ses lignes sont retirées du fil. */
+.dons-filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.dons-filtre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.75rem;
+  padding: 0.125rem 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--dons-ton) 60%, var(--color-line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dons-ton) 14%, var(--color-navy));
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dons-filtre > span {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.dons-filtre[aria-pressed="false"] {
+  border-color: var(--color-line);
+  background: transparent;
+  color: var(--color-muted);
+  text-decoration: line-through;
+}
+.dons-filtre:focus-visible {
+  outline: 2px solid var(--anneau);
+  outline-offset: 2px;
+}
+.dons-icone {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--dons-ton);
+}
+/* Le fil : il ne dépasse pas la hauteur du replay à côté, et défile au-delà. */
+.dons-fil {
+  max-height: clamp(14rem, 100svh - 26rem, 34rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 0.875rem 1rem 1rem;
+}
+.dons-fil:focus-visible {
+  outline: 2px solid var(--anneau);
+  outline-offset: -2px;
+}
+.dons-attente {
+  padding: 1.25rem 0;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+.dons-liste {
+  display: grid;
+  gap: 0.625rem;
+}
+.dons-message {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+}
+/* La case du donneur (demande du pilote, 17 novembre 2026 : « un carré du gaulois à côté de la ligne ») : une carte de la
+   vitrine en petit. Carrée, au fond et au cadre de la rareté la plus haute de ce qu'il porte (jetons du socle, cadre en
+   dégradé pour le légendaire et le divin) ; son Gaulois y tient de la tête au torse, peint case pour case, le bas coupé par
+   la case. Sans Gaulois : la même case, neutre, à son initiale ou à son numéro. */
+.dons-case {
+  --rarete: var(--color-line-strong);
+  --rarete-cadre: var(--rarete);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--rarete) 50%, var(--color-navy)), color-mix(in srgb, var(--rarete) 14%, var(--color-navy)) 78%) padding-box,
+    var(--rarete-cadre) border-box;
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.dons-case > img {
+  position: absolute;
+  top: 0.1875rem;
+  left: 50%;
+  max-width: none;
+  translate: -50% 0;
+  image-rendering: pixelated;
+}
+.dons-case[data-rarete="commun"] {
+  --rarete: var(--rarete-commun);
+}
+.dons-case[data-rarete="peu-commun"] {
+  --rarete: var(--rarete-peu-commun);
+}
+.dons-case[data-rarete="epique"] {
+  --rarete: var(--rarete-epique);
+}
+.dons-case[data-rarete="mystique"] {
+  --rarete: var(--rarete-mystique);
+}
+.dons-case[data-rarete="legendaire"] {
+  --rarete: var(--rarete-legendaire);
+  --rarete-cadre: var(--rarete-legendaire-degrade);
+}
+.dons-case[data-rarete="divin"] {
+  --rarete: var(--rarete-divin);
+  --rarete-cadre: var(--rarete-divin-degrade);
+}
+.dons-bulle {
+  min-width: 0;
+  padding: 0.5rem 0.75rem 0.5625rem;
+  border: 1px solid color-mix(in srgb, var(--dons-ton) 45%, var(--color-line));
+  border-left: 3px solid var(--dons-ton);
+  border-radius: 0.25rem 0.75rem 0.75rem 0.25rem;
+  background: color-mix(in srgb, var(--dons-ton) 9%, var(--color-navy));
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+.dons-qui {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.dons-nom {
+  overflow-wrap: anywhere;
+}
+.dons-nom-sans {
+  color: var(--color-muted);
+  font-style: italic;
+}
+.dons-heure {
+  flex: none;
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+button.dons-heure {
+  margin: -0.375rem -0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.25rem;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline);
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+button.dons-heure:hover {
+  color: var(--ecriture);
+  background: color-mix(in srgb, var(--ecriture) 8%, transparent);
+}
+button.dons-heure:focus-visible {
+  outline: 2px solid var(--anneau);
+  outline-offset: 1px;
+}
+.dons-quoi {
+  margin-top: 0.125rem;
+  color: var(--color-muted);
+}
+.dons-quoi .dons-nom {
+  color: var(--ecriture);
+}
+/* Un émoji du jeu, en grand ; une phrase toute faite du jeu, entre guillemets. */
+.dons-emoji {
+  font-size: 1.375rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+.dons-phrase {
+  font-weight: 600;
+  color: var(--ecriture);
+  quotes: "« " " »";
+}
+.dons-case-sans > .dons-icone {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-muted);
+}
+/* La dernière ligne : la fin de la partie et son résultat, d'après la session du clan. */
+.dons-fin {
+  --dons-ton: var(--color-win);
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed color-mix(in srgb, var(--dons-ton) 70%, var(--color-line));
+  border-radius: 0.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.dons-fin[data-resultat="defaite"] {
+  --dons-ton: var(--color-loss);
+}
+.dons-fin > span {
+  margin-right: 0.375rem;
+  font-family: var(--font-console);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+.dons-montant > .dons-icone {
+  align-self: center;
+}
+.dons-montant {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ecriture);
+}
+/* Un don qui paraît : il monte doucement, une fois. Rien pour qui veut moins d'animations (réglage, ou bouton pause). */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.fx-off) .dons-message {
+    animation: dons-arrive 0.45s ease-out both;
+  }
+}
+@keyframes dons-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem);
+  }
+}

@@ -6,12 +6,14 @@ import MapNamesCredit from "../components/MapNamesCredit.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
 import RejeuPartie from "../components/RejeuPartie.tsx";
-import { loadFilms } from "../lib/data";
+import { loadFilms, loadMembers } from "../lib/data";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
-import { gauloisDeLaPartie } from "../lib/gaulois-site";
+import { gauloisDeLaPartie, gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
+import { tenueOf } from "../lib/gaulois-sprite";
 import { mapLabel } from "../lib/map-names";
 import { JOURS_DE_FILMS } from "../lib/rejeu/films-index";
 import { formatLabel } from "../lib/results";
+import { rareteDuCadre } from "../lib/village/vitrine";
 
 /** Les parties listées sous le lecteur ; les autres s'ouvrent depuis « Dernières parties ». */
 const LISTES = 12;
@@ -27,7 +29,21 @@ const parties = (liste?.films ?? []).filter((f) => f.jeu);
 const gaulois = new Map(parties.slice(0, LISTES).flatMap((f) => { const presents = gauloisDeLaPartie(f.partie); return presents.length > 0 ? [[f.partie, presents] as const] : []; }));
 // Ce que le lecteur reçoit, écrit dans la page au build : pas de fichier lu au chargement, que le cache de GitHub Pages pourrait
 // servir en retard. Les parties rejouées sans replay prêt sont seulement nommées, pour le dire.
-const pourLeLecteur = parties.map(({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu }) => ({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu: jeu! }));
+const pourLeLecteur = parties.map(({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu, faits }) => ({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu: jeu!, faits }));
+// Le journal « Entre Gaulois » (src/lib/rejeu/journal.ts) nomme les membres par leur pseudo public : le Gaulois de chacun, par
+// pseudo, s'il a créé le sien. Un pseudo porté par deux membres ne désigne personne : pas de Gaulois.
+const pseudoDit = (u: string) => u.replace(/\s+/g, " ").trim().slice(0, 40);
+// Sa case prend la couleur de la rareté la plus haute de ce qu'il porte, comme sa carte de la vitrine (`rareteDuCadre`).
+const portraits: Record<string, { image: string; largeur: number; hauteur: number; buste: number; rarete: string | null }> = {};
+if (parties.some((f) => (f.faits ?? 0) > 0)) {
+  const porteurs = new Map<string, string[]>();
+  for (const m of loadMembers()?.members ?? []) if (m.username && m.publicId) porteurs.set(pseudoDit(m.username), [...(porteurs.get(pseudoDit(m.username)) ?? []), m.publicId]);
+  for (const [pseudo, ids] of porteurs) {
+    const portrait = ids.length === 1 ? portraitDuGaulois(ids[0]) : null;
+    const tenue = portrait ? tenueOf(gauloisDuSite(), ids[0]) : null;
+    if (portrait) portraits[pseudo] = { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null };
+  }
+}
 const enAttente = (liste?.films ?? []).filter((f) => !f.jeu).map((f) => f.partie);
 const plusAncien = parties.at(-1)?.debut ?? null;
 const siteDuLecteur = parties[0]?.jeu ? new URL(parties[0].jeu).origin : null;
@@ -44,7 +60,7 @@ const siteDuLecteur = parties[0]?.jeu ? new URL(parties[0].jeu).origin : null;
         <Empty title="Pas de replay">Les parties paraissent ici environ une heure après leur fin.</Empty>
       ) : (
         <>
-          <RejeuPartie client:idle parties={pourLeLecteur} enAttente={enAttente} jours={JOURS_DE_FILMS} />
+          <RejeuPartie client:idle parties={pourLeLecteur} enAttente={enAttente} jours={JOURS_DE_FILMS} base={base} portraits={portraits} />
           <noscript>
             <p class="card mt-4 p-4 text-sm text-muted">JavaScript est nécessaire pour voir le replay.</p>
           </noscript>
@@ -104,6 +120,7 @@ const siteDuLecteur = parties[0]?.jeu ? new URL(parties[0].jeu).origin : null;
     <ReadingNote label="Comment lire ce replay">
       <p>C'est le lecteur de replay d'OpenFront lui-même, légèrement modifié et construit par le site à partir de son code libre, sur un site du clan à part : sans publicité ni mesure, non officiel, avec tous les pseudos de la partie comme dans le jeu.</p>
       <p>Il part de lui-même en accéléré (× 8), sauf si vous avez demandé moins d'animations (bouton pause en haut de la page, ou réglage de l'appareil). « Ouvrir le replay en grand » l'ouvre dans un onglet ; « Ouvrir la partie sur OpenFront » mène à son propre site.</p>
+      <p>« Entre Gaulois » liste ce que le moteur du jeu a noté pendant ce rejeu : les dons réussis entre joueurs au tag du clan, aux montants de l'écran du jeu, puis les éliminations, bombes, cibles, émojis, messages rapides et alliances où un Gaulois est en jeu. Le joueur visé par une bombe est celui qui tenait la case visée au lancement. Un membre sans pseudo public y est « Un Gaulois », numéroté s'ils sont plusieurs ; un autre joueur n'est nommé que par le tag de son clan, s'il est au classement officiel. Les messages rapides sont les phrases toutes faites du jeu (© OpenFront and Contributors, CC BY-SA 4.0). Le fil suit le replay ; l'heure d'une ligne y mène.</p>
       <p>Une partie arrive ici environ une heure après sa fin, rejouée d'abord par le robot du site avec le moteur du jeu, à la version qui l'a jouée. Seules les plus récentes restent, {JOURS_DE_FILMS} jours au plus.</p>
     </ReadingNote>
   </div>

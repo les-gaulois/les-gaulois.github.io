@@ -22,11 +22,12 @@ import { loadLeaderboard, loadMembers, loadSessions } from "../src/lib/data";
 import { mapKey } from "../src/lib/map-names";
 import { dossierDeCarte } from "../src/lib/rejeu-openfront";
 import { lireFilm } from "../src/lib/rejeu/film";
+import { journalDeLaPartie, phrasesDuJeu, type Phrases } from "../src/lib/rejeu/journal";
 import { filmDeLaPartie, nomsPubliables } from "../src/lib/rejeu/film-brut";
 import { ficheNettoyee } from "../src/lib/rejeu/lecteur-jeu";
-import { DOSSIER_FILMS, INDEX_DES_FILMS, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, noterEchec, noterFilm, partiesAFilmer, rangerLesFilms, type IndexDesFilms } from "../src/lib/rejeu/films-index";
+import { DOSSIER_FILMS, INDEX_DES_FILMS, lireIndex, MAX_OCTETS_FILM, MAX_OCTETS_FILM_DECOMPRESSE, nomDeLaFiche, nomDuFilm, nomDuJournal, noterEchec, noterFilm, partiesAFilmer, partiesARefilmer, rangerLesFilms, type IndexDesFilms } from "../src/lib/rejeu/films-index";
 import type { StoredSession } from "../src/lib/schemas";
-import { construireMoteur, FicheInattendue, lancerMoteur, lireCarte, lireFiche, message, type Moteur, RACINE, rangerCartes, rangerMoteurs, TropLong } from "./rejeu-commun";
+import { construireMoteur, FicheInattendue, lancerMoteur, lireCarte, lireFiche, lireLangueDuJeu, message, type Moteur, RACINE, rangerCartes, rangerMoteurs, TropLong } from "./rejeu-commun";
 
 /**
  * Le job a 12 minutes, et le site attend sa fin pour se publier : le rejeu cesse de commencer des parties au bout de 4, et une
@@ -66,6 +67,23 @@ const noter = () => {
 function echec(s: StoredSession, raison: string, definitive: boolean) {
   console.log(`::warning::Films : la partie ${s.gameId} ne se filme pas (${raison}).`);
   index = noterEchec(index, s.gameId, s.gameStart, raison, definitive);
+}
+
+/**
+ * Les phrases des messages rapides du jeu, par version : lues une fois par passage. Fichier illisible : aucune phrase, et les
+ * messages rapides de ces parties n'entrent pas au journal.
+ */
+const phrasesParVersion = new Map<string, Promise<Phrases>>();
+function phrasesDeLaVersion(commit: string): Promise<Phrases> {
+  let phrases = phrasesParVersion.get(commit);
+  if (!phrases) {
+    phrases = lireLangueDuJeu(commit).then(phrasesDuJeu, (e: unknown) => {
+      console.log(`::warning::Films : les phrases du jeu de la version ${commit.slice(0, 8)} ne se lisent pas (${message(e)}) : pas de messages rapides au journal.`);
+      return new Map<string, string>();
+    });
+    phrasesParVersion.set(commit, phrases);
+  }
+  return phrases;
 }
 
 /** Filme une partie. */
@@ -129,8 +147,10 @@ async function filmer(s: StoredSession, moteurs: Map<string, Promise<Moteur>>): 
       if (!lu || !lu.isFile() || lu.size > max) return echec(s, "sortie du moteur inattendue", false);
     }
     let octets: Buffer;
+    const metaTexte = readFileSync(metaChemin, "utf8");
+    const noms = nomsPubliables(joueurs.data.info.players, pseudosDuClan, tagsOfficiels);
     try {
-      ({ octets } = filmDeLaPartie(readFileSync(metaChemin, "utf8"), readFileSync(filmChemin), {
+      ({ octets } = filmDeLaPartie(metaTexte, readFileSync(filmChemin), {
         partie: s.gameId,
         carte: info.config.gameMap,
         debut: s.gameStart,
@@ -139,7 +159,7 @@ async function filmer(s: StoredSession, moteurs: Map<string, Promise<Moteur>>): 
         gaulois: s.clanPlayerCount,
         joueurs: s.totalPlayerCount,
         clients,
-        noms: nomsPubliables(joueurs.data.info.players, pseudosDuClan, tagsOfficiels),
+        noms,
       }));
       if (octets.length > MAX_OCTETS_FILM) throw new Error("film trop lourd");
       // Relu comme la page le relira : un film qu'elle refuserait n'est pas gardé.
@@ -162,7 +182,25 @@ async function filmer(s: StoredSession, moteurs: Map<string, Promise<Moteur>>): 
         console.log(`::warning::Films : la fiche de la partie ${s.gameId} n'est pas gardée pour le lecteur du jeu (${message(e)}).`);
       }
     }
-    index = noterFilm(index, s.gameId, s.gameStart, octets.length, commit);
+    // Le journal « Entre Gaulois » (src/lib/rejeu/journal.ts), relu comme le film. Un moteur qui ne note pas les faits : pas de
+    // journal, et la partie n'est pas refaite pour lui. Un journal refusé : pas de journal non plus, le film reste.
+    let journalGarde = false;
+    const nomJournal = nomDuJournal(s.gameId);
+    if (nomJournal) {
+      const cheminJournal = join(DOSSIER_FILMS, nomJournal);
+      rmSync(cheminJournal, { force: true });
+      try {
+        const journal = journalDeLaPartie(metaTexte, { partie: s.gameId, clients, noms, phrases: await phrasesDeLaVersion(commit) });
+        if (journal !== null) {
+          writeFileSync(`${cheminJournal}.partiel`, JSON.stringify(journal));
+          renameSync(`${cheminJournal}.partiel`, cheminJournal);
+          journalGarde = true;
+        }
+      } catch (e) {
+        console.log(`::warning::Films : le journal de la partie ${s.gameId} n'est pas gardé (${message(e)}).`);
+      }
+    }
+    index = noterFilm(index, s.gameId, s.gameStart, octets.length, commit, journalGarde);
     console.log(`Films : partie ${s.gameId} (${info.config.gameMap}, ${s.hasWon ? "victoire" : "défaite"}) filmée en ${Math.round((Date.now() - t0) / 1000)} s, ${Math.round(octets.length / 1024)} Ko.`);
   } finally {
     rmSync(travail, { recursive: true, force: true });
@@ -177,7 +215,7 @@ function ranger() {
     const nom = nomDuFilm(partie);
     if (nom) rmSync(join(DOSSIER_FILMS, nom), { force: true });
   }
-  const connus = new Set(index.films.flatMap((f) => [nomDuFilm(f.partie), nomDeLaFiche(f.partie)]));
+  const connus = new Set(index.films.flatMap((f) => [nomDuFilm(f.partie), nomDeLaFiche(f.partie), nomDuJournal(f.partie)]));
   for (const nom of readdirSync(DOSSIER_FILMS)) if (nom !== "index.json" && !connus.has(nom)) rmSync(join(DOSSIER_FILMS, nom), { recursive: true, force: true });
 }
 
@@ -189,7 +227,8 @@ noter();
 
 const sessions = loadSessions();
 const demandee = process.argv.indexOf("--partie");
-const parties = demandee >= 0 ? sessions.filter((s) => s.gameId === process.argv[demandee + 1]) : partiesAFilmer(sessions, index, now);
+// Les parties sans film d'abord ; puis, s'il reste du temps, celles filmées avant le journal « Entre Gaulois », pour le leur donner.
+const parties = demandee >= 0 ? sessions.filter((s) => s.gameId === process.argv[demandee + 1]) : [...partiesAFilmer(sessions, index, now), ...partiesARefilmer(sessions, index, now)];
 if (demandee >= 0 && parties.length === 0) console.log("Films : cette partie n'est pas dans les sessions du clan.");
 
 const moteurs = new Map<string, Promise<Moteur>>();

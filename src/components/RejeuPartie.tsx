@@ -5,6 +5,7 @@ import { mapLabel } from "../lib/map-names";
 import { adresseEnLecture, ficheDuLecteur } from "../lib/rejeu/fiche-du-lecteur";
 import { dureeDite } from "../lib/rejeu/film";
 import { formatLabel } from "../lib/results";
+import JournalDeLaPartie, { type PortraitDuJournal } from "./JournalDeLaPartie";
 
 /** Une partie qui a son replay, telle que la page la reçoit de la liste publiée (`FilmPublie`, relue par Zod au build). */
 export interface PartieDuReplay {
@@ -18,6 +19,8 @@ export interface PartieDuReplay {
   secondes: number;
   forme: number | null;
   jeu: string;
+  /** Les faits du journal « Entre Gaulois » publié pour cette partie ; `null` : pas relevés. */
+  faits: number | null;
 }
 
 interface Props {
@@ -27,6 +30,10 @@ interface Props {
   enAttente: string[];
   /** Les jours de parties gardées au plus (`JOURS_DE_FILMS`), passés par la page : le lecteur n'embarque pas Zod. */
   jours: number;
+  /** La base du site, pour l'adresse des journaux (`/films/<partie>.journal.json`). */
+  base: string;
+  /** Les Gaulois des membres au pseudo public, par pseudo, pour le journal « Entre Gaulois ». */
+  portraits: Record<string, PortraitDuJournal>;
 }
 
 /** La partie demandée dans l'adresse (`?partie=…`), si elle a la forme d'un identifiant de partie. */
@@ -43,7 +50,7 @@ function partieDeLAdresse(): string | null {
  * replay n'est pas disponible le dit, avec le lien vers OpenFront. Les parties arrivent par la page, écrites au build : pas de
  * fichier lu au chargement, que le cache de GitHub Pages pourrait servir en retard.
  */
-export default function RejeuPartie({ parties, enAttente, jours }: Props) {
+export default function RejeuPartie({ parties, enAttente, jours, base, portraits }: Props) {
   const dernier = parties[0]?.partie ?? null;
   // Avant l'hydratation (et sans partie dans l'adresse), la plus récente : son titre et son cadre sont réservés d'emblée.
   const [partie, setPartie] = useState<string | null>(dernier);
@@ -228,6 +235,10 @@ export default function RejeuPartie({ parties, enAttente, jours }: Props) {
               Ouvrir la partie sur OpenFront
             </a>
           </p>
+          {/* Le journal « Entre Gaulois » de la partie, en fil qui suit le replay : seulement quand il a des faits. */}
+          {jeuEtat === "pret" && infos.faits !== null && infos.faits > 0 && (
+            <JournalDeLaPartie key={partie} partie={partie} victoire={infos.victoire} adresse={`${base}/films/${partie}.journal.json`} cadre={cadreDuJeu} origine={new URL(jeu).origin} portraits={portraits} />
+          )}
         </div>
       </div>
     </section>
