@@ -2,6 +2,16 @@
   {
     "date": "2026-11-17",
     "kind": "ameliore",
+    "title": "Le coffre du druide : des mots à la hauteur du niveau",
+    "body": "Sur Discord, le mot suit le niveau de la manche, ses première et dernière lettres sont données, le gardien se souvient de qui l'a battu, et un tableau d'honneur clôt les quinze manches.",
+    "link": {
+      "href": "/confidentialite#coffre",
+      "label": "Ce que le jeu garde"
+    }
+  },
+  {
+    "date": "2026-11-17",
+    "kind": "ameliore",
     "title": "Les nouveautés triées",
     "body": "La page montre d'abord ce qui compte pour les joueurs. Les retouches et les corrections se déplient sous chaque jour. Ce qui ne concerne que l'équipe gauloise n'y est plus.",
     "link": {
