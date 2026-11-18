@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import { IconeDAxe, IconeDeTitre, Silhouette } from "../components/BilanDesGaulois";
+import CarteUtile from "../components/CarteUtile.astro";
 import Empty from "../components/Empty.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
@@ -8,7 +8,7 @@ import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib
 import { fmtDayAndTime, fmtInt } from "../lib/format";
 import { gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
 import { tenueOf } from "../lib/gaulois-sprite";
-import { AXES, NOM_DE_L_AXE, PARTIES_MIN_DU_CLASSEMENT, TITRE_DE_L_AXE } from "../lib/rejeu/bilan";
+import { PARTIES_MIN_DU_CLASSEMENT } from "../lib/rejeu/bilan";
 import { classementDuSite } from "../lib/rejeu/utiles-site";
 import { rareteDuCadre } from "../lib/village/vitrine";
 
@@ -33,15 +33,14 @@ const lignes = classement.map((l) => {
     ...l,
     rang: rangs.get(l.nom)!,
     // « Monte », « descend », « nouveau » au classement, ou rien à dire (même rang).
-    mouvement: mouvement === null ? { sens: "nouveau", places: 0 } : mouvement > 0 ? { sens: "monte", places: mouvement } : mouvement < 0 ? { sens: "descend", places: -mouvement } : null,
+    mouvement: mouvement === null ? { sens: "nouveau" as const, places: 0 } : mouvement > 0 ? { sens: "monte" as const, places: mouvement } : mouvement < 0 ? { sens: "descend" as const, places: -mouvement } : null,
     fiche: `${base}/membres/${encodeURIComponent(id)}`,
     banniere: Object.hasOwn(bannieres, id) ? `${base}${bannieres[id]!.image}` : null,
     portrait: portrait ? { ...portrait, image: `${base}${portrait.image}`, rarete: tenue ? rareteDuCadre(tenue) : null } : null,
   };
 });
-/** La largeur d'une jauge : de 0 au double de la part moyenne (200), pleine au-delà. */
-const jauge = (valeur: number) => `width: ${Math.min(100, Math.round(valeur / 2))}%`;
-const places = (n: number) => (n > 1 ? `${fmtInt(n)} places` : "1 place");
+/** Les cartes montrées d'emblée ; les suivantes dans un repli. */
+const PREMIERES = 12;
 ---
 
 <Base title="Les plus utiles" description="Les Gaulois les plus utiles du clan GAL dans les parties à revoir : or produit, combat et dons, en parts de l'équipe.">
@@ -63,66 +62,21 @@ const places = (n: number) => (n > 1 ? `${fmtInt(n)} places` : "1 place");
             {depuis && `, depuis le ${fmtDayAndTime(depuis)}`}, pour les membres au pseudo public qui en ont joué {PARTIES_MIN_DU_CLASSEMENT} au moins. 100 : la part moyenne d'un Gaulois de la partie. La flèche : les places gagnées ou perdues avec les parties du jour.
           </p>
           <ol class="bilan-liste">
-            {lignes.map((l) => (
-              <li class="bilan-carte" data-rang={l.rang <= 3 ? l.rang : undefined} data-rarete={l.portrait?.rarete ?? undefined} data-banniere={l.banniere ? "membre" : undefined} style={l.banniere ? `--banniere: url("${l.banniere}")` : undefined} data-testid="utiles-ligne">
-                <div class="bilan-haut">
-                  {l.portrait ? (
-                    <span class="bilan-socle" data-rarete={l.portrait.rarete ?? undefined} aria-hidden="true">
-                      <img src={l.portrait.image} width={l.portrait.largeur * 2} height={l.portrait.hauteur * 2} alt="" loading="lazy" decoding="async" />
-                    </span>
-                  ) : (
-                    <span class="bilan-socle bilan-socle-sans" aria-hidden="true"><Silhouette /></span>
-                  )}
-                  <div class="bilan-identite">
-                    <p class="bilan-tete">
-                      <span class="bilan-rang tnum">{l.rang}</span>
-                      {l.mouvement && (
-                        <span class="bilan-mouvement tnum" data-sens={l.mouvement.sens} data-testid="utiles-mouvement">
-                          {l.mouvement.sens === "nouveau" ? (
-                            "nouveau"
-                          ) : (
-                            <>
-                              <svg viewBox="0 0 8 8" aria-hidden="true" shape-rendering="crispEdges">
-                                <path fill="currentColor" d={l.mouvement.sens === "monte" ? "M3 0h2v1h1v1h1v1h1v1H5v4H3V4H0V3h1V2h1V1h1z" : "M3 0h2v4h3v1H7v1H6v1H5v1H3V7H2V6H1V5H0V4h3z"} />
-                              </svg>
-                              <span aria-hidden="true">{fmtInt(l.mouvement.places)}</span>
-                              <span class="sr-only">{l.mouvement.sens === "monte" ? "gagne" : "perd"} {places(l.mouvement.places)} avec les parties du jour</span>
-                            </>
-                          )}
-                        </span>
-                      )}
-                      <a class="bilan-nom link" href={l.fiche}>{l.nom}</a>
-                    </p>
-                    <p class="bilan-utilite tnum"><b>{fmtInt(l.utilite)}</b> d'utilité</p>
-                    <div class="bilan-jauge" aria-hidden="true">
-                      <i style={jauge(l.utilite)}></i>
-                      <span class="bilan-jauge-repere"></span>
-                    </div>
-                    <p class="bilan-jauge-mots" aria-hidden="true"><span>0</span><span>moyenne</span><span>le double</span></p>
-                    <p class="bilan-moyenne tnum">Moyenne sur {fmtInt(l.parties)} parties</p>
-                  </div>
-                </div>
-                <dl class="bilan-axes tnum">
-                  {AXES.map((a) => (
-                    <div data-axe={a} data-titre={l.titres[a] > 0 ? "" : undefined}>
-                      <dt><IconeDAxe axe={a} />{NOM_DE_L_AXE[a]}</dt>
-                      <dd>
-                        {l.axes[a] === null ? (
-                          <span class="bilan-sans">Pas de données</span>
-                        ) : (
-                          <>
-                            <b class="bilan-part">{fmtInt(l.axes[a]!)}</b>
-                            <span class="bilan-barre" aria-hidden="true"><i style={jauge(l.axes[a]!)}></i></span>
-                          </>
-                        )}
-                        {l.titres[a] > 0 && <span class="bilan-titre-axe"><IconeDeTitre axe={a} /><span>{`${TITRE_DE_L_AXE[a]}, ${fmtInt(l.titres[a])} fois`}</span></span>}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </li>
+            {lignes.slice(0, PREMIERES).map((l) => (
+              <CarteUtile l={l} />
             ))}
           </ol>
+          {/* La suite repliée (revue du 18 novembre 2026) : sur téléphone, le classement entier faisait treize écrans. */}
+          {lignes.length > PREMIERES && (
+            <details class="fold mt-4" data-testid="utiles-suite">
+              <summary>Voir les {fmtInt(lignes.length - PREMIERES)} suivants</summary>
+              <ol class="bilan-liste" start={PREMIERES + 1}>
+                {lignes.slice(PREMIERES).map((l) => (
+                  <CarteUtile l={l} />
+                ))}
+              </ol>
+            </details>
+          )}
         </section>
       )
     }

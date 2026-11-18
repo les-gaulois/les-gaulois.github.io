@@ -813,7 +813,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   </button>
                 )}
                 <a href={`${village}#gaulois`} data-testid="boutique-vers-village">
-                  Voir dans Mon Gaulois
+                  Voir au vestiaire
                 </a>
               </p>
             )}
@@ -825,7 +825,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   </button>
                 )}
                 <a href={`${village}#gaulois`} data-testid="uniques-avis-village">
-                  Voir dans Mon Gaulois
+                  Voir au vestiaire
                 </a>
               </p>
             )}
@@ -837,7 +837,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   </button>
                 )}
                 <a href={`${village}#gaulois`} data-testid="familiers-avis-village">
-                  Voir dans Mon Gaulois
+                  Voir au vestiaire
                 </a>
               </p>
             )}

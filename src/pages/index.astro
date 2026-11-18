@@ -210,7 +210,7 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
     </section>
 
     {/* Ce que les membres viennent de faire : le résumé de la dernière gazette, et ce qui s'est passé depuis. */}
-    {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} live={AUTH_ENABLED} />}
+    {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} live={AUTH_ENABLED} podiumEnCartes={cartesPodium !== null} />}
 
     {/* Les deux pages à voir : la Carte, avec sa vraie image du dernier relevé, et le village. Sans carte collectée, le village reste seul.
         Les deux vont ensemble : empilées sur téléphone, elles gardent la gouttière de la rangée, pour ne pas allonger la page de plus d'un écran. */}

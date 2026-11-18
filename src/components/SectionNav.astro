@@ -18,6 +18,23 @@ const section = sectionOf(path);
           </a>
         ))}
       </nav>
+      {/* Sur téléphone, la ligne d'onglets glisse (04-poste.css) : l'onglet ouvert est amené au milieu avant l'affichage, sans
+          faire défiler la page, et chaque bord ne s'estompe que s'il cache encore un onglet. */}
+      <script is:inline>
+        (() => {
+          const nav = document.currentScript?.previousElementSibling;
+          if (!(nav instanceof HTMLElement)) return;
+          const ouvert = nav.querySelector('[aria-current="page"]');
+          if (ouvert instanceof HTMLElement && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = ouvert.offsetLeft - nav.offsetLeft - (nav.clientWidth - ouvert.offsetWidth) / 2;
+          const fin = () => {
+            nav.toggleAttribute("data-debut", nav.scrollLeft <= 2);
+            nav.toggleAttribute("data-fin", nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2);
+          };
+          fin();
+          nav.addEventListener("scroll", fin, { passive: true });
+          addEventListener("resize", fin, { passive: true });
+        })();
+      </script>
     </div>
   )
 }

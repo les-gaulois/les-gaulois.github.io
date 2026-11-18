@@ -32,12 +32,16 @@ const podiums = unreadableSessionFiles().length === 0 ? playerPodiums(loadMember
 const fiche = (id: string) => `${base}/membres/${encodeURIComponent(id)}`;
 // Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
 const faces = singlePseudos(members?.members ?? []);
-const boards: { title: string; rows: PodiumPlace[]; testId: string }[] = podiums
+// La série d'un joueur ne compte que ses parties à lui : elle peut dépasser celle du clan, qui les prend toutes à la suite
+// (« Les records du clan »). La ligne sous le titre le dit (revue du 18 novembre 2026).
+const boards: { title: string; note?: string; rows: PodiumPlace[]; testId: string }[] = podiums
   ? [
-      { title: "Les plus longues séries de victoires", rows: podiums.streaks, testId: "podium-streaks" },
+      { title: "Les plus longues séries de victoires", note: "Sur les parties de chacun, à la suite.", rows: podiums.streaks, testId: "podium-streaks" },
       { title: "Le plus de victoires en une journée", rows: podiums.days, testId: "podium-days" },
     ]
   : [];
+// Deux places différentes pour un même chiffre : la règle de l'égalité se dit sous les podiums, pas seulement dans le repli.
+const egalite = boards.some((b) => b.rows.some((row, i) => i > 0 && row.value === b.rows[i - 1]!.value && row.place !== b.rows[i - 1]!.place));
 // Les précisions ne s'écrivent qu'une fois : dans le bloc, ou seules (« note ») pour le repli unique de la page.
 const Wrapper = rendu === "note" ? Fragment : "section";
 ---
@@ -55,6 +59,7 @@ const Wrapper = rendu === "note" ? Fragment : "section";
           {boards.map((board) => (
             <div class="panel" data-testid={board.testId}>
               <h3 class="text-xl">{board.title}</h3>
+              {board.note && <p class="mt-1 text-sm text-muted" data-testid="podium-note">{board.note}</p>}
               {board.rows.length === 0 ? (
                 <p class="mt-4 font-display text-lg font-bold">Pas de données</p>
               ) : (
@@ -88,7 +93,7 @@ const Wrapper = rendu === "note" ? Fragment : "section";
           ))}
         </div>
         <p class="info-discrete tnum mt-6 max-w-3xl" data-testid="podiums-period">
-          Parties depuis le {fmtDate(`${podiums.since}T12:00:00Z`)}.{podiums.pending > 0 && ` L'historique de ${fmtCount(podiums.pending, "joueur")} se lit encore : ces podiums vont changer.`}
+          Parties depuis le {fmtDate(`${podiums.since}T12:00:00Z`)}.{egalite && " À égalité, le premier à atteindre le chiffre passe devant."}{podiums.pending > 0 && ` L'historique de ${fmtCount(podiums.pending, "joueur")} se lit encore : ces podiums vont changer.`}
         </p>
         </>
         )}

@@ -215,7 +215,7 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
           <div class="hidden lg:block">
             <NouveautesMenu />
           </div>
-          {/* Avec le bouton de connexion, la place manque sur téléphone : le Discord reste dans la page et le pied de page. */}
+          {/* Avec le bouton de connexion, la place manque sur téléphone : le Discord passe dans le menu, plus bas. */}
           <span class:list={[AUTH_ENABLED ? "hidden md:inline-flex" : "inline-flex"]}>
             <a href={clan.links.discord} class="btn btn-secondary !min-h-10 !py-1.5 !text-sm" rel="noopener">
               Discord
@@ -276,6 +276,17 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
                   ))
                 }
               </ul>
+              {
+                /* Le Discord, porte d'entrée du clan : sur téléphone, le bouton de l'en-tête laisse sa place à la connexion, il
+                   vient donc ici (revue du 18 novembre 2026). Texte seul, sans marque. */
+                AUTH_ENABLED && clan.links.discord && (
+                  <div class="mt-1 border-t border-line pt-1 md:hidden">
+                    <a href={clan.links.discord} rel="noopener" class="block rounded px-3 py-3 font-semibold text-muted" data-testid="discord-menu">
+                      Discord du clan
+                    </a>
+                  </div>
+                )
+              }
               {
                 AUTH_ENABLED && (
                   <div class="mt-1 border-t border-line pt-1 sm:hidden">

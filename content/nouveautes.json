@@ -1,6 +1,27 @@
 [
   {
     "date": "2026-11-18",
+    "kind": "nouveau",
+    "title": "Les Gaulois du clan, visibles de tous",
+    "body": "Sur « Mon Gaulois », un visiteur voit maintenant les Gaulois déjà habillés par les membres, le plus de victoires d'abord. Chaque Gaulois mène à la fiche de son membre.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-18",
+    "kind": "ameliore",
+    "rank": "minor",
+    "title": "Un site plus simple à parcourir",
+    "body": "Sur téléphone, les onglets tiennent sur une ligne et le Discord est dans le menu. Les pseudos soulignés mènent à la fiche. Le replay passe d'une partie à l'autre, sans liste en double.",
+    "link": {
+      "href": "/revoir",
+      "label": "Revoir une partie"
+    }
+  },
+  {
+    "date": "2026-11-18",
     "kind": "ameliore",
     "title": "/gaulois s'anime sur Discord",
     "body": "Sur Discord, /gaulois montre votre Gaulois sur sa carte animée, en large : sa bannière, votre niveau et votre flamme de série. Tant que la carte n'est pas filmée, l'image d'avant reste.",

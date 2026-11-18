@@ -132,6 +132,41 @@ html {
   flex-wrap: wrap;
   gap: 0.375rem;
 }
+/* Sur téléphone, une seule ligne qui glisse sous le doigt (revue du 18 novembre 2026) : sur deux ou trois lignes, les onglets
+   prenaient le premier écran. L'onglet ouvert est amené au milieu avant l'affichage (SectionNav.astro) ; le bord droit
+   s'estompe quand il en reste à voir. La page, elle, ne défile jamais de côté. */
+@media (max-width: 40rem) {
+  .rubrique {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    --fondu-gauche: 2rem;
+    --fondu-droit: 2rem;
+    mask-image: linear-gradient(to right, transparent, #000 var(--fondu-gauche), #000 calc(100% - var(--fondu-droit)), transparent);
+  }
+  .rubrique::-webkit-scrollbar {
+    display: none;
+  }
+  .rubrique[data-debut] {
+    --fondu-gauche: 0px;
+  }
+  .rubrique[data-fin] {
+    --fondu-droit: 0px;
+  }
+  .rubrique-onglet {
+    flex: none;
+    white-space: nowrap;
+    scroll-snap-align: start;
+    scroll-margin-inline: 2rem;
+  }
+  /* L'anneau du focus passe à l'intérieur de l'onglet : la ligne qui glisse couperait ce qui dépasse. Le bord estompé ne le
+     couvre pas non plus, l'onglet atteint au clavier étant amené à 2 rem du bord. */
+  .rubrique-onglet:focus-visible {
+    outline-offset: -3px;
+  }
+}
 .rubrique-onglet {
   display: inline-flex;
   align-items: center;

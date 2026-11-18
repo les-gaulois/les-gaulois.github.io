@@ -408,19 +408,21 @@ a:not([class]):hover,
 a.link:hover {
   color: var(--ecriture);
 }
-/* Un pseudo qui mène à la fiche d'un membre : de la couleur de l'écriture, sans trait, ambré au survol et au focus (jaune
-   dans une scène colorée), où il prend son trait.
+/* Un pseudo qui mène à la fiche d'un membre : de la couleur de l'écriture, un trait fin et pâle dessous, ambré au survol et
+   au focus (jaune dans une scène colorée), où son trait s'affirme.
    Le même partout (podiums, records, paliers, liste, gazette, accueil). Remarque reçue le 12 novembre 2026 : un pseudo
-   avait trois allures selon la page, dont le bleu souligné des liens. */
+   avait trois allures selon la page, dont le bleu souligné des liens. Jusqu'au 18 novembre 2026, il n'avait son trait
+   qu'au milieu d'une phrase : ailleurs, rien ne disait qu'il menait à une fiche (revue du site, « corrige tout »). Le trait
+   pâle prend la couleur du pseudo : marine sur la page, blanc dans une scène. */
 .pseudo {
   color: var(--ecriture);
-  text-decoration-line: none;
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
   transition: color 0.15s ease;
 }
-/* Au milieu d'une phrase, un pseudo blanc ne se distinguerait du texte que par sa couleur (critère WCAG 1.4.1) : un
-   trait fin et pâle dit que c'est un lien. */
+/* Au milieu d'une phrase, le même trait pâle : la couleur seule ne distinguerait pas le pseudo du texte (WCAG 1.4.1). */
 .pseudo-phrase {
   text-decoration-line: underline;
   text-decoration-color: color-mix(in srgb, var(--ecriture) 40%, transparent);
@@ -1294,7 +1296,10 @@ th.fx-cross {
     1.5px -1.5px var(--cerne),
     -1.5px 1.5px var(--cerne),
     1.5px 1.5px var(--cerne),
-    0 3px 4px color-mix(in srgb, var(--cerne) 70%, transparent);
+    0 3px 4px color-mix(in srgb, var(--cerne) 70%, transparent),
+    /* Un halo plus large, flou, sous le cerne (revue du 18 novembre 2026) : sur une bannière très chargée, les chiffres se
+       lisaient mal. Toujours sans case derrière l'écriture, comme le pilote l'a choisi. */
+    0 0 0.375rem color-mix(in srgb, var(--cerne) 70%, transparent);
 }
 :is(tr, li).ligne-banniere-peu-commun {
   --cadre: var(--rarete-peu-commun);

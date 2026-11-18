@@ -24,7 +24,9 @@ const recent = recentRecordKeys(records, loadMeta().sessions.coveredUntil);
 const start = fmtDate(`${clan.archiveStart}T12:00:00Z`);
 const tiles: { key: RecordKey; label: string; value: string; hint: string }[] = records
   ? [
-      { key: "streak", label: "Plus longue série", value: fmtCount(records.streak.wins, "victoire"), hint: `terminée le ${fmtDate(records.streak.endedAt)}` },
+      // Toutes les parties du clan, à la suite : plus courte que la série d'un joueur, qui ne compte que ses parties à lui (podiums
+      // des Gaulois). Les deux se lisaient comme une contradiction (revue du 18 novembre 2026).
+      { key: "streak", label: "Plus longue série", value: fmtCount(records.streak.wins, "victoire"), hint: `toutes les parties du clan d'affilée, terminée le ${fmtDate(records.streak.endedAt)}` },
       { key: "bestDay", label: "Meilleure journée", value: fmtCount(records.bestDay.wins, "victoire"), hint: `sur ${fmtCount(records.bestDay.games, "partie")}, le ${fmtDate(`${records.bestDay.date}T12:00:00Z`)}` },
       { key: "biggestGroup", label: "Le plus de Gaulois dans une partie gagnée", value: fmtCount(records.biggestGroup.players, "joueur"), hint: `le ${fmtDate(records.biggestGroup.at)}` },
       { key: "mostTeams", label: "Victoire avec le plus d'équipes en jeu", value: fmtCount(records.mostTeams.teams, "équipe"), hint: `${fmtCount(records.mostTeams.players, "joueur")} dans la partie, le ${fmtDate(records.mostTeams.at)}` },

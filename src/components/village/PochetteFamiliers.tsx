@@ -182,7 +182,7 @@ export function DialogueFamiliers({ prix, chances, possedes, solde, village, ouv
             </button>
           </div>
           <a class="familier-revelation-lien" href={village} data-testid="familiers-vers-village">
-            Voir dans Mon Gaulois
+            Voir au vestiaire
           </a>
         </div>
       ) : (

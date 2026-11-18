@@ -29,8 +29,13 @@ interface Props {
   creditMaps: boolean;
   /** Le serveur de connexion est réglé : le Gaulois de la semaine choisi par l'encadrement peut s'afficher. */
   live?: boolean;
+  /**
+   * Les cartes du podium, en haut de l'accueil, montrent déjà le plus de victoires de la semaine : le bloc ne le recopie
+   * pas et garde les plus actifs (revue du 18 novembre 2026, « corrige tout » : un même podium deux fois sur une page).
+   */
+  podiumEnCartes?: boolean;
 }
-const { edition, currentMilestones, records, territoryRecord, bestGame, creditMaps, live = false } = Astro.props;
+const { edition, currentMilestones, records, territoryRecord, bestGame, creditMaps, live = false, podiumEnCartes = false } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const { players, active, arrivals } = edition;
 const period = playersPeriod(edition);
@@ -46,7 +51,9 @@ const arrivalDot = (arrivalRest ?? arrivalNames.at(-1)?.username ?? "").endsWith
 const hasFeed = milestones !== null || records.length > 0 || territoryRecord !== null || bestGame !== null || (arrivals !== null && arrivals.count > 0);
 // Podium et fil côte à côte sur grand écran. Avec le serveur, le seul cas où le Gaulois mis à l'honneur peut paraître,
 // le fil, plus long, tient deux rangées, et ce Gaulois prend la place libre sous le podium.
-const twoColumns = Boolean(players) && hasFeed;
+// Sans podium à recopier ni plus actifs, le panneau n'a rien à montrer : il n'existe pas.
+const montrePanneau = Boolean(players) && (!podiumEnCartes || Boolean(active?.length));
+const twoColumns = montrePanneau && hasFeed;
 const pickSlot = twoColumns && live;
 const capital = (text: string) => text.charAt(0).toLocaleUpperCase("fr") + text.slice(1);
 // Une photo Discord ne va qu'à côté d'un pseudo porté par un seul membre : jamais à côté d'un homonyme (src/scripts/visages.ts).
@@ -61,28 +68,34 @@ const faces = singlePseudos(loadMembers()?.members ?? []);
 
   <div class:list={["mt-6 grid gap-6", twoColumns && "lg:grid-cols-2", pickSlot && "lg:grid-rows-[auto_1fr]"]}>
     {
-      players && (
+      players && montrePanneau && (
         <div class="panel" data-testid="home-podium">
-          <h3 class="text-xl">Le plus de victoires{period && ` ${period}`}</h3>
-          <ol class="tnum mt-3 space-y-2">
-            {players.map((p) => (
-              <li class="flex flex-wrap items-center gap-x-3 [overflow-wrap:anywhere]" data-testid="home-podium-player">
-                <span class="w-12 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
-                <span class="min-w-0 text-lg">
-                  {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
-                  {/* Le Gaulois de qui a créé le sien prend la place de la photo (src/lib/gaulois-site.ts). */}
-                  <GauloisPortrait portrait={portraitDuGaulois(p.id)} class="mr-2" />
-                  {!portraitDuGaulois(p.id) && <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden />}
-                  <a class="pseudo" href={fiche(p.id)}>{p.username}</a>
-                </span>
-                <span class="ml-auto text-sm text-muted">{fmtCount(p.wins, "victoire")}</span>
-              </li>
-            ))}
-          </ol>
+          {
+            !podiumEnCartes && (
+              <>
+                <h3 class="text-xl">Le plus de victoires{period && ` ${period}`}</h3>
+                <ol class="tnum mt-3 space-y-2">
+                  {players.map((p) => (
+                    <li class="flex flex-wrap items-center gap-x-3 [overflow-wrap:anywhere]" data-testid="home-podium-player">
+                      <span class="w-12 flex-none font-display text-lg font-extrabold">{fmtRank(p.place)}</span>
+                      <span class="min-w-0 text-lg">
+                        {/* Vide pour un visiteur : la photo Discord d'un membre qui se montre, pour un membre validé connecté (src/scripts/visages.ts). */}
+                        {/* Le Gaulois de qui a créé le sien prend la place de la photo (src/lib/gaulois-site.ts). */}
+                        <GauloisPortrait portrait={portraitDuGaulois(p.id)} class="mr-2" />
+                        {!portraitDuGaulois(p.id) && <span class="face-slot mr-2" aria-hidden="true" data-face={faces.has(p.username) ? p.username : undefined} hidden />}
+                        <a class="pseudo" href={fiche(p.id)}>{p.username}</a>
+                      </span>
+                      <span class="ml-auto text-sm text-muted">{fmtCount(p.wins, "victoire")}</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )
+          }
           {
             active && (
               <>
-                <h3 class="mt-6 text-xl">Les plus actifs</h3>
+                <h3 class:list={["text-xl", !podiumEnCartes && "mt-6"]}>Les plus actifs</h3>
                 <ol class="tnum mt-3 space-y-2">
                   {active.map((p) => (
                     <li class="flex flex-wrap items-center gap-x-3 [overflow-wrap:anywhere]" data-testid="home-active-player">

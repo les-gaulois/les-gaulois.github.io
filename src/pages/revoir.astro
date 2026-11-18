@@ -1,7 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
 import Empty from "../components/Empty.astro";
-import GauloisPortrait from "../components/GauloisPortrait.astro";
 import MapNamesCredit from "../components/MapNamesCredit.astro";
 import PageHeader from "../components/PageHeader.astro";
 import ReadingNote from "../components/ReadingNote.astro";
@@ -10,27 +9,19 @@ import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib
 import { loadFilms, loadMembers, loadRecordsPersonnels, loadSeriesEnCours } from "../lib/data";
 import { FLAMME, FLAMME_DOREE } from "../lib/flamme-serie";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
-import { gauloisDeLaPartie, gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
+import { gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
 import { tenueOf } from "../lib/gaulois-sprite";
-import { mapLabel } from "../lib/map-names";
 import { JOURS_DE_FILMS } from "../lib/rejeu/films-index";
 import { insignesParPseudo, porteursDesPseudos, type Insignes } from "../lib/rejeu/insignes";
 import type { Decor } from "../lib/village/decor";
-import { formatLabel } from "../lib/results";
 import { rareteDuCadre } from "../lib/village/vitrine";
 
-/** Les parties listées sous le lecteur ; les autres s'ouvrent depuis « Dernières parties ». */
-const LISTES = 12;
-/** Les Gaulois montrés sur la case d'une partie ; les autres sont comptés à la suite. */
-const GAULOIS_PAR_CASE = 6;
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const liste = loadFilms();
 // Le replay seul (demande du pilote, 16 novembre 2026 : « je veux plus de film mais uniquement le replay ») : seules les parties
 // qui ont le vrai lecteur du jeu sont proposées.
 const parties = (liste?.films ?? []).filter((f) => f.jeu);
-// Les membres au pseudo public de chaque partie listée qui ont créé leur Gaulois (src/lib/gaulois-site.ts).
-const gaulois = new Map(parties.slice(0, LISTES).flatMap((f) => { const presents = gauloisDeLaPartie(f.partie); return presents.length > 0 ? [[f.partie, presents] as const] : []; }));
 // Ce que le lecteur reçoit, écrit dans la page au build : pas de fichier lu au chargement, que le cache de GitHub Pages pourrait
 // servir en retard. Les parties rejouées sans replay prêt sont seulement nommées, pour le dire.
 const pourLeLecteur = parties.map(({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu, faits, bilan }) => ({ partie, debut, carte, victoire, equipes, gaulois, joueurs, secondes, forme, jeu: jeu!, faits, bilan }));
@@ -78,55 +69,13 @@ const siteDuLecteur = parties[0]?.jeu ? new URL(parties[0].jeu).origin : null;
         <Empty title="Pas de replay">Les parties paraissent ici environ une heure après leur fin.</Empty>
       ) : (
         <>
+          {/* Plus de liste des dernières parties sous le lecteur (revue du 18 novembre 2026) : elle recopiait « Dernières parties ».
+              Le lecteur passe à la partie d'avant ou d'après, et mène à la liste complète (RejeuPartie.tsx). */}
           <RejeuPartie client:idle parties={pourLeLecteur} enAttente={enAttente} jours={JOURS_DE_FILMS} base={base} portraits={portraits} insignes={insignes} flammes={flammes} />
           <noscript>
             <p class="card mt-4 p-4 text-sm text-muted">JavaScript est nécessaire pour voir le replay.</p>
           </noscript>
 
-          <h2 class="section-title-sm mt-section">Dernières parties</h2>
-          {/* Le nom du lien est son contenu (résultat, carte, date, format) : pas d'étiquette à part, qui ne dirait pas ce qu'on lit.
-              Le résultat d'abord, d'un coup d'œil (filet de couleur et mot), puis la carte en grand. Le lecteur repère la
-              partie à l'écran (`data-revoir-partie`, RejeuPartie.tsx). */}
-          <ul class="revoir-liste mt-6" data-testid="revoir-liste">
-            {parties.slice(0, LISTES).map((f) => (
-              <li>
-                <a
-                  href={`${base}/revoir?partie=${encodeURIComponent(f.partie)}`}
-                  class="card tnum"
-                  data-revoir-partie={f.partie}
-                  data-resultat={f.victoire ? "victoire" : "defaite"}
-                >
-                  <span class="revoir-liste-tete">
-                    <span class="revoir-resultat" data-resultat={f.victoire ? "victoire" : "defaite"}>
-                      <i aria-hidden="true" />
-                      {f.victoire ? "Victoire" : "Défaite"}
-                    </span>
-                    <span class="revoir-ici">À l'écran</span>
-                  </span>
-                  <span class="revoir-liste-carte font-display">{mapLabel(f.carte)}</span>
-                  <span class="text-muted">
-                    {fmtDayAndTime(f.debut)} · {formatLabel(f.equipes)} · {fmtInt(f.gaulois)} Gaulois
-                  </span>
-                  {gaulois.has(f.partie) && (
-                    <span class="revoir-gaulois" data-testid="revoir-gaulois">
-                      {gaulois.get(f.partie)!.slice(0, GAULOIS_PAR_CASE).map((g) => (
-                        <span>
-                          <GauloisPortrait portrait={g.portrait} />
-                          <span>{g.username}</span>
-                        </span>
-                      ))}
-                      {gaulois.get(f.partie)!.length > GAULOIS_PAR_CASE && <span class="revoir-gaulois-reste">et {fmtInt(gaulois.get(f.partie)!.length - GAULOIS_PAR_CASE)} de plus</span>}
-                    </span>
-                  )}
-                </a>
-              </li>
-            ))}
-          </ul>
-          {parties.length > LISTES && (
-            <p class="info-discrete mt-4">
-              Les {fmtInt(parties.length - LISTES)} autres s'ouvrent par « Revoir » dans <a class="link" href={`${base}/parties`}>Dernières parties</a>.
-            </p>
-          )}
           <p class="mt-6">
             <a class="link" href={`${base}/utiles`} data-testid="revoir-utiles">Les Gaulois les plus utiles, en moyenne sur ces parties</a>
           </p>

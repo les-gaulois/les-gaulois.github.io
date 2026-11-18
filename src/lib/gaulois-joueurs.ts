@@ -234,3 +234,15 @@ export function gauloisDuCache(chemin: string, publicIds: Iterable<string | null
   }
   return carte.size > 0 ? carte : AUCUN_GAULOIS;
 }
+
+/** La date du relevé des Gaulois (`luLe`), pour l'écrire sous ce qui le montre ; `null` sans relevé lisible. */
+export function gauloisLusLe(chemin: string = GAULOIS_FICHES_FILE): string | null {
+  try {
+    const fichier = objet(JSON.parse(readFileSync(chemin, "utf8")));
+    const luLe = fichier?.["luLe"];
+    // La même exigence que `gauloisDuCache` : un relevé d'une autre version ne donne ni Gaulois, ni date.
+    return fichier?.["version"] === 1 && typeof luLe === "string" && !Number.isNaN(Date.parse(luLe)) ? luLe : null;
+  } catch {
+    return null;
+  }
+}

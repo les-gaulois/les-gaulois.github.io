@@ -134,14 +134,6 @@ export default function RejeuPartie({ parties, enAttente, jours, base, portraits
     };
   }, []);
 
-  // La partie à l'écran est repérée dans la liste des dernières parties, sous le lecteur (src/pages/revoir.astro).
-  useEffect(() => {
-    for (const lien of document.querySelectorAll<HTMLElement>("[data-revoir-partie]")) {
-      if (lien.dataset.revoirPartie === partie) lien.setAttribute("aria-current", "true");
-      else lien.removeAttribute("aria-current");
-    }
-  }, [partie]);
-
   if (partie === null) return null;
 
   /** Un message à la place du replay, avec le lien vers OpenFront. */
@@ -172,6 +164,28 @@ export default function RejeuPartie({ parties, enAttente, jours, base, portraits
 
   const jeu = infos.jeu;
   const titre = `${mapLabel(infos.carte)}, ${fmtDayAndTime(infos.debut)}`;
+  // Les voisines dans la liste, la plus récente d'abord : de quoi passer d'une partie à l'autre sans recopier la liste de
+  // « Dernières parties », où chaque partie à revoir a son lien (revue du 18 novembre 2026).
+  const rang = parties.findIndex((p) => p.partie === infos.partie);
+  const plusRecente = rang > 0 ? parties[rang - 1]! : null;
+  const plusAncienne = parties[rang + 1] ?? null;
+  const voisine = (p: PartieDuReplay, sens: "recente" | "ancienne") => (
+    <a
+      class="revoir-voisine"
+      href={`${base}/revoir?partie=${encodeURIComponent(p.partie)}`}
+      data-sens={sens}
+      data-testid={`rejeu-${sens === "recente" ? "plus-recente" : "plus-ancienne"}`}
+    >
+      {/* Le résultat écrit en toutes lettres : la pastille ne fait que le répéter (WCAG 1.4.1). */}
+      <span class="revoir-voisine-sens">
+        {sens === "recente" ? "Plus récente" : "Plus ancienne"} · {p.victoire ? "victoire" : "défaite"}
+      </span>
+      <span class="revoir-voisine-partie">
+        <i aria-hidden="true" data-resultat={p.victoire ? "victoire" : "defaite"} />
+        {mapLabel(p.carte)}, {fmtDayAndTime(p.debut)}
+      </span>
+    </a>
+  );
   return (
     <section class="revoir" aria-labelledby="rejeu-titre" aria-busy={jeuEtat !== "pret"} data-testid="rejeu">
       <div class="revoir-tete">
@@ -252,6 +266,13 @@ export default function RejeuPartie({ parties, enAttente, jours, base, portraits
       </div>
       {/* Le bilan des Gaulois de la partie, sous le replay : seulement quand il est publié. */}
       {jeuEtat === "pret" && infos.bilan && <BilanDesGaulois key={partie} partie={partie} adresse={`${base}/films/${partie}.bilan.json`} portraits={portraits} />}
+      <nav class="revoir-voisines" aria-label="Autres parties à revoir" data-testid="rejeu-voisines">
+        {plusRecente ? voisine(plusRecente, "recente") : <span aria-hidden="true" />}
+        <a class="link revoir-toutes" href={`${base}/parties`} data-testid="rejeu-toutes">
+          Toutes les parties
+        </a>
+        {plusAncienne ? voisine(plusAncienne, "ancienne") : <span aria-hidden="true" />}
+      </nav>
     </section>
   );
 }

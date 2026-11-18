@@ -20,7 +20,7 @@ import VitrineDuClan from "./Vitrine";
 
 /**
  * Les sept parties de la page, dans l'ordre de la barre. « Le sentier » (`#sentier`, 16 novembre 2026, demande du pilote :
- * « un peu comme un passe de combat ») vient juste après « Mon Gaulois » : c'est ce qui change chaque jour ; son onglet dit
+ * « un peu comme un passe de combat ») vient juste après « Le vestiaire » (« Mon Gaulois » jusqu'au 18 novembre 2026) : c'est ce qui change chaque jour ; son onglet dit
  * combien d'objets des paliers attendent d'être pris. L'onglet ouvert se retient dans l'adresse (`#forge`,
  * `#boutique`). « La boutique » (la bourse, la pochette surprise, les rayons et le marché des membres) a eu sa page,
  * `/boutique`, le 15 novembre 2026 ; le même jour, le pilote l'a voulue ici, en onglet à côté de la forge (« déplace la
@@ -33,7 +33,7 @@ import VitrineDuClan from "./Vitrine";
  * pilote) vient à la suite : le tirage du mardi à 21 h 30 et la jauge des parts.
  */
 const ONGLETS: TabItem[] = [
-  { id: "gaulois", label: "Mon Gaulois" },
+  { id: "gaulois", label: "Le vestiaire" },
   { id: ANCRE_SENTIER, label: "Le sentier" },
   { id: "forge", label: "La forge" },
   { id: "boutique", label: "La boutique" },
@@ -83,6 +83,13 @@ export default function VillageApp() {
         if (bons) setAOuvrir(Object.values(bons).reduce((somme: number, n) => somme + (n ?? 0), 0));
       });
   }, [gauloisCree, surLesPochettes]);
+
+  // La vitrine des visiteurs, écrite dans la page au build (src/pages/village.astro, revue du 18 novembre 2026) : les
+  // Gaulois déjà créés, pour qui n'est pas connecté. Un membre connecté a la sienne, dans l'onglet « La vitrine ».
+  useEffect(() => {
+    const vitrine = document.querySelector<HTMLElement>("[data-vitrine-publique]");
+    if (vitrine) vitrine.hidden = me === null || me.signed_in;
+  }, [me]);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
 
@@ -142,7 +149,7 @@ export default function VillageApp() {
       {!aCreer && active !== ANCRE_SENTIER && <BandeauDuJoueur sentier={sentier.etat.kind === "pret" ? sentier.etat.sentier : null} versLeSentier={() => select(ANCRE_SENTIER)} />}
       <Partie prefix={PREFIXE} id="gaulois" active={aCreer ? "gaulois" : active} slide={aCreer ? null : slide}>
         {/* Le titre caché de la partie, sauf quand « Votre Gaulois », juste au-dessus, la nomme déjà. */}
-        {!aCreer && <h2 class="sr-only">Mon Gaulois</h2>}
+        {!aCreer && <h2 class="sr-only">Le vestiaire</h2>}
         <Vestiaire actif={aCreer || active === "gaulois"} />
       </Partie>
       {!aCreer && (

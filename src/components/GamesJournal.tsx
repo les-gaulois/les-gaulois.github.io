@@ -40,12 +40,12 @@ function Replay({ row }: { row: JournalRow }) {
       aria-label={`Ouvrir sur OpenFront la partie du ${fmtDayAndTime(row.at)}`}
       data-testid="journal-replay"
     >
-      Ouvrir
+      Sur OpenFront
     </a>
   );
 }
 
-/** Le replay de la partie sur le site (« Revoir une partie »), s'il existe. Une cible de la même taille que « Ouvrir ». */
+/** Le replay de la partie sur le site (« Revoir une partie »), s'il existe. Une cible de la même taille que « Sur OpenFront ». */
 function Film({ row, base }: { row: JournalRow; base: string }) {
   return (
     <a
@@ -64,16 +64,12 @@ function Film({ row, base }: { row: JournalRow; base: string }) {
 }
 
 /**
- * Les liens d'une partie : son replay sur le site s'il existe, et la partie sur OpenFront. Dans le tableau (grand écran), sur une
- * seule ligne : sinon la colonne prend la largeur du plus long des deux, « Ouvrir » passe sous « Revoir » et la ligne grandit.
+ * Le lien d'une partie, un seul : son replay sur le site s'il existe, sinon la partie sur OpenFront. La page « Revoir une
+ * partie » donne elle-même le lien vers OpenFront : deux liens par ligne demandaient une phrase pour les distinguer (revue
+ * du 18 novembre 2026).
  */
 function Liens({ row, base, films }: { row: JournalRow; base: string; films: ReadonlySet<string> }) {
-  return (
-    <span class="inline-flex flex-wrap gap-x-4 lg:flex-nowrap">
-      {films.has(row.id) && <Film row={row} base={base} />}
-      <Replay row={row} />
-    </span>
-  );
+  return films.has(row.id) ? <Film row={row} base={base} /> : <Replay row={row} />;
 }
 
 /** Les Gaulois montrés sous une partie ; les autres sont comptés à la suite. */
@@ -245,7 +241,7 @@ export default function GamesJournal({ src, initial, sides, base = "", films: av
       </p>
       {unread && <p class="tnum mt-1 text-sm text-muted" data-testid="journal-unread">{unread}</p>}
       <p class="mt-1 max-w-3xl text-sm text-muted" data-testid="journal-link-note">
-        {films.size > 0 && "« Revoir » montre le replay de la partie sur le site. "}« Ouvrir » lance le replay sur OpenFront. Une partie ancienne peut s'arrêter sur « Rejoindre un salon privé ».
+        Ouverte sur OpenFront, une partie ancienne peut s'arrêter sur « Rejoindre un salon privé ».
       </p>
       {state === "error" && (
         <div class="card mt-3 p-4" role="alert">

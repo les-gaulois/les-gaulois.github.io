@@ -6238,3 +6238,37 @@ button.tenue-gardee-remettre:disabled {
   transform: none;
 }
 
+
+/* ---------- La vitrine des visiteurs (18 novembre 2026) ---------- */
+/* Sous la porte de « Mon Gaulois » (src/pages/village.astro) : une case par Gaulois déjà créé, en pied, le pseudo dessous,
+   qui mène à la fiche du membre. Seulement pour qui n'est pas connecté : un membre a la vraie vitrine, en onglet. */
+.vitrine-publique {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 7.5rem), 1fr));
+  gap: 0.75rem;
+}
+.vitrine-publique-case {
+  display: grid;
+  justify-items: center;
+  align-content: end;
+  gap: 0.5rem;
+  height: 100%;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  color: inherit;
+  text-decoration: none;
+}
+.vitrine-publique-case > .pseudo {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.vitrine-publique-case:hover > .pseudo,
+.vitrine-publique-case:focus-visible > .pseudo {
+  color: var(--color-warn);
+}
+.vitrine-publique-case:focus-visible {
+  outline: 2px solid var(--anneau);
+  outline-offset: 2px;
+}

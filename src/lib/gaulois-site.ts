@@ -1,7 +1,8 @@
 /**
  * Les Gaulois des membres sur les pages du site (demande du pilote, 16 novembre 2026) : le Gaulois qu'un membre a créé
- * paraît à côté de son pseudo sur l'accueil, dans la gazette, les records, la page Membres, les dernières parties de
- * « Revoir une partie » et, sous les parties qui ont leur replay sur le site, dans « Dernières parties ».
+ * paraît à côté de son pseudo sur l'accueil, dans la gazette, les records, la page Membres, sous les parties qui ont leur
+ * replay sur le site dans « Dernières parties », et dans la vitrine des visiteurs de « Mon Gaulois » (18 novembre 2026). Les
+ * cases des dernières parties de « Revoir une partie » les montraient aussi, jusqu'à leur retrait le 18 novembre 2026.
  *
  * Même chemin que les images des fiches (`gaulois-joueurs.ts`) : l'étape « Lire les Gaulois des fiches » de la GitHub
  * Action, seule à avoir la clé de service, range les tenues dans `.cache/gaulois-fiches.json` ; la construction les relit
@@ -149,7 +150,7 @@ export function gauloisDesNoms(
 }
 
 /**
- * Les Gaulois à montrer sur la case d'une partie de « Revoir une partie » : ceux que nomme son film (`.cache/films/`, là dès
+ * Les Gaulois à montrer sous une partie à revoir, dans « Dernières parties » : ceux que nomme son film (`.cache/films/`, là dès
  * que la partie est à revoir), et ceux des listes officielles des membres, relues environ une fois par jour. Film absent ou
  * illisible : les listes seules.
  */

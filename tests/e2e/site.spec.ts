@@ -5,6 +5,8 @@ import { clan } from "../../config/clan";
 import { accueilFacts, accueilImageAlt, accueilRanking } from "../../src/lib/accueil-image";
 import { GazetteFonts } from "../../src/lib/gazette-image";
 import { gauloisDuSite, portraitDuGaulois } from "../../src/lib/gaulois-site";
+import { vitrinePublique } from "../../src/lib/village/vitrine-publique";
+import { legendeDuPodium } from "../../src/lib/cartes-podium";
 import { worldTerritory } from "../../src/lib/carte-monde";
 import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadCompagnonsDeFlamme, loadRecordsPersonnels, loadRivals, loadSeriesEnCours, loadSessions } from "../../src/lib/data";
 import { datesDeLaSerie, datesDuRecord, flammeAllumee, phraseDesCompagnons, serieEnMots } from "../../src/lib/serie-en-cours";
@@ -435,8 +437,11 @@ test("d'un onglet à l'autre d'une rubrique, les onglets, la ligne tricolore et 
       const tete = document.querySelector("main .console-tete")?.getBoundingClientRect();
       const wrap = document.querySelector<HTMLElement>("main > .wrap");
       const style = wrap ? getComputedStyle(wrap) : null;
+      // Le début de la ligne d'onglets, à l'intérieur de ses marges : sur téléphone, la ligne glisse jusqu'à l'onglet ouvert
+      // (18 novembre 2026), son contenu peut donc être décalé, mais la ligne elle-même ne bouge pas.
+      const rubrique = document.querySelector<HTMLElement>("main .rubrique");
       return {
-        onglet: gauche("main .rubrique .rubrique-onglet"),
+        onglet: rubrique ? rubrique.getBoundingClientRect().left + parseFloat(getComputedStyle(rubrique).paddingLeft) : null,
         filet: gauche("main .tribar"),
         titre: gauche("main h1"),
         tete: tete ? { gauche: tete.left, largeur: tete.width } : null,
@@ -615,7 +620,9 @@ test("un rang de podium ou un tag de clan tient sur une ligne et dans sa colonne
     tenir(records, `/records à ${width} px`);
     await ouvrir("/");
     const accueil = await mesurer(':is([data-testid="home-podium-player"], [data-testid="home-active-player"]) > :first-child');
-    expect(accueil, `accueil à ${width} px`).toHaveLength(attendus.accueil);
+    // Avec les cartes du podium en haut, le bloc de la semaine ne recopie pas le plus de victoires.
+    const enCartes = (await page.getByTestId("hero-podium").count()) > 0;
+    expect(accueil, `accueil à ${width} px`).toHaveLength(attendus.accueil - (enCartes ? (derniere?.players?.length ?? 0) : 0));
     tenir(accueil, `accueil à ${width} px`);
     await ouvrir("/rivaux");
     const lignes = page.locator('[data-testid="score-lanes"] li');
@@ -969,6 +976,22 @@ test("« Mon Gaulois » sans serveur garde sa porte fermée, sans le monde du vi
   await expect(pause).toHaveAttribute("aria-pressed", "true");
 });
 
+// La vitrine des visiteurs (revue du 18 novembre 2026) : sous la porte, les Gaulois déjà créés, le plus de victoires d'abord,
+// chacun menant à sa fiche. Sans Gaulois relevé (un poste sans le cache de l'Action), rien.
+test("« Mon Gaulois » montre aux visiteurs les Gaulois déjà créés par les membres", async ({ page }) => {
+  const attendus = vitrinePublique(loadMembers()?.members ?? [], (id) => portraitDuGaulois(id) !== null);
+  await page.goto("/village");
+  if (attendus.length === 0) {
+    await expect(page.getByTestId("vitrine-publique")).toHaveCount(0);
+    return;
+  }
+  await expect(page.getByRole("heading", { level: 2, name: "Les Gaulois du clan" })).toBeVisible();
+  const cases = page.getByTestId("vitrine-publique-gaulois");
+  await expect(cases).toHaveCount(attendus.length);
+  await expect(cases.first()).toHaveAttribute("href", `/membres/${encodeURIComponent(attendus[0]!.id)}`);
+  await expect(cases.first()).toContainText(attendus[0]!.pseudo);
+});
+
 // Le thème sombre « Nuit Marine » (16 novembre 2026) : le bouton de l'en-tête passe du clair au sombre, le choix est retenu
 // d'une page à l'autre, et un appareil réglé en sombre l'ouvre sans rien demander. La barre du navigateur suit le fond.
 test("le bouton de l'en-tête passe du thème clair au thème sombre, et le choix est retenu", async ({ page }) => {
@@ -1090,8 +1113,8 @@ test("les pseudos de la page Membres se touchent du doigt", async ({ page }, tes
   const tierLink = page.getByTestId("win-tier").locator("a").first();
   if ((await tierLink.count()) > 0) {
     expect((await tierLink.boundingBox())!.height).toBeGreaterThanOrEqual(24);
-    // Plus haut, il garde l'allure des pseudos du site : blanc, sans trait, jaune et souligné au survol.
-    expect(await tierLink.evaluate((a) => getComputedStyle(a).textDecorationLine)).toBe("none");
+    // Plus haut, il garde l'allure des pseudos du site : blanc, un trait pâle qui dit le lien (18 novembre 2026), jaune au survol.
+    expect(await tierLink.evaluate((a) => getComputedStyle(a).textDecorationLine)).toBe("underline");
     await tierLink.hover();
     await expect(tierLink).toHaveCSS("color", "rgb(255, 200, 87)");
     await expect(tierLink).toHaveCSS("text-decoration-line", "underline");
@@ -1129,6 +1152,7 @@ test("un pseudo qui mène à une fiche a la même allure sur toutes les pages", 
           href: a.getAttribute("href"),
           pseudo: a.classList.contains("pseudo"),
           color: getComputedStyle(a).color,
+          trait: getComputedStyle(a).textDecorationLine,
           // Dans une scène colorée (îlot sombre), l'écriture est blanche ; sur la page, marine. De même sur la ligne d'un
           // membre qui porte sa bannière dans la liste (16 novembre 2026) : blanche et cernée, sur l'image.
           ilot: a.closest(".stage-blue, .stage-indigo, .stage-wine, .card-accent, .ligne-banniere") !== null,
@@ -1136,6 +1160,8 @@ test("un pseudo qui mène à une fiche a la même allure sur toutes les pages", 
     );
     for (const link of links) {
       expect(link.pseudo, `${path} : ${link.href}`).toBe(true);
+      // Un trait pâle dit partout que le pseudo mène à une fiche (revue du 18 novembre 2026) : pas seulement dans une phrase.
+      expect(link.trait, `${path} : ${link.href}`).toBe("underline");
       // La couleur de l'écriture (--ecriture), là où il se trouve : thème clair du 14 novembre 2026.
       expect(link.color, `${path} : ${link.href}`).toBe(link.ilot ? "rgb(255, 255, 255)" : "rgb(10, 18, 48)");
     }
@@ -1579,7 +1605,22 @@ test.describe("le plan du site", () => {
     await page.goto(`/membres/${member.publicId}`);
     await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Membres", exact: true })).toHaveAttribute("aria-current", "true");
   });
-  test("passer d'un onglet à l'autre change de page sans repasser par le menu", async ({ page }) => {
+  test("sur téléphone, les onglets tiennent sur une ligne et l'onglet ouvert y est visible", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "La ligne qui glisse est celle du téléphone.");
+  for (const path of ["/utiles", "/records", "/classement", "/nouveautes", "/qg"]) {
+    await page.goto(path);
+    const ligne = page.getByTestId("section-nav");
+    const boites = await ligne.locator("a").evaluateAll((liens) => liens.map((a) => a.getBoundingClientRect().top));
+    // Une seule ligne : tous les onglets à la même hauteur.
+    expect(new Set(boites.map(Math.round)).size, path).toBe(1);
+    const nav = (await ligne.boundingBox())!;
+    const ouvert = (await ligne.locator('a[aria-current="page"]').boundingBox())!;
+    expect(ouvert.x, path).toBeGreaterThanOrEqual(nav.x - 1);
+    expect(ouvert.x + ouvert.width, path).toBeLessThanOrEqual(nav.x + nav.width + 1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), path).toBeLessThanOrEqual(0);
+  }
+});
+test("passer d'un onglet à l'autre change de page sans repasser par le menu", async ({ page }) => {
     await page.goto("/classement");
     await page.getByTestId("section-nav").getByRole("link", { name: "Nos rivaux" }).click();
     await expect(page).toHaveURL(/rivaux/);
@@ -2280,7 +2321,8 @@ test("le journal montre les dernières parties, avec leur replay et des filtres"
   const line = page.locator('[data-testid="journal-row"], [data-testid="journal-card"]').filter({ visible: true });
   // Écrites dans la page, avant le chargement du reste.
   const html = await (await page.request.get("/parties")).text();
-  expect(html.match(/data-testid="journal-replay"/g)?.length).toBe(2 * Math.min(rows.length, JOURNAL_FIRST_ROWS));
+  // Un seul lien par partie (revue du 18 novembre 2026) : « Revoir » sur le site s'il existe, sinon « Sur OpenFront ».
+  expect(html.match(/data-testid="journal-(?:replay|film)"/g)?.length).toBe(2 * Math.min(rows.length, JOURNAL_FIRST_ROWS));
 
   // Un tag se choisit librement : la page et son fichier ne citent que la liste officielle.
   const published = (await (await page.request.get("/parties.json")).json()) as { rivals: [string, number][]; allies: [string, number][] }[];
@@ -2290,15 +2332,17 @@ test("le journal montre les dernières parties, avec leur replay et des filtres"
   await hydrated(page);
   const count = page.getByTestId("journal-count");
   await expect(count).toContainText(journalCount(rows, NO_FILTER));
-  await expect(line.first().getByTestId("journal-replay")).toHaveAttribute("href", replayUrl(first.id));
-  // « Ouvrir », seule commande d'une carte sur téléphone : une cible de 44 px de haut pour le doigt, 24 px au moins dans le
+  const lienDeLaLigne = line.first().locator('[data-testid="journal-replay"], [data-testid="journal-film"]');
+  await expect(lienDeLaLigne).toHaveCount(1);
+  expect([replayUrl(first.id), `/revoir?partie=${encodeURIComponent(first.id)}`]).toContain(await lienDeLaLigne.getAttribute("href"));
+  // Le lien, seule commande d'une carte sur téléphone : une cible de 44 px de haut pour le doigt, 24 px au moins dans le
   // tableau (WCAG 2.5.8). Sa marge négative rend la place : une ligne du tableau garde la hauteur d'une ligne de texte.
-  const cible = (await line.first().getByTestId("journal-replay").boundingBox())!;
+  const cible = (await lienDeLaLigne.boundingBox())!;
   expect(Math.round(cible.height)).toBeGreaterThanOrEqual(testInfo.project.name === "mobile" ? 44 : 24);
   expect(Math.round(cible.width)).toBeGreaterThanOrEqual(testInfo.project.name === "mobile" ? 44 : 24);
   if (testInfo.project.name === "desktop") {
     const sansLien = await line.first().evaluate((tr) => {
-      const lien = tr.querySelector<HTMLElement>('[data-testid="journal-replay"]');
+      const lien = tr.querySelector<HTMLElement>('[data-testid="journal-replay"], [data-testid="journal-film"]');
       const avant = tr.getBoundingClientRect().height;
       if (lien) lien.style.display = "none";
       const apres = tr.getBoundingClientRect().height;
@@ -2444,8 +2488,21 @@ test("l'accueil nomme les Gaulois de la semaine d'après la dernière gazette, s
   await expect(block.getByRole("link", { name: "Lire la gazette" })).toHaveAttribute("href", "/gazette");
 
   // Le podium est celui de la gazette : mêmes joueurs, mêmes victoires. Sa réserve se lit dans la gazette.
+  // Quand les cartes du haut le montrent, le bloc ne le recopie pas (revue du 18 novembre 2026) : un seul podium par page.
   const podium = block.getByTestId("home-podium");
-  if (latest.players) {
+  const enCartes = (await page.getByTestId("hero-podium").count()) > 0;
+  if (latest.players && enCartes) {
+    await expect(block.getByTestId("home-podium-player")).toHaveCount(0);
+    // Les cartes disent alors ce que disait le bloc : mêmes joueurs, mêmes victoires, même lien vers la fiche, même période.
+    await expect(page.getByTestId("hero-card")).toHaveCount(latest.players.length);
+    for (const player of latest.players) {
+      const carte = page.locator(`[data-testid="hero-card"][href="/membres/${encodeURIComponent(player.id)}"]`);
+      await expect(carte).toHaveCount(1);
+      await expect(carte).toContainText(player.username);
+      await expect(carte).toContainText(fmtCount(player.wins, "victoire"));
+    }
+    await expect(page.getByTestId("hero-podium-legende")).toHaveText(legendeDuPodium(playersPeriod(latest), weekLabel(latest)));
+  } else if (latest.players) {
     const rows = podium.getByTestId("home-podium-player");
     await expect(rows).toHaveCount(latest.players.length);
     for (const [i, player] of latest.players.entries()) {

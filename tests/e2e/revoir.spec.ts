@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(LECTEUR, (r) => r.fulfill({ status: 200, contentType: "text/html", body: '<!doctype html><html lang="fr"><title>Replay du jeu</title></html>' }));
 });
 
-test("sans replay publié, la page le dit ; avec, elle ouvre la dernière partie et liste les autres", async ({ page }) => {
+test("sans replay publié, la page le dit ; avec, elle ouvre la dernière partie et mène aux autres", async ({ page }) => {
   await page.goto("/revoir");
   if (parties.length === 0) {
     await expect(page.getByText("Pas de replay", { exact: true })).toBeVisible();
@@ -40,7 +40,12 @@ test("sans replay publié, la page le dit ; avec, elle ouvre la dernière partie
   const dernier = parties[0]!;
   await expect(page.locator("#rejeu-titre")).toHaveText(`${mapLabel(dernier.carte)}, ${fmtDayAndTime(dernier.debut)}`);
   await expect(page.getByTestId("rejeu-resultat")).toHaveText(dernier.victoire ? "Victoire" : "Défaite");
-  await expect(page.getByTestId("revoir-liste").locator("a")).toHaveCount(Math.min(12, parties.length));
+  // Plus de liste sous le lecteur (revue du 18 novembre 2026) : la partie d'après, la liste complète, rien de plus récent.
+  await expect(page.getByTestId("revoir-liste")).toHaveCount(0);
+  await expect(page.getByTestId("rejeu-toutes")).toHaveAttribute("href", "/parties");
+  await expect(page.getByTestId("rejeu-plus-recente")).toHaveCount(0);
+  if (parties[1]) await expect(page.getByTestId("rejeu-plus-ancienne")).toHaveAttribute("href", `/revoir?partie=${parties[1].partie}`);
+  else await expect(page.getByTestId("rejeu-plus-ancienne")).toHaveCount(0);
   // La date du dernier passage du robot, pas celle du build : absente si elle est inconnue.
   if (liste!.fait) await expect(page.getByTestId("revoir-date")).toContainText(fmtDayAndTime(liste!.fait));
   else await expect(page.getByTestId("revoir-date")).toHaveCount(0);
@@ -91,7 +96,9 @@ test.describe("les messages à la place du replay", () => {
     await expect(liens.first()).toBeVisible();
     const avecReplay = new Set(parties.map((f) => `/revoir?partie=${f.partie}`));
     for (const href of await liens.evaluateAll((as) => as.map((a) => a.getAttribute("href")))) expect(avecReplay.has(href ?? "")).toBe(true);
-    await expect(page.getByTestId("journal-link-note")).toContainText("« Revoir » montre le replay de la partie sur le site.");
+    // Un seul lien par partie : une partie à revoir n'a pas en plus son lien vers OpenFront, que donne la page du replay.
+    const premiere = page.locator('[data-testid="journal-row"], [data-testid="journal-card"]').filter({ visible: true }).filter({ has: page.getByTestId("journal-film") }).first();
+    await expect(premiere.getByTestId("journal-replay")).toHaveCount(0);
   });
 });
 
@@ -189,6 +196,15 @@ test("« Les plus utiles » montre le classement général des bilans publiés, 
   } else {
     const lignes = page.getByTestId("utiles-ligne");
     await expect(lignes).toHaveCount(classement.length);
+    // Douze cartes d'emblée, la suite dans un repli (revue du 18 novembre 2026) : 13 écrans sur téléphone sinon.
+    if (classement.length > 12) {
+      await expect(page.getByTestId("utiles-suite").locator("summary")).toHaveText(`Voir les ${classement.length - 12} suivants`);
+      await expect(lignes.nth(12)).toBeHidden();
+      await page.getByTestId("utiles-suite").locator("summary").click();
+      await expect(lignes.nth(12)).toBeVisible();
+    } else {
+      await expect(page.getByTestId("utiles-suite")).toHaveCount(0);
+    }
     await expect(lignes.first()).toContainText(classement[0]!.nom);
     await expect(lignes.first()).toContainText("d'utilité");
     await expect(lignes.first().getByRole("link", { name: classement[0]!.nom })).toHaveAttribute("href", /\/membres\//);

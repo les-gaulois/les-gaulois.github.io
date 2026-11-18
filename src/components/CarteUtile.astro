@@ -1,0 +1,87 @@
+---
+import { IconeDAxe, IconeDeTitre, Silhouette } from "./BilanDesGaulois";
+import { fmtInt } from "../lib/format";
+import { AXES, NOM_DE_L_AXE, TITRE_DE_L_AXE, type Axe } from "../lib/rejeu/bilan-ecran";
+
+/**
+ * La carte d'un membre dans « Les plus utiles » (src/pages/utiles.astro) : son Gaulois sur son socle, son rang, sa flèche, son
+ * utilité et sa jauge, puis ses trois axes. Dessin validé par le pilote le 17 novembre 2026 (bannière sur toute la carte,
+ * case pâle à points d'interrogation sans bannière) : sortie de la page le 18 novembre 2026 pour replier la fin du classement.
+ */
+interface Props {
+  l: {
+    nom: string;
+    rang: number;
+    utilite: number;
+    parties: number;
+    axes: Record<Axe, number | null>;
+    titres: Record<Axe, number>;
+    mouvement: { sens: "nouveau" | "monte" | "descend"; places: number } | null;
+    fiche: string;
+    banniere: string | null;
+    portrait: { image: string; largeur: number; hauteur: number; rarete: string | null } | null;
+  };
+}
+const { l } = Astro.props;
+/** La largeur d'une jauge : de 0 au double de la part moyenne (200), pleine au-delà. */
+const jauge = (valeur: number) => `width: ${Math.min(100, Math.round(valeur / 2))}%`;
+const places = (n: number) => (n > 1 ? `${fmtInt(n)} places` : "1 place");
+---
+
+<li class="bilan-carte" data-rang={l.rang <= 3 ? l.rang : undefined} data-rarete={l.portrait?.rarete ?? undefined} data-banniere={l.banniere ? "membre" : undefined} style={l.banniere ? `--banniere: url("${l.banniere}")` : undefined} data-testid="utiles-ligne">
+  <div class="bilan-haut">
+    {l.portrait ? (
+      <span class="bilan-socle" data-rarete={l.portrait.rarete ?? undefined} aria-hidden="true">
+        <img src={l.portrait.image} width={l.portrait.largeur * 2} height={l.portrait.hauteur * 2} alt="" loading="lazy" decoding="async" />
+      </span>
+    ) : (
+      <span class="bilan-socle bilan-socle-sans" aria-hidden="true"><Silhouette /></span>
+    )}
+    <div class="bilan-identite">
+      <p class="bilan-tete">
+        <span class="bilan-rang tnum">{l.rang}</span>
+        {l.mouvement && (
+          <span class="bilan-mouvement tnum" data-sens={l.mouvement.sens} data-testid="utiles-mouvement">
+            {l.mouvement.sens === "nouveau" ? (
+              "nouveau"
+            ) : (
+              <>
+                <svg viewBox="0 0 8 8" aria-hidden="true" shape-rendering="crispEdges">
+                  <path fill="currentColor" d={l.mouvement.sens === "monte" ? "M3 0h2v1h1v1h1v1h1v1H5v4H3V4H0V3h1V2h1V1h1z" : "M3 0h2v4h3v1H7v1H6v1H5v1H3V7H2V6H1V5H0V4h3z"} />
+                </svg>
+                <span aria-hidden="true">{fmtInt(l.mouvement.places)}</span>
+                <span class="sr-only">{l.mouvement.sens === "monte" ? "gagne" : "perd"} {places(l.mouvement.places)} avec les parties du jour</span>
+              </>
+            )}
+          </span>
+        )}
+        <a class="bilan-nom link" href={l.fiche}>{l.nom}</a>
+      </p>
+      <p class="bilan-utilite tnum"><b>{fmtInt(l.utilite)}</b> d'utilité</p>
+      <div class="bilan-jauge" aria-hidden="true">
+        <i style={jauge(l.utilite)}></i>
+        <span class="bilan-jauge-repere"></span>
+      </div>
+      <p class="bilan-jauge-mots" aria-hidden="true"><span>0</span><span>moyenne</span><span>le double</span></p>
+      <p class="bilan-moyenne tnum">Moyenne sur {fmtInt(l.parties)} parties</p>
+    </div>
+  </div>
+  <dl class="bilan-axes tnum">
+    {AXES.map((a) => (
+      <div data-axe={a} data-titre={l.titres[a] > 0 ? "" : undefined}>
+        <dt><IconeDAxe axe={a} />{NOM_DE_L_AXE[a]}</dt>
+        <dd>
+          {l.axes[a] === null ? (
+            <span class="bilan-sans">Pas de données</span>
+          ) : (
+            <>
+              <b class="bilan-part">{fmtInt(l.axes[a]!)}</b>
+              <span class="bilan-barre" aria-hidden="true"><i style={jauge(l.axes[a]!)}></i></span>
+            </>
+          )}
+          {l.titres[a] > 0 && <span class="bilan-titre-axe"><IconeDeTitre axe={a} /><span>{`${TITRE_DE_L_AXE[a]}, ${fmtInt(l.titres[a])} fois`}</span></span>}
+        </dd>
+      </div>
+    ))}
+  </dl>
+</li>
