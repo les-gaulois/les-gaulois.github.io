@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-18",
+    "kind": "retire",
+    "rank": "minor",
+    "title": "Le coffre du druide ne donne plus de lettres au départ",
+    "body": "Sur Discord, une nouvelle manche ne montre plus la première ni la dernière lettre du mot : seul le nombre de lettres est donné. Les lettres se gagnent par la ruse ou avec /indice.",
+    "link": {
+      "href": "/confidentialite#coffre",
+      "label": "Ce que le jeu garde"
+    }
+  },
+  {
+    "date": "2026-11-18",
     "kind": "nouveau",
     "title": "Les Gaulois du clan, visibles de tous",
     "body": "Sur « Mon Gaulois », un visiteur voit maintenant les Gaulois déjà habillés par les membres, le plus de victoires d'abord. Chaque Gaulois mène à la fiche de son membre.",
