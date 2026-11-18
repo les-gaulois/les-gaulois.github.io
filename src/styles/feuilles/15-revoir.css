@@ -861,7 +861,8 @@ button.dons-heure:focus-visible {
   align-items: center;
   gap: 0.3125rem;
   font-family: var(--font-console);
-  font-size: 0.75rem;
+  /* 11 px, pas 12 : à 12, « ÉCONOMIE » se coupait en deux dans la case d'un téléphone (essayé le 18 novembre 2026). */
+  font-size: 0.6875rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-muted);
