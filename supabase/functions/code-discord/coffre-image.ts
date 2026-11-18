@@ -944,7 +944,7 @@ export function lignesDeLAide(d: DessinDeLAide): { regles: string[]; commandes: 
     regles: [
       "Un gardien cache un mot : faites-le-lui dire.",
       `Chaque essai : ${d.mise} statères dans la cagnotte.`,
-      "Première et dernière lettres données au départ.",
+      "Le nombre de lettres est donné au départ.",
       d.cycle ? "Ruse : gain fois 2, 3 ou 4. Deviné : fois 1." : "Ruse : gain multiplié. Deviné : fois 1.",
       "Un cinquième de la cagnotte va aux autres.",
       d.essais !== null ? `${d.essais} essais par jour, 20 secondes entre deux.` : "20 secondes entre deux essais.",

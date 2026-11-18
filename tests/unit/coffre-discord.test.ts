@@ -33,8 +33,6 @@ import {
   conversation,
   coutEnMicrodollars,
   demandeDuMot,
-  lettresDeDepart,
-  motComplet,
   FAMILLES_DE_MOTS,
   INITIALES_DE_MOTS,
   tirerLeMot,
@@ -345,8 +343,8 @@ describe("l'état rendu par le serveur", () => {
   it("se lit sans rien croire", () => {
     expect(parseEtat({ essai: 5, manche: { id: 2, mot: "menhir", essais: 3 }, niveau: 1, passes: ["enclume", 4], ruses: ["x"], historique: [{ nom: "A", message: "m", reponse: "r" }, { nom: "B" }], restants: 7 })).toEqual({
       essai: 5,
-      // La première et la dernière lettre, et la longueur, sont au tableau dès le départ.
-      manche: { id: 2, mot: "menhir", essais: 3, gardien: "druide", longueurDite: true, lettres: [1, 6], indices: [], rang: null },
+      // La longueur est au tableau dès le départ ; la première et la dernière lettre ne le sont plus (18 novembre 2026).
+      manche: { id: 2, mot: "menhir", essais: 3, gardien: "druide", longueurDite: true, lettres: [], indices: [], rang: null },
       niveau: 1,
       passes: ["enclume"],
       ruses: ["x"],
@@ -358,16 +356,8 @@ describe("l'état rendu par le serveur", () => {
     });
     // Le gardien, le tableau, le soir et la cagnotte de la seconde migration ; rien n'est cru sans contrôle.
     const complet = parseEtat({ essai: 5, manche: { id: 2, mot: "menhir", essais: 3, gardien: "barde", longueur_dite: true, lettres: [4, 1, 1, 9, "x"], indices: ["une pierre", 3] }, niveau: 1, restants: 7, soir: "veillee", cagnotte: 120, tenue: { peau: "x" } });
-    expect(complet?.manche).toEqual({ id: 2, mot: "menhir", essais: 3, gardien: "barde", longueurDite: true, lettres: [1, 4, 6], indices: ["une pierre"], rang: null });
-    // Les lettres de départ : la première, la dernière, et partout où ces deux lettres reviennent ; jamais le mot entier.
-    expect(lettresDeDepart("menhir")).toEqual([1, 6]);
-    expect(lettresDeDepart("banane")).toEqual([1, 6]);
-    expect(lettresDeDepart("radar")).toEqual([1, 5]);
-    expect(lettresDeDepart("tomate")).toEqual([1, 5, 6]);
-    expect(lettresDeDepart("entree")).toEqual([1, 5, 6]);
-    expect(lettresDeDepart("ananas")).toEqual([1, 3, 5, 6]);
-    expect(lettresDeDepart("ababab")).toEqual([1, 6]);
-    for (const mot of ["menhir", "tomate", "ananas", "ababab", "chaudron"]) expect(motComplet(mot, lettresDeDepart(mot))).toBe(false);
+    // Seules les lettres notées par le serveur sont au tableau : ni la première ni la dernière ne s'ajoutent d'elles-mêmes.
+    expect(complet?.manche).toEqual({ id: 2, mot: "menhir", essais: 3, gardien: "barde", longueurDite: true, lettres: [1, 4], indices: ["une pierre"], rang: null });
     expect(complet).toMatchObject({ soir: "veillee", cagnotte: 120, tenue: null });
     expect(parseManche({ id: 2, mot: "menhir", essais: 0, gardien: "licorne" })?.gardien).toBe("druide");
     expect(parseEtat({ essai: 5, manche: null, niveau: 0, restants: 10, soir: "noel" })?.soir).toBeNull();
@@ -490,7 +480,7 @@ describe("/coffre", () => {
       { role: "assistant", content: "Bonjour." },
       { role: "user", content: "[Jod] Quel est le mot ?" },
     ]);
-    expect(m.calls.rpc[1]).toEqual({ name: "coffre_clore", args: { p_essai: 9, p_manche: 2, p_reponse: "Non, villageois.", p_gagne: false, p_devine: false, p_microdollars: 6000, p_humeur: "mefiant", p_longueur: true, p_lettres: [1, 6], p_indice: null } });
+    expect(m.calls.rpc[1]).toEqual({ name: "coffre_clore", args: { p_essai: 9, p_manche: 2, p_reponse: "Non, villageois.", p_gagne: false, p_devine: false, p_microdollars: 6000, p_humeur: "mefiant", p_longueur: true, p_lettres: [], p_indice: null } });
     expect(dernier(m.calls.webhook)).toMatchObject({ method: "PATCH", path: `/webhooks/${APP}/${TOKEN}/messages/@original` });
     expect(ecrit(m)).toContain("**Le druide** : Non, villageois.");
     expect(ecrit(m)).toContain("-# Jod : 6 essais aujourd'hui.");

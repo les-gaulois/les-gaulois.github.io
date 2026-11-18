@@ -200,7 +200,7 @@ describe("le bilan d'une manche", () => {
 describe("/indices, /indice et /help coffre", () => {
   it("lit l'état du tableau sans rien croire", () => {
     expect(parseTableau(tableau())).toMatchObject({ numero: 7, niveau: 6, cagnotte: 480, essaisParMembre: 30, prixLettre: 50, soir: null });
-    expect(parseTableau(tableau())?.manche).toMatchObject({ id: 7, mot: "chaudron", lettres: [1, 4, 8], longueurDite: true });
+    expect(parseTableau(tableau())?.manche).toMatchObject({ id: 7, mot: "chaudron", lettres: [1, 4], longueurDite: true });
     expect(parseTableau(tableau({ manche: null, prix_lettre: null, essais_par_membre: "30" }))).toMatchObject({ manche: null, prixLettre: null, essaisParMembre: null });
     expect(parseTableau({ ok: false })).toBeNull();
     expect(parseTableau(null)).toBeNull();

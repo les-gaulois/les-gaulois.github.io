@@ -478,19 +478,6 @@ export function placesValides(value: unknown, longueur: number): number[] {
   return [...places].sort((a, b) => a - b);
 }
 
-/**
- * Les lettres données dès le début d'une manche (demande du pilote, 17 novembre 2026 : « que dès le départ on ait la
- * première lettre et la dernière lettre affichées, et les doublons bien sûr ») : les places de la première et de la
- * dernière lettre du mot, et toutes celles où ces deux lettres reviennent. La longueur du mot se lit donc aussi. Si ces
- * lettres faisaient tout le mot, seules la première et la dernière place sont données : le mot ne se donne jamais entier.
- */
-export function lettresDeDepart(mot: string): number[] {
-  const premiere = mot[0];
-  const derniere = mot[mot.length - 1];
-  const places = [...mot].flatMap((lettre, i) => (lettre === premiere || lettre === derniere ? [i + 1] : []));
-  return places.length >= mot.length ? [1, mot.length] : places;
-}
-
 /** Le cycle en cours, tel que `coffre_cycle` le rend : le rang de la prochaine manche, et qui a ouvert chaque coffre. */
 export interface CycleDuCoffre {
   /** Le rang qu'aura la prochaine manche ouverte (1 à 15), ou `null` sans cycle. */
@@ -551,9 +538,10 @@ export function parseManche(value: unknown): MancheDuCoffre | null {
     essais,
     rang: duCycle ? rang : null,
     gardien: duCycle ? duCycle.gardien : estGardien(gardien) ? gardien : "druide",
-    // Les lettres de départ et la longueur sont au tableau dès le premier instant, que le serveur les ait déjà notées ou non.
+    // La longueur est au tableau dès le premier instant ; les lettres, seulement celles que le serveur a notées. La première
+    // et la dernière lettre ne sont plus données au départ (demande du pilote, 18 novembre 2026 : « c'est trop cheater »).
     longueurDite: true,
-    lettres: placesValides([...(Array.isArray(manche["lettres"]) ? (manche["lettres"] as unknown[]) : []), ...lettresDeDepart(mot)], mot.length),
+    lettres: placesValides(manche["lettres"], mot.length),
     indices: textes(manche["indices"]).slice(0, INDICES_GARDES),
   };
 }
@@ -1080,9 +1068,9 @@ async function jouer(interaction: Json, joueur: { id: string; nom: string }, mes
       p_devine: devine,
       p_microdollars: coutDe(appel),
       p_humeur: devine || dit ? "vaincu" : (lue?.humeur ?? "mefiant"),
-      // Les lettres de départ partent avec chaque essai : le serveur les note au tableau, où elles restent.
+      // La longueur part avec chaque essai : le serveur la note au tableau, où elle reste.
       p_longueur: true,
-      p_lettres: placesValides([...(lue?.lettres ?? []), ...lettresDeDepart(manche.mot)], manche.mot.length),
+      p_lettres: lue?.lettres ?? [],
       p_indice: lue && lue.indice !== "" ? lue.indice : null,
     });
     const numero = entier(clos?.["manche"]);

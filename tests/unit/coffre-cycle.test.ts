@@ -191,7 +191,7 @@ describe("le cycle des quinze manches à thème", () => {
     // L'aide n'annonce les quinze manches que si le cycle tourne.
     expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30, cycle: true }).regles).toContain("Ruse : gain fois 2, 3 ou 4. Deviné : fois 1.");
     expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30 }).regles).toContain("Ruse : gain multiplié. Deviné : fois 1.");
-    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30 }).regles).toContain("Première et dernière lettres données au départ.");
+    expect(lignesDeLAide({ mise: 10, prixDesLettres: [50, 100, 200], essais: 30 }).regles).toContain("Le nombre de lettres est donné au départ.");
     expect(parseTableau({ ok: true, manche: null, numero: 3, niveau: 2, cycle: true })?.cycle).toBe(true);
     expect(parseTableau({ ok: true, manche: null, numero: 3, niveau: 2 })?.cycle).toBe(false);
     expect(parseTableau({ ok: true, manche: { id: 4, mot: "menhir", essais: 0, rang: 2 }, numero: 4, niveau: 3 })?.cycle).toBe(true);
