@@ -42,22 +42,6 @@ export const banniereParId = (id: string | null | undefined): Banniere | null =>
 };
 
 const dessins = new Map<string, Decor>();
-const fonds = new Map<string, Decor>();
-
-/**
- * La toile d'une bannière sans son cadre, gardée une fois peinte : le décor d'une manche du coffre du druide, où rien
- * n'est à vendre et où un cadre de rareté ne dirait rien. `null` pour un identifiant inconnu.
- */
-export function fondDeLaBanniere(id: string | null | undefined): Decor | null {
-  const b = id ? PAR_ID.get(id) : undefined;
-  if (!b) return null;
-  let fond = fonds.get(b.id);
-  if (!fond) {
-    fond = b.dessiner();
-    fonds.set(b.id, fond);
-  }
-  return fond;
-}
 
 /**
  * Le dessin d'une bannière, cadre compris (celui de la pochette pour ses trésors, celui de la rareté sinon), gardé une

@@ -9,14 +9,15 @@
  * après chaque mise en ligne, et une instance ne vit que quelques minutes), elle lit les commandes que Discord connaît sur le
  * serveur du clan, et met à jour, une à une, celles qui diffèrent des définitions (`definitions.ts`) : une commande qui
  * existe se modifie (PATCH), seule une commande absente se crée (POST), car Discord limite les créations à 200 par jour et
- * par serveur. Elle n'en retire jamais : une commande que le code ne connaît plus reste sur le serveur.
+ * par serveur. Elle ne retire (DELETE) que les commandes que le code nomme comme retirées (`RETIRED_COMMANDS`, depuis l'arrêt
+ * du coffre du druide, décidé le 19 novembre 2026) : toute autre commande que le code ne connaît plus reste sur le serveur.
  *
  * Rien n'est noté ailleurs que dans la mémoire de l'instance : chaque instance neuve compare de nouveau, ce qui ne coûte qu'une
  * lecture quand tout est à jour. Discord rend chaque commande telle qu'il l'a gardée : si elle diffère encore du code, la
  * comparaison ignore un champ, chaque instance la renverrait, et `/etat` le dit (`"inscription":false`). Les journaux ne
  * nomment que des commandes.
  */
-import { COMMANDS } from "./definitions.ts";
+import { COMMANDS, RETIRED_COMMANDS } from "./definitions.ts";
 
 /** Ce dont l'inscription a besoin du monde : remplacé dans les tests. */
 export interface InscriptionDeps {
@@ -35,6 +36,8 @@ export interface InscriptionResult {
   sent: string[];
   /** Les commandes déjà à jour. */
   same: number;
+  /** Les commandes retirées du serveur, parce que le code les a retirées (`RETIRED_COMMANDS`), par leur nom. */
+  removed: string[];
 }
 
 type Loose = Record<string, unknown>;
@@ -99,12 +102,13 @@ const SNOWFLAKE = /^[0-9]{17,20}$/;
 
 /**
  * Compare les commandes du serveur du clan à celles du code, et met à jour celles qui diffèrent : PATCH pour une commande qui
- * existe, POST pour une commande absente. S'arrête au premier refus : les suivantes n'auraient pas plus de chance (jeton,
- * droits), et la fois suivante reprendra. `ok` : toutes sont comme le code les décrit, de l'avis même de Discord.
+ * existe, POST pour une commande absente, puis DELETE pour une commande que le code a retirée. S'arrête au premier refus :
+ * les suivantes n'auraient pas plus de chance (jeton, droits), et la fois suivante reprendra. `ok` : toutes sont comme le
+ * code les décrit, de l'avis même de Discord.
  */
-export async function registerCommands(deps: InscriptionDeps, commands: readonly unknown[] = COMMANDS): Promise<InscriptionResult> {
+export async function registerCommands(deps: InscriptionDeps, commands: readonly unknown[] = COMMANDS, retired: readonly string[] = RETIRED_COMMANDS): Promise<InscriptionResult> {
   const path = `/applications/${deps.applicationId}/guilds/${deps.guildId}/commands`;
-  const result: InscriptionResult = { ok: false, sent: [], same: 0 };
+  const result: InscriptionResult = { ok: false, sent: [], same: 0, removed: [] };
   const listed = await deps.discord("GET", path, { timeoutMs: CALL_TIMEOUT_MS });
   if (!listed || listed.status !== 200 || !Array.isArray(listed.body)) {
     deps.log(`commandes de Discord illisibles (${listed ? listed.status : "injoignable"}) : nouvel essai plus tard`);
@@ -143,6 +147,20 @@ export async function registerCommands(deps: InscriptionDeps, commands: readonly
     }
   }
   if (result.sent.length > 0) deps.log(`commandes mises à jour sur Discord : ${result.sent.map((name) => `/${name}`).join(", ")}`);
+  // Les commandes retirées par le code, encore sur le serveur : effacées une à une. Seulement des commandes « / » (type 1),
+  // reconnues à leur nom ; une commande que Discord rend sans numéro lisible ne peut pas s'effacer, et la fois suivante reprendra.
+  for (const name of retired) {
+    const existing = known.get(`1:${name}`);
+    if (!existing) continue;
+    const gone = existing.id ? await deps.discord("DELETE", `${path}/${existing.id}`, { timeoutMs: CALL_TIMEOUT_MS }) : null;
+    // 404 : déjà effacée entre la lecture et l'effacement.
+    if (!gone || ((gone.status < 200 || gone.status >= 300) && gone.status !== 404)) {
+      deps.log(`commande /${name} non retirée de Discord (${gone ? gone.status : existing.id ? "injoignable" : "sans numéro"}) : nouvel essai plus tard`);
+      return result;
+    }
+    result.removed.push(name);
+  }
+  if (result.removed.length > 0) deps.log(`commandes retirées de Discord : ${result.removed.map((name) => `/${name}`).join(", ")}`);
   return { ...result, ok: faithful };
 }
 

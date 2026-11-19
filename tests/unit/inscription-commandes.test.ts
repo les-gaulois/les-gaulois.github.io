@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COMMANDS as SITE_COMMANDS } from "../../src/lib/discord-commande";
-import { CLAN_COMMAND, COMMANDS, CONCOURS_COMMAND, FICHE_COMMAND } from "../../supabase/functions/code-discord/definitions";
+import { CLAN_COMMAND, COMMANDS, CONCOURS_COMMAND, FICHE_COMMAND, RETIRED_COMMANDS } from "../../supabase/functions/code-discord/definitions";
 import { BOT_TOKEN_SECRET, DISCORD_API, liveDeps } from "../../supabase/functions/code-discord/index";
 import {
   commandShape,
@@ -152,12 +152,12 @@ describe("la forme d'une commande", () => {
 describe("l'inscription des commandes", () => {
   it("ne renvoie rien quand Discord a déjà toutes les commandes du code", async () => {
     const { deps, calls, logs } = fakeDiscord(allKnown());
-    expect(await registerCommands(deps)).toEqual({ ok: true, sent: [], same: COMMANDS.length });
+    expect(await registerCommands(deps)).toEqual({ ok: true, sent: [], same: COMMANDS.length, removed: [] });
     expect(calls).toEqual([{ method: "GET", path: PATH, body: null }]);
     expect(logs).toEqual([]);
   });
 
-  it("modifie celle qui a changé (pas une création) et crée celle qui manque, sans en retirer aucune", async () => {
+  it("modifie celle qui a changé (pas une création) et crée celle qui manque, sans retirer celle qu'il ne connaît pas", async () => {
     const fiche = COMMANDS.findIndex((c) => c.name === "fiche");
     const listed = [
       ...allKnown().filter((c) => c["name"] !== "concours" && c["name"] !== "fiche"),
@@ -166,7 +166,7 @@ describe("l'inscription des commandes", () => {
       echo({ type: 1, name: "ancienne", description: "Une commande d'avant" }, idOf(99)),
     ];
     const { deps, calls, logs } = fakeDiscord(listed, (method, body) => ({ status: 200, body: echo(method === "PATCH" ? { type: 1, ...(body as Loose) } : body) }));
-    expect(await registerCommands(deps)).toEqual({ ok: true, sent: ["fiche", "concours"], same: COMMANDS.length - 2 });
+    expect(await registerCommands(deps)).toEqual({ ok: true, sent: ["fiche", "concours"], same: COMMANDS.length - 2, removed: [] });
     // Tout ce que décrit le code, sauf le type, que Discord ne laisse pas changer.
     const ficheBody = { name: FICHE_COMMAND.name, description: FICHE_COMMAND.description, options: FICHE_COMMAND.options, default_member_permissions: null };
     expect(calls).toEqual([
@@ -189,7 +189,7 @@ describe("l'inscription des commandes", () => {
   it("reconnaît une commande à son type et à son nom : un menu du même nom ne la remplace pas", async () => {
     const listed = [...allKnown(), echo({ type: 2, name: "fiche", description: "" }, idOf(50))];
     const { deps, calls } = fakeDiscord(listed);
-    expect(await registerCommands(deps)).toEqual({ ok: true, sent: [], same: COMMANDS.length });
+    expect(await registerCommands(deps)).toEqual({ ok: true, sent: [], same: COMMANDS.length, removed: [] });
     expect(calls).toHaveLength(1);
   });
 
@@ -205,14 +205,14 @@ describe("l'inscription des commandes", () => {
   it("dit non quand Discord garde une commande autrement que le code : chaque instance la renverrait", async () => {
     const listed = allKnown().filter((c) => c["name"] !== "moi");
     const { deps, logs } = fakeDiscord(listed, (_method, body) => ({ status: 201, body: echo({ ...(body as Loose), description: "Raccourcie par Discord" }) }));
-    expect(await registerCommands(deps)).toEqual({ ok: false, sent: ["moi"], same: COMMANDS.length - 1 });
+    expect(await registerCommands(deps)).toEqual({ ok: false, sent: ["moi"], same: COMMANDS.length - 1, removed: [] });
     expect(logs).toEqual(["commande /moi gardée par Discord autrement que dans le code : la comparaison est à revoir (inscription.ts)", "commandes mises à jour sur Discord : /moi"]);
   });
 
   it("ne crée rien si la liste de Discord ne se lit pas", async () => {
     for (const listed of [() => ({ status: 401, body: { message: "401: Unauthorized" } }), () => null, () => ({ status: 200, body: { pas: "une liste" } })]) {
       const { deps, calls, logs } = fakeDiscord(listed);
-      expect(await registerCommands(deps)).toEqual({ ok: false, sent: [], same: 0 });
+      expect(await registerCommands(deps)).toEqual({ ok: false, sent: [], same: 0, removed: [] });
       expect(calls).toHaveLength(1);
       expect(logs[0]).toMatch(/^commandes de Discord illisibles \((401|injoignable|200)\) : nouvel essai plus tard$/);
     }
@@ -220,9 +220,42 @@ describe("l'inscription des commandes", () => {
 
   it("s'arrête au premier refus : la fois suivante reprendra", async () => {
     const { deps, calls, logs } = fakeDiscord([], () => ({ status: 400, body: { code: 50035 } }));
-    expect(await registerCommands(deps)).toEqual({ ok: false, sent: [], same: 0 });
+    expect(await registerCommands(deps)).toEqual({ ok: false, sent: [], same: 0, removed: [] });
     expect(calls.map((c) => c.method)).toEqual(["GET", "POST"]);
     expect(logs).toEqual([`commande /${COMMANDS[0].name} refusée par Discord (400) : nouvel essai plus tard`]);
+  });
+
+  it("retire du serveur les commandes du coffre du druide, arrêté sur décision du 19 novembre 2026, et seulement elles", async () => {
+    const listed = [
+      ...allKnown(),
+      ...RETIRED_COMMANDS.map((name, i) => echo({ type: 1, name, description: "Coffre du druide" }, idOf(60 + i))),
+      // Une commande que le code ne connaît pas, sans être retirée par lui : elle reste.
+      echo({ type: 1, name: "ancienne", description: "Une commande d'avant" }, idOf(99)),
+      // Un menu qui porte le nom d'une commande retirée : ce n'est pas elle, il reste.
+      echo({ type: 2, name: "coffre", description: "" }, idOf(98)),
+    ];
+    const { deps, calls, logs } = fakeDiscord(listed, () => ({ status: 204, body: null }));
+    expect(await registerCommands(deps)).toEqual({ ok: true, sent: [], same: COMMANDS.length, removed: [...RETIRED_COMMANDS] });
+    expect(calls).toEqual([
+      { method: "GET", path: PATH, body: null },
+      ...RETIRED_COMMANDS.map((_name, i) => ({ method: "DELETE", path: `${PATH}/${idOf(60 + i)}`, body: null })),
+    ]);
+    expect(logs).toEqual(["commandes retirées de Discord : /coffre, /perceurs, /indices, /indice, /help"]);
+  });
+
+  it("ne retire rien quand les commandes du coffre ont déjà disparu, et compte une commande déjà effacée (404)", async () => {
+    const { deps, calls } = fakeDiscord(allKnown());
+    expect((await registerCommands(deps)).removed).toEqual([]);
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+    const deja = fakeDiscord([...allKnown(), echo({ type: 1, name: "indice", description: "" }, idOf(70))], () => ({ status: 404, body: { code: 10063 } }));
+    expect(await registerCommands(deja.deps)).toEqual({ ok: true, sent: [], same: COMMANDS.length, removed: ["indice"] });
+  });
+
+  it("dit non si Discord refuse de retirer une commande : la fois suivante reprendra", async () => {
+    const { deps, calls, logs } = fakeDiscord([...allKnown(), echo({ type: 1, name: "coffre", description: "" }, idOf(60)), echo({ type: 1, name: "help", description: "" }, idOf(61))], () => ({ status: 403, body: { code: 50001 } }));
+    expect(await registerCommands(deps)).toEqual({ ok: false, sent: [], same: COMMANDS.length, removed: [] });
+    expect(calls.map((c) => c.method)).toEqual(["GET", "DELETE"]);
+    expect(logs).toEqual(["commande /coffre non retirée de Discord (403) : nouvel essai plus tard"]);
   });
 
   it("crée plutôt que de modifier une commande dont Discord ne donne pas un numéro lisible", async () => {

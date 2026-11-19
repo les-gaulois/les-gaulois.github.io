@@ -21,6 +21,7 @@ import {
   looksLikeBotToken,
   retryAfterMs,
 } from "../../src/lib/discord-commande";
+import { RETIRED_COMMANDS } from "../../supabase/functions/code-discord/definitions";
 import * as fonction from "../../supabase/functions/code-discord/index";
 import { COMMAND_NAME, FICHE_COMMAND_NAME, FICHE_OPTION, GAL_APPLICATION_ID, GAL_GUILD_ID } from "../../supabase/functions/code-discord/index";
 import { PERMISSIONS as TICKET_PERMISSIONS, TICKETS_COMMAND_NAME, TICKETS_OPTIONS } from "../../supabase/functions/code-discord/tickets";
@@ -93,8 +94,13 @@ describe("la commande /fiche", () => {
 
   it("part avec /code et les commandes du robot, chacune à part, sans doublon", () => {
     const names = COMMANDS.map((c) => c.name);
-    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "gaulois", "feu", "macarte", "roles", "tickets", "concours", "coffre", "perceurs", "indices", "indice", "help"]);
+    expect(names).toEqual([CODE_COMMAND.name, FICHE_COMMAND.name, "clan", "records", "carte", "guide", "rival", "moi", "gaulois", "feu", "macarte", "roles", "tickets", "concours"]);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("n'a plus les commandes du coffre du druide, arrêté sur décision du 19 novembre 2026 : la fonction les retire du serveur", () => {
+    expect([...RETIRED_COMMANDS]).toEqual(["coffre", "perceurs", "indices", "indice", "help"]);
+    for (const name of RETIRED_COMMANDS) expect(COMMANDS.map((c) => c.name)).not.toContain(name);
   });
 });
 
@@ -142,8 +148,7 @@ describe("les commandes du robot", () => {
 
   it("tiennent dans les limites de Discord, et chaque option de texte propose pendant la saisie", () => {
     // /concours a des sous-commandes, contrôlées dans tests/unit/concours-discord.test.ts.
-    // /coffre a un texte libre, et /help une sous-commande : contrôlés dans tests/unit/coffre-discord.test.ts et coffre-panneaux.test.ts.
-    for (const command of COMMANDS.filter((c) => c.name !== "concours" && c.name !== "coffre" && c.name !== "help")) {
+    for (const command of COMMANDS.filter((c) => c.name !== "concours")) {
       expect(command.name).toMatch(/^[a-z0-9_-]{1,32}$/);
       expect(command.type).toBe(1);
       expect(command.description.length).toBeGreaterThan(0);

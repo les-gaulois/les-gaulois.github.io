@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-21",
+    "kind": "retire",
+    "rank": "minor",
+    "title": "Le coffre du druide est arrêté",
+    "body": "Le jeu /coffre de Discord est fermé, et ses commandes quittent le serveur. Sa cagnotte était vide : il n'y avait pas de mise à rendre, vos statères ne bougent pas.",
+    "link": {
+      "href": "/confidentialite#coffre",
+      "label": "Ce que le jeu garde"
+    }
+  },
+  {
+    "date": "2026-11-21",
     "kind": "ameliore",
     "rank": "minor",
     "title": "Des icônes dans Mon Gaulois",

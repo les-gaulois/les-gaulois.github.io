@@ -138,34 +138,12 @@ export const CONCOURS_COMMAND = {
 } as const;
 
 /**
- * /coffre (docs/DIRECTION.md, « Le coffre du druide ») : écrire au druide qui garde le mot secret, devant tout le salon. Son
- * nom et son option sont ceux qu'attend `supabase/functions/code-discord/coffre.ts` : un test le vérifie.
+ * Les commandes que le code a retirées : la fonction les efface du serveur du clan si elles y sont encore (`inscription.ts`).
+ * Seules celles-ci : une autre commande que le code ne connaît pas reste où elle est. Les cinq commandes du coffre du druide,
+ * arrêté sur décision du pilote du 19 novembre 2026 (« Le coffre du druide » de docs/DIRECTION.md) : /coffre, /perceurs, /indices,
+ * /indice et /help, qui n'avait que la sous-commande « coffre ». Toutes des commandes « / » (type 1).
  */
-export const COFFRE_COMMAND = {
-  name: "coffre",
-  type: 1,
-  description: "Jeu : faites dire au gardien le mot secret du coffre. 10 statères l'essai. Tout le salon voit",
-  options: [
-    { type: 3, name: "message", description: "Ce que vous dites au gardien, qui est joué par une intelligence artificielle", required: true, min_length: 2, max_length: 300 },
-  ],
-} as const;
-
-/** /perceurs (« Le coffre du druide ») : le podium de la semaine, en image. Son nom est celui qu'attend `coffre.ts`. */
-export const PERCEURS_COMMAND = { name: "perceurs", type: 1, description: "Le podium de la semaine : les villageois qui ont fait céder le plus de coffres" } as const;
-
-/** /indices : tout le tableau de la manche du coffre, pour le seul membre qui le demande. */
-export const INDICES_COMMAND = { name: "indices", type: 1, description: "Coffre du druide : tout le tableau de la manche, ses lettres et tous ses indices" } as const;
-
-/** /indice : acheter une lettre du mot du coffre. Le prix est dit ici, puisqu'il sort de la bourse sans autre question. */
-export const INDICE_COMMAND = { name: "indice", type: 1, description: "Coffre du druide : acheter une lettre du mot. 50, 100 puis 200 statères, dans la cagnotte" } as const;
-
-/** /help coffre : l'aide du jeu, en image. D'autres sujets pourront s'ajouter en sous-commandes. */
-export const AIDE_COMMAND = {
-  name: "help",
-  type: 1,
-  description: "L'aide des jeux du village",
-  options: [{ type: 1, name: "coffre", description: "Le coffre du druide : comment jouer, et les commandes du jeu" }],
-} as const;
+export const RETIRED_COMMANDS = ["coffre", "perceurs", "indices", "indice", "help"] as const;
 
 /** Les commandes du serveur du clan : la fonction les crée ou les remet à jour, chacune à part (`inscription.ts`). */
-export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, MACARTE_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND, COFFRE_COMMAND, PERCEURS_COMMAND, INDICES_COMMAND, INDICE_COMMAND, AIDE_COMMAND] as const;
+export const COMMANDS = [CODE_COMMAND, FICHE_COMMAND, CLAN_COMMAND, RECORDS_COMMAND, CARTE_COMMAND, GUIDE_COMMAND, RIVAL_COMMAND, MOI_COMMAND, GAULOIS_COMMAND, FEU_COMMAND, MACARTE_COMMAND, ROLES_COMMAND, TICKETS_COMMAND, CONCOURS_COMMAND] as const;
