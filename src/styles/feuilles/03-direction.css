@@ -2391,7 +2391,7 @@
   min-height: 1.75rem;
   margin-bottom: 0.5rem;
 }
-.dir-village-tete > h3 {
+.dir-village-tete > :is(h3, h4) {
   font-size: 1.0625rem;
 }
 .dir-village :is(.dir-village-bloc, .dir-village-lu, .dir-village-agir) > .dir-note {
@@ -3309,3 +3309,68 @@
   list-style: decimal;
 }
 
+
+/* ---------- Direction, onglet Village : le tableau du marché ---------- */
+/* Le tableau du marché (DirectionMarche.tsx, 19 novembre 2026) : sous l'économie du village, avec ses pièces (chiffres clés,
+   tableaux en lignes serrées, blocs) et les colonnes de l'onglet Activité, une série par petit graphique. Six chiffres clés :
+   deux par ligne sur téléphone, trois dès 640 px, six sur un grand écran. Rien ne s'anime. */
+.dir-marche {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.dir-marche-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.dir-marche-tete-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.dir-marche-corps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+@media (min-width: 40rem) {
+  .dir-marche-chiffres {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 90rem) {
+  .dir-marche-chiffres {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+/* Les petits graphiques des jours : côte à côte tant qu'ils gardent au moins 16 rem chacun. */
+.dir-marche-multiples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: 1rem 1.5rem;
+}
+.dir-marche-multiple {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+/* Les blocs du tableau du marché ont un titre de niveau 4, sous « Le marché » : le même dessin que celui des autres blocs
+   (la règle des petits titres de l'onglet, `.dir-village :is(h4, h5)`, plus haut, ne vaut pas pour eux). */
+.dir-village-tete > h4 {
+  font-size: 1.0625rem;
+  color: var(--ecriture);
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-transform: uppercase;
+  overflow-wrap: normal;
+  text-wrap: balance;
+}
+:root[data-ambiance="console"][data-console="terminal"] main .dir-village-tete > h4 {
+  font-family: var(--font-console);
+}

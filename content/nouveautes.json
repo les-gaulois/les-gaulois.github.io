@@ -2,6 +2,17 @@
   {
     "date": "2026-11-19",
     "kind": "nouveau",
+    "rank": "staff",
+    "title": "Le tableau du marché dans la Direction",
+    "body": "Dans l'onglet Village, l'équipe gauloise voit le marché en chiffres : offres et demandes ouvertes, ventes jour par jour, semaines de la boutique, prix payés. Sans aucun nom de membre.",
+    "link": {
+      "href": "/direction#village",
+      "label": "La Direction"
+    }
+  },
+  {
+    "date": "2026-11-19",
+    "kind": "nouveau",
     "rank": "top",
     "title": "La boutique tourne, et le marché prend les demandes",
     "body": "Chaque mardi à 21 h 30, un tiers des objets passe en rayon. Au marché, demandez un objet à votre prix : vos statères sont mis de côté, et un membre qui l'a vous le vend.",

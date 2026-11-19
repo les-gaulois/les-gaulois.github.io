@@ -1,4 +1,3 @@
-import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import { fmtDate, fmtDateTime, fmtInt } from "../../lib/format";
@@ -17,7 +16,6 @@ import {
   lireNombreTape,
   lireReglage,
   memeSaisie,
-  nomRarete,
   pourquoiCache,
   reglagesDe,
   reglagesDuPiloteEnMots,
@@ -35,6 +33,8 @@ import { MOTIF_MAX, lireMontantDuDon, lirePanneauDuDon, nomDuMembre, type Pannea
 import { lireModeGod, type ModeGod } from "../../lib/village/god";
 import { Loading, Problem, Success, messageOf } from "./common";
 import { Pastille } from "./direction-kit";
+import { Bloc, Case, Defile, NomRarete } from "./village-kit";
+import { LeMarche } from "./DirectionMarche";
 import { PartieTete } from "./Onglets";
 
 const timeParis = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
@@ -50,42 +50,6 @@ function Chiffre({ label, value, sub, seuil, testId }: { label: string; value: n
       <span class="console-valeur dir-village-valeur tnum block font-display font-extrabold">{value === null ? <span class="dir-village-cache text-muted">{PAS_DONNE}</span> : fmtInt(value)}</span>
       <span class="tnum block text-sm text-muted">{value === null ? pourquoiCache(seuil) : sub}</span>
     </div>
-  );
-}
-
-/** Une case de tableau : le nombre, qui ne se coupe jamais, ou « pas donné ». */
-const Case = ({ n }: { n: number | null }) => <td class="dir-village-nombre">{n === null ? <span class="text-muted">{PAS_DONNE}</span> : fmtInt(n)}</td>;
-
-/** Une rareté : sa couleur du site (`--rarete-*`), jamais seule, toujours avec son nom. */
-const NomRarete = ({ r }: { r: Rarete }) => (
-  <span class="dir-village-rarete" data-rarete={r}>
-    {nomRarete(r)}
-  </span>
-);
-
-/**
- * Un tableau en lignes serrées (`.dir-table` des pièces communes) qui ne coupe ni les mots ni les nombres (le site coupe
- * partout ailleurs, `overflow-wrap: anywhere`). Encore trop large, il défile de côté dans son cadre, comme le tableau des
- * comptes : la page, elle, ne défile jamais de côté.
- */
-function Defile({ label, children }: { label: string; children: ComponentChildren }) {
-  return (
-    <div class="dir-village-cadre" tabIndex={0} role="region" aria-label={label}>
-      <table class="dir-table tnum">{children}</table>
-    </div>
-  );
-}
-
-/** Un bloc de l'onglet : son titre, son état en pastille à droite, son contenu. `trait` : la couleur de l'état, au bord. */
-function Bloc({ id, titre, aside, trait, testId, children }: { id: string; titre: string; aside?: ComponentChildren; trait?: string; testId: string; children: ComponentChildren }) {
-  return (
-    <section class="dir-village-bloc card" aria-labelledby={id} data-trait={trait} data-testid={testId}>
-      <div class="dir-village-tete">
-        <h3 id={id}>{titre}</h3>
-        {aside}
-      </div>
-      {children}
-    </section>
   );
 }
 
@@ -155,6 +119,8 @@ export default function DirectionVillage({ rank }: { rank: number }) {
             {rank >= 3 ? <Reglages data={data} relire={load} /> : <ReglagesLus data={data} />}
           </>
         )}
+        {/* Le tableau du marché (19 novembre 2026) : lu à part, une panne n'emporte pas le reste de l'onglet. */}
+        <LeMarche />
         <LeModeGod />
         <LeDonDeStateres />
       </div>

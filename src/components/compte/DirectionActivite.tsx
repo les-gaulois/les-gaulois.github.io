@@ -81,7 +81,7 @@ function Tendance({ trend }: { trend: WeekTrend }) {
  * valeur au-dessus, sinon la plus récente. Le trait du haut porte la plus haute valeur, écrite à son bout. Les mêmes
  * valeurs sont dans le tableau replié dessous : le dessin est masqué aux lecteurs d'écran.
  */
-function Colonnes({
+export function Colonnes({
   bars,
   slots,
   readout,
@@ -89,6 +89,7 @@ function Colonnes({
   current,
   ticks,
   initial,
+  testId = "activity-readout",
 }: {
   bars: { key: string; value: number }[];
   /** Le nombre de places : des colonnes moins nombreuses restent étroites, à gauche. */
@@ -101,6 +102,8 @@ function Colonnes({
   initial?: number;
   /** Des repères sous certaines colonnes, par leur place. */
   ticks: Map<number, string>;
+  /** Le repère des tests de la ligne lue : le tableau du marché (DirectionMarche.tsx) en a plusieurs. */
+  testId?: string;
 }) {
   const [active, setActive] = useState<number | null>(null);
   const top = Math.max(0, ...bars.map((b) => b.value));
@@ -109,7 +112,7 @@ function Colonnes({
   const grid = { "--n": String(Math.max(slots, bars.length)) };
   return (
     <div>
-      <p class="tnum text-sm" data-testid="activity-readout">
+      <p class="tnum text-sm" data-testid={testId}>
         {readout(shown)}
       </p>
       <div class="dir-activite-trace mt-2" aria-hidden="true">
