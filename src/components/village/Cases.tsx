@@ -229,7 +229,11 @@ function Cadenas() {
 }
 
 /** Ce que la boutique dit d'une case : son prix (`null` tant que les prix manquent), ou le nombre d'exemplaires possédés. */
-export type Vente = { possede: number } | { prix: number | null };
+/**
+ * Ce que dit une case : combien on en possède, ou son prix à la boutique. `revient` : l'objet n'est pas en rayon cette
+ * semaine (boutique tournante, 19 novembre 2026), et la case dit son retour au lieu de son prix.
+ */
+export type Vente = { possede: number } | { prix: number | null; revient?: string | null };
 
 /**
  * Une case : l'image de l'objet, son nom, sa rareté écrite et comptée en losanges (la couleur du cadre n'est jamais le seul
@@ -286,7 +290,15 @@ export function Case({
       {aVendre && (
         <>
           <span class="sr-only">, à la boutique, </span>
-          {aVendre.prix === null ? <Cadenas /> : <Prix montant={aVendre.prix} class="case-prix" />}
+          {aVendre.revient ? (
+            <span class="case-revient" data-testid="case-revient">
+              {aVendre.revient}
+            </span>
+          ) : aVendre.prix === null ? (
+            <Cadenas />
+          ) : (
+            <Prix montant={aVendre.prix} class="case-prix" />
+          )}
           <span class="sr-only">, à essayer</span>
         </>
       )}

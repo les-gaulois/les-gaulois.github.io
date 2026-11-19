@@ -141,7 +141,27 @@ describe("les offres à l'écran", () => {
 });
 
 describe("les refus du marché", () => {
-  const REFUS: RefusMarche[] = ["not_validated", "pas_possede", "objet_porte", "achete_au_marche", "objet_grave", "prix_invalide", "trop_d_offres", "offre_fermee", "offre_a_soi", "deja_possede", "solde_insuffisant"];
+  const REFUS: RefusMarche[] = [
+    "not_validated",
+    "pas_possede",
+    "objet_porte",
+    "achete_au_marche",
+    "objet_grave",
+    "prix_invalide",
+    "trop_d_offres",
+    "offre_fermee",
+    "offre_a_soi",
+    "deja_possede",
+    "solde_insuffisant",
+    // Les demandes d'achat (19 novembre 2026).
+    "unknown_objet",
+    "deja_demande",
+    "trop_de_demandes",
+    "demandes_du_jour",
+    "demande_fermee",
+    "demande_a_soi",
+    "mode_god",
+  ];
 
   it("ont chacun leur message, en français, sans signe à la place d'un mot", () => {
     expect(Object.keys(MESSAGES_DU_MARCHE).sort()).toEqual([...REFUS].sort());

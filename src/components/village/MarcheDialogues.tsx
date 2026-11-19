@@ -5,7 +5,8 @@ import { OBJETS, type RareteDObjet } from "../../lib/gaulois";
 import { motsDeLaClasse, regleDeLaRevente, type MaRevente, type ObjetRevendable } from "../../lib/village/revente";
 import { stateres } from "../../lib/village/ecran-boutique";
 import { MARCHE_DUREE_JOURS } from "../../lib/village/contrat";
-import { MESSAGES_DU_MARCHE, examinerAchat, lirePrix, raisonDeLOffre, seVend, type BoutiqueLue, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
+import { MESSAGES_DU_MARCHE, examinerAchat, lirePrix, raisonDeLOffre, seVend, type BoutiqueLue, type DemandeLisible, type ObjetDuMarche, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
+import type { RefObjet } from "../../lib/village/contrat";
 import { Problem } from "../compte/common";
 import { CaseObjet, Prix } from "./MarcheCase";
 
@@ -140,6 +141,7 @@ export function DialogueVente({
   offresMax,
   occupe,
   probleme,
+  initial = null,
   onVendre,
   onFermer,
 }: {
@@ -148,11 +150,14 @@ export function DialogueVente({
   offresMax: number;
   occupe: boolean;
   probleme: string | null;
+  /** L'objet déjà choisi : un double qui sort d'une pochette (19 novembre 2026). */
+  initial?: RefObjet | null;
   onVendre: (objet: PossedeLisible, prix: number) => void;
   onFermer: () => void;
 }) {
-  const [choix, setChoix] = useState<PossedeLisible | null>(null);
-  const [texte, setTexte] = useState("");
+  const choixDeDepart = initial && boutique ? (boutique.inventaire.find((o) => o.emplacement === initial.emplacement && o.objet === initial.objet && seVend(o)) ?? null) : null;
+  const [choix, setChoix] = useState<PossedeLisible | null>(choixDeDepart);
+  const [texte, setTexte] = useState(choixDeDepart && boutique ? String(boutique.prix[choixDeDepart.rarete]) : "");
   const [prixRefuse, setPrixRefuse] = useState(false);
   const champ = useRef<HTMLInputElement>(null);
   const plafond = choix && boutique ? boutique.prix[choix.rarete] : 0;
@@ -273,8 +278,8 @@ export function DialogueVente({
  * rend pour chacun, puis demande de confirmer. Le serveur a déjà dit ce qui se revend et combien (`get_ma_revente`) ;
  * l'écran ne calcule rien. La revente retire l'objet : le bouton qui la fait est à part, sous son avertissement.
  */
-export function DialogueRevente({ revente, occupe, probleme, onRevendre, onFermer }: { revente: MaRevente; occupe: boolean; probleme: string | null; onRevendre: (objet: ObjetRevendable, nom: string) => void; onFermer: () => void }) {
-  const [choix, setChoix] = useState<ObjetRevendable | null>(null);
+export function DialogueRevente({ revente, occupe, probleme, initial = null, onRevendre, onFermer }: { revente: MaRevente; occupe: boolean; probleme: string | null; initial?: RefObjet | null; onRevendre: (objet: ObjetRevendable, nom: string) => void; onFermer: () => void }) {
+  const [choix, setChoix] = useState<ObjetRevendable | null>(() => (initial ? (revente.objets.find((o) => o.emplacement === initial.emplacement && o.objet === initial.objet) ?? null) : null));
   // L'objet choisi, tel que le serveur le donne maintenant : après une revente, la liste a changé.
   const choisi = choix ? (revente.objets.find((o) => o.emplacement === choix.emplacement && o.objet === choix.objet) ?? null) : null;
   const nomDe = (o: ObjetRevendable): string => OBJETS[o.emplacement][o.objet]?.nom ?? "";
@@ -321,6 +326,190 @@ export function DialogueRevente({ revente, occupe, probleme, onRevendre, onFerme
       <div class="marche-dialogue-actions">
         <button type="button" class="btn btn-ghost" onClick={onFermer} data-testid="revente-fermer">
           Fermer
+        </button>
+      </div>
+    </Dialogue>
+  );
+}
+
+/**
+ * Demander un objet au marché (19 novembre 2026) : un prix, de 1 statère au prix de la boutique, et les statères mis de côté
+ * tout de suite. Ils reviennent si la demande est retirée, si elle finit sans vendeur, ou si l'objet arrive par un autre
+ * chemin. Le serveur revérifie tout (`poser_demande`).
+ */
+export function DialogueDemande({
+  objet,
+  plafond,
+  solde,
+  offre,
+  demandesOuvertes,
+  demandesMax,
+  occupe,
+  probleme,
+  onDemander,
+  onFermer,
+}: {
+  objet: ObjetDuMarche;
+  plafond: number;
+  solde: number;
+  /** L'offre la moins chère d'un autre membre pour cet objet, s'il y en a une : on peut l'acheter tout de suite. */
+  offre: OffreLisible | null;
+  demandesOuvertes: number;
+  demandesMax: number;
+  occupe: boolean;
+  probleme: string | null;
+  onDemander: (prix: number) => void;
+  onFermer: () => void;
+}) {
+  const [texte, setTexte] = useState(String(plafond));
+  const [prixRefuse, setPrixRefuse] = useState(false);
+  const champ = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    champ.current?.focus();
+  }, []);
+  const prix = lirePrix(texte, plafond);
+  const plein = demandesOuvertes >= demandesMax;
+  const manque = prix !== null && prix > solde ? prix - solde : 0;
+  return (
+    <Dialogue titre={`Demander « ${objet.nom} »`} onFermer={onFermer}>
+      <p class="marche-regle" data-testid="demande-regle">
+        Vos statères sont mis de côté. Un membre qui a l'objet peut vous le vendre à ce prix pendant {MARCHE_DUREE_JOURS} jours ; sinon, ou si vous retirez la demande, ils vous reviennent.
+      </p>
+      {plein ? (
+        <p class="form-problem" data-testid="demande-plein">
+          {MESSAGES_DU_MARCHE.trop_de_demandes}
+        </p>
+      ) : (
+        <form
+          class="marche-vente"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            setPrixRefuse(prix === null);
+            if (prix !== null && manque === 0) onDemander(prix);
+          }}
+        >
+          <div class="marche-dialogue-objet">
+            <CaseObjet objet={objet} />
+            <dl class="marche-compte">
+              {offre && (
+                <div data-testid="demande-offre">
+                  <dt>Déjà en vente par {offre.vendeur}</dt>
+                  <dd>
+                    <Prix valeur={offre.prix} />
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt>Votre bourse</dt>
+                <dd>
+                  <Prix valeur={solde} />
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <div class="marche-champ">
+            <label for="demande-prix" class="nom-champ">
+              Ce que vous payez pour « {objet.nom} », en statères
+            </label>
+            <input
+              ref={champ}
+              id="demande-prix"
+              class="field mt-1 max-w-48"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={plafond}
+              step={1}
+              required
+              aria-describedby="demande-prix-aide"
+              aria-invalid={prixRefuse || manque > 0}
+              value={texte}
+              onInput={(e) => {
+                setTexte(e.currentTarget.value);
+                setPrixRefuse(false);
+              }}
+              data-testid="demande-prix"
+            />
+            <p id="demande-prix-aide" class="info-discrete mt-1">
+              De 1 à {fmtInt(plafond)}, son prix à la boutique.
+            </p>
+          </div>
+          {prixRefuse && (
+            <p class="form-problem" role="alert">
+              {MESSAGES_DU_MARCHE.prix_invalide}
+            </p>
+          )}
+          {manque > 0 && (
+            <p class="form-problem" data-testid="demande-manque">
+              Il vous manque {stateres(manque)}.
+            </p>
+          )}
+          <Problem message={probleme} />
+          <div class="marche-dialogue-actions">
+            <button type="submit" class="btn btn-primary" disabled={occupe || manque > 0} data-testid="demande-confirmer">
+              {occupe ? "Envoi…" : prix !== null ? `Mettre ${stateres(prix)} de côté` : "Demander"}
+            </button>
+            <button type="button" class="btn btn-ghost" onClick={onFermer}>
+              Annuler
+            </button>
+          </div>
+        </form>
+      )}
+      {plein && (
+        <div class="marche-dialogue-actions">
+          <button type="button" class="btn btn-ghost" onClick={onFermer}>
+            Fermer
+          </button>
+        </div>
+      )}
+    </Dialogue>
+  );
+}
+
+/**
+ * Vendre à une demande (19 novembre 2026) : l'objet, celui qui le cherche, son prix, et ce que le jeu en rendrait, quand le
+ * serveur le dit (`rendu`). L'objet quitte l'inventaire : le bouton qui vend est sous cet avertissement. Le serveur revérifie
+ * tout (`servir_demande`).
+ */
+export function DialogueServir({ demande, rendu, occupe, probleme, onServir, onFermer }: { demande: DemandeLisible; rendu: number | null; occupe: boolean; probleme: string | null; onServir: () => void; onFermer: () => void }) {
+  return (
+    <Dialogue titre={probleme ? "Vente impossible" : `Vendre « ${demande.nom} » ?`} achat onFermer={onFermer}>
+      <div class="marche-dialogue-objet">
+        <CaseObjet objet={demande} />
+        {!probleme && (
+          <dl class="marche-compte">
+            <div>
+              <dt>Demandé par</dt>
+              <dd>{demande.acheteur}</dd>
+            </div>
+            <div class="marche-compte-reste">
+              <dt>Vous recevez</dt>
+              <dd>
+                <Prix valeur={demande.prix} />
+              </dd>
+            </div>
+            {rendu !== null && (
+              <div data-testid="servir-revente">
+                <dt>Revendu au jeu</dt>
+                <dd>
+                  <Prix valeur={rendu} />
+                </dd>
+              </div>
+            )}
+          </dl>
+        )}
+      </div>
+      <Problem message={probleme} />
+      {!probleme && <p class="revente-avis">L'objet quitte votre inventaire.</p>}
+      <div class="marche-dialogue-actions">
+        {!probleme && (
+          <button type="button" class="btn btn-primary" disabled={occupe} onClick={onServir} data-testid="servir-confirmer">
+            {occupe ? "Vente…" : `Vendre pour ${stateres(demande.prix)}`}
+          </button>
+        )}
+        <button type="button" class="btn btn-ghost" onClick={onFermer}>
+          {probleme ? "Fermer" : "Annuler"}
         </button>
       </div>
     </Dialogue>

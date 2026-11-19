@@ -219,7 +219,7 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
       # Les achats du village partent du workflow victoires.yml, toutes les 5 minutes : pas d'ici, pour n'avoir qu'un seul
-      # écrivain de data/achats-envoi.json.
+      # écrivain de data/achats-envoi.json. De même pour les annonces du marché (data/marche-envoi.json, 19 novembre 2026).
       # Les données sont déjà enregistrées : un échec ici n'empêche pas de reconstruire le site, et se lit dans l'avertissement.
       - name: Noter les envois sur Discord
         if: github.ref_name == 'main'

@@ -209,7 +209,30 @@ export function DialogueAchat({ objet, rarete, vignette, prix, solde, acheter, o
  * rangées sont tirées aux chances de la pochette (`bandeDeLaPochette`). « Passer » l'arrête tout de suite ; il ne tourne pas
  * quand les animations sont coupées.
  */
-export function DialoguePochette({ prix, chances, solde, ouvrir, objetDe, vignetteDe, dejaPorte, onPorter, onFermer }: { prix: number; chances: Readonly<Record<Rarete, number>>; solde: number; ouvrir: () => Promise<Issue<PochetteReponse>>; objetDe: (tire: PochetteReponse["objet"]) => Objet | undefined; vignetteDe: (tire: PochetteReponse["objet"]) => Vignette | null; dejaPorte: (tire: PochetteReponse["objet"]) => boolean; onPorter: (tire: PochetteReponse["objet"]) => void; onFermer: () => void }) {
+export function DialoguePochette({
+  prix,
+  chances,
+  solde,
+  ouvrir,
+  objetDe,
+  vignetteDe,
+  dejaPorte,
+  onPorter,
+  suiteDuDouble,
+  onFermer,
+}: {
+  prix: number;
+  chances: Readonly<Record<Rarete, number>>;
+  solde: number;
+  ouvrir: () => Promise<Issue<PochetteReponse>>;
+  objetDe: (tire: PochetteReponse["objet"]) => Objet | undefined;
+  vignetteDe: (tire: PochetteReponse["objet"]) => Vignette | null;
+  dejaPorte: (tire: PochetteReponse["objet"]) => boolean;
+  onPorter: (tire: PochetteReponse["objet"]) => void;
+  /** Ce qu'un double peut devenir (19 novembre 2026) : le vendre à une demande, au marché, ou au jeu. Sans elle, une phrase. */
+  suiteDuDouble?: (tire: PochetteReponse["objet"]) => ComponentChildren;
+  onFermer: () => void;
+}) {
   const [etape, setEtape] = useState<"confirmer" | "envoi" | "tourne" | "revele">("confirmer");
   const [refus, setRefus] = useState<string | null>(null);
   const [tirage, setTirage] = useState<PochetteReponse | null>(null);
@@ -272,11 +295,14 @@ export function DialoguePochette({ prix, chances, solde, ouvrir, objetDe, vignet
                 <p class="tambour-nom">{objet.nom}</p>
                 <MarqueDeRarete rarete={tire.rarete} />
               </div>
-              {tire.double && (
-                <p class="boutique-dialogue-texte" data-testid="pochette-double">
-                  Vous l'aviez déjà : ce double se vend au marché.
-                </p>
-              )}
+              {tire.double &&
+                (suiteDuDouble ? (
+                  suiteDuDouble(tire)
+                ) : (
+                  <p class="boutique-dialogue-texte" data-testid="pochette-double">
+                    Vous l'aviez déjà : ce double se vend au marché.
+                  </p>
+                ))}
               <p class="boutique-dialogue-texte">Il vous reste {stateres(tirage.solde)}.</p>
               <div class="boutique-dialogue-actions">
                 {!dejaPorte(tire) && (

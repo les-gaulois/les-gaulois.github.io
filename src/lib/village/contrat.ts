@@ -61,6 +61,50 @@ export const CHANCES_DU_TIRAGE: Readonly<Record<RareteDObjet, number>> = chances
 export const MARCHE_OFFRES_MAX = 5;
 export const MARCHE_DUREE_JOURS = 14;
 
+/**
+ * Les demandes d'achat (19 novembre 2026, migration 20261119000100_marche_tournant_et_demandes) : demandes ouvertes par
+ * membre, et demandes posées en 24 heures. Une demande dure `MARCHE_DUREE_JOURS`, comme une offre.
+ */
+export const MARCHE_DEMANDES_MAX = 5;
+export const MARCHE_DEMANDES_PAR_JOUR = 20;
+
+/**
+ * La boutique tournante (même migration) : chaque objet payant a un tour sur `BOUTIQUE_TOURS`, et n'est en rayon qu'une
+ * semaine sur trois. Une semaine de la boutique va du mardi 21 h 30 au mardi suivant, heure de Paris (l'heure du tirage de la
+ * loterie) ; la première commence le 17 novembre 2026 (`BOUTIQUE_TOUR_DEBUT`, heure de Paris).
+ */
+export const BOUTIQUE_TOURS = 3;
+export const BOUTIQUE_TOUR_DEBUT = "2026-11-17 21:30";
+
+/** Un objet hors du rayon cette semaine, et le début de la semaine où il revient. */
+export interface ObjetHorsRayon extends RefObjet {
+  revient_le: string;
+}
+
+/**
+ * `get_boutique_tournante()`, pour un compte connecté : la semaine de la boutique, le prochain changement (`change_le`), et
+ * les objets payants hors du rayon. Tout autre objet payant est en rayon. Refus : `not_signed_in`.
+ */
+export interface BoutiqueTournante {
+  ok: true;
+  semaine: number;
+  tours: number;
+  change_le: string;
+  hors_rayon: ObjetHorsRayon[];
+}
+
+/**
+ * Une demande d'achat : un membre cherche un objet, à un prix entier de 1 statère au prix de la boutique ; ses statères sont
+ * mis de côté jusqu'au service, au retrait ou à la fin. `acheteur` : le nom du compte au QG, comme le vendeur d'une offre.
+ */
+export interface DemandeDuMarche extends RefObjet {
+  id: number;
+  prix: number;
+  acheteur: string;
+  a_moi: boolean;
+  expire_le: string;
+}
+
 /** Un objet du catalogue, désigné par son emplacement et son identifiant (`OBJETS` de `gaulois.ts`). */
 export interface RefObjet {
   emplacement: Emplacement;
@@ -116,7 +160,7 @@ export interface PochetteReponse {
  * `objet_gratuit` objet gratuit, `deja_possede` objet déjà dans l'inventaire ou en vente au marché, `solde_insuffisant` pas assez de statères, `prix_change` le
  * prix a changé depuis que le membre l'a vu.
  */
-export type RefusBoutique = "not_validated" | "no_gaulois" | "unknown_objet" | "objet_gratuit" | "deja_possede" | "solde_insuffisant" | "prix_change";
+export type RefusBoutique = "not_validated" | "no_gaulois" | "unknown_objet" | "objet_gratuit" | "deja_possede" | "solde_insuffisant" | "prix_change" | "hors_rayon";
 
 /**
  * Une offre du marché. `vendeur` : le nom du compte au QG, pour tout vendeur (choix du pilote, 14 novembre 2026 : personne ne
@@ -139,6 +183,18 @@ export interface Marche {
   solde: number;
   offres: OffreDuMarche[];
   offres_max: number;
+  /**
+   * Depuis la migration 20261119000100 : les demandes ouvertes, la plus chère d'abord, le nombre permis, et les statères mis
+   * de côté par l'appelant. Absents d'un serveur d'avant : l'écran ne montre pas les demandes.
+   */
+  demandes?: DemandeDuMarche[];
+  demandes_max?: number;
+  mis_de_cote?: number;
+}
+
+/** `servir_demande(p_id)` : le marché à jour, et ce qui vient d'être vendu. */
+export interface DemandeServie extends Marche {
+  vendu: RefObjet & { prix: number };
 }
 
 /**
@@ -170,7 +226,17 @@ export type RefusMarche =
   | "offre_fermee"
   | "offre_a_soi"
   | "deja_possede"
-  | "solde_insuffisant";
+  | "solde_insuffisant"
+  // Les demandes d'achat (migration 20261119000100) : `unknown_objet` objet hors du catalogue, `deja_demande` déjà demandé,
+  // `trop_de_demandes`, `demandes_du_jour` (20 en 24 heures), `demande_fermee` servie, retirée ou finie, `demande_a_soi`,
+  // `mode_god` essai du pilote en cours.
+  | "unknown_objet"
+  | "deja_demande"
+  | "trop_de_demandes"
+  | "demandes_du_jour"
+  | "demande_fermee"
+  | "demande_a_soi"
+  | "mode_god";
 
 /**
  * Un Gaulois de la place du village. `nom` : le nom du compte au QG. `moi` : celui de l'appelant.

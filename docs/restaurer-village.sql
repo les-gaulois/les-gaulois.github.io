@@ -1,4 +1,5 @@
--- La restauration du village des Gaulois depuis une sauvegarde chiffrée ouverte (export_site, version 6, 7, 8 ou 9), APRÈS celle des
+-- La restauration du village des Gaulois depuis une sauvegarde chiffrée ouverte (export_site, version 6 à 12 ; l'étape 17, les
+-- demandes d'achat du marché, depuis la version 12), APRÈS celle des
 -- comptes (docs/DIRECTION.md, « La sauvegarde chiffrée »). Le contenu du fichier .json ouvert par `npm run sauvegarde:ouvrir`
 -- est d'abord collé dans une table `sauvegarde (contenu jsonb)`, puis ce fichier se colle en entier dans l'éditeur SQL.
 --
@@ -126,3 +127,14 @@ insert into internal.gaulois_modeles (user_id, modele, acquis_le)
 select r.user_id, r.modele, r.acquis_le
 from sauvegarde, jsonb_to_recordset(contenu -> 'gaulois_modeles') as r (user_id uuid, modele text, acquis_le timestamptz)
 on conflict (user_id, modele) do nothing;
+
+-- 17. Version 12 (19 novembre 2026) : les demandes d'achat du marché, avec leur numéro (le journal les nomme
+-- « demande/<numéro> » : leurs statères mis de côté y sont déjà, étape 5). Une demande ouverte rend ses statères à son
+-- acheteur quand elle se ferme ; sans cette étape, ils seraient perdus. Une sauvegarde d'avant la version 12 n'en a pas :
+-- rien ne change. Après l'étape 1 (les comptes) et la migration 20261119000100.
+insert into internal.marche_demandes (id, acheteur_id, emplacement, objet, prix, etat, vendeur_id, cree_le, expire_le, ferme_le)
+overriding system value
+select r.id, r.acheteur_id, r.emplacement, r.objet, r.prix, r.etat, r.vendeur_id, r.cree_le, r.expire_le, r.ferme_le
+from sauvegarde, jsonb_to_recordset(contenu -> 'marche_demandes') as r (id bigint, acheteur_id uuid, emplacement text, objet text, prix integer, etat text, vendeur_id uuid, cree_le timestamptz, expire_le timestamptz, ferme_le timestamptz)
+on conflict (id) do nothing;
+select setval(pg_get_serial_sequence('internal.marche_demandes', 'id'), greatest(coalesce((select max(id) from internal.marche_demandes), 0), 1));

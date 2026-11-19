@@ -84,7 +84,7 @@ export interface AchatsCard extends GazetteCard {
 }
 
 /** Une vitrine : son rectangle, en pixels. */
-interface Boite {
+export interface Boite {
   x: number;
   y: number;
   width: number;
@@ -123,7 +123,7 @@ const RANG = { marge: 12, ecart: 5, nombre: 5 } as const;
  * Le rang de la rareté, de 1 à 5, en carrés : pleins, de la couleur de la rareté, jusqu'au rang ; vides ensuite. Ils tiennent
  * dans le jour de la vitrine (`MARGE_VITRINE`), que le dessin ne touche jamais.
  */
-function carresDuRang(boite: Boite, rarete: Rarete, taille: number): CardRect[] {
+export function carresDuRang(boite: Boite, rarete: Rarete, taille: number): CardRect[] {
   const y = boite.y + MARGE_VITRINE - taille;
   return Array.from({ length: Math.max(RANG.nombre, RARETES[rarete].rang) }, (_, i) => {
     const x = boite.x + RANG.marge + i * (taille + RANG.ecart);
@@ -134,7 +134,7 @@ function carresDuRang(boite: Boite, rarete: Rarete, taille: number): CardRect[] 
 }
 
 /** L'ombre de l'objet, sous lui, en cases : plus étroite que lui, et toujours dans la vitrine. */
-function ombreDuDessin(dessin: DessinPose, boite: Boite): CardRect {
+export function ombreDuDessin(dessin: DessinPose, boite: Boite): CardRect {
   const largeur = dessin.decor.largeur * dessin.echelle;
   const bas = dessin.y + dessin.decor.hauteur * dessin.echelle;
   const height = Math.min(dessin.echelle, 8);
@@ -144,7 +144,7 @@ function ombreDuDessin(dessin: DessinPose, boite: Boite): CardRect {
 }
 
 /** Le fond de la vitrine, bordé de la couleur de la rareté. */
-const vitrine = (boite: Boite, rarete: Rarete): CardRect => ({ ...boite, radius: 0, color: C.SURFACE, to: C.SURFACE_2, stroke: COULEURS_RARETE[rarete].bord, cut: COUPE });
+export const vitrine = (boite: Boite, rarete: Rarete): CardRect => ({ ...boite, radius: 0, color: C.SURFACE, to: C.SURFACE_2, stroke: COULEURS_RARETE[rarete].bord, cut: COUPE });
 
 /** « Légendaire, tête », « Légendaire, familier ». */
 const rareteEtPlace = (chose: ChoseRecue) => `${RARETES[chose.rarete].nom}, ${chose.place}`;

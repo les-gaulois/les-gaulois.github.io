@@ -37,6 +37,7 @@
     "course:envoyer": "tsx scripts/envoyer-course.ts",
     "groupes:envoyer": "tsx scripts/envoyer-groupes.ts",
     "achats:envoyer": "tsx scripts/envoyer-achats.ts",
+    "marche:annoncer": "tsx scripts/annoncer-marche.ts",
     "victoires:envoyer": "tsx scripts/envoyer-victoires.ts",
     "victoires:rejouer": "tsx scripts/rejouer-victoires.ts",
     "parties:filmer": "tsx scripts/filmer-parties.ts",

@@ -180,6 +180,15 @@ export const ERROR_MESSAGES: Record<string, string> = {
   offre_a_soi: "C'est votre offre : elle se retire, elle ne s'achète pas.",
   objet_grave: "Cet objet porte une plaque de la forge : effacez-la d'abord pour le vendre.",
 
+  // La boutique tournante et les demandes d'achat (contrat : `RefusBoutique` et `RefusMarche`, migration
+  // 20261119000100_marche_tournant_et_demandes).
+  hors_rayon: "Cet objet n'est pas en rayon cette semaine : demandez-le au marché, ou attendez son retour.",
+  deja_demande: "Vous demandez déjà cet objet au marché.",
+  trop_de_demandes: "Vous avez déjà toutes vos demandes ouvertes : retirez-en une d'abord.",
+  demandes_du_jour: "Vous avez posé assez de demandes pour aujourd'hui. Revenez demain.",
+  demande_fermee: "Cette demande n'est plus ouverte : elle est servie, retirée ou finie.",
+  demande_a_soi: "C'est votre demande : elle se retire, elle ne se sert pas.",
+
   // La forge du village (contrat : `RefusForge` de src/lib/village/contrat.ts, migration 20261114001000_village_forge). Les
   // refus qu'elle partage avec la boutique et le marché sont plus haut ; elle a ses propres mots dans `forge.ts`.
   objet_non_gravable: "Seuls les objets se gravent : ni le corps, ni le visage, ni une case vide.",

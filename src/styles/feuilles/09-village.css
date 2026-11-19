@@ -771,6 +771,25 @@
   font-size: 0.8125rem;
   font-weight: 700;
 }
+/* Un objet hors du rayon cette semaine (boutique tournante, 19 novembre 2026) : son retour, en mots, à la place du prix,
+   dans une pastille en pointillés. */
+.case-revient {
+  margin-top: 0.125rem;
+  padding: 0.0625rem 0.5rem;
+  border: 1px dashed var(--color-line-strong);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+/* La règle de la rotation, sous la barre des rayons. */
+.boutique-rotation {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
 /* La petite plaque dorée d'un objet gravé à la forge, au coin bas de son image : dans les cases du vestiaire et de la forge.
    Son texte est dans le nom de la case et au survol. Ici, avec les cases, et non dans le morceau de la forge : toute page
    qui dessine une case a cette règle. */
@@ -6271,4 +6290,10 @@ button.tenue-gardee-remettre:disabled {
 .vitrine-publique-case:focus-visible {
   outline: 2px solid var(--anneau);
   outline-offset: 2px;
+}
+/* Le choix à la sortie d'une pochette, pour un double (19 novembre 2026) : un bouton porte le nom de l'acheteur et un
+   montant, il passe à la ligne plutôt que de faire déborder la fenêtre (`.btn` ne coupe jamais ses mots ailleurs). */
+.choix-du-double .btn {
+  white-space: normal;
+  text-align: center;
 }

@@ -6,7 +6,7 @@
 import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETE_DIVINE, RARETES, type Emplacement, type Rarete } from "../gaulois";
 import { ERROR_MESSAGES } from "../compte/errors";
 import { stateres } from "./ecran-boutique";
-import type { MaBoutique, Marche, ObjetPossede, OffreDuMarche, RefObjet, RefusMarche } from "./contrat";
+import type { DemandeDuMarche, MaBoutique, Marche, ObjetPossede, OffreDuMarche, RefObjet, RefusMarche } from "./contrat";
 
 /** Un objet payant du catalogue, avec ce qu'il faut pour dessiner sa case. */
 export interface ObjetDuMarche {
@@ -18,6 +18,8 @@ export interface ObjetDuMarche {
 
 /** Une offre dont l'objet est au catalogue. */
 export type OffreLisible = OffreDuMarche & ObjetDuMarche;
+/** Une demande dont l'objet est au catalogue. */
+export type DemandeLisible = DemandeDuMarche & ObjetDuMarche;
 /** Une ligne de l'inventaire dont l'objet est au catalogue. */
 export type PossedeLisible = ObjetPossede & ObjetDuMarche;
 
@@ -35,11 +37,18 @@ export function objetDuMarche(emplacement: unknown, objet: unknown): ObjetDuMarc
   return { emplacement, objet, nom: fiche.nom, rarete: fiche.rarete };
 }
 
-/** Le marché relu : son solde, ses offres lisibles, dans l'ordre du serveur. `null` : la réponse n'a pas la forme du contrat. */
+/**
+ * Le marché relu : son solde, ses offres lisibles, dans l'ordre du serveur. `null` : la réponse n'a pas la forme du contrat.
+ * `demandes` : les demandes d'achat lisibles, la plus chère d'abord ; `null` pour un serveur d'avant la migration
+ * 20261119000100, qui n'en connaît pas : l'écran ne les montre pas. `misDeCote` : les statères de ses demandes ouvertes.
+ */
 export interface MarcheLu {
   solde: number;
   offres: OffreLisible[];
   offresMax: number;
+  demandes: DemandeLisible[] | null;
+  demandesMax: number;
+  misDeCote: number;
 }
 
 export function lireMarche(reponse: unknown): MarcheLu | null {
@@ -54,7 +63,22 @@ export function lireMarche(reponse: unknown): MarcheLu | null {
     if (!objet || !entier(o["id"]) || !entier(o["prix"]) || o["prix"] < 1 || typeof o["vendeur"] !== "string" || typeof o["expire_le"] !== "string") continue;
     offres.push({ ...objet, id: o["id"], prix: o["prix"], vendeur: o["vendeur"], a_moi: o["a_moi"] === true, expire_le: o["expire_le"] });
   }
-  return { solde: brut.solde, offres, offresMax: brut.offres_max };
+  return { solde: brut.solde, offres, offresMax: brut.offres_max, ...lireDemandes(brut) };
+}
+
+/** Les demandes d'une réponse du marché ; un serveur qui n'en dit rien : `demandes` à `null`. */
+function lireDemandes(brut: Record<string, unknown>): Pick<MarcheLu, "demandes" | "demandesMax" | "misDeCote"> {
+  if (!Array.isArray(brut["demandes"]) || !entier(brut["demandes_max"])) return { demandes: null, demandesMax: 0, misDeCote: 0 };
+  const demandes: DemandeLisible[] = [];
+  for (const ligne of brut["demandes"] as unknown[]) {
+    if (ligne === null || typeof ligne !== "object") continue;
+    const d = ligne as Record<string, unknown>;
+    const objet = objetDuMarche(d["emplacement"], d["objet"]);
+    if (!objet || !entier(d["id"]) || !entier(d["prix"]) || d["prix"] < 1 || typeof d["acheteur"] !== "string" || typeof d["expire_le"] !== "string") continue;
+    demandes.push({ ...objet, id: d["id"], prix: d["prix"], acheteur: d["acheteur"], a_moi: d["a_moi"] === true, expire_le: d["expire_le"] });
+  }
+  const misDeCote = entier(brut["mis_de_cote"]) && brut["mis_de_cote"] >= 0 ? brut["mis_de_cote"] : 0;
+  return { demandes, demandesMax: brut["demandes_max"], misDeCote };
 }
 
 /** Ce que le marché lit de `get_ma_boutique` : les prix de la boutique par rareté et l'inventaire lisible. */
@@ -96,6 +120,46 @@ export function offresAAcheter(offres: readonly OffreLisible[], filtre: FiltreDu
 }
 
 export const mesOffres = (offres: readonly OffreLisible[]): OffreLisible[] => offres.filter((o) => o.a_moi);
+
+/** Ses propres demandes ouvertes. */
+export const mesDemandes = (demandes: readonly DemandeLisible[] | null): DemandeLisible[] => (demandes ?? []).filter((d) => d.a_moi);
+
+/** Les demandes des autres membres pour un emplacement (`tout` : toutes), la plus chère d'abord, comme le serveur les range. */
+export function demandesDesAutres(demandes: readonly DemandeLisible[] | null, filtre: FiltreDuMarche): DemandeLisible[] {
+  return (demandes ?? []).filter((d) => !d.a_moi && (filtre === "tout" || d.emplacement === filtre));
+}
+
+/**
+ * Un exemplaire de l'inventaire peut-il servir une demande ? Il faut l'objet, et un exemplaire qui ne vient pas du marché :
+ * la même règle que `seVend`. Le serveur revérifie tout (objet porté, plaque de la forge).
+ */
+export function peutServir(demande: RefObjet, inventaire: readonly PossedeLisible[] | null): boolean {
+  const ligne = inventaire?.find((o) => o.emplacement === demande.emplacement && o.objet === demande.objet);
+  return ligne !== undefined && seVend(ligne);
+}
+
+/** Les demandes des autres membres que l'inventaire peut servir : ce que le membre peut vendre tout de suite. */
+export function demandesAServir(demandes: readonly DemandeLisible[] | null, inventaire: readonly PossedeLisible[] | null): DemandeLisible[] {
+  return demandesDesAutres(demandes, "tout").filter((d) => peutServir(d, inventaire));
+}
+
+/** La meilleure demande d'un autre membre pour un objet : la plus chère. `null` : personne ne le demande. */
+export function meilleureDemande(demandes: readonly DemandeLisible[] | null, objet: RefObjet): DemandeLisible | null {
+  return demandesDesAutres(demandes, objet.emplacement).filter((d) => d.objet === objet.objet).sort((a, b) => b.prix - a.prix)[0] ?? null;
+}
+
+/**
+ * Ce qui empêche de demander un objet, en mots ; `null` : rien. L'objet possédé ou mis en vente par soi, déjà demandé, ou
+ * toutes ses demandes ouvertes. Le serveur revérifie tout, solde compris.
+ */
+export function raisonDeNePasDemander(objet: RefObjet, inventaire: readonly RefObjet[] | null, miennes: readonly RefObjet[], mesDemandesOuvertes: readonly RefObjet[], demandesMax: number): string | null {
+  const meme = (p: RefObjet) => p.emplacement === objet.emplacement && p.objet === objet.objet;
+  if (miennes.some(meme)) return "Vous avez cet objet en vente.";
+  if (inventaire?.some(meme)) return MESSAGES_DU_MARCHE.deja_possede;
+  if (mesDemandesOuvertes.some(meme)) return MESSAGES_DU_MARCHE.deja_demande;
+  if (mesDemandesOuvertes.length >= demandesMax) return MESSAGES_DU_MARCHE.trop_de_demandes;
+  return null;
+}
 
 /**
  * Ce que l'écran annonce avant de confirmer un achat : le solde après, ou ce qui l'empêche. Le serveur revérifie tout :
@@ -141,11 +205,11 @@ export function lirePrix(texte: string, prixBoutique: number): number | null {
 
 const JOUR = 86_400_000;
 
-/** La fin d'une offre, en mots : « Fin dans 3 jours ». */
-export function finDeLOffre(expireLe: string, maintenant: Date): string {
+/** La fin d'une offre, en mots : « Fin dans 3 jours ». `finie` : ce qui se dit quand elle est passée (une demande : « Demande finie »). */
+export function finDeLOffre(expireLe: string, maintenant: Date, finie = "Offre finie"): string {
   const reste = new Date(expireLe).getTime() - maintenant.getTime();
   if (Number.isNaN(reste)) return "";
-  if (reste <= 0) return "Offre finie";
+  if (reste <= 0) return finie;
   const jours = Math.floor(reste / JOUR);
   if (jours < 1) return "Fin dans moins d'un jour";
   return jours === 1 ? "Fin dans 1 jour" : `Fin dans ${jours} jours`;
@@ -178,7 +242,14 @@ export const MESSAGES_DU_MARCHE: Readonly<Record<RefusMarche, string>> = {
   offre_fermee: ERROR_MESSAGES["offre_fermee"]!,
   offre_a_soi: ERROR_MESSAGES["offre_a_soi"]!,
   deja_possede: "Vous avez déjà cet objet.",
-  solde_insuffisant: "Vous n'avez pas assez de statères pour cette offre.",
+  solde_insuffisant: "Vous n'avez pas assez de statères pour cela.",
+  unknown_objet: "Cet objet ne passe pas au marché.",
+  deja_demande: ERROR_MESSAGES["deja_demande"]!,
+  trop_de_demandes: ERROR_MESSAGES["trop_de_demandes"]!,
+  demandes_du_jour: ERROR_MESSAGES["demandes_du_jour"]!,
+  demande_fermee: ERROR_MESSAGES["demande_fermee"]!,
+  demande_a_soi: ERROR_MESSAGES["demande_a_soi"]!,
+  mode_god: ERROR_MESSAGES["mode_god"]!,
 };
 
 /** Les mots du marché pour un refus ; `null` : ce n'est pas un refus du marché, le message courant du refus convient. */

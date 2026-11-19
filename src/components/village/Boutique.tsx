@@ -37,7 +37,27 @@ import { demandeLesBannieres } from "../../lib/village/ecran-bannieres";
 import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, manque, messageDuRefus, objetPayant, prixDeLObjet, quantitePossedee, raisonBoutiqueFermee, stateres } from "../../lib/village/ecran-boutique";
 import { ANCRE_FAMILIERS, demandeLesFamiliers, idsPossedes, tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { actionDeLEssai, essaiDuModeleValide } from "../../lib/village/ecran-modeles";
-import { finDeLOffre, lireBoutique as lireBoutiqueDuMarche, lireMarche, mesOffres, messageDuMarche, raisonDeLOffre, type MarcheLu, type OffreLisible, type PossedeLisible } from "../../lib/village/ecran-marche";
+import {
+  demandesAServir,
+  demandesDesAutres,
+  finDeLOffre,
+  lireBoutique as lireBoutiqueDuMarche,
+  lireMarche,
+  meilleureDemande,
+  mesDemandes,
+  mesOffres,
+  messageDuMarche,
+  objetDuMarche,
+  peutServir,
+  raisonDeLOffre,
+  raisonDeNePasDemander,
+  type DemandeLisible,
+  type MarcheLu,
+  type ObjetDuMarche,
+  type OffreLisible,
+  type PossedeLisible,
+} from "../../lib/village/ecran-marche";
+import { estEnRayon, lireTournante, motsDeLaCase, raisonHorsRayon, regleDeLaRotation, retourDe, type TournanteLue } from "../../lib/village/boutique-tournante";
 import { pochetteDOuverture, type PochetteDeLEtal } from "../../lib/village/etal";
 import { familierDe } from "../../lib/village/familiers";
 import { lireMaRevente, lireRevente, messageDeLaRevente, type MaRevente, type ObjetRevendable } from "../../lib/village/revente";
@@ -52,7 +72,7 @@ import { ApercuGaulois, BarreDesRayons, Case, useSceneCollee } from "./Cases";
 import { useFamiliers } from "./Familiers";
 import { CaseObjet, Prix as PrixDuMarche } from "./MarcheCase";
 import { useModeles } from "./Modeles";
-import { DialogueAchat as DialogueOffre, DialogueRevente, DialogueVente } from "./MarcheDialogues";
+import { DialogueAchat as DialogueOffre, DialogueDemande, DialogueRevente, DialogueServir, DialogueVente } from "./MarcheDialogues";
 import { EtalDesPochettes } from "./Etal";
 import { DessinPochette, Pochette } from "./Pochette";
 import { DessinPochetteFamiliers, DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
@@ -126,10 +146,74 @@ function MonOffre({ offre, maintenant, occupe, onRetirer }: { offre: OffreLisibl
   );
 }
 
+/**
+ * La demande d'un autre membre (19 novembre 2026) : la case de l'objet, son prix, qui la pose, sa fin, et « Vendre » si
+ * l'inventaire a un exemplaire qui peut partir.
+ */
+function Demande({ demande, maintenant, servable, occupe, onServir }: { demande: DemandeLisible; maintenant: Date; servable: boolean; occupe: boolean; onServir: () => void }) {
+  return (
+    <li class="marche-offre" data-testid="marche-demande">
+      <CaseObjet objet={demande} />
+      <PrixDuMarche valeur={demande.prix} class="marche-offre-prix" />
+      <span class="marche-offre-vendeur">Demandé par {demande.acheteur}</span>
+      <span class="marche-offre-fin">{finDeLOffre(demande.expire_le, maintenant, "Demande finie")}</span>
+      {servable && (
+        <button type="button" class="btn btn-ghost marche-offre-bouton" disabled={occupe} onClick={onServir} aria-label={`Vendre « ${demande.nom} » à ${demande.acheteur}, ${fmtInt(demande.prix)} statères`} data-testid="marche-servir">
+          Vendre
+        </button>
+      )}
+    </li>
+  );
+}
+
+/** Une de ses propres demandes : la case, le prix mis de côté, la fin, et « Retirer ». */
+function MaDemande({ demande, maintenant, occupe, onRetirer }: { demande: DemandeLisible; maintenant: Date; occupe: boolean; onRetirer: () => void }) {
+  return (
+    <li class="marche-offre" data-testid="marche-ma-demande">
+      <CaseObjet objet={demande} />
+      <PrixDuMarche valeur={demande.prix} class="marche-offre-prix" />
+      <span class="marche-offre-fin">{finDeLOffre(demande.expire_le, maintenant, "Demande finie")}</span>
+      <button type="button" class="btn btn-ghost marche-offre-bouton" disabled={occupe} onClick={onRetirer} aria-label={`Retirer la demande de « ${demande.nom} », ${fmtInt(demande.prix)} statères`}>
+        Retirer
+      </button>
+    </li>
+  );
+}
+
+/**
+ * Le choix à la sortie d'une pochette, pour un double (19 novembre 2026, troisième proposition choisie par le pilote) : le
+ * vendre tout de suite à la meilleure demande, le mettre au marché, ou le revendre au jeu, selon ce que le serveur permet. Le
+ * garder : « Fermer ».
+ */
+function ChoixDuDouble({ demande, marcheOuvert, rendu, onServir, onVendre, onRevendre }: { demande: DemandeLisible | null; marcheOuvert: boolean; rendu: number | null; onServir: () => void; onVendre: () => void; onRevendre: () => void }) {
+  return (
+    <div class="choix-du-double" data-testid="pochette-double">
+      <p class="boutique-dialogue-texte">Vous l'aviez déjà. Ce double peut partir :</p>
+      <div class="boutique-dialogue-actions">
+        {demande && (
+          <button type="button" class="btn btn-secondary" onClick={onServir} data-testid="double-servir">
+            Le vendre à {demande.acheteur} pour {stateres(demande.prix)}
+          </button>
+        )}
+        {marcheOuvert && (
+          <button type="button" class="btn btn-ghost" onClick={onVendre} data-testid="double-vendre">
+            Le mettre au marché
+          </button>
+        )}
+        {rendu !== null && (
+          <button type="button" class="btn btn-ghost" onClick={onRevendre} data-testid="double-revendre">
+            Le revendre au jeu pour {stateres(rendu)}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 type Etat = { kind: "lecture" } | { kind: "erreur"; message: string } | { kind: "pret"; enregistree: Tenue | null };
 /** Le marché des membres : fermé à un compte pas encore validé (la phrase du serveur), en panne, ou lu. */
 type EtatDuMarche = { kind: "lecture" } | { kind: "ferme"; message: string } | { kind: "panne"; message: string } | { kind: "pret"; marche: MarcheLu };
-type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "familiers" } | { kind: "stateres" } | { kind: "modeles" } | { kind: "modele"; id: string; prix: number } | { kind: "offre"; offre: OffreLisible } | { kind: "vente" } | { kind: "revente" } | null;
+type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "familiers" } | { kind: "stateres" } | { kind: "modeles" } | { kind: "modele"; id: string; prix: number } | { kind: "offre"; offre: OffreLisible } | { kind: "vente"; initial?: RefObjet } | { kind: "revente"; initial?: RefObjet } | { kind: "demande"; objet: ObjetDuMarche } | { kind: "servir"; demande: DemandeLisible } | null;
 /** Le dernier objet reçu (boutique, pochette ou marché) : il se porte d'un clic. */
 type Acquis = RefObjet & { porte: boolean };
 /** Le dernier familier sorti de la pochette des familiers : il se montre d'un clic. */
@@ -263,6 +347,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const [problemeFenetre, setProblemeFenetre] = useState<string | null>(null);
   const [reussite, setReussite] = useState<string | null>(null);
   const [mesOffresOuvertes, setMesOffresOuvertes] = useState(false);
+  const [mesDemandesOuvertes, setMesDemandesOuvertes] = useState(false);
   // Augmenté quand l'adresse demande le marché (`#marche`) : la page y descend une fois dessinée.
   const [appelDuMarche, setAppelDuMarche] = useState(0);
   // De même pour les bannières (`#bannieres`, le lien de « Mon Gaulois ») : leur onglet s'ouvre, la page descend aux rayons.
@@ -280,6 +365,13 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
     setBourse(s);
     if (b) setSolde(b.solde);
     setPanne(!b || !s);
+  };
+
+  // La boutique tournante (19 novembre 2026) : ce qui est hors du rayon cette semaine. Un serveur qui ne la connaît pas
+  // encore, ou en panne : tout paraît en rayon, et le serveur décide à l'achat (`hors_rayon`).
+  const [tournante, setTournante] = useState<TournanteLue | null>(null);
+  const lireLaTournante = async (): Promise<void> => {
+    setTournante(await call<unknown>("get_boutique_tournante").then(lireTournante, () => null));
   };
 
   // La revente au jeu : ce qui peut partir, et ce que le jeu rend. Un serveur qui ne la connaît pas encore, ou en panne,
@@ -356,7 +448,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const lire = async () => {
     setEtat({ kind: "lecture" });
     try {
-      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), pochettes ? null : lireLeMarche(false), familiers.lire(), pochetteStateres.lire(), pochettes ? null : lireLaRevente()]);
+      const [reponse, , marche] = await Promise.all([call<unknown>("get_mon_gaulois"), lireLaBoutique(), pochettes ? null : lireLeMarche(false), familiers.lire(), pochetteStateres.lire(), pochettes ? null : lireLaRevente(), pochettes ? null : lireLaTournante()]);
       const enregistree = tenueDuServeur(reponse);
       setEtat({ kind: "pret", enregistree });
       if (enregistree) setTenue(enregistree);
@@ -460,6 +552,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
       setBoutique(fraiche);
       setSolde(fraiche.solde);
     }
+    if (refusDe(e) === "hors_rayon") void lireLaTournante();
     return { ok: false, message: messageDuRefus(refusDe(e), { manque: fraiche ? manque(fraiche.solde, prix) : null }) };
   };
 
@@ -496,6 +589,8 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
       setBoutique((b) => b && { ...b, solde: tirage.solde, inventaire: avecUnExemplaire(b.inventaire, tirage.objet, "pochette", new Date().toISOString()) });
       setSolde(tirage.solde);
       recevoir(tirage.objet, OBJETS[tirage.objet.emplacement][tirage.objet.objet]?.nom ?? "Objet");
+      // Pendant que le tambour tourne : ce que ce double pourrait devenir (une demande, le marché, la revente).
+      if (tirage.objet.double) void Promise.all([lireLeMarche(true), lireLaRevente()]);
       return { ok: true, valeur: tirage };
     } catch (e) {
       return refuser(e, prix);
@@ -632,6 +727,22 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const acheterOffre = async (offre: OffreLisible) => {
     if (await agir("acheter_offre", { p_id: offre.id }, true)) recevoir(offre, offre.nom);
   };
+  const poserDemande = async (objet: ObjetDuMarche, prix: number) => {
+    if (await agir("poser_demande", { p_emplacement: objet.emplacement, p_objet: objet.objet, p_prix: prix }, true)) {
+      setEssai(null);
+      setReussite(`Votre demande de « ${objet.nom} » est posée : ${stateres(prix)} mis de côté.`);
+      setMesDemandesOuvertes(true);
+    }
+  };
+  const retirerDemande = async (demande: DemandeLisible) => {
+    if (await agir("retirer_demande", { p_id: demande.id }, false)) setReussite(`Vous ne demandez plus « ${demande.nom} » : ${stateres(demande.prix)} reviennent dans votre bourse.`);
+  };
+  const servirDemande = async (demande: DemandeLisible) => {
+    if (await agir("servir_demande", { p_id: demande.id }, true)) {
+      setReussite(`« ${demande.nom} » est vendu à ${demande.acheteur} : vous recevez ${stateres(demande.prix)}.`);
+      void lireLaRevente();
+    }
+  };
 
   /**
    * Porter l'objet qu'on vient de recevoir : la tenue enregistrée est relue, l'objet y prend sa place, le serveur
@@ -719,6 +830,10 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   }
 
   const miennes = mesOffres(offres);
+  const demandes = marcheLu?.demandes ?? null;
+  const mesDemandesAMoi = mesDemandes(demandes);
+  const inventaireLu = boutique ? (lireBoutiqueDuMarche(boutique)?.inventaire ?? null) : null;
+  const aServir = demandesAServir(demandes, inventaireLu);
   const soldeConnu = solde ?? boutique?.solde ?? null;
   const fermee = boutique && !boutique.peut_acheter ? raisonBoutiqueFermee(true) : null;
   // Le rayon d'objets ouvert, s'il en est un (et non celui des bannières ou des pochettes).
@@ -726,12 +841,23 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const possede = (id: string): number => (boutique && rayonObjets ? quantitePossedee(boutique.inventaire, rayonObjets, id) : 0);
   const range = rayonObjets ? rangerLaBoutique(rayonObjets, possede, offres, filtres[rayonObjets]) : null;
   const comptesDesOffres = offresParRayon(offres);
+  // La boutique du rayon, en deux : ce qui est en rayon cette semaine, et ce qui revient plus tard.
+  const enRayon = rayonObjets && range ? range.boutique.filter(([id]) => estEnRayon(tournante, { emplacement: rayonObjets, objet: id })) : [];
+  const horsRayon = rayonObjets && range ? range.boutique.filter(([id]) => !estEnRayon(tournante, { emplacement: rayonObjets, objet: id })) : [];
+  // Les demandes des autres membres dans ce rayon, à la rareté retenue.
+  const demandesDuRayon = rayonObjets && range ? demandesDesAutres(demandes, rayonObjets).filter((d) => range.retenu === TOUT || d.rarete === range.retenu) : [];
+  const demandesParRayon = (id: RayonBoutique): number => (estUnRayonDObjets(id) ? demandesDesAutres(demandes, id).length : 0);
 
   // Ce que le Gaulois essaie : son nom, son prix, qui le vend, et ce qui empêche de l'acheter.
   const offreEnEssai = offreEssayee(essai, offres);
   const ficheEnEssai = essai ? OBJETS[essai.emplacement][essai.objet] : undefined;
   const prixEssai = essai?.source === "boutique" ? prixDeLObjet(boutique?.prix, essai.emplacement, essai.objet) : (offreEnEssai?.prix ?? null);
-  const raisonEssai = !essai ? null : essai.source === "boutique" ? raisonDeLEssai(essai, prixEssai, soldeConnu, fermee, miennes) : offreEnEssai && soldeConnu !== null ? raisonDeLOffre(offreEnEssai, soldeConnu, boutique?.inventaire ?? null, miennes) : null;
+  // Hors du rayon cette semaine : l'objet ne s'achète pas à la boutique, l'essayage dit quand il revient.
+  const retourEssai = essai?.source === "boutique" ? retourDe(tournante, essai) : null;
+  const raisonEssai = !essai ? null : retourEssai ? raisonHorsRayon(retourEssai) : essai.source === "boutique" ? raisonDeLEssai(essai, prixEssai, soldeConnu, fermee, miennes) : offreEnEssai && soldeConnu !== null ? raisonDeLOffre(offreEnEssai, soldeConnu, boutique?.inventaire ?? null, miennes) : null;
+  // Le demander au marché : un objet de la boutique qu'on n'a pas, si le serveur connaît les demandes.
+  const objetEssayeAuMarche = essai?.source === "boutique" ? objetDuMarche(essai.emplacement, essai.objet) : null;
+  const peutDemander = objetEssayeAuMarche !== null && demandes !== null && marcheLu !== null && raisonDeNePasDemander(objetEssayeAuMarche, boutique?.inventaire ?? null, miennes, mesDemandesAMoi, marcheLu.demandesMax) === null;
   const acheterLEssai = (): void => {
     if (!essai || prixEssai === null) return;
     setProblemeFenetre(null);
@@ -776,6 +902,19 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   {essaiAchetable && (
                     <button type="button" class="chip chip-fort" onClick={acheterLEssai} data-testid="boutique-acheter">
                       Acheter
+                    </button>
+                  )}
+                  {peutDemander && objetEssayeAuMarche && (
+                    <button
+                      type="button"
+                      class={retourEssai ? "chip chip-fort" : "chip"}
+                      onClick={() => {
+                        setProblemeFenetre(null);
+                        setFenetre({ kind: "demande", objet: objetEssayeAuMarche });
+                      }}
+                      data-testid="boutique-demander"
+                    >
+                      Le demander au marché
                     </button>
                   )}
                   {/* « Retirer » est le mot des offres qu'on retire du marché : ici, on arrête un essai. */}
@@ -924,6 +1063,46 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               </ul>
             </details>
           )}
+          {/* Les demandes d'achat (19 novembre 2026) : ce que d'autres membres cherchent et qu'on a, ouvert d'abord, puis ses
+              propres demandes et ce qu'elles mettent de côté. */}
+          {marcheLu && aServir.length > 0 && (
+            <details class="fold boutique-mes-offres" open data-testid="marche-a-servir">
+              <summary>
+                Des membres cherchent vos objets{" "}
+                <span class="info-discrete">{aServir.length > 1 ? `${fmtInt(aServir.length)} demandes` : "1 demande"}</span>
+              </summary>
+              <ul class="marche-offres">
+                {aServir.map((demande) => (
+                  <Demande
+                    key={demande.id}
+                    demande={demande}
+                    maintenant={maintenant}
+                    servable
+                    occupe={occupe}
+                    onServir={() => {
+                      setProblemeFenetre(null);
+                      setFenetre({ kind: "servir", demande });
+                    }}
+                  />
+                ))}
+              </ul>
+            </details>
+          )}
+          {marcheLu && mesDemandesAMoi.length > 0 && (
+            <details class="fold boutique-mes-offres" open={mesDemandesOuvertes} onToggle={(e) => setMesDemandesOuvertes(e.currentTarget.open)} data-testid="marche-mes-demandes">
+              <summary>
+                Vos demandes{" "}
+                <span class="info-discrete">
+                  {fmtInt(mesDemandesAMoi.length)} sur {fmtInt(marcheLu.demandesMax)}, {stateres(marcheLu.misDeCote)} mis de côté
+                </span>
+              </summary>
+              <ul class="marche-offres">
+                {mesDemandesAMoi.map((demande) => (
+                  <MaDemande key={demande.id} demande={demande} maintenant={maintenant} occupe={occupe} onRetirer={() => void retirerDemande(demande)} />
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
         )}
 
@@ -939,7 +1118,19 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               rayon={rayonChoisi}
               vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : id === RAYON_CARTES ? IMAGE_DU_RAYON_CARTES : id === RAYON_CADRES ? IMAGE_DU_RAYON_CADRES : IMAGE_DU_RAYON_BANNIERE)}
               // Les offres des membres d'abord ; sinon la collection du rayon, ce qu'il possède sur ce qui existe.
-              mention={(id) => (!estUnRayonDObjets(id) ? null : comptesDesOffres[id] > 0 ? motsDesOffres(comptesDesOffres[id]) : boutique ? motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet))) : null)}
+              mention={(id) =>
+                !estUnRayonDObjets(id)
+                  ? null
+                  : comptesDesOffres[id] > 0
+                    ? motsDesOffres(comptesDesOffres[id])
+                    : demandesParRayon(id) > 0
+                      ? demandesParRayon(id) > 1
+                        ? `${demandesParRayon(id)} demandes`
+                        : "1 demande"
+                      : boutique
+                        ? motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet)))
+                        : null
+              }
               onChoisir={setRayon}
             />
           </div>
@@ -952,6 +1143,11 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   <ChoixDeFiltre key={rarete} filtre={rarete} nom={RARETES[rarete].nom} rang={RARETES[rarete].rang} nombre={range.comptes[rarete]} choisi={range.retenu === rarete} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, rarete))} />
                 ))}
               </div>
+            )}
+            {rayonObjets && tournante && (
+              <p class="boutique-rotation" data-testid="boutique-rotation">
+                {regleDeLaRotation(tournante.changeLe)}
+              </p>
             )}
             {range && range.offres.length > 0 && (
               <div class="vestiaire-rayon">
@@ -976,13 +1172,35 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 </ul>
               </div>
             )}
-            {rayonObjets && range && range.boutique.length > 0 && (
+            {demandesDuRayon.length > 0 && (
+              <div class="vestiaire-rayon">
+                <h4 id="boutique-demandes" class="vestiaire-boutique">
+                  Demandé par des membres
+                </h4>
+                <ul class="marche-offres" aria-labelledby={`boutique-rayon-${rayon} boutique-demandes`} data-testid="marche-demandes">
+                  {demandesDuRayon.map((demande) => (
+                    <Demande
+                      key={demande.id}
+                      demande={demande}
+                      maintenant={maintenant}
+                      servable={peutServir(demande, inventaireLu)}
+                      occupe={occupe}
+                      onServir={() => {
+                        setProblemeFenetre(null);
+                        setFenetre({ kind: "servir", demande });
+                      }}
+                    />
+                  ))}
+                </ul>
+              </div>
+            )}
+            {rayonObjets && enRayon.length > 0 && (
               <div class="vestiaire-rayon">
                 <h4 id="boutique-du-clan" class="vestiaire-boutique">
-                  Boutique du clan
+                  {tournante ? "En rayon cette semaine" : "Boutique du clan"}
                 </h4>
                 <div class="cases" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-du-clan`} data-testid="boutique-cases">
-                  {range.boutique.map(([id, objet]) => {
+                  {enRayon.map(([id, objet]) => {
                     const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
                     return (
                       <Case
@@ -992,6 +1210,31 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                         portee={false}
                         essayee={essayee}
                         vente={{ prix: prixDeLObjet(boutique?.prix, rayonObjets, id) }}
+                        enVente={miennes.some((offre) => offre.emplacement === rayonObjets && offre.objet === id)}
+                        onClick={() => essayer(essayee ? null : { source: "boutique", emplacement: rayonObjets, objet: id })}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {rayonObjets && horsRayon.length > 0 && (
+              <div class="vestiaire-rayon">
+                <h4 id="boutique-hors-rayon" class="vestiaire-boutique">
+                  Pas en rayon cette semaine
+                </h4>
+                <div class="cases" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-hors-rayon`} data-testid="boutique-hors-rayon">
+                  {horsRayon.map(([id, objet]) => {
+                    const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
+                    const retour = retourDe(tournante, { emplacement: rayonObjets, objet: id });
+                    return (
+                      <Case
+                        key={id}
+                        objet={objet}
+                        vignette={vignetteDeLObjet(rayonObjets, id, tenue)}
+                        portee={false}
+                        essayee={essayee}
+                        vente={{ prix: prixDeLObjet(boutique?.prix, rayonObjets, id), revient: retour ? motsDeLaCase(retour) : null }}
                         enVente={miennes.some((offre) => offre.emplacement === rayonObjets && offre.objet === id)}
                         onClick={() => essayer(essayee ? null : { source: "boutique", emplacement: rayonObjets, objet: id })}
                       />
@@ -1151,6 +1394,31 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
             vignetteDe={(tire) => vignetteDeLObjet(tire.emplacement, tire.objet, tenue)}
             dejaPorte={(tire) => tenue[tire.emplacement] === tire.objet}
             onPorter={(tire) => void porter({ emplacement: tire.emplacement, objet: tire.objet })}
+            suiteDuDouble={(tire) => {
+              const ref = { emplacement: tire.emplacement, objet: tire.objet };
+              const demande = meilleureDemande(demandes, ref);
+              const rendu = revente?.objets.find((o) => o.emplacement === ref.emplacement && o.objet === ref.objet)?.rendu ?? null;
+              return (
+                <ChoixDuDouble
+                  demande={demande}
+                  marcheOuvert={marcheLu !== null}
+                  rendu={rendu}
+                  onServir={() => {
+                    if (!demande) return;
+                    setProblemeFenetre(null);
+                    setFenetre({ kind: "servir", demande });
+                  }}
+                  onVendre={() => {
+                    setProblemeFenetre(null);
+                    setFenetre({ kind: "vente", initial: ref });
+                  }}
+                  onRevendre={() => {
+                    setProblemeFenetre(null);
+                    setFenetre({ kind: "revente", initial: ref });
+                  }}
+                />
+              );
+            }}
             onFermer={fermerLaFenetre}
           />
         </PochetteGagneeIci.Provider>
@@ -1203,9 +1471,33 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
           onFermer={fermerLaFenetre}
         />
       )}
-      {fenetre?.kind === "revente" && revente && <DialogueRevente revente={revente} occupe={occupe} probleme={problemeFenetre} onRevendre={(objet, nom) => void revendre(objet, nom)} onFermer={fermerLaFenetre} />}
+      {fenetre?.kind === "revente" && revente && <DialogueRevente revente={revente} occupe={occupe} probleme={problemeFenetre} initial={fenetre.initial ?? null} onRevendre={(objet, nom) => void revendre(objet, nom)} onFermer={fermerLaFenetre} />}
       {fenetre?.kind === "vente" && marcheLu && (
-        <DialogueVente boutique={pourLeMarche} offresOuvertes={miennes.length} offresMax={marcheLu.offresMax} occupe={occupe} probleme={problemeFenetre} onVendre={(objet, prix) => void vendre(objet, prix)} onFermer={fermerLaFenetre} />
+        <DialogueVente boutique={pourLeMarche} offresOuvertes={miennes.length} offresMax={marcheLu.offresMax} occupe={occupe} probleme={problemeFenetre} initial={fenetre.initial ?? null} onVendre={(objet, prix) => void vendre(objet, prix)} onFermer={fermerLaFenetre} />
+      )}
+      {fenetre?.kind === "demande" && marcheLu && pourLeMarche && (
+        <DialogueDemande
+          objet={fenetre.objet}
+          plafond={pourLeMarche.prix[fenetre.objet.rarete]}
+          solde={soldeConnu ?? marcheLu.solde}
+          offre={offres.filter((o) => !o.a_moi && o.emplacement === fenetre.objet.emplacement && o.objet === fenetre.objet.objet).sort((a, b) => a.prix - b.prix)[0] ?? null}
+          demandesOuvertes={mesDemandesAMoi.length}
+          demandesMax={marcheLu.demandesMax}
+          occupe={occupe}
+          probleme={problemeFenetre}
+          onDemander={(prix) => void poserDemande(fenetre.objet, prix)}
+          onFermer={fermerLaFenetre}
+        />
+      )}
+      {fenetre?.kind === "servir" && (
+        <DialogueServir
+          demande={fenetre.demande}
+          rendu={revente?.objets.find((o) => o.emplacement === fenetre.demande.emplacement && o.objet === fenetre.demande.objet)?.rendu ?? null}
+          occupe={occupe}
+          probleme={problemeFenetre}
+          onServir={() => void servirDemande(fenetre.demande)}
+          onFermer={fermerLaFenetre}
+        />
       )}
     </div>
   );

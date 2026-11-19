@@ -29,6 +29,8 @@ describe("le marché du village, côté serveur", () => {
     // La forge (migration 20261114001000) remplace mettre_en_vente avec un refus de plus : le dernier exemplaire d'un objet gravé.
     expect(lire("20261114001000_village_forge")).toContain("perform internal.fail('objet_grave');");
     codes.add("objet_grave");
+    // Les demandes d'achat (migration 20261119000100) ont leurs refus, et le mode GOD (20261116000900) le sien.
+    for (const m of lire("20261119000100_marche_tournant_et_demandes").matchAll(/internal\.fail\('([a-z_]+)'/g)) codes.add(m[1]!);
     expect(Object.keys(MESSAGES_DU_MARCHE).filter((c) => !codes.has(c))).toEqual([]);
   });
 

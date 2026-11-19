@@ -10,7 +10,8 @@ name: Victoires et arrivées sur Discord
 # une minute). Voir src/lib/arrivees.ts.
 #
 # Il annonce aussi les achats du village des Gaulois (demande du pilote, 15 novembre 2026 : toutes les 5 minutes), dans le
-# salon des achats réglé dans la Direction, sinon celui des nouvelles. Voir src/lib/achats-discord.ts.
+# salon des achats réglé dans la Direction, sinon celui des nouvelles. Voir src/lib/achats-discord.ts. Et, depuis le
+# 19 novembre 2026, les nouvelles offres et demandes du marché, dans le même salon. Voir src/lib/marche-discord.ts.
 on:
   workflow_dispatch:
 
@@ -92,8 +93,8 @@ jobs:
     # échoue : les victoires partent alors avec la vignette.
     if: ${{ !cancelled() && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
-    # La somme des délais des étapes, achats du village compris (15 novembre 2026).
-    timeout-minutes: 22
+    # La somme des délais des étapes, achats du village compris (15 novembre 2026), puis le marché (19 novembre 2026).
+    timeout-minutes: 24
     permissions:
       contents: write
     steps:
@@ -232,6 +233,57 @@ jobs:
             sleep 15
           done
           echo "::warning::Achats du village : état des envois non enregistré sur main. Sa copie gardée en cache évite de renvoyer ces achats ; il sera de nouveau enregistré avec le prochain envoi."
+          exit 1
+      # Les nouvelles offres et demandes du marché des Gaulois (19 novembre 2026, choix du pilote) : une image par membre,
+      # dans le salon des achats, lues au serveur (annonces_du_marche). Après les achats et à part d'eux. Au premier passage,
+      # ce qui est déjà au marché est noté sans être annoncé. Même garde-fou : une copie de l'état dans le cache du workflow.
+      - name: Restaurer l'état des annonces du marché
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/marche-envoi.json
+          key: marche-envoi-${{ github.run_id }}
+          restore-keys: marche-envoi-
+      - name: Annoncer les offres et demandes du marché sur Discord
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run marche:annoncer
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+      - name: Conserver l'état des annonces du marché
+        if: ${{ !cancelled() && hashFiles('.cache/marche-envoi.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/marche-envoi.json
+          key: marche-envoi-${{ hashFiles('.cache/marche-envoi.json') }}
+      - name: Noter les annonces du marché
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          if [ ! -f data/marche-envoi.json ]; then
+            echo "Aucune annonce du marché à noter."
+            exit 0
+          fi
+          git add -- data/marche-envoi.json
+          if git diff --cached --quiet; then
+            echo "Aucune annonce du marché à noter."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "data: note les offres et demandes du marché annoncées sur Discord"
+          for essai in 1 2 3 4 5; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::warning::Marché des Gaulois : état des annonces non enregistré sur main. Sa copie gardée en cache évite de les renvoyer ; il sera de nouveau enregistré avec la prochaine annonce."
           exit 1
       # Les statères du village des Gaulois (docs/DIRECTION.md, « Le village des Gaulois ») :
       # 30 statères par point rapporté au clan, à chaque Gaulois présent dans la partie. Chaque partie du mois qui a rapporté
