@@ -53,6 +53,9 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « Mon Gaulois » en écran de jeu (21 novembre 2026) : le kit en pixels (cadres, boutons, rubans, barres, icônes) et le
   // cadre de jeu plein écran de /village (barre du jeu, menu, « Ma carte »). Ses images viennent de /village/kit.css.
   { fichier: "16-jeu.css", pages: ["/village", "/direction"] },
+  // « Les boosters » de « Mon Gaulois » (21 novembre 2026) : leur écran habillé du kit et l'animation d'ouverture validée
+  // par le pilote (SceneDuBooster.ts).
+  { fichier: "17-jeu-boosters.css", pages: ["/village", "/direction"] },
   // « La boutique » de « Mon Gaulois » habillée en écran de jeu (21 novembre 2026) : la sélection de la semaine, les onglets
   // des rayons, les filtres, l'essayage et le marché en images, tout sous `.boutique-jeu`.
   { fichier: "19-jeu-boutique.css", pages: ["/village", "/direction"] },

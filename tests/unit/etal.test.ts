@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { POCHETTES_GAGNEES } from "../../src/lib/village/contrat";
-import { NOMS_ENTIERS, NOMS_SUR_L_ETAL, POCHETTES_DE_L_ETAL, motsDesGagnees, pochetteDOuverture } from "../../src/lib/village/etal";
+import { NOMS_ENTIERS, NOMS_SUR_L_ETAL, POCHETTES_DE_L_ETAL, boostersGagnesEnMots, motsDesGagnees, pochetteDOuverture } from "../../src/lib/village/etal";
 
 // L'étal des pochettes : ce qu'il range, ce qu'il ouvre à l'arrivée, ce qu'il écrit sur une étiquette.
 
@@ -24,10 +24,12 @@ describe("l'étal des pochettes", () => {
     expect(pochetteDOuverture({ modeles: 1, familiers: 2 })).toBe("familiers");
   });
 
-  it("écrit les pochettes gagnées en mots, et rien sans aucune", () => {
+  it("écrit les boosters offerts en mots, et rien sans aucun", () => {
     expect(motsDesGagnees(undefined)).toBeNull();
     expect(motsDesGagnees(0)).toBeNull();
-    expect(motsDesGagnees(1)).toBe("1 gagnée");
-    expect(motsDesGagnees(3)).toBe("3 gagnées");
+    expect(motsDesGagnees(1)).toBe("1 offert");
+    expect(motsDesGagnees(3)).toBe("3 offerts");
+    expect(boostersGagnesEnMots({ surprise: 2, stateres: 1, modeles: 0 })).toEqual(["2 boosters surprises", "un booster de statères"]);
+    expect(boostersGagnesEnMots({})).toEqual([]);
   });
 });

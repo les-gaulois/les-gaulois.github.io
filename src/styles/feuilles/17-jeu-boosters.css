@@ -1,0 +1,1011 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- « Les boosters » de « Mon Gaulois » (21 novembre 2026) ---------- */
+/* L'ouverture d'un booster, reprise de l'animation validée par le pilote (src/components/village/SceneDuBooster.ts) : ses
+   règles sont celles de la démonstration, préfixées « bst- ». Ne pas changer le mouvement ni les lumières sans sa demande.
+   Le blanc des lumières est un blanc chaud (255, 253, 245) : la feuille n'écrit jamais un blanc pur. */
+
+.bst-scene {
+  --bst-ciel-a: #86a5ec;
+  --bst-ciel-b: #d9e5fb;
+  --bst-etoile: #fffdf5;
+  --bst-voile: 30, 46, 120;
+  --bst-ombre: rgba(10, 18, 48, 0.3);
+  --bst-texte: #0a1230;
+  --bst-doux: #3d4a80;
+  --bst-blanc: 255, 253, 245;
+  --lum: 255, 242, 200;
+  --lum2: var(--bst-blanc);
+  position: relative;
+  height: 600px;
+  overflow: hidden;
+  background: var(--bst-ciel-a);
+  isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+:root[data-mode="sombre"] .bst-scene {
+  --bst-ciel-a: #060a20;
+  --bst-ciel-b: #152262;
+  --bst-etoile: #f6f1e3;
+  --bst-voile: 1, 3, 14;
+  --bst-ombre: rgba(2, 4, 14, 0.55);
+  --bst-texte: #f6f1e3;
+  --bst-doux: #aab6e8;
+}
+.bst-scene > * {
+  position: absolute;
+}
+.bst-scene canvas {
+  image-rendering: pixelated;
+}
+.bst-scene button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Le contour du focus se lit sur le ciel : marine sur le ciel clair, or sur la nuit. */
+.bst-scene button:focus-visible {
+  outline: 3px solid #0a1230;
+  outline-offset: 3px;
+}
+:root[data-mode="sombre"] .bst-scene button:focus-visible {
+  outline-color: #ffd84a;
+}
+.bst-fond {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.bst-voile {
+  inset: 0;
+  background: radial-gradient(ellipse 72% 64% at 50% 42%, rgba(var(--bst-voile), 0) 0, rgba(var(--bst-voile), 0.5) 60%, rgba(var(--bst-voile), 0.92) 100%);
+  opacity: 0;
+  pointer-events: none;
+}
+.bst-rais {
+  left: 50%;
+  top: 43%;
+  width: 1300px;
+  height: 1300px;
+  margin: -650px 0 0 -650px;
+  opacity: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+  -webkit-mask: radial-gradient(closest-side, #000 6%, rgba(0, 0, 0, 0.55) 30%, transparent 76%);
+  mask: radial-gradient(closest-side, #000 6%, rgba(0, 0, 0, 0.55) 30%, transparent 76%);
+}
+.bst-halo {
+  left: 50%;
+  top: 0;
+  width: 560px;
+  height: 560px;
+  margin: -280px 0 0 -280px;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+  background: radial-gradient(closest-side, rgba(var(--bst-blanc), 0.95) 0, rgba(var(--lum), 0.62) 24%, rgba(var(--lum), 0.2) 52%, rgba(var(--lum), 0) 100%);
+}
+.bst-faisceau {
+  left: 50%;
+  top: 0;
+  width: 380px;
+  margin-left: -190px;
+  opacity: 0;
+  transform-origin: 50% 100%;
+  pointer-events: none;
+  will-change: transform, opacity;
+  clip-path: polygon(41% 100%, 59% 100%, 100% 0, 0 0);
+  background: linear-gradient(to top, rgba(var(--bst-blanc), 0.96) 0, rgba(var(--lum), 0.72) 16%, rgba(var(--lum), 0.3) 58%, rgba(var(--lum), 0) 100%);
+  -webkit-mask: linear-gradient(90deg, transparent 0, #000 34%, #000 66%, transparent 100%);
+  mask: linear-gradient(90deg, transparent 0, #000 34%, #000 66%, transparent 100%);
+}
+.bst-ombre {
+  left: 50%;
+  width: 170px;
+  height: 22px;
+  margin-left: -85px;
+  background: radial-gradient(closest-side, var(--bst-ombre), transparent);
+  pointer-events: none;
+}
+
+/* Le paquet : un bouton, tenu, tiré ou tapé. */
+.bst-scene .bst-paquet {
+  left: 50%;
+  width: 180px;
+  height: 264px;
+  margin-left: -90px;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  will-change: transform;
+  z-index: 1;
+}
+.bst-paquet > * {
+  position: absolute;
+  pointer-events: none;
+}
+.bst-p-aura {
+  inset: -30% -44%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(var(--lum), 0.95) 34%, rgba(var(--lum), 0.5) 60%, rgba(var(--lum), 0) 100%);
+}
+.bst-p-corps,
+.bst-p-fissures {
+  left: 0;
+  top: 30px;
+  width: 180px;
+  height: 234px;
+}
+.bst-p-fissures {
+  filter: drop-shadow(0 0 3px rgb(var(--lum))) drop-shadow(0 0 1px rgb(var(--lum)));
+}
+.bst-p-lueur {
+  left: 6px;
+  right: 6px;
+  top: 30px;
+  height: 150px;
+  opacity: 0;
+  background: radial-gradient(ellipse 70% 100% at 50% 0, rgba(var(--bst-blanc), 0.9), rgba(var(--lum), 0.6) 30%, rgba(var(--lum), 0) 100%);
+}
+.bst-p-couture {
+  left: 9px;
+  right: 9px;
+  top: 231px;
+  height: 3px;
+  opacity: 0.45;
+  background: linear-gradient(rgb(var(--bst-blanc)), rgb(var(--lum)));
+  box-shadow: 0 0 10px 2px rgba(var(--lum), 0.85);
+}
+.bst-p-bande {
+  left: 0;
+  top: 0;
+  width: 180px;
+  height: 30px;
+}
+.bst-p-bande.bst-libre {
+  z-index: 2;
+  pointer-events: none;
+}
+.bst-seg {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 45px;
+  height: 30px;
+  transform-origin: 0 100%;
+}
+.bst-seg .bst-seg {
+  left: 45px;
+}
+.bst-seg canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 45px;
+  height: 30px;
+}
+.bst-p-jour {
+  top: 27px;
+  height: 3px;
+  width: 45px;
+  background: linear-gradient(rgb(var(--bst-blanc)), rgb(var(--lum)));
+  box-shadow: 0 0 14px 3px rgba(var(--lum), 0.9);
+}
+.bst-p-jour.bst-ouvert {
+  box-shadow: 0 0 22px 7px rgba(var(--lum), 0.95);
+}
+.bst-p-jour.bst-ouvert::after {
+  content: "";
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: 100%;
+  height: 74px;
+  background: linear-gradient(to top, rgba(var(--lum), 0.7), rgba(var(--lum), 0));
+  clip-path: polygon(18% 100%, 82% 100%, 100% 0, 0 0);
+}
+.bst-lame {
+  left: 50%;
+  top: 0;
+  width: 4px;
+  height: 250px;
+  margin: -125px 0 0 -2px;
+  background: rgb(var(--bst-blanc));
+  box-shadow: 0 0 18px 6px rgba(var(--lum), 0.95), 0 0 60px 16px rgba(var(--lum), 0.5);
+  opacity: 0;
+  pointer-events: none;
+}
+.bst-onde {
+  left: 50%;
+  top: 0;
+  width: 0;
+  height: 0;
+  border: 2px solid rgb(var(--bst-blanc));
+  box-shadow: 0 0 10px 0 currentColor, inset 0 0 10px 0 currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.bst-etincelles {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.bst-eclat {
+  left: 50%;
+  top: 0;
+  width: 760px;
+  height: 760px;
+  margin: -380px 0 0 -380px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  background: radial-gradient(closest-side, rgba(var(--bst-blanc), 0.98) 0, rgba(var(--lum), 0.8) 28%, rgba(var(--lum), 0) 100%);
+}
+.bst-lame,
+.bst-onde,
+.bst-etincelles,
+.bst-eclat {
+  z-index: 3;
+}
+
+/* Les mots de la scène, en pixels : la consigne, puis le nom et la rareté de la carte. Décoratifs : la fenêtre les écrit. */
+.bst-px {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  line-height: 0;
+}
+.bst-px canvas {
+  display: block;
+}
+.bst-consigne {
+  left: 0;
+  right: 0;
+  top: 86%;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+  z-index: 4;
+}
+.bst-consigne.bst-vu {
+  opacity: 0.85;
+}
+.bst-trouve {
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.35s, transform 0.35s;
+  pointer-events: none;
+  z-index: 4;
+}
+.bst-trouve.bst-vu {
+  opacity: 1;
+  transform: none;
+}
+.bst-rarete {
+  padding: 4px 8px;
+  border: 2px solid;
+}
+.bst-tampon {
+  display: flex;
+  gap: 4px;
+  line-height: 0;
+  min-height: 27px;
+}
+.bst-tampon canvas {
+  animation: bst-frappe 0.32s cubic-bezier(0.2, 1.7, 0.4, 1) both;
+}
+@keyframes bst-frappe {
+  0% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* La carte : face claire de la case du site, dos au torque, et la matière de sa rareté par-dessus. */
+.bst-scene .bst-carte {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  margin: -132px 0 0 -102px;
+  width: calc(68px * var(--s));
+  height: calc(88px * var(--s));
+  perspective: calc(300px * var(--s));
+  --a: 0;
+  --mx: 0.5;
+  --my: 0.5;
+  --h: 0;
+  --rc: 74, 163, 255;
+  --aura: 0.35;
+  will-change: transform;
+  cursor: pointer;
+  touch-action: none;
+}
+.bst-carte[data-r="peu-commun"] {
+  --rc: 58, 79, 232;
+  --aura: 0.45;
+}
+.bst-carte[data-r="epique"] {
+  --rc: 155, 77, 255;
+  --aura: 0.6;
+}
+.bst-carte[data-r="mystique"] {
+  --rc: 255, 46, 74;
+  --aura: 0.75;
+}
+.bst-carte[data-r="legendaire"] {
+  --rc: 242, 182, 50;
+  --aura: 0.95;
+}
+.bst-carte[data-r="divin"] {
+  --rc: 25, 211, 197;
+  --aura: 1;
+}
+.bst-carte[data-r="rendu"] {
+  --rc: 138, 150, 184;
+  --aura: 0.3;
+}
+.bst-carte > *,
+.bst-c-corps > * {
+  position: absolute;
+  pointer-events: none;
+}
+.bst-c-aura {
+  inset: -22%;
+  border-radius: 40%;
+  background: radial-gradient(closest-side, rgba(var(--rc), 0.75), rgba(var(--rc), 0.28) 55%, rgba(var(--rc), 0));
+  opacity: calc(var(--a) * var(--aura));
+}
+.bst-c-ombre {
+  left: 5%;
+  right: 5%;
+  top: 12%;
+  bottom: -7%;
+  background: radial-gradient(closest-side, var(--bst-ombre), transparent);
+  transform: translateY(calc(var(--h) * 0.5px)) scale(calc(1 + var(--h) * 0.004));
+  opacity: calc(0.9 - var(--h) * 0.008);
+}
+.bst-c-corps {
+  inset: 0;
+  will-change: transform;
+  clip-path: polygon(4.41% 0, 95.59% 0, 95.59% 1.14%, 97.06% 1.14%, 97.06% 2.27%, 98.53% 2.27%, 98.53% 3.41%, 100% 3.41%, 100% 96.59%, 98.53% 96.59%, 98.53% 97.73%, 97.06% 97.73%, 97.06% 98.86%, 95.59% 98.86%, 95.59% 100%, 4.41% 100%, 4.41% 98.86%, 2.94% 98.86%, 2.94% 97.73%, 1.47% 97.73%, 1.47% 96.59%, 0 96.59%, 0 3.41%, 1.47% 3.41%, 1.47% 2.27%, 2.94% 2.27%, 2.94% 1.14%, 4.41% 1.14%);
+}
+.bst-c-face,
+.bst-c-dos {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.bst-c-dos {
+  display: none;
+}
+.bst-carte.bst-dos .bst-c-dos {
+  display: block;
+}
+.bst-carte.bst-dos .bst-c-mat,
+.bst-carte.bst-dos .bst-c-grains,
+.bst-carte.bst-dos .bst-c-reflet,
+.bst-carte.bst-dos .bst-c-lisere {
+  display: none !important;
+}
+.bst-c-mat,
+.bst-c-grains,
+.bst-c-reflet,
+.bst-c-lisere {
+  inset: 0;
+}
+.bst-c-reflet {
+  background: linear-gradient(115deg, transparent 43%, rgba(var(--rc), 0.2) 46.5%, rgba(var(--bst-blanc), 0.58) 50%, rgba(var(--rc), 0.2) 53.5%, transparent 57%);
+  background-size: 320% 320%;
+  background-position: calc(var(--mx) * 100%) calc(var(--my) * 100%);
+  opacity: calc(var(--a) * 0.85);
+}
+.bst-carte[data-r="legendaire"] .bst-c-reflet,
+.bst-carte[data-r="divin"] .bst-c-reflet {
+  display: none;
+}
+.bst-c-mat,
+.bst-c-grains,
+.bst-c-lisere {
+  display: none;
+}
+.bst-carte[data-r="mystique"] .bst-c-mat {
+  display: block;
+  background: radial-gradient(circle at calc(var(--mx) * 100%) calc(var(--my) * 100%), rgba(255, 120, 60, 0.18), rgba(255, 46, 74, 0.09) 30%, rgba(255, 46, 74, 0) 58%);
+  opacity: var(--a);
+}
+.bst-carte[data-r="legendaire"] .bst-c-mat {
+  display: block;
+  background: linear-gradient(115deg, transparent 36%, rgba(255, 190, 50, 0.3) 42%, rgba(var(--bst-blanc), 0.55) 47%, rgba(255, 176, 40, 0.3) 52%, transparent 57%, transparent 61%, rgba(var(--bst-blanc), 0.45) 63%, transparent 65%);
+  background-size: 300% 300%;
+  background-position: calc(100% - var(--mx) * 100%) calc(var(--my) * 100%);
+  opacity: calc(var(--a) * 0.95);
+}
+.bst-carte[data-r="divin"] .bst-c-mat {
+  display: block;
+  background: linear-gradient(115deg, transparent 26%, rgba(25, 211, 197, 0.26) 34%, rgba(110, 150, 255, 0.22) 41%, rgba(var(--bst-blanc), 0.45) 47%, rgba(255, 110, 214, 0.22) 53%, rgba(255, 214, 90, 0.26) 60%, transparent 68%);
+  background-size: 300% 300%;
+  background-position: calc(100% - var(--mx) * 100%) calc(var(--my) * 100%);
+  opacity: calc(0.12 + var(--a) * 0.75);
+}
+.bst-carte[data-r="mystique"] .bst-c-grains,
+.bst-carte[data-r="legendaire"] .bst-c-grains,
+.bst-carte[data-r="divin"] .bst-c-grains {
+  display: block;
+  background-size: calc(32px * var(--s));
+  image-rendering: pixelated;
+  opacity: var(--a);
+  -webkit-mask: linear-gradient(115deg, transparent 39%, #000 50%, transparent 61%);
+  mask: linear-gradient(115deg, transparent 39%, #000 50%, transparent 61%);
+  -webkit-mask-size: 300% 300%;
+  mask-size: 300% 300%;
+  -webkit-mask-position: calc(var(--mx) * 100%) calc(var(--my) * 100%);
+  mask-position: calc(var(--mx) * 100%) calc(var(--my) * 100%);
+}
+.bst-carte[data-r="mystique"] .bst-c-grains {
+  background-image: var(--grains-m);
+}
+.bst-carte[data-r="legendaire"] .bst-c-grains {
+  background-image: var(--grains-l);
+}
+.bst-carte[data-r="divin"] .bst-c-grains {
+  background-image: var(--grains-d);
+}
+.bst-carte[data-r="legendaire"] .bst-c-lisere,
+.bst-carte[data-r="divin"] .bst-c-lisere {
+  display: block;
+  padding: calc(1px * var(--s)) calc(1px * var(--s)) calc(4px * var(--s));
+  background: conic-gradient(from calc(var(--ang, 0) * 1deg), transparent 0 72%, rgba(var(--bst-blanc), 0.95) 90%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+@media (max-width: 620px) {
+  .bst-scene {
+    height: 540px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bst-consigne,
+  .bst-trouve {
+    transition: none;
+  }
+  .bst-tampon canvas {
+    animation: none;
+  }
+}
+.fx-off .bst-consigne,
+.fx-off .bst-trouve {
+  transition: none;
+}
+.fx-off .bst-tampon canvas {
+  animation: none;
+}
+/* La pause de la fenêtre : les lettres frappées s'arrêtent où elles en sont. */
+.bst-fige .bst-tampon canvas {
+  animation-play-state: paused;
+}
+
+/* ---------- Le paquet de la fenêtre, avant l'ouverture ---------- */
+/* Le paquet de l'étape « confirmer » : pendant que le serveur tire, il se secoue et gonfle (comme la pochette d'avant, 17
+   novembre 2026), puis la scène le remplace. Rien de cela quand les animations sont coupées. */
+.bst-attente {
+  position: relative;
+  line-height: 0;
+  transform-origin: 50% 60%;
+}
+.bst-attente-paquet {
+  width: 120px;
+  height: 176px;
+  image-rendering: pixelated;
+}
+.bst-attente[data-envoi] {
+  animation: bst-secousse 1.5s ease-in-out infinite;
+}
+@keyframes bst-secousse {
+  0%,
+  62%,
+  100% {
+    rotate: 0deg;
+    scale: 1;
+  }
+  8% {
+    rotate: -7deg;
+  }
+  16% {
+    rotate: 7deg;
+  }
+  24% {
+    rotate: -6deg;
+  }
+  32% {
+    rotate: 5deg;
+  }
+  44% {
+    rotate: 0deg;
+    scale: 1.08;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bst-attente[data-envoi] {
+    animation: none;
+  }
+}
+.fx-off .bst-attente[data-envoi] {
+  animation: none;
+}
+
+/* ---------- L'écran « Les boosters » habillé du kit (21 novembre 2026, mise en page de Claude Fable 5.2) ---------- */
+/* La bourse est dans la barre du jeu : elle sort de cet écran. Le Gaulois reste à gauche sur ordinateur (on y voit l'objet
+   porté) ; sur téléphone, il ne paraît pas (ce qui vient de se passer, dessous, reste écrit). */
+.vestiaire:has(.etal) .boutique-tete {
+  display: none;
+}
+@media (max-width: 47.99rem) {
+  .vestiaire:has(.etal) {
+    gap: 0.75rem;
+  }
+  .vestiaire:has(.etal) .vestiaire-scene {
+    position: static;
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .vestiaire:has(.etal) .gaulois-cadre,
+  .vestiaire:has(.etal) .vestiaire-essai {
+    display: none;
+  }
+}
+
+/* Le paquet en image, à la taille que lui donne chaque place. */
+.bst-paquet-img {
+  display: block;
+  width: 120px;
+  height: 176px;
+  background: var(--i) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+
+/* L'étal : les paquets à la place des sacs (2 px la case, 1 px sur un téléphone). */
+.etal .etal-dessin {
+  height: 176px;
+}
+.etal-planche {
+  top: calc(28px + 6px + 1.25rem + 176px);
+}
+@media (max-width: 640px) {
+  .etal .etal-dessin {
+    height: 88px;
+  }
+  .etal .bst-etal-paquet {
+    width: 60px;
+    height: 88px;
+  }
+  .etal-planche {
+    top: calc(28px + 6px + 1.25rem + 88px);
+  }
+}
+
+/* Les boosters gagnés à la loterie, en tête de l'écran. */
+.bst-gagnes {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  font-weight: 600;
+  color: var(--ecriture);
+}
+.bst-gagnes .jeu-ic {
+  flex: none;
+  margin: -8px 0;
+}
+
+/* La pièce du kit et un nombre de statères. */
+.bst-piece {
+  display: block;
+  flex: none;
+  width: calc(9 * var(--jeu-p));
+  height: calc(9 * var(--jeu-p));
+  background: var(--jeu-i-piece) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+.bst-stateres {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p));
+}
+.bst-losanges > i {
+  margin: 0;
+}
+.bst-rarete-px {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* La fiche du booster choisi : un panneau, son nom en ruban à cheval sur le bord du haut. */
+.etal {
+  margin-bottom: 0;
+}
+.bst-fiche {
+  position: relative;
+  margin-top: 48px;
+  padding: 26px 8px 4px;
+  color: var(--ecriture);
+}
+.bst-fiche-titre,
+.bst-fenetre-titre {
+  position: absolute;
+  top: -41px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 2;
+  margin: 0;
+  white-space: nowrap;
+}
+.bst-fiche-corps {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 16px 32px;
+  align-items: start;
+}
+.bst-fiche-corps > .album-declencheur,
+.bst-fiche-corps > .bst-fiche-dessin {
+  grid-row: 1 / span 3;
+}
+.bst-fiche-corps > .bst-fiche-action {
+  margin-top: -2px;
+}
+.bst-fiche-dessin {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding-top: 6px;
+}
+.bst-fiche-dessin .jeu-etq {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 1;
+}
+.bst-fiche-paquet {
+  width: 180px;
+  height: 264px;
+  filter: drop-shadow(0 6px 0 var(--jeu-ombre));
+}
+.bst-fiche-infos {
+  min-width: 0;
+}
+.bst-prix {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 14px;
+}
+.bst-prix .bst-piece,
+.bst-grand {
+  --jeu-p: 4px;
+}
+.bst-compte-du-joueur {
+  margin: 0 0 16px;
+}
+.bst-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 14px;
+}
+.bst-actions .jeu-btn {
+  gap: 8px;
+}
+.bst-raison,
+.bst-refus {
+  display: inline-block;
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #231503;
+}
+.bst-chances {
+  margin: 4px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.bst-chances li {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  border-bottom: 2px solid color-mix(in srgb, var(--ecriture) 14%, transparent);
+}
+.bst-chances li:first-child {
+  border-top: 2px solid color-mix(in srgb, var(--ecriture) 14%, transparent);
+}
+.bst-chances li[data-kind="rendu"] {
+  padding: 6px 0;
+}
+.bst-chances li > * {
+  min-width: 0;
+}
+.bst-chance-rendu {
+  display: grid;
+  gap: 6px;
+}
+.bst-regle,
+.bst-mot {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--ecriture) 82%, transparent);
+}
+.bst-regle {
+  margin-bottom: 12px;
+}
+
+/* ---------- La fenêtre d'un booster : un panneau du jeu sur un rideau sombre ---------- */
+.bst-fenetre {
+  width: min(520px, calc(100vw - 24px));
+  max-width: none;
+  max-height: 100dvh;
+  margin: auto;
+  padding: 48px 34px 16px;
+  overflow: auto;
+  border: 0;
+  background: none;
+  color: var(--ecriture);
+}
+.bst-fenetre[data-scene] {
+  width: min(836px, calc(100vw - 8px));
+}
+.bst-fenetre::backdrop {
+  background: rgb(4 7 22 / 0.72);
+}
+.bst-fenetre-panneau {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 22px 10px 6px;
+}
+.bst-fenetre[data-scene] .bst-fenetre-panneau {
+  padding: 0;
+}
+.bst-fenetre-titre:focus {
+  outline: none;
+}
+.bst-fenetre-titre:focus-visible {
+  outline: 3px solid var(--ecriture);
+  outline-offset: 3px;
+}
+.bst-fermer {
+  position: absolute !important;
+  top: -30px;
+  right: -30px;
+  z-index: 3;
+}
+.bst-croix {
+  position: absolute;
+  left: calc(-3 * var(--jeu-p));
+  top: calc(-2 * var(--jeu-p));
+  display: block;
+  width: calc(16 * var(--jeu-p));
+  height: calc(16 * var(--jeu-p));
+  background: var(--i) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+.bst-confirmer {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 24px;
+  align-items: center;
+}
+.bst-confirmer-compte {
+  min-width: 0;
+}
+.bst-compte {
+  margin: 0 0 18px;
+}
+.bst-compte > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+}
+.bst-compte > div + div {
+  border-top: 2px solid color-mix(in srgb, var(--ecriture) 14%, transparent);
+}
+.bst-compte dt,
+.bst-compte dd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.bst-offert {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.bst-confirmer .bst-refus {
+  margin-bottom: 14px;
+}
+
+/* La scène touche le bord du panneau, cernée d'encre ; ses outils en haut à droite. */
+.bst-ouverture {
+  display: grid;
+  gap: 0;
+  width: 100%;
+}
+.bst-cadre {
+  position: relative;
+  margin: -2px;
+  border: 3px solid #070b1f;
+}
+.bst-cadre .bst-scene {
+  height: clamp(480px, calc(100dvh - 7rem), 600px);
+}
+.bst-outils {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+}
+.bst-resultat {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 16px 10px 4px;
+  text-align: center;
+}
+.bst-resultat .bst-actions,
+.bst-trouve-ligne {
+  justify-content: center;
+}
+.bst-trouve-ecrit {
+  display: grid;
+  gap: 8px;
+}
+.bst-trouve-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin: 0;
+}
+.bst-trouve-detail {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.bst-reste {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.bst-double {
+  display: grid;
+  gap: 12px;
+}
+.bst-lien {
+  justify-self: center;
+  font-size: 0.875rem;
+}
+.bst-apercu-banniere,
+.bst-apercu-modele {
+  justify-self: center;
+  max-width: 100%;
+}
+
+@media (max-width: 47.99rem) {
+  .bst-fiche {
+    margin-top: 40px;
+    padding: 22px 0 0;
+    border-image-slice: 12 12 14 12 fill;
+    border-width: calc(6 * var(--jeu-p)) calc(6 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  }
+  .bst-fiche-titre,
+  .bst-fenetre-titre {
+    top: -30px;
+  }
+  .bst-fiche-corps {
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 14px 16px;
+  }
+  .bst-fiche-corps > .album-declencheur,
+  .bst-fiche-corps > .bst-fiche-dessin {
+    grid-row: auto;
+  }
+  .bst-fiche-paquet {
+    width: 120px;
+    height: 176px;
+  }
+  .bst-unite {
+    display: none;
+  }
+  .bst-fiche-suite {
+    grid-column: 1 / -1;
+  }
+  .bst-chances li {
+    grid-template-columns: 62px minmax(0, 1fr) auto;
+  }
+  .bst-fiche-corps > .bst-fiche-action {
+    grid-column: 1 / -1;
+    margin-top: 0;
+  }
+  .bst-fenetre {
+    padding: 40px 4px 12px;
+  }
+  .bst-fenetre:not([data-scene]) {
+    width: calc(100vw - 12px);
+  }
+  .bst-fenetre-panneau {
+    border-image-slice: 12 12 14 12 fill;
+    border-width: calc(6 * var(--jeu-p)) calc(6 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  }
+  .bst-fermer {
+    top: -22px;
+    right: -4px;
+  }
+  .bst-confirmer {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 16px;
+  }
+  .bst-confirmer-compte {
+    width: 100%;
+  }
+  .bst-resultat {
+    padding: 14px 6px 2px;
+  }
+  .bst-resultat .bst-actions .jeu-btn,
+  .bst-confirmer .bst-actions .jeu-btn {
+    flex: 1 1 100%;
+  }
+  .bst-cadre .bst-scene {
+    height: 540px;
+  }
+}
+/* L'étiquette du paquet dit déjà combien il contient : la pastille de l'album s'efface ici. */
+.bst-fiche .album-pastille {
+  display: none;
+}
+.bst-fiche .album-declencheur {
+  justify-self: center;
+}

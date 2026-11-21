@@ -30,7 +30,7 @@ import { Dialogue, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
 import { casesDuChaudron } from "./SentierDessins";
 import { Moule, type DessinDuMoule } from "./Moule";
-import { BoutonSon, preparerLeSon, useSonDuTambour } from "./Tambour";
+import { BoutonSon, preparerLeSon, useSonDuJeu } from "./Carillon";
 
 /**
  * La fusion, première partie de l'onglet « La forge » (demande du pilote, 16 novembre 2026) : le membre choisit une rareté,
@@ -69,7 +69,7 @@ function DialogueFusion({ creuset, suivante, fondre, onFermer }: { creuset: Creu
   const [recu, setRecu] = useState<FusionReponse["recu"] | null>(null);
   const [moule, setMoule] = useState<DessinDuMoule | null>(null);
   const [passer, setPasser] = useState(false);
-  const [son, basculerSon] = useSonDuTambour();
+  const [son, basculerSon] = useSonDuJeu();
   // Ce que la fenêtre montre est ce qu'elle a vu en s'ouvrant : le creuset se vide derrière elle après la fusion.
   const [donnes] = useState(creuset);
   const envoyer = async () => {

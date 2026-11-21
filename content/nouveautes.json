@@ -3,6 +3,17 @@
     "date": "2026-11-21",
     "kind": "nouveau",
     "rank": "minor",
+    "title": "Les boosters s'ouvrent à la main",
+    "body": "Dans « Les boosters », chaque booster s'ouvre en tenant, tirant ou tapant le paquet ; la lumière annonce la rareté, puis vous retournez vous-même la carte. Les paquets ont leur dessin sur l'étal.",
+    "link": {
+      "href": "/village#pochettes",
+      "label": "Les boosters"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "nouveau",
+    "rank": "minor",
     "title": "La boutique en écran de jeu",
     "body": "La boutique prend l'habit du jeu : sélection de la semaine et son compte à rebours, rayons dessinés, marché en images. « Demander » cherche un objet sans passer par l'essayage.",
     "link": {

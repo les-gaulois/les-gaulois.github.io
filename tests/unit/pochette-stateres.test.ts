@@ -4,7 +4,6 @@ import { errorMessage } from "../../src/lib/compte/errors";
 import { LOTS_POCHETTE_STATERES, PLAFOND_POCHETTE_STATERES, PRIX_POCHETTE_STATERES, type MaPochetteStateres } from "../../src/lib/village/contrat";
 import {
   apresLOuverture,
-  bandeDesStateres,
   chanceDeGagner,
   dessinDuLot,
   lireLots,
@@ -17,7 +16,6 @@ import {
   resteAujourdhui,
   retourMoyen,
 } from "../../src/lib/village/pochette-stateres";
-import { CIBLE_DU_TAMBOUR } from "../../src/lib/village/tambour";
 
 const MIGRATION = readFileSync("supabase/migrations/20261116000800_pochette_de_stateres.sql", "utf8");
 const lots = LOTS_POCHETTE_STATERES.map((lot) => ({ ...lot }));
@@ -129,15 +127,6 @@ describe("ce que l'écran en déduit", () => {
 
   it("donne à chaque lot la couleur d'une rareté, du commun au divin", () => {
     expect([1, 2, 3, 4, 5, 6].map(rareteDuLot)).toEqual(["commun", "peu-commun", "epique", "mystique", "legendaire", "divin"]);
-  });
-});
-
-describe("le tambour de la pochette de statères", () => {
-  it("s'arrête sur le lot du serveur et ne fait défiler que de vrais lots", () => {
-    const bande = bandeDesStateres(4, lots, graine(7));
-    expect(bande?.rangees[CIBLE_DU_TAMBOUR]?.valeur.gain).toBe(700);
-    expect(bande?.rangees.every((rangee) => lots.includes(rangee.valeur) && rangee.rarete === rareteDuLot(rangee.valeur.rang))).toBe(true);
-    expect(bandeDesStateres(9, lots)).toBeNull();
   });
 });
 

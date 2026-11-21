@@ -966,7 +966,41 @@ Demande du pilote, 16 novembre 2026 : « que les Gaulois ayant choisi leur banni
 - **La restauration** : étapes 15 et 16 de `docs/restaurer-village.sql` (réglage de la pochette, puis modèles de chaque compte ; le modèle porté revient avec la tenue, étape 1).
 - **Essayé sans vrai compte** : la migration et son fichier à coller sur PGlite après toutes les autres migrations (70 contrôles : prix au quintuple et qui suit le réglage, `prix_change`, `deja_possede`, `solde_insuffisant`, `tout_possede`, dix pochettes sans double, 3 000 tirages aux bonnes parts, rareté épuisée sautée, tenue refusée avec un modèle non possédé ou inconnu, droits, marché fermé, sauvegarde et restauration, version 8 comprise, annonce, compte effacé, collage deux fois, arrêt sans les bannières) ; la migration des remboursements à part (21 contrôles : 4 000 pochettes à 85,2 % de remboursements, cinq paliers à parts égales, solde juste, aucun modèle ni annonce pour un remboursement, tout possédé refusé sans remboursement, solde trop court sans débit, part changée gardée, collage deux fois, arrêt sans les prix) ; la migration des prix à part (23 contrôles : les cinq prix et la pochette à 3 000, anciens prix refusés, 4 000 premiers tirages aux parts 50, 30, 12, 6 et 2, table privée et gardée, réglage déjà changé non touché, collage deux fois, arrêt sans les Gaulois uniques).
 
-**Le tambour des pochettes, depuis le 15 novembre 2026.** Le pilote : « est-ce que tu peux créer une animation pour l'ouverture des pochettes, avec une roue qui tourne », « je veux que ça soit addictif, donne-moi 10 variantes », puis, devant une galerie de dix roues jouables (une page à part, hors du dépôt), « je préfère le 4 tambour ».
+**L'ouverture des boosters, depuis le 21 novembre 2026** (elle remplace le tambour, ci-dessous, retiré le même jour). Trois
+designers ont proposé trois animations d'ouverture ; le pilote les aimait toutes, la fusion des trois a été faite, puis ses sons
+refaits deux fois à sa demande (« plus épique, un chouille moins aigu, en thème avec OpenFront », puis « un tout petit peu
+d'aigu ») ; il l'a validée (« c'est la pièce la plus importante », « ça doit être le top du top ») et ne veut plus de roue :
+« je préfère des cartes qui sortent du booster ».
+
+- **Ce qu'on voit** : la fenêtre du booster (panneau du kit, son nom en ruban) dit le prix, la bourse et ce qu'il restera ;
+  « Ouvrir » demande au serveur, puis le paquet du booster paraît dans la scène. Il respire ; une lumière filtre par sa
+  couture et annonce la rareté, jamais plus haut que la vraie ; le joueur tient, tire ou tape le paquet, qui penche, tremble
+  et craque couture par couture, puis cède ; la carte se pose face cachée et **le joueur la retourne lui-même** ; la fête
+  suit la rareté (coup sourd du commun, cor dès l'épique, timbales et pluie d'or du légendaire, chœur et aurore du divin).
+  Un commun s'ouvre en 2,4 s ; pendant le vol ou le retournement, un second appui montre la carte ; « Passer » la montre
+  d'emblée. Sous la scène : le nom et la rareté écrits, la bourse, et les actions de toujours (le porter, le montrer, le
+  mettre sur /gaulois, en ouvrir un autre, le choix d'un double).
+- **Il ne triche pas** : le serveur tire d'abord (`ouvrir_pochette`, `ouvrir_pochette_stateres`, `ouvrir_pochette_familiers`,
+  `ouvrir_pochette_bannieres`, `ouvrir_pochette_modeles`, inchangés) ; la scène ne reçoit que sa réponse, prête à dessiner
+  (`CarteDeScene`, `src/lib/jeu/boosters.ts`). Un lot de statères prend la couleur et la fête du rang de même numéro ; des
+  statères rendus ont une carte à eux (ardoise, pièce et flèche de retour, « 40 % du prix »), sans rareté ni lumière annoncée.
+- **Les cinq paquets** et les deux faces sans rareté sont de Claude Fable 5.2 (`boosters-dessins.ts`) ; la face d'un objet,
+  d'un familier, d'une bannière ou d'un Gaulois unique est la case claire du site, avec la matière de sa rareté. Les paquets
+  remplacent les sacs sur l'étal ; la fiche du booster choisi est un panneau du kit (paquet qui ouvre l'album à loupe, prix,
+  compte, bouton ou raison, chances en pixels, règle). La bourse sort de l'écran (elle est dans la barre du jeu) ; le Gaulois
+  reste à gauche sur ordinateur et ne paraît pas sur téléphone.
+- **Son, pause, mouvement** : les sons, validés, sont faits dans la page (`sons-des-boosters.ts`), sur le contexte audio et le
+  seul réglage du son du jeu (allumés par défaut, réveillés au premier geste, coupés par le bouton du son). La fenêtre a son
+  bouton de pause (la page derrière est inerte) ; animations coupées (pause du jeu ou « réduire les animations »), un appui
+  sur le paquet pose la carte retournée, sans mouvement, et une pause en cours de route la montre aussitôt.
+- **« Mon compte » ne charge pas l'animation** : la bannière du Gaulois s'y montre (`Bannieres.tsx`), alors la fenêtre et la
+  fiche du booster des bannières sont dans `PochetteBannieres.tsx`, données à `SectionDesBannieres` par l'écran des boosters
+  (`FenetreDuBooster`, `FicheDuBooster`) ; le carillon des objets reçus hors des boosters est dans `Carillon.tsx`.
+- **Essayé sans vrai compte** : faux serveur, Chromium, bureau (1 440, 1 920) et téléphone (360, 390), deux thèmes, les cinq
+  boosters, remboursements, lot de statères, mouvement réduit ; jamais avec un vrai compte, ni sur Safari, ni sur un vrai
+  téléphone. Le booster du jour de la loterie (`ouvrir_booster_loterie`, `Loterie.tsx`) n'y passe pas encore.
+
+**Le tambour des pochettes, du 15 au 21 novembre 2026** (retiré, remplacé par l'ouverture des boosters ci-dessus). Le pilote : « est-ce que tu peux créer une animation pour l'ouverture des pochettes, avec une roue qui tourne », « je veux que ça soit addictif, donne-moi 10 variantes », puis, devant une galerie de dix roues jouables (une page à part, hors du dépôt), « je préfère le 4 tambour ».
 
 - **Ce qu'on voit** : à l'ouverture d'une pochette, surprise ou des familiers, de vrais objets (ou de vrais familiers) défilent sur un cylindre pendant six secondes, ralentissent et s'arrêtent sur ce qui est sorti, puis la rareté est fêtée : une lueur, un anneau à partir d'épique, des rayons lents à partir de mystique, une pluie d'or lente pour un légendaire ; rien ne clignote. Un tic à chaque rangée et un carillon à l'arrêt, faits dans la page (aucun fichier son) ; « Couper le son » vaut pour l'appareil (`gal-pochette-son` dans `localStorage`). « Passer » arrête le tambour ; le bouton pause de l'en-tête et le réglage « réduire les animations » le posent tout de suite sur le résultat. Pour les familiers, le tambour arrêté laisse place, un instant après, au familier en grand.
 - **Il ne triche pas** : le serveur tire d'abord (`ouvrir_pochette`, `ouvrir_pochette_familiers`, inchangés) ; le tambour ne tourne qu'avec sa réponse, posée à la rangée où il s'arrête. Les autres rangées sont tirées aux chances que le serveur donne, comme lui : rareté, puis objet à chances égales, une rareté sans rien à donner sautée ; pour les familiers, seulement ceux que le compte n'avait pas, aux chances qu'il avait. Aucune rangée n'est arrangée pour faire croire qu'on a frôlé mieux. Calculs dans `src/lib/village/tambour.ts` (testés), dessin dans `src/components/village/Tambour.tsx`.

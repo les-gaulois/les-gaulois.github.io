@@ -93,6 +93,7 @@ Jusqu'au 14 novembre 2026, une seule feuille de 18 000 lignes, `src/styles/globa
 | `13-compagnon.css` | Le Gaulois compagnon | toutes |
 | `14-forge.css` | La forge de « Mon Gaulois » (jusqu'au 15 novembre 2026, `14-monde.css`, avec le monde du village) | Compte (les plaques du vestiaire), Village, Direction |
 | `16-jeu.css` | Le kit en pixels et le cadre de jeu plein écran de « Mon Gaulois » (21 novembre 2026) : barre, menu, « Ma carte » ; ses images dans `/village/kit.css` (« Le kit du jeu », plus bas) | `/village`, Direction |
+| `17-jeu-boosters.css` | « Les boosters » de « Mon Gaulois » (21 novembre 2026) : l'animation d'ouverture validée par le pilote (règles `bst-`, scène de `SceneDuBooster.ts`), la fenêtre et la fiche du booster habillées du kit, les paquets sur l'étal | `/village`, Direction |
 | `19-jeu-boutique.css` | « La boutique » de « Mon Gaulois » en écran de jeu (21 novembre 2026), tout sous `.boutique-jeu` | `/village`, Direction |
 | `15-revoir.css` | Le cadre du replay du jeu et le passage d'une partie à l'autre (15 novembre 2026, ajouté après la coupe ; plus de film depuis le 16, ses règles retirées ; la liste des dernières parties sous le lecteur, qui recopiait « Dernières parties », retirée le 18) | `/revoir`, `/utiles` (les cartes du bilan et du classement des plus utiles), Direction |
 
@@ -826,7 +827,8 @@ code source, mention d'OpenFront) et le lien de `/village/kit.css` dans `tete`. 
 | `src/lib/jeu/logo.ts` | Le logo « Mon Gaulois » |
 | `src/lib/jeu/kit-css.ts` | À la construction : chaque image fixe du kit en PNG, dans les variables de `/village/kit.css` |
 | `src/lib/jeu/dans-la-page.ts` | Dans la page : les mots et nombres qui changent, en images, une par thème quand leur couleur en dépend |
-| `src/lib/jeu/sons.ts` | Les sons courts (actifs après le premier clic) et la musique (coupée au départ), un seul réglage avec le tambour |
+| `src/lib/jeu/sons.ts` | Les sons courts (actifs après le premier clic) et la musique (coupée au départ), un seul réglage pour toute la page (boosters, carillon des objets reçus) |
+| `src/lib/jeu/boosters.ts`, `boosters-dessins.ts`, `sons-des-boosters.ts` | L'ouverture des boosters (21 novembre 2026) : les cinq paquets, le dos et les faces des cartes, le ciel, les fissures, et les sons validés par le pilote ; la scène est `src/components/village/SceneDuBooster.ts`, ses pièces `KitDesBoosters.tsx`, sa feuille `17-jeu-boosters.css` |
 | `src/components/jeu/Pixels.tsx` | Les composants : `Px` (texte), `Icone`, `PetiteIcone`, `Insigne`, `Etiquette`, `Compteur` |
 | `src/components/jeu/MenuDuJeu.tsx` | Le menu : de vrais onglets (`role="tab"`, clavier), en colonne sur ordinateur, en bas sur téléphone |
 | `src/components/jeu/RessourcesDuJeu.tsx` | Le palier du pass et la bourse, dans la barre |

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ServerError, basePath, call } from "../../lib/compte/api";
-import { motionAllowed } from "../../lib/fx/motion";
+import type { ComponentType } from "preact";
 import { ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../../lib/gaulois";
 import type { Banniere, EtatDeLaBanniere } from "../../lib/village/bannieres";
 import { finitionParId, type FinitionDuRayon } from "../../lib/village/cartes";
@@ -9,15 +9,12 @@ import type { MesBannieres, PochetteBannieresReponse } from "../../lib/village/c
 import { sansCadre, type DecorDeBanniere } from "../../lib/village/decor-banniere";
 import { trierParRarete } from "../../lib/village/livre-bannieres";
 import { ANCRE_BANNIERES, BANNIERE_HAUTEUR, BANNIERE_LARGEUR, apresLAchat, banniereDOuverture, idsDesBannieres, messageDuRefusDAchat, raisonDeLaBanniere, raisonDeLaPochetteDesBannieres, sansBanniere } from "../../lib/village/ecran-bannieres";
-import { manque, motStatere, nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
+import { manque, pourcent, stateres } from "../../lib/village/ecran-boutique";
 import type { Familier } from "../../lib/village/familiers";
 import { Problem, Success, messageOf } from "../compte/common";
-import { AlbumDePochette } from "./AlbumPochette";
-import { Compte, Dialogue, PochetteGagneeIci, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
-import { MarqueDeRarete, Piece, Pixels, Prix, peindre } from "./BoutiquePixels";
-import { POCHETTE_BANNIERES_COTE, casesDeLaPochetteBannieres } from "./PochetteBannieresDessin";
+import { Compte, Dialogue, PochetteGagneeIci, Refus, type Issue } from "./BoutiqueDialogue";
+import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
 import { LivreDesBannieres } from "./LivreDesBannieres";
-import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour } from "./Tambour";
 
 /**
  * Les bannières du Gaulois à l'écran (15 novembre 2026, demande du pilote : « un lot de bannières », « achetables par
@@ -30,6 +27,33 @@ import { BoutonSon, Tambour, preparerLeSon, useSonDuTambour } from "./Tambour";
  * `import()`, quand l'un des deux écrans s'affiche. Rien d'autre de ce fichier ne l'importe, sauf ses types.
  */
 type Lib = typeof import("../../lib/village/bannieres");
+
+/**
+ * La fenêtre d'ouverture du booster des bannières (`PochetteBannieres.tsx`) et ce qu'elle reçoit. L'écran des boosters la
+ * donne à la section (`FenetreDuBooster`) : ce fichier ne l'importe pas, pour que « Mon compte », qui montre la bannière du
+ * Gaulois (`MaBanniere`), ne charge pas l'animation des boosters.
+ */
+export interface ProprietesDuBoosterDesBannieres {
+  lib: Lib;
+  prix: number;
+  solde: number;
+  tenue: Tenue;
+  familier: Familier | null;
+  ouvrir: () => Promise<Issue<PochetteBannieresReponse>>;
+  montrer: (id: string) => Promise<Issue<string | null>>;
+  dejaMontree: (id: string) => boolean;
+  onFermer: (recue: string | null) => void;
+}
+
+/** Ce que reçoit la fiche du booster des bannières (`PochetteBannieres.tsx`), sous l'étal. */
+export interface ProprietesDeLaFicheDesBannieres {
+  lib: Lib;
+  mes: MesBannieres & { pochette: NonNullable<MesBannieres["pochette"]> };
+  possedees: ReadonlySet<string>;
+  raison: string | null;
+  gagnees: number;
+  onOuvrir: () => void;
+}
 
 let chargement: Promise<Lib> | null = null;
 /** Le code des bannières, chargé une seule fois pour la page ; un échec se retente à la lecture suivante. */
@@ -169,7 +193,7 @@ function suivante(): void {
   tache();
   setTimeout(suivante, 0);
 }
-function plusTard(tache: () => void): void {
+export function plusTard(tache: () => void): void {
   file.push(tache);
   if (enCours) return;
   enCours = true;
@@ -181,7 +205,7 @@ function plusTard(tache: () => void): void {
  * montrera, sans le logo du clan ni les insignes. Une image : son texte de remplacement la nomme, la description de la
  * bannière est écrite à côté.
  */
-function Scene({ lib, banniere, tenue, familier, class: classe = "" }: { lib: Lib; banniere: Banniere; tenue: Tenue; familier: Familier | null; class?: string }) {
+export function SceneDeLaBanniere({ lib, banniere, tenue, familier, class: classe = "" }: { lib: Lib; banniere: Banniere; tenue: Tenue; familier: Familier | null; class?: string }) {
   const toile = useRef<HTMLCanvasElement>(null);
   const scene = useMemo(() => lib.sceneDeLaBanniere(banniere.id, tenue, familier), [lib, banniere.id, tenue, familier]);
   useEffect(() => {
@@ -201,8 +225,10 @@ function Losanges({ rang }: { rang: number }) {
   );
 }
 
+const Scene = SceneDeLaBanniere;
+
 /** La rareté d'une bannière hors d'une case : écrite et comptée en losanges, dans la couleur de la rareté. */
-function RareteDeLaBanniere({ rarete }: { rarete: Rarete }) {
+export function RareteDeLaBanniere({ rarete }: { rarete: Rarete }) {
   return (
     <span class="banniere-rarete" data-rarete={rarete}>
       <MarqueDeRarete rarete={rarete} />
@@ -223,246 +249,6 @@ function MotsDeLEtat({ etat }: { etat: EtatDeLaBanniere }) {
   );
 }
 
-const CASES_POCHETTE = casesDeLaPochetteBannieres();
-
-/** Le dessin de la pochette des bannières, décoratif : son nom est écrit à côté. */
-export function DessinPochetteBannieres({ echelle, class: classe = "" }: { echelle: number; class?: string }) {
-  return <Pixels largeur={POCHETTE_BANNIERES_COTE} hauteur={POCHETTE_BANNIERES_COTE} cases={CASES_POCHETTE} echelle={echelle} class={classe} />;
-}
-
-/** Les losanges d'une rareté, de un à cinq, décoratifs : le repère de forme des cases. */
-function LosangesDeCase({ rang }: { rang: number }) {
-  return (
-    <span class="case-rang" aria-hidden="true">
-      {Array.from({ length: rang }, (_, i) => (
-        <i key={i} />
-      ))}
-    </span>
-  );
-}
-
-/**
- * La pochette des bannières, dans l'onglet « Pochettes » de la boutique : la seule façon d'avoir un trésor de la pochette. Son
- * dessin, son prix (celui du serveur), combien de trésors le compte a, ses chances, toujours écrites avant d'ouvrir (la
- * part des pochettes qui rendent des statères, puis chaque rareté, 100 en tout), et le bouton d'ouverture, ou la raison
- * pour laquelle il ne peut pas ouvrir. Le dessin ouvre l'album de ses trésors (`AlbumPochette.tsx`), chacun avec sa chance.
- */
-function PochetteDesBannieres({ lib, mes, possedees, raison, onOuvrir }: { lib: Lib; mes: MesBannieres & { pochette: NonNullable<MesBannieres["pochette"]> }; possedees: ReadonlySet<string>; raison: string | null; onOuvrir: () => void }) {
-  const pochette = mes.pochette;
-  // Les chances à chaque pochette : celles du serveur, ramenées à la part des pochettes qui donnent un trésor.
-  const chances = useMemo(() => lib.chancesDUnTresor(pochette), [lib, pochette]);
-  const lignes = lib.lignesDesChancesDesTresors(chances, possedees);
-  const aMoi = lib.TRESORS.filter((b) => possedees.has(b.id)).length;
-  const rendus = lib.rendusDesPaliers(pochette.prix, pochette.paliers);
-  // La part des statères rendus pour ce compte : celle du serveur, plus les chances des raretés où il a tout.
-  const chanceRendus = lib.chanceDesStateresRendus(pochette, possedees) ?? 0;
-  const rembourse = chanceRendus > 1e-9 && rendus.length > 0;
-  // L'album se calcule sur les bannières reçues du serveur (un nouvel ensemble à chaque rendu ne le recalculerait pas).
-  const lireAlbum = useCallback(() => lib.albumDesTresors(chances, idsDesBannieres(mes)), [lib, chances, mes]);
-  // Les trésors se peignent en arrière-plan, un par tour de la boucle : au premier survol, l'album les trouve prêts. Les
-  // dessiner tous d'un coup à l'ouverture figerait la page une bonne demi-seconde.
-  useEffect(() => {
-    for (const tresor of lib.TRESORS) plusTard(() => void lib.dessinDeLaBanniere(tresor.id));
-  }, [lib]);
-  return (
-    <section class="bannieres-pochette" aria-labelledby="bannieres-pochette-titre" data-testid="bannieres-pochette">
-      <AlbumDePochette lireAlbum={lireAlbum} nombre={lib.TRESORS.length} nom="Voir les trésors de la pochette des bannières" testid="bannieres-pochette">
-        <DessinPochetteBannieres echelle={4} class="bannieres-pochette-dessin" />
-      </AlbumDePochette>
-      <div class="bannieres-pochette-nom">
-        <h4 id="bannieres-pochette-titre" class="nom-champ bannieres-pochette-titre">
-          Le booster des bannières
-        </h4>
-        <Prix montant={mes.pochette.prix} class="bannieres-pochette-prix" />
-        <p class="bannieres-pochette-compte" data-testid="bannieres-pochette-compte">
-          <strong class="tnum">{aMoi}</strong> sur {lib.TRESORS.length} trésors à vous
-        </p>
-        {raison ? (
-          <p class="pochette-raison" data-testid="bannieres-pochette-raison">
-            {raison}
-          </p>
-        ) : (
-          <div>
-            <button type="button" class="btn btn-primary" onClick={onOuvrir} data-testid="bannieres-pochette-ouvrir">
-              Ouvrir une pochette
-            </button>
-          </div>
-        )}
-      </div>
-      {lignes && (
-        <ul class="pochette-chances bannieres-pochette-chances" aria-label="Vos chances à chaque pochette" data-testid="bannieres-pochette-chances">
-          {rembourse && (
-            <li class="bannieres-chance-rendu" data-testid="bannieres-pochette-rendu">
-              <Piece />
-              <span class="pochette-rarete">
-                Statères rendus
-                <small>
-                  de {nombre(Math.min(...rendus))} à {stateres(Math.max(...rendus))}
-                </small>
-              </span>
-              <span class="tnum">{pourcent(chanceRendus)}</span>
-            </li>
-          )}
-          {lignes.map(({ rarete, chance, reste }) => (
-            <li key={rarete} data-rarete={rarete}>
-              <LosangesDeCase rang={RARETES[rarete].rang} />
-              <span class="pochette-rarete">{RARETES[rarete].nom}</span>
-              {reste > 0 ? <span class="tnum">{pourcent(chance)}</span> : <span class="bannieres-pochette-complet">toutes à vous</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-      <p class="pochette-note bannieres-pochette-regle">Les trésors de la pochette ne s'obtiennent qu'ici, jamais à la boutique. La pochette ne donne jamais une bannière que vous avez déjà.</p>
-    </section>
-  );
-}
-
-/**
- * Ouvrir une pochette des bannières : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis fait tourner le
- * tambour (`Tambour.tsx`) jusqu'au trésor reçu et, un instant après l'arrêt, le montre en grand, derrière le Gaulois du
- * membre. Le tambour ne fait défiler que des trésors que ce compte n'avait pas, aux chances qu'avait sa pochette
- * (`bandeDesTresors`) : il ne fait que montrer ce que le serveur a déjà tiré. Une pochette qui rend des statères ne fait
- * pas tourner le tambour : la fenêtre dit aussitôt combien, et quelle part du prix. « Passer » l'arrête ; animations coupées, il
- * ne tourne pas. Si le serveur refuse, le compte de l'ouverture s'efface : il ne reste que les mots du refus et « Fermer ».
- */
-function DialoguePochetteBannieres({ lib, prix, chances, possedees, solde, tenue, familier, ouvrir, montrer, dejaMontree, onFermer }: { lib: Lib; prix: number; chances: Readonly<Record<Rarete, number>>; possedees: ReadonlySet<string>; solde: number; tenue: Tenue; familier: Familier | null; ouvrir: () => Promise<Issue<PochetteBannieresReponse>>; montrer: (id: string) => Promise<Issue<string | null>>; dejaMontree: (id: string) => boolean; onFermer: (recue: string | null) => void }) {
-  const [etape, setEtape] = useState<"confirmer" | "envoi" | "tourne" | "arrete" | "revele" | "pose">("confirmer");
-  const [refus, setRefus] = useState<string | null>(null);
-  const [tirage, setTirage] = useState<PochetteBannieresReponse | null>(null);
-  const [bande, setBande] = useState<BandeVue | null>(null);
-  const [passer, setPasser] = useState(false);
-  const [son, basculerSon] = useSonDuTambour();
-  // Le compte montré est celui du moment où la fenêtre s'ouvre : il ne bouge pas quand le solde change derrière.
-  const [depart] = useState(solde);
-  // Ce que ce compte avait en ouvrant : la pochette a tiré parmi les autres trésors, le tambour aussi.
-  const [avant] = useState(possedees);
-  const envoyer = async () => {
-    if (son) preparerLeSon();
-    setEtape("envoi");
-    setRefus(null);
-    const issue = await ouvrir();
-    const recue = issue.ok && issue.valeur.banniere ? lib.banniereParId(issue.valeur.banniere.banniere) : null;
-    if (issue.ok && recue) {
-      const tour = lib.bandeDesTresors(recue, chances, avant);
-      setBande({ depart: tour.depart, cible: tour.cible, rangees: tour.rangees.map((rangee) => ({ nom: rangee.valeur.nom, rarete: rangee.rarete, dessin: lib.vignetteDeLaBanniere(rangee.valeur.id) })) });
-      setTirage(issue.valeur);
-      setEtape("tourne");
-    } else if (issue.ok) {
-      setTirage(issue.valeur);
-      setEtape("revele");
-    } else {
-      setRefus(issue.message);
-      setEtape("confirmer");
-    }
-  };
-  // Le tambour arrêté reste un instant, le temps de voir la rareté fêtée, puis la bannière paraît en grand.
-  useEffect(() => {
-    if (etape !== "arrete") return;
-    const minuterie = window.setTimeout(() => setEtape("revele"), motionAllowed() ? 1600 : 0);
-    return () => window.clearTimeout(minuterie);
-  }, [etape]);
-  const recue = tirage?.banniere ? lib.banniereParId(tirage.banniere.banniere) : null;
-  const rendu = tirage?.remboursement ?? null;
-  const tourne = etape === "tourne" || etape === "arrete";
-  const revelee = etape === "revele" || etape === "pose";
-  const fermer = () => onFermer(recue?.id ?? null);
-  const poser = async () => {
-    if (!recue) return;
-    setEtape("pose");
-    setRefus(null);
-    const issue = await montrer(recue.id);
-    if (issue.ok) fermer();
-    else {
-      setRefus(issue.message);
-      setEtape("revele");
-    }
-  };
-  return (
-    <Dialogue titre={recue && tourne ? "La pochette s'ouvre…" : recue && revelee ? "Un nouveau trésor" : rendu && revelee ? "Des statères rendus" : refus ? "La pochette reste fermée" : "Ouvrir une pochette des bannières ?"} etape={tourne ? "tourne" : revelee ? "revele" : "confirmer"} occupe={etape === "envoi" || etape === "pose" || tourne} onFermer={fermer} testid="dialogue-pochette-bannieres">
-      {tourne && recue && bande ? (
-        <>
-          <Tambour rangees={bande.rangees} depart={bande.depart} cible={bande.cible} passer={passer} son={son} onArrive={() => setEtape((e) => (e === "tourne" ? "arrete" : e))} />
-          <div class="boutique-dialogue-actions">
-            {/* « Passer » montre la bannière tout de suite, sans attendre la toile : la fenêtre ne reste jamais bloquée. */}
-            <button
-              type="button"
-              class="btn btn-ghost"
-              onClick={() => {
-                setPasser(true);
-                setEtape("revele");
-              }}
-              data-testid="bannieres-pochette-passer"
-            >
-              Passer
-            </button>
-            <BoutonSon son={son} onBasculer={basculerSon} testid="bannieres-pochette-son" />
-          </div>
-        </>
-      ) : tirage && recue ? (
-        <div class="banniere-recue">
-          <div class="banniere-fenetre" data-rarete={recue.rarete} data-testid="bannieres-pochette-tirage" data-banniere={recue.id}>
-            <Scene lib={lib} banniere={recue} tenue={tenue} familier={familier} class="banniere-scene-fenetre" />
-          </div>
-          <p class="banniere-recue-nom" data-testid="bannieres-pochette-tirage-nom">
-            {recue.nom}
-          </p>
-          <RareteDeLaBanniere rarete={recue.rarete} />
-          <p class="boutique-dialogue-texte">
-            Il vous reste {stateres(tirage.solde)}. {tirage.reste > 0 ? `Encore ${tirage.reste} ${tirage.reste > 1 ? "trésors" : "trésor"} à gagner.` : "Vous les avez tous."}
-          </p>
-          <Refus message={refus} />
-          <div class="boutique-dialogue-actions">
-            {!dejaMontree(recue.id) && (
-              <button type="button" class="btn btn-primary" disabled={etape === "pose"} onClick={() => void poser()} data-testid="bannieres-pochette-poser">
-                {etape === "pose" ? "Enregistrement…" : "Mettre sur /gaulois"}
-              </button>
-            )}
-            <button type="button" class="btn btn-ghost" disabled={etape === "pose"} onClick={fermer} data-testid="bannieres-pochette-fermer">
-              Fermer
-            </button>
-          </div>
-        </div>
-      ) : tirage && rendu ? (
-        <div class="banniere-recue">
-          <div class="banniere-rendu" data-testid="bannieres-pochette-rendu-recu">
-            <Piece taille={24} echelle={3} />
-            <p class="banniere-rendu-montant">
-              <strong class="tnum">{nombre(rendu.rendu)}</strong>
-              {motStatere(rendu.rendu)} {rendu.rendu > 1 ? "rendus" : "rendu"} par la pochette
-            </p>
-            <p class="banniere-rendu-part">
-              <span class="tnum">{pourcent(rendu.pourcent)}</span> de son prix
-            </p>
-          </div>
-          <p class="boutique-dialogue-texte">Pas de trésor cette fois. Il vous reste {stateres(tirage.solde)}.</p>
-          <div class="boutique-dialogue-actions">
-            <button type="button" class="btn btn-ghost" onClick={fermer} data-testid="bannieres-pochette-fermer">
-              Fermer
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div class="pochette-attente" data-envoi={etape === "envoi" ? "" : undefined}>
-            <DessinPochetteBannieres echelle={4} />
-          </div>
-          {!refus && <Compte prix={prix} solde={depart} />}
-          <Refus message={refus} />
-          <div class="boutique-dialogue-actions">
-            {!refus && (
-              <button type="button" class="btn btn-primary" disabled={etape === "envoi"} onClick={() => void envoyer()} data-testid="bannieres-pochette-confirmer">
-                {etape === "envoi" ? "Ouverture…" : "Ouvrir"}
-              </button>
-            )}
-            <button type="button" class="btn btn-ghost" disabled={etape === "envoi"} onClick={fermer} data-testid="bannieres-pochette-annuler">
-              {refus ? "Fermer" : "Annuler"}
-            </button>
-          </div>
-        </>
-      )}
-    </Dialogue>
-  );
-}
 
 /**
  * Acheter une bannière : la fenêtre la montre derrière le Gaulois du membre, dit son prix et ce qu'il restera, puis
@@ -561,8 +347,17 @@ export function SectionDesBannieres({
   onSolde,
   onRefus,
   onPrixDeLaPochette,
+  FenetreDuBooster,
+  FicheDuBooster,
+  boostersGagnes = 0,
 }: {
   partie?: "bannieres" | "pochette";
+  /** La fiche du booster des bannières (sous l'étal), donnée par l'écran des boosters, comme sa fenêtre. */
+  FicheDuBooster?: ComponentType<ProprietesDeLaFicheDesBannieres>;
+  /** Les boosters des bannières gagnés à la loterie, qui restent à ouvrir sans payer. */
+  boostersGagnes?: number;
+  /** La fenêtre d'ouverture du booster des bannières, donnée par l'écran des boosters ; sans elle, le booster ne s'ouvre pas ici. */
+  FenetreDuBooster?: ComponentType<ProprietesDuBoosterDesBannieres>;
   tenue: Tenue;
   familier: Familier | null;
   solde: number | null;
@@ -720,7 +515,7 @@ export function SectionDesBannieres({
         </>
       )}
 
-      {pochette && !entiere && <PochetteDesBannieres lib={lib} mes={{ ...mes, pochette }} possedees={possedees} raison={raisonPochette} onOuvrir={() => setPochetteOuverte(true)} />}
+      {pochette && !entiere && FicheDuBooster && <FicheDuBooster lib={lib} mes={{ ...mes, pochette }} possedees={possedees} raison={raisonPochette} gagnees={boostersGagnes} onOuvrir={() => setPochetteOuverte(true)} />}
       {/* Sans la vitrine, qui le dit dans l'onglet « Bannière » : ce qui vient de se passer (trésor reçu, mis sur /gaulois). */}
       {!entiere && (
         <div class="banniere-avis" data-testid="bannieres-pochette-avis">
@@ -822,13 +617,11 @@ export function SectionDesBannieres({
           onFermer={() => setFenetre(null)}
         />
       )}
-      {pochetteOuverte && pochette && (
+      {pochetteOuverte && pochette && FenetreDuBooster && (
         <PochetteGagneeIci.Provider value={pochetteGagnee}>
-          <DialoguePochetteBannieres
+          <FenetreDuBooster
             lib={lib}
             prix={pochette.prix}
-            chances={pochette.chances}
-            possedees={possedees}
             solde={soldeConnu}
             tenue={tenue}
             familier={familier}

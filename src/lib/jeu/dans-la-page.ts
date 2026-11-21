@@ -40,6 +40,15 @@ export const COULEURS_D_ECRITURE = {
   encre: "#231503",
   rouge: "#e0263a",
   marine: "#0a1230",
+  // Les raretés, pour les boosters (21 novembre 2026, Claude Fable 5.2) : les jetons --rarete-*-texte du site, clair et
+  // sombre ; « rendu » : l'ardoise des statères rendus, qui n'est la couleur d'aucune rareté.
+  commun: { clair: "#0b5cad", sombre: "#b5d8ff" },
+  "peu-commun": { clair: "#2a3bc4", sombre: "#bcc5ff" },
+  epique: { clair: "#6a1fd0", sombre: "#dcbcff" },
+  mystique: { clair: "#a50f24", sombre: "#ffb5bd" },
+  legendaire: { clair: "#7d5900", sombre: "#ffdd80" },
+  divin: { clair: "#00706a", sombre: "#c4fff7" },
+  rendu: { clair: "#3d4763", sombre: "#c3cbe0" },
 } as const;
 export type CouleurDEcriture = keyof typeof COULEURS_D_ECRITURE;
 

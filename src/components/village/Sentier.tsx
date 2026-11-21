@@ -36,7 +36,7 @@ import { useBannieres } from "./Bannieres";
 import { CaseMontree, Dialogue, DialogueAchat, ObjetRecu, type Issue } from "./BoutiqueDialogue";
 import { useJoie } from "./Cases";
 import InsigneDeSaison from "./InsigneDeSaison";
-import { preparerLeSonSiVoulu } from "./Tambour";
+import { preparerLeSonSiVoulu } from "./Carillon";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
 import { sansCadre } from "../../lib/village/decor-banniere";
 import { DESSINS_DES_MISSIONS, EPEE_DES_MISSIONS, casesDuChaudron, pochetteDeRarete, type DessinDuSentier } from "./SentierDessins";

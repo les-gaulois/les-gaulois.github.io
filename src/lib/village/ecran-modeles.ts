@@ -1,15 +1,14 @@
 /**
  * Ce que les écrans des Gaulois uniques déduisent de ce qu'ils ont reçu (15 novembre 2026) : la section « Gaulois
  * uniques » de « La boutique » et le choix du corps dans « Mon Gaulois » (`src/components/village/Modeles.tsx`). Des
- * calculs purs : les lignes des chances de la pochette, la bande de son tambour, les modèles du compte, l'essayage. Rien
+ * calculs purs : les lignes des chances de la pochette, les modèles du compte, l'essayage. Rien
  * ne décide d'un droit, d'un prix ni d'un tirage : le serveur le fait, et `modeles.ts` lit ses réponses.
  */
 import { RARETES } from "../gaulois";
 import { rognerLeDessin, type Album, type ElementDeLAlbum } from "./album-pochette";
 import type { MesModeles } from "./contrat";
 import type { DessinEnCases } from "./ecran-familiers";
-import { MODELES, RARETES_DES_GAULOIS_UNIQUES, chancesDeLaPochetteDesModeles, chancesPourMoi, type RareteDUnique, etatDuModele, modeleNu, modelesParRarete, restantsParRarete, type EtatDuModele, type ModeleRange, type PochetteDesModeles } from "./modeles";
-import { CIBLE_DU_TAMBOUR, DEPART_DU_TAMBOUR, rangeeAuHasard } from "./tambour";
+import { MODELES, RARETES_DES_GAULOIS_UNIQUES, chancesDeLaPochetteDesModeles, type RareteDUnique, etatDuModele, modeleNu, modelesParRarete, restantsParRarete, type EtatDuModele, type ModeleRange, type PochetteDesModeles } from "./modeles";
 
 /** Un remboursement de la pochette : la part du prix rendue, en pour cent, et les statères rendus. */
 export interface Rendu {
@@ -68,37 +67,6 @@ export function modelesPossedes(mes: Pick<MesModeles, "modeles"> | null, liste: 
   return liste.filter((modele) => ids.has(modele.id));
 }
 
-/** Ce qu'une pochette des Gaulois uniques peut sortir, et donc une rangée de son tambour : un modèle, ou un remboursement. */
-export type SortieDeLaPochette = { kind: "modele"; modele: ModeleRange } | ({ kind: "rendu" } & Rendu);
-
-/** Les rangées d'un tour du tambour des Gaulois uniques : `depart` au milieu quand il commence, `cible` (le résultat) à l'arrêt. */
-export interface BandeDesUniques {
-  rangees: SortieDeLaPochette[];
-  depart: number;
-  cible: number;
-}
-
-/**
- * La bande du tambour de la pochette des Gaulois uniques, pour un compte. Chaque rangée est tirée comme le serveur tire :
- * d'abord remboursement ou modèle, selon la part des remboursements de ce compte (raretés terminées comprises) ; un remboursement prend un palier à chances égales ;
- * un modèle, seulement parmi ceux que le compte n'avait pas avant d'ouvrir, aux chances que la pochette avait pour lui. Ce
- * que le serveur a répondu (`recu`) est posé à la rangée de l'arrêt : aucune autre rangée n'est choisie d'après lui.
- */
-export function bandeDesModeles(recu: SortieDeLaPochette, pochette: Pick<PochetteDesModeles, "prix" | "chances" | "remboursement" | "paliers">, possedes: ReadonlySet<string>, hasard: () => number = Math.random, liste: readonly ModeleRange[] = MODELES): BandeDesUniques {
-  const parRarete = Object.fromEntries(RARETES_DES_GAULOIS_UNIQUES.map((rarete) => [rarete, liste.filter((m) => m.rarete === rarete && !possedes.has(m.id))])) as Partial<Record<string, ModeleRange[]>>;
-  const pourMoi = chancesPourMoi(pochette.chances, possedes, liste) ?? pochette.chances;
-  const rendus = rendusDeLaPochette(pochette, possedes, liste);
-  const tirer = (): SortieDeLaPochette => {
-    if (rendus && hasard() * 100 < rendus.chance) {
-      const palier = rendus.paliers[Math.min(rendus.paliers.length - 1, Math.floor(hasard() * rendus.paliers.length))];
-      if (palier) return { kind: "rendu", ...palier };
-    }
-    const rangee = rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete] ?? [], hasard);
-    return rangee ? { kind: "modele", modele: rangee.valeur } : recu;
-  };
-  const rangees = Array.from({ length: CIBLE_DU_TAMBOUR + 4 }, (_, i) => (i === CIBLE_DU_TAMBOUR ? recu : tirer()));
-  return { rangees, depart: DEPART_DU_TAMBOUR, cible: CIBLE_DU_TAMBOUR };
-}
 
 /** Les silhouettes de la pochette : jusqu'à trois modèles que le compte n'a pas, ou les trois premiers s'il les a tous. */
 export function modelesDeLaPochette(possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): ModeleRange[] {

@@ -1,66 +1,131 @@
-import { useCallback } from "preact/hooks";
+import type { ComponentChildren } from "preact";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import type { Objet, RareteDObjet as Rarete, Vignette } from "../../lib/gaulois";
+import { carteDeRarete, type CarteDeScene } from "../../lib/jeu/boosters";
+import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import { albumDeLaPochetteSurprise, nombreDansLaPochetteSurprise } from "../../lib/village/album-pochette";
-import type { MaBoutique } from "../../lib/village/contrat";
+import type { MaBoutique, PochetteReponse } from "../../lib/village/contrat";
 import { chancesDeLaPochette, manque, pourcent, stateres } from "../../lib/village/ecran-boutique";
-import { AlbumDePochette } from "./AlbumPochette";
-import { Pixels, Prix } from "./BoutiquePixels";
-import { POCHETTE_COTE, casesDeLaPochette } from "./PochetteDessin";
-
-const CASES_POCHETTE = casesDeLaPochette();
-
-/** Le dessin de la pochette surprise, décoratif : son nom est écrit à côté. */
-export function DessinPochette({ echelle = 3, class: classe = "" }: { echelle?: number; class?: string }) {
-  return <Pixels largeur={POCHETTE_COTE} hauteur={POCHETTE_COTE} cases={CASES_POCHETTE} echelle={echelle} class={classe} />;
-}
+import type { Issue } from "./BoutiqueDialogue";
+import { feterLObjet } from "./Cases";
+import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RareteEnPixels, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { OuvertureDuBooster } from "./OuvertureDuBooster";
 
 /**
- * La pochette surprise : son dessin, son prix, et ses chances par rareté, toujours écrites avant d'ouvrir, telles que le
- * serveur les donne. `fermee` : pourquoi ce compte ne peut pas encore acheter, s'il ne le peut pas. Le dessin ouvre
- * l'album des objets qu'elle peut donner (`AlbumPochette.tsx`), chacun avec sa chance.
+ * Le booster surprise, sous l'étal (fiche du kit, `FicheDuBooster`) : son paquet, qui ouvre l'album des objets qu'il peut
+ * donner (`AlbumPochette.tsx`), son prix, et ses chances par rareté, toujours écrites avant d'ouvrir, telles que le serveur
+ * les donne. `fermee` : pourquoi ce compte ne peut pas encore acheter, s'il ne le peut pas. `gagnees` : les boosters
+ * surprises gagnés à la loterie, qui s'ouvrent sans payer.
  */
-export function Pochette({ boutique, solde, fermee, onOuvrir }: { boutique: MaBoutique; solde: number; fermee: string | null; onOuvrir: () => void }) {
+export function Pochette({ boutique, solde, fermee, gagnees = 0, onOuvrir }: { boutique: MaBoutique; solde: number; fermee: string | null; gagnees?: number; onOuvrir: () => void }) {
   const { prix, chances } = boutique.pochette;
   const il_manque = manque(solde, prix);
   const raison = fermee ?? (il_manque > 0 ? `Il vous manque ${stateres(il_manque)}.` : null);
   const lireAlbum = useCallback(() => albumDeLaPochetteSurprise(chances, boutique.inventaire), [chances, boutique.inventaire]);
+  const nombre = nombreDansLaPochetteSurprise(chances);
   return (
-    <section class="pochette" aria-labelledby="pochette-titre" data-testid="pochette">
-      <div class="pochette-tete">
-        <AlbumDePochette lireAlbum={lireAlbum} nombre={nombreDansLaPochetteSurprise(chances)} nom="Voir ce que contient la pochette surprise" testid="pochette">
-          <DessinPochette class="pochette-dessin" />
-        </AlbumDePochette>
-        <div class="pochette-nom">
-          <h4 id="pochette-titre" class="nom-champ vestiaire-titre">
-            Le booster surprise
-          </h4>
-          <Prix montant={prix} class="pochette-prix" />
-        </div>
-      </div>
-      <ul class="pochette-chances" aria-label="Chances par rareté" data-testid="pochette-chances">
-        {chancesDeLaPochette(chances).map(({ rarete, nom, rang, chance }) => (
-          <li key={rarete} data-rarete={rarete}>
-            <span class="case-rang" aria-hidden="true">
-              {Array.from({ length: rang }, (_, i) => (
-                <i key={i} />
-              ))}
-            </span>
-            <span class="pochette-rarete">{nom}</span>
-            <span class="tnum">{pourcent(chance)}</span>
-          </li>
-        ))}
-      </ul>
-      <p class="pochette-note">Un objet déjà possédé peut sortir : un double se vend au marché.</p>
-      {raison ? (
-        <p class="pochette-raison" data-testid="pochette-raison">
-          {raison}
-        </p>
+    <FicheDuBooster
+      sorte="surprise"
+      nom="Booster surprise"
+      testid="pochette"
+      album={{ lireAlbum, nombre, nom: "Voir ce que contient le booster surprise" }}
+      contenu={`${nombre} objets`}
+      prix={prix}
+      gagnees={gagnees}
+      raison={raison}
+      onOuvrir={onOuvrir}
+      lignes={chancesDeLaPochette(chances).map(({ rarete, chance }) => ({ kind: "rarete" as const, rarete, chance: pourcent(chance) }))}
+      regle={<p>Un objet déjà possédé peut sortir : un double se vend au marché, à une demande ou au jeu.</p>}
+    />
+  );
+}
+
+/**
+ * Ouvrir un booster surprise : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis le joueur ouvre le
+ * paquet et retourne la carte de l'objet que le serveur a tiré (`OuvertureDuBooster.tsx`, l'animation validée par le pilote
+ * le 21 novembre 2026, qui remplace le tambour des pochettes). Dessous, une fois la carte retournée : son nom, sa rareté,
+ * le choix d'un double, la bourse et « Le porter ». L'animation ne fait que montrer ce que le serveur a déjà tiré.
+ */
+export function DialoguePochette({
+  prix,
+  solde,
+  ouvrir,
+  objetDe,
+  vignetteDe,
+  dejaPorte,
+  onPorter,
+  suiteDuDouble,
+  onFermer,
+}: {
+  prix: number;
+  solde: number;
+  ouvrir: () => Promise<Issue<PochetteReponse>>;
+  objetDe: (tire: PochetteReponse["objet"]) => Objet | undefined;
+  vignetteDe: (tire: PochetteReponse["objet"]) => Vignette | null;
+  dejaPorte: (tire: PochetteReponse["objet"]) => boolean;
+  onPorter: (tire: PochetteReponse["objet"]) => void;
+  /** Ce qu'un double peut devenir (19 novembre 2026) : le vendre à une demande, au marché, ou au jeu. Sans elle, une phrase. */
+  suiteDuDouble?: (tire: PochetteReponse["objet"]) => ComponentChildren;
+  onFermer: () => void;
+}) {
+  const [etape, setEtape] = useState<"confirmer" | "envoi" | "ouvre" | "revele">("confirmer");
+  const [refus, setRefus] = useState<string | null>(null);
+  const [tirage, setTirage] = useState<PochetteReponse | null>(null);
+  const [carte, setCarte] = useState<CarteDeScene | null>(null);
+  const [depart] = useState(solde);
+  const envoyer = async () => {
+    // Dans le clic : sinon certains navigateurs gardent la scène muette.
+    reveillerLeSon();
+    setEtape("envoi");
+    setRefus(null);
+    const issue = await ouvrir();
+    if (issue.ok) {
+      const tire = issue.valeur.objet;
+      setCarte(carteDeRarete(objetDe(tire)?.nom ?? "Objet", tire.rarete, vignetteDe(tire)));
+      setTirage(issue.valeur);
+      setEtape("ouvre");
+    } else {
+      setRefus(issue.message);
+      setEtape("confirmer");
+    }
+  };
+  const tire = tirage?.objet;
+  // L'objet tiré, une fois la fenêtre fermée : le Gaulois de la page saute de joie s'il est épique ou plus.
+  const tireVu = useRef<Rarete | null>(null);
+  tireVu.current = etape === "revele" && tire ? tire.rarete : null;
+  useEffect(
+    () => () => {
+      if (tireVu.current) feterLObjet(tireVu.current);
+    },
+    [],
+  );
+  const objet = tire ? objetDe(tire) : undefined;
+  const ouverte = etape === "ouvre" || etape === "revele";
+  const titre = etape === "revele" && tire ? (tire.double ? "Un double" : "Nouvel objet") : refus ? "Le booster reste fermé" : "Booster surprise";
+  return (
+    <FenetreDuBooster titre={titre} etape={ouverte ? "ouvre" : "confirmer"} occupe={etape === "envoi" || etape === "ouvre"} scene={ouverte} onFermer={onFermer} testid="dialogue-pochette">
+      {ouverte && tirage && tire && objet && carte ? (
+        <OuvertureDuBooster sorte="surprise" carte={carte} revelee={etape === "revele"} onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}>
+          <ResultatDuBooster nom={objet.nom} detail={<RareteEnPixels rarete={tire.rarete} />} double={tire.double} testid="pochette-tirage">
+            <span hidden data-objet={`${tire.emplacement}/${tire.objet}`} />
+          </ResultatDuBooster>
+          <ResteEnPixels solde={tirage.solde} />
+          {tire.double &&
+            (suiteDuDouble ? (
+              suiteDuDouble(tire)
+            ) : (
+              <p class="bst-mot" data-testid="pochette-double">
+                Vous l'aviez déjà : ce double se vend au marché.
+              </p>
+            ))}
+          <div class="bst-actions">
+            {!dejaPorte(tire) && <BoutonDesBoosters t="Le porter" or onClick={() => onPorter(tire)} testid="pochette-porter" />}
+            <BoutonDesBoosters t={tire.double ? "Le garder" : "Fermer"} dit={tire.double ? "Le garder et fermer" : "Fermer"} onClick={onFermer} testid="pochette-fermer" />
+          </div>
+        </OuvertureDuBooster>
       ) : (
-        <div>
-          <button type="button" class="btn btn-secondary" onClick={onOuvrir} data-testid="pochette-ouvrir">
-            Ouvrir un booster
-          </button>
-        </div>
+        <ConfirmerLeBooster sorte="surprise" prix={prix} solde={depart} refus={refus} envoi={etape === "envoi"} onOuvrir={() => void envoyer()} onFermer={onFermer} testid="pochette" />
       )}
-    </section>
+    </FenetreDuBooster>
   );
 }

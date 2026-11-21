@@ -33,10 +33,10 @@ import {
   rayonDemandeUneFois,
 } from "../../lib/village/boutique-rayons";
 import type { MaBoutique, PochetteFamiliersReponse, PochetteGagnee, PochetteReponse, PochetteStateresReponse, RefObjet } from "../../lib/village/contrat";
-import { bonsEnMots, lirePochettesGagnees } from "../../lib/village/loterie";
+import { lirePochettesGagnees } from "../../lib/village/loterie";
 import { demandeLesBannieres } from "../../lib/village/ecran-bannieres";
 import { avecUnExemplaire, lireAchat, lireBoutique, lirePochette, lireStateres, manque, messageDuRefus, objetPayant, prixDeLObjet, quantitePossedee, raisonBoutiqueFermee, stateres } from "../../lib/village/ecran-boutique";
-import { ANCRE_FAMILIERS, demandeLesFamiliers, idsPossedes, tailleDeLApercu } from "../../lib/village/ecran-familiers";
+import { ANCRE_FAMILIERS, demandeLesFamiliers, tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { actionDeLEssai, essaiDuModeleValide } from "../../lib/village/ecran-modeles";
 import {
   demandesAServir,
@@ -59,28 +59,31 @@ import {
   type PossedeLisible,
 } from "../../lib/village/ecran-marche";
 import { estEnRayon, lireTournante, motsDeLaCase, raisonHorsRayon, regleDeLaRotation, retourDe, type TournanteLue } from "../../lib/village/boutique-tournante";
-import { pochetteDOuverture, type PochetteDeLEtal } from "../../lib/village/etal";
+import { boostersGagnesEnMots, pochetteDOuverture, type PochetteDeLEtal } from "../../lib/village/etal";
 import { familierDe } from "../../lib/village/familiers";
 import { lireMaRevente, lireRevente, messageDeLaRevente, type MaRevente, type ObjetRevendable } from "../../lib/village/revente";
 import { demandeLesModeles, messageDuRefusDesModeles, modeleParId, raisonDeLAchat, tenueAvecModele } from "../../lib/village/modeles";
 import { TOUT, choisirFiltre, collectionDuRayon, motsDeLaCollection, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
 import { Loading, Problem, Success, messageOf, useNow } from "../compte/common";
-import { DessinPochetteBannieres, SectionDesBannieres, useDecorDuGaulois } from "./Bannieres";
+import { SectionDesBannieres, useDecorDuGaulois } from "./Bannieres";
 import { Bourse } from "./Bourse";
-import { DialogueAchat, DialoguePochette, PochetteGagneeIci, type Issue } from "./BoutiqueDialogue";
+import { DialogueAchat, PochetteGagneeIci, type Issue } from "./BoutiqueDialogue";
 import { Pixels, Prix } from "./BoutiquePixels";
+import { Icone } from "../jeu/Pixels";
 import { ApercuGaulois, BarreDesRayons, Case, useSceneCollee } from "./Cases";
 import { useFamiliers } from "./Familiers";
 import { CaseObjet, Prix as PrixDuMarche } from "./MarcheCase";
 import { useModeles } from "./Modeles";
 import { DialogueAchat as DialogueOffre, DialogueChoixDemande, DialogueDemande, DialogueRevente, DialogueServir, DialogueVente } from "./MarcheDialogues";
 import { EtalDesPochettes } from "./Etal";
-import { DessinPochette, Pochette } from "./Pochette";
-import { DessinPochetteFamiliers, DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
-import { DessinPochetteStateres, DialogueStateres, PochetteStateres, usePochetteStateres } from "./PochetteStateres";
+import { BoutonDesBoosters, PaquetEnImage, StateresEnPixels } from "./KitDesBoosters";
+import { DialoguePochette, Pochette } from "./Pochette";
+import { DialoguePochetteBannieres, FicheDesBannieres } from "./PochetteBannieres";
+import { DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
+import { DialogueStateres, PochetteStateres, usePochetteStateres } from "./PochetteStateres";
 import { SectionDesCadres } from "./Cadres";
 import { SectionDesCartes } from "./Cartes";
-import { DessinDeLaPochette, DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles } from "./SectionModeles";
+import { DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles } from "./SectionModeles";
 import { pochetteDeRarete } from "./SentierDessins";
 import { CLE_DES_RAYONS_VUS, faireLePointDesRayons, noterLeRayonOuvert } from "../../lib/village/boutique-jeu";
 import { BoutonDuJeu, ChoixDeRarete, Lot, OngletsDesRayons, PrixDuJeu, RangeeDeLots, Ruban, SelectionDeLaSemaine, SousTitre } from "./BoutiqueDuJeu";
@@ -190,25 +193,19 @@ function MaDemande({ demande, maintenant, occupe, onRetirer }: { demande: Demand
  * garder : « Fermer ».
  */
 function ChoixDuDouble({ demande, marcheOuvert, rendu, onServir, onVendre, onRevendre }: { demande: DemandeLisible | null; marcheOuvert: boolean; rendu: number | null; onServir: () => void; onVendre: () => void; onRevendre: () => void }) {
+  // Dans la fenêtre du booster (habillée du kit, 21 novembre 2026) : la phrase porte les noms et les montants, les boutons
+  // des mots courts, et leur nom entier va aux lecteurs d'écran.
   return (
-    <div class="choix-du-double" data-testid="pochette-double">
-      <p class="boutique-dialogue-texte">Vous l'aviez déjà. Ce double peut partir :</p>
-      <div class="boutique-dialogue-actions">
-        {demande && (
-          <button type="button" class="btn btn-secondary" onClick={onServir} data-testid="double-servir">
-            Le vendre pour {stateres(demande.prix)}
-          </button>
-        )}
-        {marcheOuvert && (
-          <button type="button" class="btn btn-ghost" onClick={onVendre} data-testid="double-vendre">
-            Le mettre au marché
-          </button>
-        )}
-        {rendu !== null && (
-          <button type="button" class="btn btn-ghost" onClick={onRevendre} data-testid="double-revendre">
-            Le revendre au jeu pour {stateres(rendu)}
-          </button>
-        )}
+    <div class="choix-du-double bst-double" data-testid="pochette-double">
+      <p class="bst-mot">
+        Vous l'aviez déjà.{demande ? ` Un membre en demande un : ${stateres(demande.prix)}.` : ""}
+        {rendu !== null ? ` Le jeu le reprend pour ${stateres(rendu)}.` : ""}
+        {!demande && !marcheOuvert && rendu === null ? " Ce double se vend au marché." : ""}
+      </p>
+      <div class="bst-actions">
+        {demande && <BoutonDesBoosters t="Le vendre" dit={`Le vendre pour ${stateres(demande.prix)}`} or onClick={onServir} testid="double-servir" apres={<StateresEnPixels n={demande.prix} couleur="encre" signe="+" />} />}
+        {marcheOuvert && <BoutonDesBoosters t="Au marché" dit="Le mettre au marché" onClick={onVendre} testid="double-vendre" />}
+        {rendu !== null && <BoutonDesBoosters t="Au jeu" dit={`Le revendre au jeu pour ${stateres(rendu)}`} onClick={onRevendre} testid="double-revendre" apres={<StateresEnPixels n={rendu} couleur="creme" relief="cerne" signe="+" />} />}
       </div>
     </div>
   );
@@ -325,7 +322,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   /** Après chaque ouverture, réussie ou refusée : un bon a pu partir, la fenêtre suivante doit le savoir. */
   const puisRelire = <T,>(issue: Promise<Issue<T>>): Promise<Issue<T>> => issue.finally(relireLesGagnees);
   const avecBon = (pochette: PochetteGagnee, solde: number, prix: number): number => (gagnees[pochette] ? Math.max(solde, prix) : solde);
-  const gagneesEnMots = bonsEnMots(gagnees);
+  const gagneesEnMots = boostersGagnesEnMots(gagnees);
   // L'étal : la pochette dont la carte est montrée. À l'arrivée, la première gagnée à la loterie, sinon la surprise. Le
   // choix se fige dès qu'il est fait, par un clic ou par cette arrivée : il ne suit plus les pochettes gagnées, qui
   // changent pendant qu'on en ouvre une (la carte, et la fenêtre des bannières qu'elle porte, disparaîtraient).
@@ -626,7 +623,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
       setBoutique((b) => b && { ...b, solde: tirage.solde, inventaire: avecUnExemplaire(b.inventaire, tirage.objet, "pochette", new Date().toISOString()) });
       setSolde(tirage.solde);
       recevoir(tirage.objet, OBJETS[tirage.objet.emplacement][tirage.objet.objet]?.nom ?? "Objet");
-      // Pendant que le tambour tourne : ce que ce double pourrait devenir (une demande, le marché, la revente).
+      // Pendant que le booster s'ouvre : ce que ce double pourrait devenir (une demande, le marché, la revente).
       if (tirage.objet.double) void Promise.all([lireLeMarche(true), lireLaRevente()]);
       return { ok: true, valeur: tirage };
     } catch (e) {
@@ -937,7 +934,6 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
         <PochetteGagneeIci.Provider value={Boolean(gagnees.surprise)}>
           <DialoguePochette
             prix={boutique.pochette.prix}
-            chances={boutique.pochette.chances}
             solde={soldeConnu ?? boutique.solde}
             ouvrir={() => puisRelire(ouvrirPochette(boutique.pochette.prix))}
             objetDe={(tire) => OBJETS[tire.emplacement][tire.objet]}
@@ -977,8 +973,6 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
         <PochetteGagneeIci.Provider value={Boolean(gagnees.familiers)}>
           <DialogueFamiliers
             prix={familiers.mes.pochette.prix}
-            chances={familiers.mes.pochette.chances}
-            possedes={idsPossedes(familiers.mes)}
             solde={soldeConnu ?? familiers.mes.solde}
             village={village}
             ouvrir={() => puisRelire(ouvrirPochetteFamiliers(familiers.mes?.pochette.prix ?? 0))}
@@ -1490,7 +1484,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
           </div>
           {/* Ce qui vient de se passer, près du Gaulois, qui reste en vue : l'objet reçu se porte d'ici. La seule zone de
               la page qui annonce un achat aux lecteurs d'écran ; le solde qui reste est dit dans la fenêtre. Pendant qu'une
-              pochette est ouverte, elle se tait : le tambour tourne encore, et la page, visible derrière la fenêtre, ne
+              booster est ouvert, elle se tait : la carte n'est pas encore retournée, et la page, visible derrière la fenêtre, ne
               dirait pas avant lui ce qui est sorti. Elle parle quand la fenêtre se ferme. */}
           <div class="boutique-avis" data-testid="boutique-avis">
             <Success message={pochetteOuverte ? null : reussite} />
@@ -1799,8 +1793,9 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
             {rayon === RAYON_POCHETTES && (
               <>
                 {gagneesEnMots.length > 0 && (
-                  <p class="pochettes-gagnees" data-testid="pochettes-gagnees">
-                    Gagnées à la loterie ou offertes par un palier de victoires, à ouvrir sans rien payer : {gagneesEnMots.join(", ")}.
+                  <p class="pochettes-gagnees bst-gagnes" data-testid="pochettes-gagnees">
+                    <Icone nom="loterie" />
+                    <span>Gagnés à la loterie ou offerts par un palier de victoires, à ouvrir sans rien payer : {gagneesEnMots.join(", ")}.</span>
                   </p>
                 )}
                 {/* L'étal (17 novembre 2026, choix du pilote sur exemples : « une à la fois ») : les cinq pochettes devant sa
@@ -1817,31 +1812,31 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                     modeles: modeles.etat.kind === "pret" ? modeles.etat.mes.pochette.prix : null,
                   }}
                   dessins={{
-                    surprise: <DessinPochette echelle={4} />,
-                    stateres: <DessinPochetteStateres echelle={4} />,
-                    familiers: <DessinPochetteFamiliers echelle={4} />,
-                    bannieres: <DessinPochetteBannieres echelle={4} />,
-                    modeles: <DessinDeLaPochette possedes={new Set(modeles.etat.kind === "pret" ? modeles.etat.mes.modeles.map((ligne) => ligne.modele) : [])} />,
+                    surprise: <PaquetEnImage sorte="surprise" classe="bst-etal-paquet" />,
+                    stateres: <PaquetEnImage sorte="stateres" classe="bst-etal-paquet" />,
+                    familiers: <PaquetEnImage sorte="familiers" classe="bst-etal-paquet" />,
+                    bannieres: <PaquetEnImage sorte="bannieres" classe="bst-etal-paquet" />,
+                    modeles: <PaquetEnImage sorte="modeles" classe="bst-etal-paquet" />,
                   }}
                   onChoisir={setPochetteChoisie}
                 />
                 {((pochetteSurLEtal === "surprise" && boutique) || (pochetteSurLEtal === "stateres" && pochetteStateres.ma)) && (
                   <div class="pochettes-tiers" data-seule="" data-testid="pochettes-tiers">
-                    {pochetteSurLEtal === "surprise" && boutique && <Pochette boutique={boutique} solde={avecBon("surprise", soldeConnu ?? boutique.solde, boutique.pochette.prix)} fermee={fermee} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
+                    {pochetteSurLEtal === "surprise" && boutique && <Pochette boutique={boutique} solde={avecBon("surprise", soldeConnu ?? boutique.solde, boutique.pochette.prix)} fermee={fermee} gagnees={gagnees.surprise ?? 0} onOuvrir={() => setFenetre({ kind: "pochette" })} />}
                     {pochetteSurLEtal === "stateres" && pochetteStateres.ma && (
-                      <PochetteStateres ma={pochetteStateres.ma} solde={avecBon("stateres", soldeConnu ?? pochetteStateres.ma.solde, pochetteStateres.ma.prix)} onOuvrir={() => setFenetre({ kind: "stateres" })} />
+                      <PochetteStateres ma={pochetteStateres.ma} solde={avecBon("stateres", soldeConnu ?? pochetteStateres.ma.solde, pochetteStateres.ma.prix)} gagnees={gagnees.stateres ?? 0} onOuvrir={() => setFenetre({ kind: "stateres" })} />
                     )}
                   </div>
                 )}
-                {pochetteSurLEtal === "familiers" && familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={avecBon("familiers", soldeConnu ?? familiers.mes.solde, familiers.mes.pochette.prix)} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
+                {pochetteSurLEtal === "familiers" && familiers.mes && <PochetteFamiliers mes={familiers.mes} solde={avecBon("familiers", soldeConnu ?? familiers.mes.solde, familiers.mes.pochette.prix)} gagnees={gagnees.familiers ?? 0} onOuvrir={() => setFenetre({ kind: "familiers" })} />}
                 {pochetteSurLEtal === "stateres" && pochetteStateres.etat.kind === "panne" && (
                   <div data-testid="pochette-stateres-panne">
-                    <Problem message="La pochette de statères ne répond pas pour l'instant." onRetry={() => void pochetteStateres.lire()} />
+                    <Problem message="Le booster de statères ne répond pas pour l'instant." onRetry={() => void pochetteStateres.lire()} />
                   </div>
                 )}
                 {pochetteSurLEtal === "familiers" && familiers.etat.kind === "panne" && (
                   <div data-testid="familiers-panne">
-                    <Problem message="La pochette des familiers ne répond pas pour l'instant." onRetry={() => void familiers.lire()} />
+                    <Problem message="Le booster des familiers ne répond pas pour l'instant." onRetry={() => void familiers.lire()} />
                   </div>
                 )}
               </>
@@ -1853,6 +1848,9 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
             {(bannieresOuvertes || rayon === RAYON_BANNIERE || rayon === RAYON_POCHETTES) && (
               <div hidden={rayon !== RAYON_BANNIERE && !(rayon === RAYON_POCHETTES && pochetteSurLEtal === "bannieres")}>
                 <SectionDesBannieres
+                  FenetreDuBooster={DialoguePochetteBannieres}
+                  FicheDuBooster={FicheDesBannieres}
+                  boostersGagnes={gagnees.bannieres ?? 0}
                   onPrixDeLaPochette={setPrixDesBannieres}
                   partie={partieDesBannieres.current}
                   tenue={etat.enregistree}
@@ -1908,6 +1906,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   etat={modeles.etat}
                   solde={soldeConnu}
                   pochetteGagnee={Boolean(gagnees.modeles)}
+                  boostersGagnes={gagnees.modeles ?? 0}
                   essaye={modeleEnEssai?.id ?? null}
                   occupe={occupe}
                   onEssayer={essayerLeModele}

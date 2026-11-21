@@ -2,7 +2,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { RARETES_DES_OBJETS as RARETES, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { motionAllowed } from "../../lib/fx/motion";
 import { DUREE_DE_LA_LUEUR, DUREE_DU_MOULE, caseDuMoule, couleEncore, doux, ouverture, rangeePleine, refroidi, remplissage } from "../../lib/village/moule";
-import { carillon, couleursDuSite, melange } from "./Tambour";
+import { carillon, couleursDuSite, melange } from "./Carillon";
 
 /**
  * Le moule de la forge (choix du pilote, 16 novembre 2026 ; calculs dans `src/lib/village/moule.ts`) : une toile où un

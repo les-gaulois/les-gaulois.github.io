@@ -5,8 +5,8 @@
  * - Les sons courts (clic d'un bouton, carte lâchée, pièces, carillon) sont actifs au départ (demande du pilote, 21 novembre
  *   2026 : « je veux que le son soit activé par défaut »), sauf si le visiteur les a coupés : son choix est gardé. Les
  *   navigateurs ne jouent rien avant un geste : le contexte audio est créé, ou réveillé, à chaque appui et à chaque touche
- *   (src/scripts/jeu.ts), et le premier geste fait déjà son bruit. Un seul réglage pour tous les sons de la page, celui du tambour des
- *   pochettes d'avant (`gal-pochette-son`, `useSonDuTambour` de Tambour.tsx) : couper le son ici le coupe là, et l'inverse
+ *   (src/scripts/jeu.ts), et le premier geste fait déjà son bruit. Un seul réglage pour tous les sons de la page, celui des
+ *   boosters et du carillon (`gal-pochette-son`, `useSonDuJeu` de Carillon.tsx) : couper le son ici le coupe là, et l'inverse
  *   (annonce `gal:son`).
  * - La musique, une boucle douce composée note par note (ré, si mineur, sol, la), est coupée au départ ; le visiteur
  *   l'allume par le bouton de la barre du jeu, et ce choix est retenu sur son appareil (`gal-musique`). Elle ne démarre
@@ -14,7 +14,7 @@
  * - Le bouton pause de la barre (`fx-off`) et « réduire les animations » ne coupent pas le son : ce sont des réglages à part.
  */
 
-/** La clé du réglage du son, partagée avec le tambour des pochettes (Tambour.tsx). */
+/** La clé du réglage du son, partagée avec les boosters et le carillon (Carillon.tsx) ; son nom date des pochettes. */
 export const CLE_DU_SON = "gal-pochette-son";
 /** L'annonce d'un son coupé ou remis : chaque bouton du son relit le réglage. */
 export const SON_CHANGE = "gal:son";

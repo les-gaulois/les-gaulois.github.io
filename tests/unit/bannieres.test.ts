@@ -26,7 +26,6 @@ import {
   chancesDUnTresor,
   rendusDesPaliers,
   valeurMoyenneDeLaPochetteDesBannieres,
-  bandeDesTresors,
   chanceDuTresor,
   chancesDesTresorsPourMoi,
   chanceDesStateresRendus,
@@ -511,19 +510,6 @@ describe("les chances de la pochette des bannières, pour un compte", () => {
     expect(lignes.map((l) => l.total)).toEqual([8, 8, 4]);
     expect(lignesDesChancesDesTresors(chances, new Set(TRESORS.map((b) => b.id)))).toBeNull();
     expect(tresorsAGagner(new Set(ids("epique")))).toHaveLength(12);
-  });
-
-  it("font tourner le tambour sur des trésors qu'il n'avait pas, et l'arrêtent sur celui reçu", () => {
-    const possedees = new Set(ids("mystique").slice(0, 4));
-    const recue = TRESORS.find((b) => !possedees.has(b.id) && b.rarete === "legendaire")!;
-    let graine = 7;
-    const hasard = () => ((graine = (graine * 16807) % 2147483647) - 1) / 2147483646;
-    const bande = bandeDesTresors(recue, chances, possedees, hasard);
-    expect(bande.rangees[bande.cible]?.valeur.id).toBe(recue.id);
-    for (const rangee of bande.rangees) {
-      expect(estDeLaPochette(rangee.valeur)).toBe(true);
-      expect(possedees.has(rangee.valeur.id)).toBe(false);
-    }
   });
 
   it("mettent le trésor reçu en tête des bannières du compte, avec le solde du serveur", () => {

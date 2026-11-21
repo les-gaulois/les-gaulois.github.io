@@ -23,7 +23,6 @@ import { errorMessage } from "../compte/errors";
 import { ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../gaulois";
 import type { Album, ElementDeLAlbum } from "./album-pochette";
 import type { AchatBanniereReponse, BannierePossedee, ChoixBanniereReponse, MesBannieres, PochetteBannieresReponse } from "./contrat";
-import { bandeDuTambour, rangeeAuHasard, type Bande } from "./tambour";
 
 export { BANNIERES, FAMILLE_DE_LA_POCHETTE, FAMILLES_DES_BANNIERES, RARETES_DES_BANNIERES, banniereParId, dessinDeLaBanniere, estDeLaPochette, type Banniere, type FamilleDeBanniere };
 
@@ -257,18 +256,6 @@ export function lignesDesChancesDesTresors(chances: Readonly<Record<Rarete, numb
   const totaux = tresorsParRarete(liste);
   const restants = tresorsParRarete(tresorsAGagner(possedees, liste));
   return ORDRE_RARETES.filter((rarete) => totaux[rarete] > 0).map((rarete) => ({ rarete, chance: pourMoi[rarete], reste: restants[rarete], total: totaux[rarete] }));
-}
-
-/**
- * La bande du tambour de la pochette des bannières, pour un compte : seulement les trésors qu'il n'avait pas avant
- * d'ouvrir (la pochette ne donne jamais une bannière déjà reçue), aux chances qu'elle avait pour lui ; le trésor reçu au
- * bout. Le tambour ne fait que montrer ce que le serveur a déjà tiré.
- */
-export function bandeDesTresors(recue: Banniere, chances: Readonly<Record<Rarete, number>>, possedees: ReadonlySet<string>, hasard: () => number = Math.random, liste: readonly Banniere[] = BANNIERES): Bande<Banniere> {
-  const restants = tresorsAGagner(possedees, liste);
-  const parRarete = Object.fromEntries(ORDRE_RARETES.map((rarete) => [rarete, restants.filter((b) => b.rarete === rarete)])) as Partial<Record<string, Banniere[]>>;
-  const pourMoi = chancesDesTresorsPourMoi(chances, possedees, liste) ?? chances;
-  return bandeDuTambour({ valeur: recue, rarete: recue.rarete }, () => rangeeAuHasard(pourMoi, (rarete) => parRarete[rarete] ?? [], hasard));
 }
 
 /**

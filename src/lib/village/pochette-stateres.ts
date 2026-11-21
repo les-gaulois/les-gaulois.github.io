@@ -1,7 +1,7 @@
 /**
  * La pochette de statères (16 novembre 2026) : ce que ses écrans (`src/components/village/PochetteStateres.tsx`) lisent et
  * déduisent. Des calculs purs : la lecture des réponses du serveur, ce que la pochette rend en moyenne, la chance d'y
- * gagner, la raison d'une pochette fermée, les rangées du tambour et le dessin de chaque lot. Rien ne décide d'un droit,
+ * gagner, la raison d'une pochette fermée et le dessin de chaque lot. Rien ne décide d'un droit,
  * d'un prix ni d'un tirage : le serveur le fait (`contrat.ts`, « La pochette de statères »).
  *
  * Le jeu est juste quand ce que la pochette rend en moyenne vaut son prix : `retourMoyen` le calcule sur les lots que le
@@ -15,7 +15,6 @@ const RARETES_DES_LOTS: readonly RareteDObjet[] = ORDRE_RARETES_DES_OBJETS.filte
 import { errorMessage } from "../compte/errors";
 import type { LotDeStateres, MaPochetteStateres, PochetteStateresReponse } from "./contrat";
 import { manque, messageDuRefus, stateres } from "./ecran-boutique";
-import { bandeDuTambour, type Bande } from "./tambour";
 
 const estObjetJson = (valeur: unknown): valeur is Record<string, unknown> => valeur !== null && typeof valeur === "object" && !Array.isArray(valeur);
 const entier = (valeur: unknown, min: number): valeur is number => typeof valeur === "number" && Number.isSafeInteger(valeur) && valeur >= min;
@@ -116,19 +115,6 @@ export function lotSelon(lots: readonly LotDeStateres[], u: number): LotDeStater
     reste -= lot.chance;
   }
   return lots[lots.length - 1] ?? null;
-}
-
-/**
- * La bande du tambour : chaque rangée qui passe est un lot tiré à ses vraies chances, et le lot que le serveur a tiré est
- * à la place où le tambour s'arrête. `null` si ce lot n'est pas dans la liste.
- */
-export function bandeDesStateres(rang: number, lots: readonly LotDeStateres[], hasard: () => number = Math.random): Bande<LotDeStateres> | null {
-  const tire = lots.find((lot) => lot.rang === rang);
-  if (!tire) return null;
-  return bandeDuTambour({ valeur: tire, rarete: rareteDuLot(tire.rang) }, () => {
-    const lot = lotSelon(lots, hasard());
-    return lot && { valeur: lot, rarete: rareteDuLot(lot.rang) };
-  });
 }
 
 /** Un dessin prêt à peindre : ses cases, rangée par rangée. */

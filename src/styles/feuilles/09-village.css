@@ -1517,24 +1517,9 @@ main:has(.album) {
 .boutique-compte-reste {
   border-top-color: var(--color-line-strong) !important;
 }
-/* La pochette qu'on ouvre : elle se balance doucement pendant que le serveur tire, puis l'objet apparaît dans un fondu
-   lent, avec un halo de la couleur de sa rareté qui s'éteint. Rien ne clignote ; le bouton pause et le réglage « réduire
-   les animations » coupent tout, et l'objet est alors montré d'emblée. */
-.pochette-attente {
-  transform-origin: 50% 20%;
-}
-.pochette-attente[data-envoi] {
-  animation: pochette-balance 2.4s ease-in-out infinite;
-}
-@keyframes pochette-balance {
-  0%,
-  100% {
-    rotate: -4deg;
-  }
-  50% {
-    rotate: 4deg;
-  }
-}
+/* Un objet reçu (le Gaulois unique sous la carte d'un booster) : il apparaît dans un fondu lent, avec un halo de la couleur
+   de sa rareté qui s'éteint. Rien ne clignote ; le bouton pause et le réglage « réduire les animations » coupent tout, et
+   l'objet est alors montré d'emblée. */
 .pochette-revelation {
   --rarete: var(--rarete-commun);
   position: relative;
@@ -1583,14 +1568,25 @@ main:has(.album) {
     opacity: 0.8;
   }
 }
-/* Le tambour des deux pochettes (Tambour.tsx, choisi par le pilote le 15 novembre 2026) : une toile de 6 sur 5, toute la
-   largeur de la fenêtre, qui peint sa propre scène. Sous elle, en texte, ce qui est sorti : le nom, puis la rareté écrite et
-   comptée en losanges, dans sa couleur de texte. */
+/* La toile du moule de la forge (Moule.tsx) et la sortie de la fusion (Fusion.tsx) gardent les classes du tambour des
+   pochettes (retiré le 21 novembre 2026) : une toile de 6 sur 5, toute la largeur de la fenêtre, qui sort d'un coup ; sous
+   elle, en texte, ce qui est sorti : le nom, puis la rareté écrite et comptée en losanges, dans sa couleur de texte. */
 .tambour {
   display: block;
   width: 100%;
   aspect-ratio: 6 / 5;
   border-radius: 0.5rem;
+  animation: tambour-sort 0.5s ease-out;
+}
+@keyframes tambour-sort {
+  0% {
+    opacity: 0;
+    scale: 0.86;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
 }
 .tambour-sortie {
   --rarete-texte: var(--color-muted);
@@ -1628,10 +1624,13 @@ main:has(.album) {
 .tambour-sortie .case-rarete {
   font-size: 0.9375rem;
 }
+.fx-off .tambour {
+  animation: none;
+}
 @media (prefers-reduced-motion: reduce) {
-  .pochette-attente[data-envoi],
   .pochette-revelation,
   .pochette-revelation::before,
+  .tambour,
   .tambour-sortie {
     animation: none;
   }
@@ -6057,99 +6056,6 @@ button.tenue-gardee-remettre:disabled {
   border-radius: 0;
   background: #d91228;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 0.3125rem), 0 100%);
-}
-
-/* La pochette qui s'ouvre (17 novembre 2026) : pendant que le serveur tire, la pochette de la fenêtre se secoue et
-   gonfle, et des éclats sortent de son col ; puis le tambour sort d'un coup, comme tiré de la pochette. Le tambour, «
-   Passer » et le son ne changent pas. Rien de tout cela quand les animations sont coupées. */
-.pochette-attente {
-  position: relative;
-}
-.pochette-attente[data-envoi] {
-  animation: pochette-secousse 1.5s ease-in-out infinite;
-}
-@keyframes pochette-secousse {
-  0%,
-  62%,
-  100% {
-    rotate: 0deg;
-    scale: 1;
-  }
-  8% {
-    rotate: -7deg;
-  }
-  16% {
-    rotate: 7deg;
-  }
-  24% {
-    rotate: -6deg;
-  }
-  32% {
-    rotate: 5deg;
-  }
-  44% {
-    rotate: 0deg;
-    scale: 1.08;
-  }
-}
-.pochette-attente[data-envoi]::after {
-  content: "";
-  position: absolute;
-  top: 8%;
-  left: 50%;
-  width: 4px;
-  height: 4px;
-  color: var(--rarete-legendaire);
-  box-shadow:
-    -18px -6px 0 currentColor,
-    -6px -18px 0 currentColor,
-    10px -16px 0 currentColor,
-    20px -4px 0 currentColor;
-  pointer-events: none;
-  animation: pochette-eclats 1.5s ease-out infinite;
-}
-@keyframes pochette-eclats {
-  0%,
-  36% {
-    opacity: 0;
-    transform: translateY(8px) scale(0.6);
-  }
-  52% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-14px) scale(1.2);
-  }
-}
-.tambour {
-  animation: tambour-sort 0.5s ease-out;
-}
-@keyframes tambour-sort {
-  0% {
-    opacity: 0;
-    scale: 0.86;
-  }
-  100% {
-    opacity: 1;
-    scale: 1;
-  }
-}
-.fx-off .pochette-attente[data-envoi],
-.fx-off .tambour {
-  animation: none;
-}
-.fx-off .pochette-attente[data-envoi]::after {
-  display: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .pochette-attente[data-envoi],
-  .tambour {
-    animation: none;
-  }
-  .pochette-attente[data-envoi]::after {
-    display: none;
-  }
 }
 
 /* La revente au jeu (17 novembre 2026) : dans la fenêtre du marché, ce que le jeu rend pour l'objet choisi, puis le
