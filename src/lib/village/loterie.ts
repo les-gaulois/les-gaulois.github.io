@@ -10,9 +10,9 @@
  * le serveur les a tirés. Le dessin ne choisit rien : il montre le billet que le serveur a noté (`billet`).
  */
 import { errorMessage } from "../compte/errors";
-import { addDays } from "../time";
+import { addDays, parisParts } from "../time";
 import { POCHETTES_GAGNEES, TICKET_D_OR, type AchatDeBillets, type BoosterDeLoterie, type BoosterOuvert, type LotDeLoterie, type MaLoterie, type PartDeLoterie, type PochetteGagnee } from "./contrat";
-import { stateres } from "./ecran-boutique";
+import { nombre, stateres } from "./ecran-boutique";
 
 const estObjetJson = (valeur: unknown): valeur is Record<string, unknown> => valeur !== null && typeof valeur === "object" && !Array.isArray(valeur);
 const entier = (valeur: unknown, min: number): valeur is number => typeof valeur === "number" && Number.isSafeInteger(valeur) && valeur >= min;
@@ -28,13 +28,16 @@ export const RANGS = [1, 2, 3] as const;
 export type Rang = (typeof RANGS)[number];
 export const NOMS_DES_RANGS: Readonly<Record<Rang, string>> = { 1: "Or", 2: "Argent", 3: "Bronze" };
 
-/** Le nom de chaque pochette gagnée, comme à l'onglet « Les pochettes ». */
+/**
+ * Le nom de chaque booster gagné, comme dans « Les boosters » (les pochettes sont des boosters à l'écran depuis le
+ * 21 novembre 2026 ; les noms internes, `pochette`, ne changent pas).
+ */
 export const NOMS_DES_POCHETTES: Readonly<Record<PochetteGagnee, { une: string; des: string }>> = {
-  surprise: { une: "une pochette surprise", des: "pochettes surprises" },
-  familiers: { une: "une pochette des familiers", des: "pochettes des familiers" },
-  bannieres: { une: "une pochette des bannières", des: "pochettes des bannières" },
-  modeles: { une: "une pochette des Gaulois uniques", des: "pochettes des Gaulois uniques" },
-  stateres: { une: "une pochette de statères", des: "pochettes de statères" },
+  surprise: { une: "un booster surprise", des: "boosters surprises" },
+  familiers: { une: "un booster des familiers", des: "boosters des familiers" },
+  bannieres: { une: "un booster des bannières", des: "boosters des bannières" },
+  modeles: { une: "un booster des Gaulois uniques", des: "boosters des Gaulois uniques" },
+  stateres: { une: "un booster de statères", des: "boosters de statères" },
 };
 
 /** Le plus de parts qu'un tirage montre : au-delà, la réponse n'est pas celle du clan. */
@@ -263,18 +266,10 @@ export const jourEnMots = (jour: string): string => JOUR_EN_MOTS.format(new Date
 /** « 23 novembre ». */
 export const jourCourt = (jour: string): string => JOUR_COURT.format(new Date(`${jour}T12:00:00Z`)).replace(/^1 /, "1er ");
 
-/** Les pochettes d'un lot, en mots : « une pochette de chaque sorte », ou chacune à la suite. `[]` : aucune. */
+/** Les boosters d'un lot, en mots : « un booster de chaque sorte », ou chacun à la suite. `[]` : aucun. */
 export function pochettesDuLot(lot: LotDeLoterie): string[] {
-  if (POCHETTES_GAGNEES.every((cle) => lot.pochettes[cle] === 1)) return ["une pochette de chaque sorte"];
+  if (POCHETTES_GAGNEES.every((cle) => lot.pochettes[cle] === 1)) return ["un booster de chaque sorte"];
   return POCHETTES_GAGNEES.filter((cle) => lot.pochettes[cle] > 0).map((cle) => (lot.pochettes[cle] === 1 ? NOMS_DES_POCHETTES[cle].une : `${lot.pochettes[cle]} ${NOMS_DES_POCHETTES[cle].des}`));
-}
-
-/** Les pochettes gagnées qui restent à ouvrir, en mots, dans l'ordre de l'onglet. */
-export function bonsEnMots(bons: Partial<Record<PochetteGagnee, number>>): string[] {
-  return POCHETTES_GAGNEES.flatMap((cle) => {
-    const n = bons[cle] ?? 0;
-    return n < 1 ? [] : [n === 1 ? NOMS_DES_POCHETTES[cle].une : `${n} ${NOMS_DES_POCHETTES[cle].des}`];
-  });
 }
 
 /** Le message d'un refus de l'achat de billets. */
@@ -482,3 +477,49 @@ export function joursAvantLeTirage(maintenant: Date): number {
 
 /** Ce délai en mots, pour la pastille : « ce soir », « demain », « 5 jours ». */
 export const motsAvantLeTirage = (jours: number): string => (jours <= 0 ? "ce soir" : jours === 1 ? "demain" : `${jours} jours`);
+
+/* ---------- Les boosters de loterie de la semaine ---------- */
+
+/** Aujourd'hui à Paris, AAAA-MM-JJ : les jours de la loterie sont ceux de Paris. */
+export const jourDeParis = (maintenant: Date): string => parisParts(maintenant).date;
+
+/**
+ * Ce qu'un jour de la semaine d'un tirage montre dans la rangée des boosters : son booster fermé ou ouvert ; sans booster,
+ * un jour passé (aucune partie avec le clan ce jour-là), ou un jour pas fini, aujourd'hui ou plus tard (son booster peut
+ * encore venir : le serveur note les jours joués chaque heure).
+ */
+export type EtatDuJour = "ferme" | "ouvert" | "sans-booster" | "a-venir";
+export interface JourDesBoosters {
+  jour: string;
+  etat: EtatDuJour;
+  booster: BoosterDeLoterie | null;
+}
+
+/**
+ * La rangée des boosters de loterie d'un tirage (21 novembre 2026, écran de jeu) : les sept jours de sa semaine, du mardi
+ * au lundi, chacun avec son booster ou sans. Un booster d'un autre jour, que le serveur ne devrait pas donner, se range au
+ * bout : il ne se perd jamais. Rien n'est décidé ici : le serveur seul dit quels jours ont un booster.
+ */
+export function semaineDesBoosters(tirage: string, boosters: readonly BoosterDeLoterie[], aujourdhui: string): JourDesBoosters[] {
+  const jours = Array.from({ length: 7 }, (_, i) => addDays(semaineDuTirage(tirage).debut, i));
+  const etatDe = (b: BoosterDeLoterie): EtatDuJour => (b.ouvert ? "ouvert" : "ferme");
+  const rangee = jours.map((jour): JourDesBoosters => {
+    const booster = boosters.find((b) => b.jour === jour) ?? null;
+    return { jour, booster, etat: booster ? etatDe(booster) : jour >= aujourdhui ? "a-venir" : "sans-booster" };
+  });
+  const ailleurs = boosters.filter((b) => !jours.includes(b.jour)).sort((a, b) => a.jour.localeCompare(b.jour));
+  return [...rangee, ...ailleurs.map((booster): JourDesBoosters => ({ jour: booster.jour, booster, etat: etatDe(booster) }))];
+}
+
+/** Le prochain booster fermé de la rangée après `jour` (puis depuis le début), pour « Ouvrir le suivant » ; `null` sans aucun. */
+export function boosterSuivant(rangee: readonly JourDesBoosters[], jour: string | null): string | null {
+  const fermes = rangee.filter((j) => j.etat === "ferme" && j.jour !== jour).map((j) => j.jour);
+  return fermes.find((j) => jour === null || j > jour) ?? fermes[0] ?? null;
+}
+
+const JOUR_DE_LA_RANGEE = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", timeZone: "UTC" });
+/** « mer. 18 » : un jour de la rangée des boosters, en court. */
+export const jourDeLaRangee = (jour: string): string => JOUR_DE_LA_RANGEE.format(new Date(`${jour}T12:00:00Z`));
+
+/** « 1 billet », « 12 billets », « 0 billet ». */
+export const billetsEnMots = (n: number): string => `${nombre(n)} ${n > 1 ? "billets" : "billet"}`;

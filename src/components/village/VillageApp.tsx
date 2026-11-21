@@ -20,7 +20,7 @@ import LoterieDuMardi from "./Loterie";
 import AtelierDeLaForge from "./Forge";
 import VestiaireDuJeu from "./VestiaireDuJeu";
 import LeSentier, { objetsQuiAttendent, useSentier } from "./Sentier";
-import VitrineDuClan from "./Vitrine";
+import VitrineDuJeu from "./VitrineDuJeu";
 
 /** « Ma carte », la première partie du jeu depuis le 21 novembre 2026 : `/village` s'ouvre sur elle. */
 export const ANCRE_MA_CARTE = "ma-carte";
@@ -123,11 +123,11 @@ export default function VillageApp() {
       });
   }, [gauloisCree, surLesPochettes]);
 
-  // La vitrine des visiteurs, écrite dans la page au build (src/pages/village.astro, revue du 18 novembre 2026) : les
-  // Gaulois déjà créés, pour qui n'est pas connecté. Un membre connecté a la sienne, dans « La vitrine ».
+  // Ce que la page écrit pour les visiteurs (src/pages/village.astro) : la vitrine écrite au build (revue du 18 novembre
+  // 2026), les Gaulois déjà créés, et la démonstration du jeu (21 novembre 2026), le booster d'essai et « Rejoins le clan
+  // pour jouer ». Pour qui n'est pas connecté seulement : un membre connecté a sa vitrine, dans « La vitrine ».
   useEffect(() => {
-    const vitrine = document.querySelector<HTMLElement>("[data-vitrine-publique]");
-    if (vitrine) vitrine.hidden = me === null || me.signed_in;
+    for (const bloc of document.querySelectorAll<HTMLElement>("[data-vitrine-publique], [data-demo-visiteur]")) bloc.hidden = me === null || me.signed_in;
   }, [me]);
 
   if (me === null) return <Loading label="Lecture de votre compte…" />;
@@ -243,17 +243,14 @@ export default function VillageApp() {
         {!aCreer && (
           <Partie prefix={PREFIXE} id="vitrine" active={active} slide={slide}>
             <h2 class="sr-only">La vitrine</h2>
-            <Ecran>
-              <VitrineDuClan actif={active === "vitrine"} />
-            </Ecran>
+            {/* La vitrine et la loterie sont habillées en écran de jeu (21 novembre 2026) : leurs propres panneaux. */}
+            <VitrineDuJeu actif={active === "vitrine"} />
           </Partie>
         )}
         {!aCreer && (
           <Partie prefix={PREFIXE} id={ANCRE_LOTERIE} active={active} slide={slide}>
             <h2 class="sr-only">La loterie</h2>
-            <Ecran>
-              <LoterieDuMardi actif={active === ANCRE_LOTERIE} />
-            </Ecran>
+            <LoterieDuMardi actif={active === ANCRE_LOTERIE} />
           </Partie>
         )}
       </div>

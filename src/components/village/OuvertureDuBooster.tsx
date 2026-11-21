@@ -14,6 +14,7 @@ export const NOMS_DES_BOOSTERS: Readonly<Record<SorteDeBooster, string>> = {
   familiers: "Booster des familiers",
   bannieres: "Booster des bannières",
   modeles: "Booster des Gaulois uniques",
+  loterie: "Booster de loterie",
 };
 
 /** Le son du jeu, coupé ou non, suivi d'un bouton à l'autre (barre du jeu, fenêtre). */

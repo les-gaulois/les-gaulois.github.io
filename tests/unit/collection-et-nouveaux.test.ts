@@ -128,7 +128,7 @@ describe("où trouver un objet vu dans la vitrine", () => {
   it("n'envoie jamais à la boutique pour un objet divin, que seule la pochette surprise donne", () => {
     const divins = EMPLACEMENTS_OBJETS.flatMap((emplacement) => Object.entries(OBJETS[emplacement]).filter(([, o]) => o.rarete === "divin").map(([id]) => [emplacement, id] as const));
     expect(divins.length).toBeGreaterThan(0);
-    for (const [emplacement, id] of divins) expect(provenanceDeLObjet(emplacement, id, false)).toEqual({ kind: "lien", mots: "Pochette surprise", ancre: "pochettes", pochette: "surprise" });
+    for (const [emplacement, id] of divins) expect(provenanceDeLObjet(emplacement, id, false)).toEqual({ kind: "lien", mots: "Booster surprise", ancre: "pochettes", pochette: "surprise" });
   });
 
   it("note le rayon demandé, et ne le rend qu'une fois", () => {

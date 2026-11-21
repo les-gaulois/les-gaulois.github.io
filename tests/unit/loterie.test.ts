@@ -7,7 +7,6 @@ import {
   abscisseDuBillet,
   achatPossible,
   apresLAchat,
-  bonsEnMots,
   bustesDeLaJauge,
   dispositionDeLaJauge,
   dureeDuTirage,
@@ -278,10 +277,9 @@ describe("la loterie du lundi, ce que l'écran en dit", () => {
     expect(jourEnMots("2026-11-23")).toBe("lundi 23 novembre");
     expect(jourEnMots("2027-02-01")).toBe("lundi 1er février");
     expect(jourCourt("2026-11-16")).toBe("16 novembre");
-    expect(pochettesDuLot(LOTS_LOTERIE[0]!)).toEqual(["une pochette de chaque sorte"]);
-    expect(pochettesDuLot(LOTS_LOTERIE[1]!)).toEqual(["une pochette des familiers", "une pochette des bannières"]);
-    expect(pochettesDuLot(LOTS_LOTERIE[2]!)).toEqual(["une pochette des bannières", "5 pochettes de statères"]);
-    expect(bonsEnMots({ stateres: 5, bannieres: 1 })).toEqual(["une pochette des bannières", "5 pochettes de statères"]);
+    expect(pochettesDuLot(LOTS_LOTERIE[0]!)).toEqual(["un booster de chaque sorte"]);
+    expect(pochettesDuLot(LOTS_LOTERIE[1]!)).toEqual(["un booster des familiers", "un booster des bannières"]);
+    expect(pochettesDuLot(LOTS_LOTERIE[2]!)).toEqual(["un booster des bannières", "5 boosters de statères"]);
     expect(messageDuRefusDeLoterie("plafond_billets")).toBe(ERROR_MESSAGES["plafond_billets"]);
     expect(messageDuRefusDeLoterie("solde_insuffisant", { manque: 40 })).toContain("40");
   });

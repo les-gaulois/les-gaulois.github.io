@@ -135,7 +135,7 @@ export function carteDeRarete(nom: string, rarete: string, image: DessinEnCases 
 export const TONS_DU_RENDU: Tons = ["#f3f5fa", "#d9dee9", "#6f7890", "#3d4763"];
 
 /** Le fond d'une face : la case claire du site (cadre au bord, face, trame de Bayer, filet clair en haut). */
-function fondDeFace(g: Planche, [haut, bas, bord]: Tons): void {
+export function fondDeFace(g: Planche, [haut, bas, bord]: Tons): void {
   const W = CARTE_LARGEUR;
   const H = CARTE_HAUTEUR;
   rr(g, 0, 0, W, H, 3, bord);
@@ -148,7 +148,7 @@ function fondDeFace(g: Planche, [haut, bas, bord]: Tons): void {
   R(g, 2, 1, W - 4, 1, "#ffffff");
 }
 /** Un mot centré sur la face, en capitales. */
-function auCentre(g: Planche, texte: string, y: number, coul: string): void {
+export function auCentre(g: Planche, texte: string, y: number, coul: string): void {
   const m = enCapitales(texte);
   g.drawImage(ecrire(m, coul), Math.round(CARTE_LARGEUR / 2 - largeurDuTexte(m) / 2), y);
 }

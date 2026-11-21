@@ -95,6 +95,7 @@ Jusqu'au 14 novembre 2026, une seule feuille de 18 000 lignes, `src/styles/globa
 | `16-jeu.css` | Le kit en pixels et le cadre de jeu plein écran de « Mon Gaulois » (21 novembre 2026) : barre, menu, « Ma carte » ; ses images dans `/village/kit.css` (« Le kit du jeu », plus bas) | `/village`, Direction |
 | `17-jeu-boosters.css` | « Les boosters » de « Mon Gaulois » (21 novembre 2026) : l'animation d'ouverture validée par le pilote (règles `bst-`, scène de `SceneDuBooster.ts`), la fenêtre et la fiche du booster habillées du kit, les paquets sur l'étal | `/village`, Direction |
 | `19-jeu-boutique.css` | « La boutique » de « Mon Gaulois » en écran de jeu (21 novembre 2026), tout sous `.boutique-jeu` | `/village`, Direction |
+| `21-jeu-vitrine-loterie.css` | « La vitrine » et « La loterie » de « Mon Gaulois » en écran de jeu, et la démonstration des visiteurs (21 novembre 2026), sous `.vitrine-jeu`, `.loterie-jeu`, `.demo-jeu`, `.vitrine-publique` | `/village`, Direction |
 | `15-revoir.css` | Le cadre du replay du jeu et le passage d'une partie à l'autre (15 novembre 2026, ajouté après la coupe ; plus de film depuis le 16, ses règles retirées ; la liste des dernières parties sous le lecteur, qui recopiait « Dernières parties », retirée le 18) | `/revoir`, `/utiles` (les cartes du bilan et du classement des plus utiles), Direction |
 | `18-jeu-vestiaire.css` | Le vestiaire du jeu « Mon Gaulois » (21 novembre 2026) : le Gaulois et ses emplacements, ses cartes qu'on lâche sur lui (« Le vestiaire du jeu », plus bas) | `/village`, Direction |
 
@@ -839,6 +840,8 @@ code source, mention d'OpenFront) et le lien de `/village/kit.css` dans `tete`. 
 | `src/components/village/VestiaireDuJeu.tsx` | Le vestiaire du jeu : le Gaulois, ses huit emplacements, les cartes du rayon ouvert (« Le vestiaire du jeu », plus bas) |
 | `src/components/village/Essayage.tsx` | Le glisser du vestiaire : une carte lâchée sur le Gaulois vole vers son emplacement ; le geste, prise ou défilement, se décide dans `src/lib/jeu/geste.ts` |
 | `src/styles/feuilles/18-jeu-vestiaire.css` | La feuille du vestiaire du jeu |
+| `src/lib/jeu/loterie-dessins.ts` | Le booster de loterie (dessin de Claude Fable 5.2) : la carte de ses billets, avec ou sans ticket d'or, le billet, le ticket d'or, le petit booster de la semaine ; son paquet est la sorte `loterie` de `boosters-dessins.ts` |
+| `src/components/village/VitrineDuJeu.tsx`, `DemoDuJeu.tsx` | La vitrine du jeu, et la démonstration des visiteurs (« La vitrine, la loterie et la démo des visiteurs », plus bas) |
 
 **S'en servir dans une partie** (habillage du vestiaire, de la boutique, des boosters, du pass, de la forge, de la vitrine, de
 la loterie) :
@@ -895,6 +898,29 @@ corps, l'arme, le familier, la bannière), et les cartes du rayon ouvert, les ca
 - **Rien ne se perd** : tout le vestiaire d'avant (`useVestiaire` de `src/components/compte/Vestiaire.tsx`) sert aussi
   à l'inscription dans « Mon compte », qui garde la page d'avant, sans rien du jeu (le test des feuilles le vérifie). La
   bourse n'est plus dans le vestiaire du jeu : la barre du jeu la montre toujours.
+
+### La vitrine, la loterie et la démo des visiteurs (21 novembre 2026)
+
+D'après la maquette validée par le pilote, dessin de Claude Fable 5.2, feuille `21-jeu-vitrine-loterie.css`.
+
+- **La vitrine** (`/village#vitrine`, `VitrineDuJeu.tsx`) : le ruban, la recherche, les cartes des Gaulois du clan. Les cartes
+  et leur fenêtre en grand restent celles de `Vitrine.tsx` (bannière, finition, familier, rareté, « où trouver cet objet »),
+  que « Mon compte » atteint par le livre des bannières : ce fichier ne connaît rien du jeu. L'écran du jeu lui donne sa
+  fenêtre (`Fenetre`, celle des boosters) et sa marque « Moi » (`moi`, une étiquette du kit). Un nom de membre s'écrit en
+  lettres du site ; dans le ruban d'une fenêtre, en pixels seulement si l'écriture sait tous ses signes.
+- **La loterie** (`/village#loterie`) : la mise en page choisie par le pilote, « le podium d'abord », ne change pas (la toile
+  dans un `jeu-ecran-cadre`, les règles dans un pli). « Vos boosters de la semaine » : les sept jours du mardi au lundi
+  (`semaineDesBoosters` de `src/lib/village/loterie.ts`), chacun avec son petit booster, fermé, ouvert, ou sa place vide.
+  Un booster fermé s'ouvre par l'animation validée (`OuvertureDuBooster`, sorte `loterie`) : le serveur ouvre d'abord
+  (`ouvrir_booster_loterie`, qui tire le ticket d'or), puis le joueur ouvre le paquet et retourne la carte de ses billets ;
+  sans ticket d'or, la carte prend les couleurs et la lumière du commun ; avec, celles du légendaire. Jamais de nom de rareté
+  sur cette carte.
+- **Les visiteurs** (`/village` sans être connecté) : sous la porte, « Essayez un booster » (`DemoDuJeu.tsx`), un booster
+  surprise d'essai avec la même animation, sur un tirage d'exemple fait dans le navigateur avec les chances de départ du tirage
+  (`src/lib/village/demo-booster.ts`), sans rien envoyer au serveur ; « Rejoins le clan pour jouer » (la page Rejoindre, la
+  connexion) ; puis la vitrine écrite à la construction, en cartes comme celles des membres (bannière relevée comme pour la
+  liste, cadre de la rareté portée). Avec le serveur, « Mon Gaulois » ne montre ces blocs qu'aux visiteurs (`data-demo-visiteur`,
+  `data-vitrine-publique`).
 
 ## Accessibilité
 

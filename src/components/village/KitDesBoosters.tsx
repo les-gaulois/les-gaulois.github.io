@@ -80,9 +80,10 @@ const CROIX = ["................", "................", "................", "....
  * La fenêtre d'un booster : un vrai `<dialog>` modal habillé en panneau du jeu, son titre en ruban, et « Fermer » en coin
  * (absent pendant un envoi ou une ouverture). Elle garde le focus, se ferme par Échap ou par un clic à côté, et rend le focus
  * au bouton qui l'a ouverte. À chaque étape (`etape`), le focus va au titre : un lecteur d'écran lit ce qui a changé.
- * `scene` : la fenêtre s'élargit pour la scène d'ouverture.
+ * `scene` : la fenêtre s'élargit pour la scène d'ouverture. `dit` : le titre entier pour les lecteurs d'écran, quand le
+ * titre écrit en pixels n'en est qu'une forme courte (le nom d'un membre que l'écriture en pixels ne sait pas tracer).
  */
-export function FenetreDuBooster({ titre, etape, occupe, scene = false, onFermer, testid, children }: { titre: string; etape: string; occupe: boolean; scene?: boolean; onFermer: () => void; testid: string; children: ComponentChildren }) {
+export function FenetreDuBooster({ titre, dit, etape, occupe, scene = false, onFermer, testid, children }: { titre: string; dit?: string; etape: string; occupe: boolean; scene?: boolean; onFermer: () => void; testid: string; children: ComponentChildren }) {
   const fenetre = useRef<HTMLDialogElement>(null);
   const tete = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -110,7 +111,7 @@ export function FenetreDuBooster({ titre, etape, occupe, scene = false, onFermer
     >
       <div class="bst-fenetre-panneau jeu-panneau jeu-n9">
         <h2 id={`${testid}-titre`} ref={tete} tabIndex={-1} class="bst-fenetre-titre jeu-ruban jeu-n9">
-          <Px t={titre} couleur="creme" relief="ombre" dit={titre} />
+          <Px t={titre} couleur="creme" relief="ombre" dit={dit ?? titre} />
         </h2>
         {!occupe && (
           <button type="button" class="jeu-btn jeu-btn-bleu jeu-btn-ic jeu-n9 bst-fermer" aria-label="Fermer" title="Fermer" onClick={onFermer} data-testid={`${testid}-croix`}>

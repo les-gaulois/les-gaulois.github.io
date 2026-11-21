@@ -113,7 +113,7 @@ export function provenanceDeLObjet(emplacement: (typeof EMPLACEMENTS_OBJETS)[num
   if (!objet) return null;
   if (objet.gratuit) return { kind: "gratuit" };
   if (possede) return { kind: "a-moi" };
-  if (objet.rarete === RARETE_DIVINE) return { kind: "lien", mots: "Pochette surprise", ancre: "pochettes", pochette: "surprise" };
+  if (objet.rarete === RARETE_DIVINE) return { kind: "lien", mots: "Booster surprise", ancre: "pochettes", pochette: "surprise" };
   if (objet.rarete === RARETE_DE_SAISON) return { kind: "lien", mots: "Dernier palier de la saison", ancre: "sentier" };
   return { kind: "lien", mots: "À la boutique", ancre: "boutique", rayon: emplacement };
 }

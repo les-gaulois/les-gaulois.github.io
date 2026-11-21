@@ -1034,6 +1034,30 @@ test("« Mon Gaulois » montre aux visiteurs les Gaulois déjà créés par les 
   await expect(cases.first()).toContainText(attendus[0]!.pseudo);
 });
 
+// La démonstration des visiteurs (21 novembre 2026, choix du pilote) : un booster d'essai s'ouvre avec l'animation des
+// boosters, sur un tirage d'exemple fait dans le navigateur, sans rien demander au serveur ; puis « Rejoins le clan pour jouer ».
+test("« Mon Gaulois » laisse un visiteur ouvrir un booster d'essai, puis l'invite à rejoindre le clan", async ({ page }) => {
+  const appels: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/rest/v1/") || r.url().includes("/auth/v1/")) appels.push(r.url());
+  });
+  await page.goto("/village");
+  const demo = page.getByTestId("demo-jeu");
+  await expect(demo.getByRole("heading", { level: 2, name: "Essayez un booster" })).toBeVisible();
+  await expect(demo.getByRole("heading", { level: 2, name: "Rejoins le clan pour jouer" })).toBeVisible();
+  await expect(demo.getByTestId("demo-lien-rejoindre")).toHaveAttribute("href", "/rejoindre");
+  await demo.getByTestId("demo-ouvrir").click();
+  const fenetre = page.getByTestId("demo-fenetre");
+  await expect(fenetre).toBeVisible();
+  await fenetre.getByTestId("booster-passer").click();
+  await expect(fenetre.getByTestId("demo-tirage")).toBeVisible();
+  await expect(fenetre).toContainText("Tirage d'exemple : cet objet n'est ni enregistré ni donné.");
+  await expect(fenetre.getByTestId("demo-fenetre-rejoindre")).toHaveAttribute("href", "/rejoindre");
+  await fenetre.getByTestId("demo-fermer").click();
+  await expect(fenetre).toHaveCount(0);
+  expect(appels).toEqual([]);
+});
+
 // Le thème sombre « Nuit Marine » (16 novembre 2026) : le bouton de l'en-tête passe du clair au sombre, le choix est retenu
 // d'une page à l'autre, et un appareil réglé en sombre l'ouvre sans rien demander. La barre du navigateur suit le fond.
 test("le bouton de l'en-tête passe du thème clair au thème sombre, et le choix est retenu", async ({ page }) => {

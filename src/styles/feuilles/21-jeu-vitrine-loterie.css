@@ -1,0 +1,907 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- « La vitrine », « La loterie » et la démonstration des visiteurs de « Mon Gaulois » (21 novembre 2026) ---------- */
+/* La vitrine (`/village#vitrine`, src/components/village/VitrineDuJeu.tsx, cartes de Vitrine.tsx), la loterie
+   (`/village#loterie`, Loterie.tsx) et, pour qui n'est pas connecté, la démonstration (DemoDuJeu.tsx) et la vitrine écrite à
+   la construction (src/pages/village.astro), habillées avec le kit du jeu (16-jeu.css, « Le kit du jeu » de docs/DESIGN.md),
+   d'après la maquette validée par le pilote. Dessin de Claude Fable 5.2. */
+
+.vitrine-jeu,
+.loterie-jeu,
+.demo-jeu {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(14 * var(--jeu-p));
+  min-width: 0;
+}
+
+/* Quatre sortes de pièces, pas plus, et jamais l'une dans l'autre : le panneau du jeu (les boosters de la semaine, la
+   démonstration, la vitrine des visiteurs), le fond de page en cadre de jeu (la scène de la loterie, le dernier tirage, les
+   plis), la bulle fine (la recherche, la tête de la loterie, les annonces) et les cartes claires au cadre de leur rareté
+   (les tuiles du vestiaire, `--jeu-v-tuile-<rareté>`, neuf parts 2 2 5 2). Les mesures sont en points du kit (`--jeu-p`). */
+
+/* ---------- Les titres en ruban, et les rubans posés à cheval sur le bord d'un cadre ---------- */
+
+.vitrine-jeu,
+.loterie-jeu {
+  padding-top: calc(2 * var(--jeu-p));
+}
+.vitrine-jeu-titre,
+.loterie-jeu-titre {
+  display: flex;
+  justify-content: center;
+  line-height: 0;
+}
+:is(.loterie-jeu-boosters, .loterie-jeu-dernier, .demo-jeu-essai, .demo-jeu-rejoindre, .vitrine-publique) {
+  position: relative;
+  margin-top: calc(10 * var(--jeu-p));
+}
+:is(.loterie-jeu-ruban, .demo-jeu-ruban, .vitrine-publique-titre) {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: calc(-22 * var(--jeu-p));
+  translate: -50% 0;
+  margin: 0;
+  line-height: 0;
+  white-space: nowrap;
+}
+/* Sur téléphone, les cadres à une case par pixel : nets, et la place reste au contenu. */
+@media (max-width: 47.99rem) {
+  .loterie-jeu :is(.jeu-panneau, .jeu-ecran-cadre),
+  .vitrine-jeu-attente,
+  .demo-jeu > .jeu-panneau,
+  .vitrine-publique {
+    border-image-slice: 12 12 14 12 fill;
+    border-width: calc(6 * var(--jeu-p)) calc(6 * var(--jeu-p)) calc(7 * var(--jeu-p));
+  }
+  :is(.loterie-jeu-ruban, .demo-jeu-ruban, .vitrine-publique-titre) {
+    top: calc(-16 * var(--jeu-p));
+  }
+}
+
+/* ---------- Les cartes claires au cadre de leur rareté : la tuile du vestiaire ---------- */
+
+/* Claires dans les deux thèmes : les jetons du thème clair, posés sur la carte (le pilote n'aime pas les cartes sombres). */
+.vitrine-jeu :is(.vitrine-carte, .vitrine-grand-case),
+.vitrine-publique .vitrine-publique-case {
+  --vjl-cadre: var(--jeu-v-tuile-aucune);
+  --vjl-teinte: #7a88b4;
+  --color-navy: #ffffff;
+  --ecriture: #0a1230;
+  --texte-courant: #2b3557;
+  --color-muted: #4a5677;
+  --color-line-strong: #7a88b4;
+  --rarete-commun-texte: #0b5cad;
+  --rarete-peu-commun-texte: #2a3bc4;
+  --rarete-epique-texte: #6a1fd0;
+  --rarete-mystique-texte: #a50f24;
+  --rarete-legendaire-texte: #7d5900;
+  --rarete-divin-texte: #00706a;
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  border-image: var(--vjl-cadre) 2 2 5 / calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p)) stretch;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--vjl-teinte) 13%, #fffaf0) padding-box;
+  box-shadow: none;
+  color: var(--ecriture);
+  image-rendering: pixelated;
+}
+:is(.vitrine-jeu, .vitrine-publique) [data-rarete="commun"] {
+  --vjl-cadre: var(--jeu-v-tuile-commun);
+  --vjl-teinte: #4aa3ff;
+}
+:is(.vitrine-jeu, .vitrine-publique) [data-rarete="peu-commun"] {
+  --vjl-cadre: var(--jeu-v-tuile-peu-commun);
+  --vjl-teinte: #3a4fe8;
+}
+:is(.vitrine-jeu, .vitrine-publique) [data-rarete="epique"] {
+  --vjl-cadre: var(--jeu-v-tuile-epique);
+  --vjl-teinte: #9b4dff;
+}
+:is(.vitrine-jeu, .vitrine-publique) [data-rarete="mystique"] {
+  --vjl-cadre: var(--jeu-v-tuile-mystique);
+  --vjl-teinte: #ff2e4a;
+}
+:is(.vitrine-jeu, .vitrine-publique) :is([data-rarete="legendaire"], [data-rarete="saison"]) {
+  --vjl-cadre: var(--jeu-v-tuile-legendaire);
+  --vjl-teinte: #f2b632;
+}
+:is(.vitrine-jeu, .vitrine-publique) [data-rarete="divin"] {
+  --vjl-cadre: var(--jeu-v-tuile-divin);
+  --vjl-teinte: #19d3c5;
+}
+
+/* ---------- Les bulles fines : crème dans les deux thèmes ---------- */
+
+/* La bulle du kit reste claire la nuit : ce qu'elle porte garde l'écriture du thème clair, en lettres comme en pixels. */
+.vitrine-jeu .vitrine-jeu-recherche,
+.loterie-jeu :is(.loterie-jeu-tete, .loterie-jeu-bulle) {
+  --ecriture: #0a1230;
+  --texte-courant: #2b3557;
+  --color-muted: #4a5677;
+  --color-blue-text: #0b3fc4;
+  color: var(--ecriture);
+}
+.vitrine-jeu .vitrine-jeu-recherche .jeu-px > i,
+.loterie-jeu .loterie-jeu-tete .jeu-px > i {
+  background-image: var(--i);
+}
+.loterie-jeu .loterie-jeu-tete .info-discrete {
+  color: var(--color-muted);
+}
+
+/* ---------- La vitrine : la recherche ---------- */
+
+/* Une bulle fine : l'étiquette en pixels, le champ sombre et net du kit (le tube des barres), le compte en pixels. */
+.vitrine-jeu-recherche {
+  --src: var(--jeu-s-bulle);
+  justify-self: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  max-width: 100%;
+  padding: calc(2 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(1 * var(--jeu-p));
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  border-image: var(--src) 4 4 6 fill / calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p)) stretch;
+  image-rendering: pixelated;
+}
+.vitrine-jeu-etiquette {
+  line-height: 0;
+}
+.vitrine-jeu-champ {
+  flex: 0 1 calc(120 * var(--jeu-p));
+  box-sizing: border-box;
+  width: calc(120 * var(--jeu-p));
+  min-width: 0;
+  max-width: 100%;
+  height: calc(16 * var(--jeu-p));
+  padding: 0 calc(3 * var(--jeu-p));
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(3 * var(--jeu-p));
+  border-image: var(--jeu-s-tube) 3 fill / calc(3 * var(--jeu-p)) stretch;
+  border-radius: 0;
+  background: none;
+  /* Le tube est sombre dans les deux thèmes : l'écriture crème du kit. */
+  color: #f6f1e3;
+  caret-color: #ffd84a;
+  font-family: var(--font-console);
+  font-size: 0.875rem;
+  line-height: 1;
+  image-rendering: pixelated;
+  appearance: none;
+}
+.vitrine-jeu-champ::-webkit-search-cancel-button {
+  appearance: none;
+}
+.vitrine-jeu-champ:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.vitrine-jeu-compte {
+  margin: 0;
+  line-height: 0;
+}
+.vitrine-jeu-attente {
+  justify-self: center;
+  width: min(100%, 34rem);
+  padding: calc(4 * var(--jeu-p));
+}
+
+/* ---------- La vitrine : les cartes des Gaulois ---------- */
+
+/* Une grille aérée et centrée : chaque carte à la largeur de son Gaulois et de son familier, toutes de la même hauteur. */
+.vitrine-jeu .vitrine-cartes {
+  gap: calc(9 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  align-items: stretch;
+  padding: calc(3 * var(--jeu-p)) 0 0;
+}
+.vitrine-jeu .vitrine-carte {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: max(calc(var(--vitrine-l) + 10 * var(--jeu-p)), calc(70 * var(--jeu-p)));
+  max-width: 100%;
+  overflow: visible;
+  box-shadow: 0 calc(2 * var(--jeu-p)) 0 var(--jeu-ombre);
+  transition: translate 0.14s steps(3);
+}
+.vitrine-jeu .vitrine-carte[data-moi] {
+  box-shadow: 0 calc(2 * var(--jeu-p)) 0 var(--jeu-ombre);
+}
+/* Le reflet d'avant passait sur toute la carte : la finition de carte suffit. */
+.vitrine-jeu .vitrine-carte::after {
+  content: none;
+}
+.vitrine-jeu .vitrine-carte-image {
+  padding: calc(5 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(3 * var(--jeu-p));
+}
+/* L'ombre au sol, en cases. */
+.vitrine-jeu .vitrine-carte-image::before {
+  inset: auto 22% calc(1 * var(--jeu-p));
+  height: calc(3 * var(--jeu-p));
+  border-radius: 0;
+  background: color-mix(in srgb, var(--ecriture) 20%, transparent);
+  clip-path: polygon(6% 0, 94% 0, 94% 33.4%, 100% 33.4%, 100% 66.7%, 94% 66.7%, 94% 100%, 6% 100%, 6% 66.7%, 0 66.7%, 0 33.4%, 6% 33.4%);
+}
+.vitrine-jeu .vitrine-carte-fond[data-peinte] {
+  opacity: 0.5;
+}
+.vitrine-jeu .vitrine-carte[data-banniere] .vitrine-carte-image::after {
+  background: color-mix(in srgb, var(--vjl-teinte) 10%, transparent);
+}
+.vitrine-jeu .vitrine-carte-pied {
+  gap: calc(2 * var(--jeu-p));
+  padding: calc(3 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(3 * var(--jeu-p));
+  background: none;
+}
+.vitrine-jeu .vitrine-nom {
+  font-size: 0.9375rem;
+}
+.vitrine-jeu .vitrine-carte-pied .case-rarete {
+  font-size: 0.6875rem;
+}
+/* « Moi » : l'étiquette du kit, à cheval sur le coin de la carte. */
+.vitrine-jeu .vitrine-carte > .vitrine-moi {
+  z-index: 4;
+  top: calc(-6 * var(--jeu-p));
+  right: calc(-6 * var(--jeu-p));
+  left: auto;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+/* Toute la carte est un bouton : elle se soulève au survol et au clavier, où un filet d'or l'entoure. */
+.vitrine-jeu .vitrine-carte-ouvrir {
+  inset: calc(-2 * var(--jeu-p)) calc(-2 * var(--jeu-p)) calc(-5 * var(--jeu-p));
+  border-radius: 0;
+  cursor: pointer;
+}
+.vitrine-jeu .vitrine-carte:has(.vitrine-carte-ouvrir:hover),
+.vitrine-jeu .vitrine-carte:has(.vitrine-carte-ouvrir:focus-visible) {
+  translate: 0 calc(-2 * var(--jeu-p));
+  box-shadow: 0 calc(4 * var(--jeu-p)) 0 var(--jeu-ombre);
+}
+.vitrine-jeu .vitrine-carte-ouvrir:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+@media (max-width: 47.99rem) {
+  .vitrine-jeu .vitrine-cartes {
+    gap: calc(7 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  }
+  .vitrine-jeu .vitrine-carte {
+    width: max(calc(var(--vitrine-l) + 8 * var(--jeu-p)), calc(70 * var(--jeu-p)));
+  }
+  .vitrine-jeu .vitrine-nom {
+    font-size: 0.8125rem;
+  }
+}
+
+/* ---------- La vitrine : un Gaulois en grand, dans la fenêtre des boosters ---------- */
+
+.vitrine-jeu .bst-fenetre {
+  width: min(560px, calc(100vw - 24px));
+}
+.vitrine-jeu-grand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: calc(7 * var(--jeu-p));
+  min-width: 0;
+}
+.vitrine-jeu-grand-nom {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--ecriture);
+  overflow-wrap: anywhere;
+}
+/* La scène : la bannière a déjà son cadre en cases ; sans bannière, le Gaulois sur le plateau clair du vestiaire. */
+.vitrine-jeu .vitrine-grand-scene {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  overflow: visible;
+  filter: drop-shadow(0 calc(2 * var(--jeu-p)) 0 var(--jeu-ombre));
+}
+.vitrine-jeu .vitrine-grand-scene:not([data-banniere]) {
+  padding: calc(6 * var(--jeu-p)) calc(16 * var(--jeu-p)) calc(3 * var(--jeu-p));
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(3 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  border-image: var(--jeu-v-plateau) 3 3 5 fill / calc(3 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(5 * var(--jeu-p)) stretch;
+  image-rendering: pixelated;
+}
+.vitrine-jeu .vitrine-grand-scene canvas {
+  image-rendering: pixelated;
+}
+/* Ce qu'il porte : des cases claires, au cadre de leur rareté. */
+.vitrine-jeu .vitrine-grand-cases {
+  grid-template-columns: repeat(auto-fill, minmax(calc(52 * var(--jeu-p)), 1fr));
+  gap: calc(5 * var(--jeu-p));
+}
+.vitrine-jeu .vitrine-grand-case.case-montree {
+  grid-template-rows: auto 5rem auto;
+  padding: calc(3 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(3 * var(--jeu-p));
+  cursor: default;
+  transition: translate 0.14s steps(3);
+}
+.vitrine-jeu .vitrine-grand-case .case-image {
+  height: 5rem;
+}
+.vitrine-jeu .vitrine-grand-partie {
+  font-size: 0.625rem;
+  color: var(--color-muted);
+}
+.vitrine-jeu .vitrine-grand-banniere {
+  border-radius: 0;
+}
+/* « Où trouver cet objet » : une petite plaque, sans arrondi. */
+.vitrine-jeu .vitrine-grand-ou {
+  margin-top: calc(1 * var(--jeu-p));
+  padding: 1px calc(3 * var(--jeu-p));
+  border-radius: 0;
+  background: color-mix(in srgb, var(--ecriture) 9%, transparent);
+  font-size: 0.6875rem;
+}
+.vitrine-jeu .vitrine-grand-lien::after {
+  inset: calc(-2 * var(--jeu-p)) calc(-2 * var(--jeu-p)) calc(-5 * var(--jeu-p));
+  border-radius: 0;
+}
+.vitrine-jeu .vitrine-grand-case[data-lien] {
+  cursor: pointer;
+}
+.vitrine-jeu .vitrine-grand-case[data-lien]:hover,
+.vitrine-jeu .vitrine-grand-case[data-lien]:focus-within {
+  translate: 0 calc(-1 * var(--jeu-p));
+  box-shadow: none;
+}
+.vitrine-jeu .vitrine-grand-case:has(.vitrine-grand-lien:focus-visible) {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.vitrine-jeu-grand-actions {
+  justify-content: center;
+}
+
+/* ---------- La loterie : la tête, les annonces, la scène ---------- */
+
+.loterie-jeu {
+  gap: calc(12 * var(--jeu-p));
+}
+/* La tête : une bulle fine, centrée ; la date en grand. */
+.loterie-jeu-tete {
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: calc(4 * var(--jeu-p));
+  max-width: 100%;
+  padding: calc(3 * var(--jeu-p)) calc(8 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  border-image: var(--jeu-s-bulle) 4 4 6 fill / calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p)) stretch;
+  image-rendering: pixelated;
+  text-align: center;
+}
+.loterie-jeu-tete > p {
+  margin: 0;
+}
+.loterie-jeu-surtitre,
+.loterie-jeu-quand {
+  line-height: 0;
+}
+.loterie-jeu-grand {
+  --jeu-p: 4px;
+}
+.loterie-jeu-heure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(5 * var(--jeu-p));
+  line-height: 0;
+}
+.loterie-jeu-tete .info-discrete {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.loterie-jeu-bulle {
+  justify-self: center;
+  max-width: 100%;
+  margin: 0;
+  padding: calc(1 * var(--jeu-p)) calc(4 * var(--jeu-p)) 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--ecriture);
+}
+.loterie-jeu-bulle a {
+  color: var(--color-blue-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.loterie-jeu-bulle a:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+/* La scène choisie par le pilote, « le podium d'abord », telle quelle, dans un fond de page en cadre de jeu. */
+.loterie-jeu-scene {
+  justify-items: center;
+  padding: calc(2 * var(--jeu-p)) 0 0;
+}
+.loterie-jeu .loterie-scene {
+  margin-inline: auto;
+}
+
+/* ---------- La loterie : « Vos boosters de la semaine » ---------- */
+
+.loterie-jeu-boosters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: calc(9 * var(--jeu-p));
+  padding: calc(9 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p));
+}
+/* Les sept jours, sur une ligne : le petit booster, le jour, et ce qu'il a donné. */
+.loterie-jeu-semaine {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: calc(2 * var(--jeu-p));
+  width: min(100%, calc(336 * var(--jeu-p)));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.loterie-jeu-jour {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: start;
+  justify-items: center;
+  gap: calc(4 * var(--jeu-p));
+  min-width: 0;
+}
+/* Aujourd'hui : un trait d'or en cases sous le jour, comme la partie ouverte du menu. */
+.loterie-jeu-jour[data-aujourdhui] .loterie-jeu-nom {
+  padding-bottom: calc(3 * var(--jeu-p));
+  background: linear-gradient(#e0a400, #e0a400) 50% 100% / calc(12 * var(--jeu-p)) var(--jeu-p) no-repeat;
+}
+.loterie-jeu-case {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: calc(2 * var(--jeu-p));
+  border: 0;
+  background: none;
+  line-height: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.loterie-jeu-mini {
+  display: block;
+  width: calc(var(--w) * var(--jeu-p));
+  height: calc(var(--h) * var(--jeu-p));
+  background: var(--i) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+.loterie-jeu-jour:is([data-etat="sans-booster"], [data-etat="a-venir"]) .loterie-jeu-mini {
+  filter: none;
+}
+.loterie-jeu-nom,
+.loterie-jeu-gain {
+  line-height: 0;
+}
+.loterie-jeu-gain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(3 * var(--jeu-p));
+}
+/* Le booster fermé appelle le clic : il respire doucement, et se soulève au survol. */
+button.loterie-jeu-case {
+  cursor: pointer;
+}
+button.loterie-jeu-case .loterie-jeu-mini {
+  animation: vj-l-respire 2.6s ease-in-out infinite alternate;
+  transition: transform 0.14s steps(3);
+}
+@keyframes vj-l-respire {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 calc(-2 * var(--jeu-p));
+  }
+}
+@media (hover: hover) {
+  button.loterie-jeu-case:hover .loterie-jeu-mini {
+    transform: translateY(calc(-2 * var(--jeu-p))) rotate(-4deg);
+  }
+}
+button.loterie-jeu-case:active .loterie-jeu-mini {
+  transform: translateY(var(--jeu-p));
+}
+button.loterie-jeu-case:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: 0;
+}
+button.loterie-jeu-case:disabled {
+  cursor: default;
+}
+button.loterie-jeu-case:disabled .loterie-jeu-mini {
+  animation: none;
+}
+/* Sur ordinateur, le petit booster à trois pixels la case. */
+@media (min-width: 48rem) {
+  .loterie-jeu-mini {
+    --jeu-p: 3px;
+  }
+}
+/* Les trois chiffres : le mot en petit, le nombre en grand. */
+.loterie-jeu-chiffres {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto));
+  justify-content: center;
+  gap: calc(6 * var(--jeu-p)) calc(22 * var(--jeu-p));
+  margin: 0;
+}
+.loterie-jeu-chiffres > div {
+  display: grid;
+  justify-items: center;
+  gap: calc(5 * var(--jeu-p));
+  min-width: 0;
+}
+.loterie-jeu-chiffres :is(dt, dd) {
+  margin: 0;
+  line-height: 0;
+}
+.loterie-jeu-barre {
+  width: min(100%, calc(240 * var(--jeu-p)));
+}
+.loterie-jeu-notes {
+  max-width: 44rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--color-muted);
+}
+.loterie-jeu-notes > p {
+  margin: 0;
+}
+.loterie-jeu-notes:empty {
+  display: none;
+}
+
+/* ---------- La loterie : le dernier tirage et les plis ---------- */
+
+.loterie-jeu-dernier {
+  gap: calc(8 * var(--jeu-p));
+  padding: calc(9 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  border-top-color: transparent;
+}
+.loterie-jeu-dernier .loterie-bloc-tete {
+  align-items: center;
+}
+.loterie-jeu-date {
+  margin: 0;
+  line-height: 0;
+}
+.loterie-jeu-dernier .pochette-note {
+  margin: calc(3 * var(--jeu-p)) 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+/* Le podium et les lots écrits : un carré de métal en cases devant chaque rang, sans filet. */
+.loterie-jeu :is(.loterie-podium, .loterie-lots) {
+  gap: calc(4 * var(--jeu-p));
+}
+.loterie-jeu :is(.loterie-podium, .loterie-lots) li {
+  position: relative;
+  padding-left: calc(9 * var(--jeu-p));
+  border-left: 0;
+}
+.loterie-jeu :is(.loterie-podium, .loterie-lots) li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: calc(4 * var(--jeu-p));
+  height: calc(4 * var(--jeu-p));
+  background: var(--loterie-marche);
+  box-shadow: 0 var(--jeu-p) 0 color-mix(in srgb, var(--loterie-marche) 55%, #0a1230);
+}
+.loterie-jeu .loterie-podium {
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+.loterie-jeu-plis {
+  padding: 0 calc(2 * var(--jeu-p));
+}
+.loterie-jeu-plis > .fold:first-child {
+  border-top: 0;
+}
+.loterie-jeu .fold > summary:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+@media (max-width: 47.99rem) {
+  .loterie-jeu {
+    gap: calc(10 * var(--jeu-p));
+  }
+  .loterie-jeu-grand {
+    --jeu-p: 3px;
+  }
+  .loterie-jeu-tete {
+    padding-inline: calc(2 * var(--jeu-p));
+  }
+  .loterie-jeu-boosters,
+  .loterie-jeu-dernier {
+    padding: calc(8 * var(--jeu-p)) 0 calc(1 * var(--jeu-p));
+  }
+  .loterie-jeu-semaine {
+    gap: 0;
+  }
+  .loterie-jeu-case {
+    padding: calc(2 * var(--jeu-p)) 0;
+  }
+  /* Les mots de la rangée et des chiffres à une case par pixel : sept jours tiennent sur 360 pixels. */
+  .loterie-jeu-nom,
+  .loterie-jeu-chiffres dt {
+    --jeu-p: 1px;
+  }
+  .loterie-jeu-chiffres {
+    gap: 12px 20px;
+  }
+  .loterie-jeu-chiffres > div {
+    gap: 8px;
+  }
+  .loterie-jeu-scene {
+    padding: 0;
+  }
+  .loterie-jeu-plis {
+    padding: 0;
+  }
+}
+
+/* ---------- Les visiteurs : le booster d'essai et « Rejoins le clan pour jouer » ---------- */
+
+.demo-jeu-place {
+  margin-top: calc(16 * var(--jeu-p));
+}
+.demo-jeu {
+  align-items: stretch;
+}
+@media (min-width: 60rem) {
+  .demo-jeu {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: calc(12 * var(--jeu-p));
+  }
+}
+.demo-jeu > .jeu-panneau {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  justify-items: center;
+  gap: calc(8 * var(--jeu-p));
+  padding: calc(10 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  color: var(--ecriture);
+}
+.demo-jeu-corps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(8 * var(--jeu-p)) calc(14 * var(--jeu-p));
+  min-width: 0;
+}
+.demo-jeu-texte {
+  display: grid;
+  justify-items: start;
+  gap: calc(7 * var(--jeu-p));
+  min-width: 0;
+}
+.demo-jeu-mot {
+  max-width: 30rem;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ecriture);
+}
+.demo-jeu-rejoindre .demo-jeu-mot {
+  text-align: center;
+}
+.demo-jeu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(6 * var(--jeu-p)) calc(7 * var(--jeu-p));
+}
+/* Le paquet, en grand : il flotte doucement, et se penche au survol. */
+.demo-jeu-paquet {
+  flex: none;
+  margin: 0;
+  padding: calc(3 * var(--jeu-p));
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.demo-jeu-paquet-image {
+  filter: drop-shadow(0 calc(3 * var(--jeu-p)) 0 var(--jeu-ombre));
+  animation: vj-l-flotte 3.4s ease-in-out infinite alternate;
+  transition: transform 0.16s steps(3);
+}
+@keyframes vj-l-flotte {
+  from {
+    translate: 0 calc(2 * var(--jeu-p));
+  }
+  to {
+    translate: 0 calc(-2 * var(--jeu-p));
+  }
+}
+@media (hover: hover) {
+  .demo-jeu-paquet:hover .demo-jeu-paquet-image {
+    transform: translateY(calc(-2 * var(--jeu-p))) rotate(-4deg);
+  }
+}
+.demo-jeu-paquet:active .demo-jeu-paquet-image {
+  transform: translateY(var(--jeu-p));
+}
+.demo-jeu-paquet:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+@media (max-width: 29.99rem) {
+  .demo-jeu-corps {
+    flex-direction: column;
+  }
+  .demo-jeu-texte {
+    justify-items: center;
+  }
+  .demo-jeu-mot {
+    text-align: center;
+  }
+}
+
+/* ---------- Les visiteurs : la vitrine écrite à la construction ---------- */
+
+.vitrine-publique {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: calc(8 * var(--jeu-p));
+  margin-top: calc(26 * var(--jeu-p));
+  padding: calc(9 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  color: var(--ecriture);
+}
+.vitrine-publique[hidden] {
+  display: none;
+}
+.vitrine-publique-releve {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--color-muted);
+}
+.vitrine-publique-cartes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: calc(8 * var(--jeu-p)) calc(7 * var(--jeu-p));
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vitrine-publique-cartes > li {
+  display: flex;
+}
+/* Une carte comme celles des membres : la bannière pâle derrière le Gaulois, le pseudo dessous ; elle mène à la fiche. */
+.vitrine-publique .vitrine-publique-case {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  width: calc(68 * var(--jeu-p));
+  text-decoration: none;
+  box-shadow: 0 calc(2 * var(--jeu-p)) 0 var(--jeu-ombre);
+  transition: translate 0.14s steps(3);
+}
+.vitrine-publique-image {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: end center;
+  width: 100%;
+  min-height: calc(72 * var(--jeu-p));
+  padding: calc(5 * var(--jeu-p)) 0 calc(2 * var(--jeu-p));
+  overflow: hidden;
+}
+.vitrine-publique-fond {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 100%;
+  opacity: 0.5;
+  image-rendering: pixelated;
+}
+.vitrine-publique-case .pseudo {
+  align-self: center;
+  padding: calc(3 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  color: var(--ecriture);
+  overflow-wrap: anywhere;
+}
+.vitrine-publique-case:hover,
+.vitrine-publique-case:focus-visible {
+  translate: 0 calc(-2 * var(--jeu-p));
+  box-shadow: 0 calc(4 * var(--jeu-p)) 0 var(--jeu-ombre);
+}
+.vitrine-publique-case:hover .pseudo,
+.vitrine-publique-case:focus-visible .pseudo {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.vitrine-publique-case:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+@media (max-width: 47.99rem) {
+  .demo-jeu-place {
+    margin-top: calc(14 * var(--jeu-p));
+  }
+  .vitrine-publique {
+    margin-top: calc(22 * var(--jeu-p));
+    padding: calc(8 * var(--jeu-p)) 0 calc(2 * var(--jeu-p));
+  }
+  .vitrine-publique-cartes {
+    gap: calc(6 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  }
+  .vitrine-publique .vitrine-publique-case {
+    width: calc(66 * var(--jeu-p));
+  }
+  .vitrine-publique-case .pseudo {
+    font-size: 0.75rem;
+  }
+}
+
+/* ---------- La pause et « réduire les animations » : plus rien ne bouge ---------- */
+
+:root.fx-off :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .vitrine-grand-case, .loterie-jeu-mini, .demo-jeu-paquet-image, .vitrine-publique-case) {
+  animation: none;
+  transition: none;
+  translate: none;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .vitrine-grand-case, .loterie-jeu-mini, .demo-jeu-paquet-image, .vitrine-publique-case) {
+    animation: none;
+    transition: none;
+    translate: none;
+    transform: none;
+  }
+}

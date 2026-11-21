@@ -13,11 +13,14 @@
  * quatre morceaux de 15 colonnes) ; rangées 10 à 77, le corps (colonnes 2 à 57, bord d'encre aux colonnes 2 et 57) ;
  * rangées 78 à 87, le bas serti. Le haut du corps (rangées 10 à 27) reste sombre et uni : les fissures blanches s'y
  * dessinent. Les oreilles du booster des familiers n'y montent que de six rangées, aux deux coins du médaillon.
+ *
+ * Un sixième sachet, hors de l'étal (21 novembre 2026) : `loterie`, le booster du jour de la loterie du mardi, qui ne
+ * s'achète pas. Rouge carmin, bande d'or, médaillon en ticket (deux encoches, un talon à perforation, une étoile).
  */
 import { Planche, R, rr, grille, poly, ell, lig } from "./planche";
 import { PAL } from "./palette";
 
-export type SorteDeBooster = "surprise" | "stateres" | "familiers" | "bannieres" | "modeles";
+export type SorteDeBooster = "surprise" | "stateres" | "familiers" | "bannieres" | "modeles" | "loterie";
 
 export const BOOSTER_LARGEUR = 60;
 export const BOOSTER_HAUTEUR = 88;
@@ -46,6 +49,7 @@ const ROBES: Readonly<Record<SorteDeBooster, Robe>> = {
   stateres: { haut: "#23a352", corps: "#1a8f45", trame: "#137538", bas: "#0c5a2a", fond: "#063a19", reflet: "#7fe09a", eclat: "#c9fbcf", bordClair: "#c9fbcf", bordDoux: "#8ee6a6", bande: ["#fffbe6", "#f6f1e3", "#cfc9b8"], filet: "#ffc61a" },
   familiers: { haut: "#1298a6", corps: "#0e8795", trame: "#0a6f7d", bas: "#075866", fond: "#043842", reflet: "#86e6ea", eclat: "#d2f9f8", bordClair: "#d2f9f8", bordDoux: "#93e4e8", bande: ["#ffb866", "#f5760f", "#b54a08"], filet: "#f6f1e3" },
   bannieres: { haut: "#7f52f2", corps: "#6c41e2", trame: "#5631c8", bas: "#3f1fa8", fond: "#2a1278", reflet: "#b9a0ff", eclat: "#e2d6ff", bordClair: "#e2d6ff", bordDoux: "#bda8ff", bande: ["#ff9ac6", "#e8408f", "#a3175c"], filet: "#f6f1e3" },
+  loterie: { haut: "#cf2c40", corps: "#bb1d32", trame: "#9c1227", bas: "#7c0a1d", fond: "#4a0510", reflet: "#ff8f98", eclat: "#ffd3d6", bordClair: "#ffd3d6", bordDoux: "#ff9aa2", bande: ["#fff2a8", "#ffc61a", "#b97a0c"], filet: "#f6f1e3" },
   modeles: { haut: "#343e68", corps: "#283158", trame: "#1d2546", bas: "#131a34", fond: "#080c1c", reflet: "#6a769f", eclat: "#aab4d2", bordClair: "#aab4d2", bordDoux: "#77829f", bande: ["#eef2fc", "#aab3cf", "#6f7ba3"], filet: "#3a4468" },
 };
 
@@ -280,12 +284,62 @@ function medaillonModeles(g: Planche): void {
   g.drawImage(grille(BETE, { k: PAL.k, y: PAL.y, e: PAL.e, w: PAL.w }), cx - 8, 34);
 }
 
+/* ---------- Loterie : le ticket à l'étoile ---------- */
+
+/**
+ * La forme d'un ticket de `l` cases sur `h` : un rectangle aux coins taillés, mordu d'une encoche ronde de rayon `r` au
+ * milieu de chaque petit côté. Rend vrai si la case est dans le ticket.
+ */
+export function dansUnTicket(x: number, y: number, l: number, h: number, r: number): boolean {
+  if (x < 0 || y < 0 || x >= l || y >= h) return false;
+  const d = Math.min(y, h - 1 - y);
+  if (d < 2 && (x < 2 - d || x >= l - 2 + d)) return false;
+  const dy = y + 0.5 - h / 2;
+  return Math.hypot(x + 0.5, dy) >= r && Math.hypot(l - x - 0.5, dy) >= r;
+}
+
+const ETOILE_DU_TICKET = [".....w.....", ".....w.....", "....www....", "wwwwwwwwwww", ".wwwwwwwww.", "..wwwwwww..", "...wwwww...", "..wwwwwww..", "..www.www..", ".ww.....ww.", ".w.......w."];
+
+function medaillonLoterie(g: Planche): void {
+  const L = 38;
+  const H = 25;
+  const m = new Planche(L, H);
+  const dans = (x: number, y: number): boolean => dansUnTicket(x, y, L, H, 3.5);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < L; x++) {
+      if (!dans(x, y)) continue;
+      const bord = !dans(x - 1, y) || !dans(x + 1, y) || !dans(x, y - 1) || !dans(x, y + 1);
+      const ombre = !bord && (!dans(x + 2, y) || !dans(x, y + 2) || !dans(x + 1, y + 1));
+      R(m, x, y, 1, 1, bord ? PAL.k : ombre ? PAL.o : y === 1 ? PAL.Y : PAL.y);
+    }
+  // Le talon : trois traits gravés, puis la perforation.
+  for (const y of [6, 11, 16]) {
+    R(m, 5, y, 3, 2, PAL.o);
+    R(m, 5, y, 3, 1, PAL.O);
+  }
+  for (let y = 2; y < H - 2; y += 3) {
+    R(m, 9, y, 1, 2, PAL.n);
+    R(m, 10, y, 1, 2, PAL.Y);
+  }
+  // La fenêtre et son étoile.
+  rr(m, 12, 3, 21, 19, 2, PAL.O);
+  rr(m, 13, 4, 19, 17, 2, PAL.k);
+  rr(m, 14, 5, 17, 15, 1, "#4a0510");
+  R(m, 16, 5, 13, 1, "#2e0309");
+  m.drawImage(grille(ETOILE_DU_TICKET, { w: PAL.o }), 17, 8);
+  m.drawImage(grille(ETOILE_DU_TICKET, { w: PAL.y }), 17, 7);
+  R(m, 22, 7, 1, 3, PAL.Y);
+  R(m, 20, 10, 5, 1, PAL.Y);
+  g.drawImage(m, X + 9, 29);
+}
+
 const MEDAILLONS: Readonly<Record<SorteDeBooster, (g: Planche) => void>> = {
   surprise: medaillonSurprise,
   stateres: medaillonStateres,
   familiers: medaillonFamiliers,
   bannieres: medaillonBannieres,
   modeles: medaillonModeles,
+  loterie: medaillonLoterie,
 };
 
 /** Le booster d'une sorte, scellé : une planche de 60 cases sur 88. */
@@ -299,6 +353,8 @@ export function booster(sorte: SorteDeBooster): Planche {
 
 /** Les cinq sortes de booster, dans l'ordre de l'étal. */
 export const SORTES_DE_BOOSTER: readonly SorteDeBooster[] = ["surprise", "stateres", "familiers", "bannieres", "modeles"];
+/** Le booster de loterie du jour : il ne s'achète pas, et n'est donc pas à l'étal. */
+export const SORTE_DE_LOTERIE = "loterie" as const;
 
 const CACHE = new Map<SorteDeBooster, Planche>();
 /** Le paquet d'un booster, dessiné une fois pour la page. */

@@ -3,6 +3,28 @@
     "date": "2026-11-21",
     "kind": "ameliore",
     "rank": "minor",
+    "title": "La vitrine et la loterie en écran de jeu",
+    "body": "Les Gaulois du clan en cartes, avec leur bannière et leur finition. À la loterie, chaque booster du jour s'ouvre comme les autres : vos billets en sortent, parfois avec le ticket d'or.",
+    "link": {
+      "href": "/village#loterie",
+      "label": "La loterie"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "nouveau",
+    "rank": "minor",
+    "title": "Un booster d'essai pour les visiteurs",
+    "body": "Sans compte, « Mon Gaulois » montre les Gaulois du clan et laisse ouvrir un booster d'essai : un tirage d'exemple, rien n'est enregistré ni donné.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "ameliore",
+    "rank": "minor",
     "title": "Le vestiaire de Mon Gaulois en jeu",
     "body": "Votre Gaulois en grand, ses emplacements autour de lui : attrapez une carte d'objet et lâchez-la sur lui pour l'essayer, ou touchez-la. Votre tenue ne change pas avant « Enregistrer ».",
     "link": {

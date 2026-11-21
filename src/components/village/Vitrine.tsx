@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { GAULOIS as PLACE_DU_GAULOIS, LARGEUR as DECOR_LARGEUR, HAUTEUR as DECOR_HAUTEUR } from "../../../supabase/functions/code-discord/decors/commun";
-import type { ComponentChildren } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import { decrireGaulois, vignetteDeLObjet, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { modeleNu } from "../../lib/village/modeles";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
-import { ServerError, call } from "../../lib/compte/api";
+import { call } from "../../lib/compte/api";
 import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDeLaFinition } from "../../lib/fx/finitions-carte";
 import { finitionParId } from "../../lib/village/cartes";
 import { INSTANT_DE_LA_VIGNETTE } from "../../lib/village/cartes-vignette";
@@ -14,8 +14,7 @@ import { demanderLaPochette, demanderLeRayon } from "../../lib/village/boutique-
 import type { PochetteDeLEtal } from "../../lib/village/etal";
 import type { ObjetPossede } from "../../lib/village/contrat";
 import { lireBoutique, quantitePossedee } from "../../lib/village/ecran-boutique";
-import { chercherDansLaVitrine, lignesPortees, lireVitrine, provenanceDeLObjet, rareteDuCadre, type GauloisVitrine, type Provenance } from "../../lib/village/vitrine";
-import { Loading, Problem, messageOf } from "../compte/common";
+import { lignesPortees, provenanceDeLObjet, rareteDuCadre, type GauloisVitrine, type Provenance } from "../../lib/village/vitrine";
 import { Dialogue } from "./BoutiqueDialogue";
 import { charger as chargerLesBannieres } from "./Bannieres";
 import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
@@ -249,10 +248,43 @@ function FinitionDeVitrine({ id, vive }: { id: string; vive: boolean }) {
 }
 
 /**
+ * La fenêtre où un Gaulois de la vitrine s'ouvre en grand. Par défaut, celle de la boutique d'avant, avec « Fermer » ;
+ * l'écran de jeu de « Mon Gaulois » donne la sienne (`VitrineDuJeu.tsx`, 21 novembre 2026) : ce fichier, que « Mon compte »
+ * atteint par le livre des bannières, ne connaît rien du jeu. `titre` : le nom du Gaulois.
+ */
+export type FenetreDeLaVitrine = (p: { titre: string; onFermer: () => void; children: ComponentChildren }) => JSX.Element;
+
+const FenetreDAvant: FenetreDeLaVitrine = ({ titre, onFermer, children }) => (
+  <Dialogue titre={titre} etape="vue" occupe={false} onFermer={onFermer} testid="vitrine-grand">
+    {children}
+    <div class="boutique-dialogue-actions">
+      <button type="button" class="btn btn-ghost" onClick={onFermer} data-testid="vitrine-grand-fermer">
+        Fermer
+      </button>
+    </div>
+  </Dialogue>
+);
+
+/**
  * Les cartes : une par Gaulois, aussi large que lui et son familier, au cadre de la rareté la plus haute portée. Le livre
  * des bannières (`LivreDesBannieres.tsx`) s'en sert aussi pour montrer au membre sa propre carte avec la bannière qu'il essaie.
+ * `Fenetre` : la fenêtre d'un Gaulois ouvert en grand ; `moi` : la marque de la carte du membre qui regarde.
  */
-export function CartesDeLaVitrine({ gaulois, testid = "vitrine", label = "Les Gaulois du clan", enGrand = false }: { gaulois: readonly GauloisVitrine[]; testid?: string; label?: string; enGrand?: boolean }) {
+export function CartesDeLaVitrine({
+  gaulois,
+  testid = "vitrine",
+  label = "Les Gaulois du clan",
+  enGrand = false,
+  Fenetre = FenetreDAvant,
+  moi = <span class="vitrine-moi">Moi</span>,
+}: {
+  gaulois: readonly GauloisVitrine[];
+  testid?: string;
+  label?: string;
+  enGrand?: boolean;
+  Fenetre?: FenetreDeLaVitrine;
+  moi?: ComponentChildren;
+}) {
   const fiches = useMemo(() => fichesDe(gaulois), [gaulois]);
   // La carte ouverte en grand : sa place dans la liste ; rien tant qu'on n'a cliqué sur aucune.
   const [ouverte, setOuverte] = useState<number | null>(null);
@@ -292,14 +324,14 @@ export function CartesDeLaVitrine({ gaulois, testid = "vitrine", label = "Les Ga
               {banniere && <span class="sr-only"> Bannière : {banniere.nom}.</span>}
               {f.rarete && <MarqueDeRarete rarete={f.rarete} />}
             </div>
-            {f.gaulois.moi && <span class="vitrine-moi">Moi</span>}
+            {f.gaulois.moi && moi}
             {/* Toute la carte ouvre le Gaulois en grand : un bouton sans dessin, posé par-dessus. */}
             {enGrand && <button type="button" class="vitrine-carte-ouvrir" aria-label={`Voir ${f.gaulois.nom} en grand`} onClick={() => setOuverte(f.cle)} data-testid="vitrine-ouvrir" />}
           </li>
         );
       })}
     </ul>
-    {enVue && <GauloisEnGrand fiche={enVue} lib={lib} inventaire={inventaire ?? null} onFermer={() => setOuverte(null)} />}
+    {enVue && <GauloisEnGrand fiche={enVue} lib={lib} inventaire={inventaire ?? null} Fenetre={Fenetre} onFermer={() => setOuverte(null)} />}
     </>
   );
 }
@@ -309,7 +341,7 @@ export function CartesDeLaVitrine({ gaulois, testid = "vitrine", label = "Les Ga
  * celles de la boutique, avec le Gaulois devant sa bannière, comme sur /gaulois, puis ce qu'il porte, case par case.
  * Rien de plus que ce que la vitrine sait déjà : ni bourse, ni total, ni note.
  */
-function GauloisEnGrand({ fiche, lib, inventaire, onFermer }: { fiche: Fiche; lib: LibDesBannieres | null; inventaire: readonly ObjetPossede[] | null; onFermer: () => void }) {
+function GauloisEnGrand({ fiche, lib, inventaire, Fenetre, onFermer }: { fiche: Fiche; lib: LibDesBannieres | null; inventaire: readonly ObjetPossede[] | null; Fenetre: FenetreDeLaVitrine; onFermer: () => void }) {
   const grandEcran = useEcranDe(480);
   const g = fiche.gaulois;
   const familier = familierDe(g.familier);
@@ -326,7 +358,7 @@ function GauloisEnGrand({ fiche, lib, inventaire, onFermer }: { fiche: Fiche; li
   };
   const lien = (mots: string, ancre: string, pochette?: PochetteDeLEtal): Provenance | null => (g.moi ? null : { kind: "lien", mots, ancre, ...(pochette ? { pochette } : {}) });
   return (
-    <Dialogue titre={g.nom} etape="vue" occupe={false} onFermer={onFermer} testid="vitrine-grand">
+    <Fenetre titre={g.nom} onFermer={onFermer}>
       <div class="vitrine-grand-scene vitrine-teinte" data-rarete={fiche.rarete ?? undefined} data-banniere={scene ? "" : undefined} role="img" aria-label={fiche.description}>
         {scene ? <Toile largeur={scene.largeur} hauteur={scene.hauteur} cases={scene.cases} echelle={grandEcran ? 3 : 2} /> : <Toile largeur={fiche.groupe.largeur} hauteur={fiche.groupe.hauteur} cases={fiche.groupe.cases} echelle={grandEcran ? 4 : 3} />}
       </div>
@@ -334,28 +366,23 @@ function GauloisEnGrand({ fiche, lib, inventaire, onFermer }: { fiche: Fiche; li
         {lignes.map((ligne) => {
           const dessin = ligne.objet ? vignetteDeLObjet(ligne.objet.emplacement, ligne.objet.id, g.tenue) : ligne.modele ? modeleNu(ligne.modele) : null;
           return (
-            <CaseEnGrand key={ligne.partie} partie={ligne.partie} nom={ligne.nom} rarete={ligne.rarete} ou={ligne.objet ? provenance(ligne.objet.emplacement, ligne.objet.id) : lien("Boutique ou pochette", "gaulois-uniques")} onAller={onFermer}>
+            <CaseEnGrand key={ligne.partie} partie={ligne.partie} nom={ligne.nom} rarete={ligne.rarete} ou={ligne.objet ? provenance(ligne.objet.emplacement, ligne.objet.id) : lien("Boutique ou booster", "gaulois-uniques")} onAller={onFermer}>
               {dessin && <Pixels largeur={dessin.largeur} hauteur={dessin.hauteur} cases={dessin.cases} echelle={echelleEntiere(dessin.largeur, dessin.hauteur, COTE_DE_CASE, 3)} class="case-dessin" />}
             </CaseEnGrand>
           );
         })}
         {familier && (
-          <CaseEnGrand partie="Familier" nom={familier.nom} rarete={familier.rarete} ou={lien("Pochette des familiers", "familiers")} onAller={onFermer}>
+          <CaseEnGrand partie="Familier" nom={familier.nom} rarete={familier.rarete} ou={lien("Booster des familiers", "familiers")} onAller={onFermer}>
             <DessinFamilier familier={familier} place={COTE_DE_CASE} maximum={3} class="case-dessin" />
           </CaseEnGrand>
         )}
         {banniere && vignette && (
-          <CaseEnGrand partie="Bannière" nom={banniere.nom} rarete={banniere.rarete} ou={lib?.estDeLaPochette(banniere) ? lien("Pochette des bannières", "pochettes", "bannieres") : lien("À la boutique", "bannieres")} onAller={onFermer}>
+          <CaseEnGrand partie="Bannière" nom={banniere.nom} rarete={banniere.rarete} ou={lib?.estDeLaPochette(banniere) ? lien("Booster des bannières", "pochettes", "bannieres") : lien("À la boutique", "bannieres")} onAller={onFermer}>
             <Toile largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} class="case-dessin vitrine-grand-banniere" />
           </CaseEnGrand>
         )}
       </ul>
-      <div class="boutique-dialogue-actions">
-        <button type="button" class="btn btn-ghost" onClick={onFermer} data-testid="vitrine-grand-fermer">
-          Fermer
-        </button>
-      </div>
-    </Dialogue>
+    </Fenetre>
   );
 }
 
@@ -401,59 +428,5 @@ function CaseEnGrand({ partie, nom, rarete, ou = null, onAller, children }: { pa
         </a>
       )}
     </li>
-  );
-}
-
-const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
-const SANS_GAULOIS: readonly GauloisVitrine[] = [];
-/** Les refus qu'une nouvelle lecture ne changera pas : pas de « Réessayer ». */
-const SANS_RETOUR = new Set(["not_validated", "suspended", "not_signed_in"]);
-
-type Lecture = { kind: "attente" } | { kind: "lecture" } | { kind: "erreur"; message: string; reessayer: boolean } | { kind: "prete"; gaulois: GauloisVitrine[] };
-
-/**
- * L'onglet « La vitrine » : lit `get_village` à sa première ouverture, puis discrètement à chaque retour (un membre a pu
- * changer sa tenue, son familier ou sa bannière) ; une relecture qui échoue garde les cartes à l'écran. Le serveur décide de
- * qui la voit : un compte validé ou de l'encadrement.
- */
-export default function VitrineDuClan({ actif }: { actif: boolean }) {
-  const [lecture, setLecture] = useState<Lecture>({ kind: "attente" });
-  // La recherche par nom : ce qu'on a tapé. Les cartes qui ne correspondent pas se retirent ; l'ordre ne change pas.
-  const [cherche, setCherche] = useState("");
-  const tous = lecture.kind === "prete" ? lecture.gaulois : SANS_GAULOIS;
-  const trouves = useMemo(() => chercherDansLaVitrine(tous, cherche), [tous, cherche]);
-
-  const lire = async (discret: boolean) => {
-    if (!discret) setLecture({ kind: "lecture" });
-    try {
-      const gaulois = lireVitrine(await call<unknown>("get_village"));
-      if (gaulois) setLecture({ kind: "prete", gaulois });
-      else if (!discret) setLecture({ kind: "erreur", message: ILLISIBLE, reessayer: true });
-    } catch (e) {
-      if (!discret) setLecture({ kind: "erreur", message: messageOf(e), reessayer: !(e instanceof ServerError && SANS_RETOUR.has(e.code)) });
-    }
-  };
-
-  useEffect(() => {
-    if (actif) void lire(lecture.kind === "prete");
-  }, [actif]);
-
-  if (lecture.kind === "attente" || lecture.kind === "lecture") return <Loading label="Lecture de la vitrine…" />;
-  if (lecture.kind === "erreur") return <Problem message={lecture.message} onRetry={lecture.reessayer ? () => void lire(false) : undefined} />;
-  return (
-    <>
-      <div class="vitrine-recherche">
-        <label for="vitrine-cherche" class="nom-champ">
-          Chercher un Gaulois
-        </label>
-        <input id="vitrine-cherche" type="search" class="champ vitrine-champ" value={cherche} onInput={(e) => setCherche(e.currentTarget.value)} autocomplete="off" spellcheck={false} data-testid="vitrine-cherche" />
-        {cherche.trim() !== "" && (
-          <p class="vitrine-compte tnum" role="status" data-testid="vitrine-compte">
-            {trouves.length} sur {tous.length}
-          </p>
-        )}
-      </div>
-      <CartesDeLaVitrine gaulois={trouves} enGrand />
-    </>
   );
 }

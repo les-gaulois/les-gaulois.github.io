@@ -2,15 +2,22 @@
 import Base from "../layouts/Base.astro";
 import NotOpen from "../components/compte/NotOpen.astro";
 import VillageApp from "../components/village/VillageApp";
+import DemoDuJeu from "../components/village/DemoDuJeu";
 import BarreDuJeu from "../components/jeu/BarreDuJeu.astro";
 import PiedDuJeu from "../components/jeu/PiedDuJeu.astro";
+import sharp from "sharp";
+import { ecrire, enCapitales } from "../lib/jeu/ecriture";
 import { feuilleDuKit } from "../lib/jeu/kit-css";
 import GauloisPortrait from "../components/GauloisPortrait.astro";
 import { AUTH_ENABLED } from "../lib/compte/api";
+import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib/bannieres-joueurs";
 import { loadMembers } from "../lib/data";
 import { fmtDayAndTime, fmtInt } from "../lib/format";
 import { gauloisLusLe } from "../lib/gaulois-joueurs";
-import { portraitDuGaulois } from "../lib/gaulois-site";
+import { gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
+import { RARETES_DES_OBJETS } from "../lib/gaulois";
+import { tenueOf } from "../lib/gaulois-sprite";
+import { rareteDuCadre } from "../lib/village/vitrine";
 import { vitrinePublique } from "../lib/village/vitrine-publique";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -19,8 +26,26 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 // d'abord, et « Mon Gaulois » ne la montre qu'à qui n'est pas connecté (VillageApp.tsx).
 const vitrine = vitrinePublique(loadMembers()?.members ?? [], (id) => portraitDuGaulois(id) !== null);
 const releve = gauloisLusLe();
+// Chaque carte de la vitrine des visiteurs, en écran de jeu (21 novembre 2026) : comme celles des membres, la bannière choisie
+// derrière le Gaulois (relevée comme sur la liste du clan, src/lib/bannieres-joueurs.ts) et le cadre de la rareté la plus
+// haute qu'il porte (src/lib/village/vitrine.ts), un fait du catalogue, jamais un score.
+const fonds = fondsDesLignes(bannieresDuCache(BANNIERES_MEMBRES_FILE, vitrine.map((g) => g.id)));
+const tenues = gauloisDuSite();
+const cartes = vitrine.map((g) => {
+  const tenue = tenueOf(tenues, g.id);
+  const rarete = tenue ? rareteDuCadre(tenue) : null;
+  return { ...g, banniere: fonds[g.id]?.image ?? null, rarete, rareteDite: rarete ? RARETES_DES_OBJETS[rarete].nom.toLowerCase() : null };
+});
 // Les images du kit en pixels (src/lib/jeu/kit-css.ts), servies à part et gardées en cache : leur version est dans l'adresse.
 const kit = await feuilleDuKit();
+// Le titre de la vitrine des visiteurs, en ruban : un mot en pixels du kit, dessiné ici à la construction (la page est écrite
+// sans script), crème à l'ombre comme les rubans de « Mon Gaulois ».
+const titreEnPixels = await (async () => {
+  const p = ecrire(enCapitales("Les Gaulois du clan"), "#f6f1e3", "rgba(4,7,22,.75)");
+  const image = await sharp(Buffer.from(p.data.buffer, p.data.byteOffset, p.data.byteLength), { raw: { width: p.width, height: p.height, channels: 4 } }).png().toBuffer();
+  const url = `url("data:image/png;base64,${image.toString("base64")}")`;
+  return `--i:${url};--i-sombre:${url};--w:${p.width};--h:${p.height}`;
+})();
 ---
 
 {/* Le Gaulois de chaque membre (13 novembre 2026, demande du pilote) : il l'habille en pixels, et son Gaulois paraît sur
@@ -52,19 +77,34 @@ const kit = await feuilleDuKit();
         </section>
       )
     }
+    {/* La démonstration du jeu pour les visiteurs (21 novembre 2026, choix du pilote) : un booster d'essai, puis « Rejoins le
+        clan pour jouer ». Sans le serveur, elle est toujours là ; avec lui, « Mon Gaulois » ne la montre qu'aux visiteurs. */}
+    <div class="demo-jeu-place" data-demo-visiteur hidden={AUTH_ENABLED}>
+      <DemoDuJeu client:only="preact" rejoindre={`${base}/rejoindre`} connexion={AUTH_ENABLED ? `${base}/compte` : null} />
+    </div>
     {
       vitrine.length > 0 && (
-        <section class="jeu-ecran jeu-n9 mt-8" aria-labelledby="vitrine-publique-titre" data-vitrine-publique data-testid="vitrine-publique" hidden={AUTH_ENABLED}>
-          <h2 id="vitrine-publique-titre" class="section-title-sm">Les Gaulois du clan</h2>
-          <p class="info-discrete tnum mt-2">
+        <section class="vitrine-publique jeu-panneau jeu-n9" aria-labelledby="vitrine-publique-titre" data-vitrine-publique data-testid="vitrine-publique" hidden={AUTH_ENABLED}>
+          <h2 id="vitrine-publique-titre" class="vitrine-publique-titre">
+            <span class="jeu-ruban jeu-n9">
+              <span class="sr-only">Les Gaulois du clan</span>
+              <span class="jeu-px" aria-hidden="true"><i style={titreEnPixels} /></span>
+            </span>
+          </h2>
+          <p class="vitrine-publique-releve tnum">
             {vitrine.length > 1 ? `${fmtInt(vitrine.length)} Gaulois déjà habillés par leur membre` : "1 Gaulois déjà habillé par son membre"}{releve && `, ${vitrine.length > 1 ? "relevés" : "relevé"} le ${fmtDayAndTime(releve)}`}.
           </p>
-          <ul class="vitrine-publique mt-6">
-            {vitrine.map((g) => (
+          <ul class="vitrine-publique-cartes">
+            {cartes.map((g) => (
               <li>
-                <a class="card vitrine-publique-case" href={`${base}/membres/${encodeURIComponent(g.id)}`} data-testid="vitrine-publique-gaulois">
-                  <GauloisPortrait id={g.id} pose="pied" taille={2} />
+                <a class="vitrine-publique-case" href={`${base}/membres/${encodeURIComponent(g.id)}`} data-rarete={g.rarete ?? undefined} data-testid="vitrine-publique-gaulois">
+                  <span class="vitrine-publique-image">
+                    {g.banniere && <img class="vitrine-publique-fond" src={`${base}${g.banniere}`} alt="" loading="lazy" decoding="async" />}
+                    <GauloisPortrait id={g.id} pose="pied" taille={2} />
+                  </span>
                   <span class="pseudo">{g.pseudo}</span>
+                  {/* Le cadre dit la rareté portée en couleur : elle est aussi écrite, pour les lecteurs d'écran. */}
+                  {g.rareteDite && <span class="sr-only">, rareté portée : {g.rareteDite}</span>}
                 </a>
               </li>
             ))}
