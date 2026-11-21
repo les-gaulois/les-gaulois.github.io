@@ -36,6 +36,9 @@ const HEALTHY: Record<string, Route> = {
   "/rest/v1/rpc/noter_parties_sentier": { status: 401, body: {} },
   "/rest/v1/rpc/get_loterie": { status: 401, body: {} },
   "/rest/v1/rpc/acheter_billets_loterie": { status: 401, body: {} },
+  "/rest/v1/rpc/ouvrir_booster_loterie": { status: 401, body: {} },
+  "/rest/v1/rpc/noter_paliers_victoires": { status: 401, body: {} },
+  "/rest/v1/rpc/insignes_des_joueurs": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_bannieres": { status: 401, body: {} },
   "/rest/v1/rpc/get_mes_cartes": { status: 401, body: {} },
   "/rest/v1/rpc/familiers_des_joueurs": { status: 401, body: {} },
@@ -643,6 +646,20 @@ describe("le contrôle de la mise en ligne, la loterie du lundi", () => {
     expect(await statusOf(HEALTHY, "n'achète pas de billet de loterie")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_billets_loterie": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'achète pas de billet de loterie")).toBe("ok");
     expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/acheter_billets_loterie": { status: 200, body: { ok: true, solde: 0 } } }, "n'achète pas de billet de loterie")).toBe("fail");
+  });
+});
+
+describe("le contrôle de la mise en ligne, les nouvelles règles de Mon Gaulois", () => {
+  it("bloque si un visiteur ouvre un booster de loterie, note des paliers ou lit les insignes, et signale les règles pas encore installées", async () => {
+    expect(await statusOf(HEALTHY, "n'ouvre pas de booster de loterie")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_booster_loterie": { status: 200, body: { ok: false, error: "not_signed_in" } } }, "n'ouvre pas de booster de loterie")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/ouvrir_booster_loterie": { status: 200, body: { ok: true, billets: 3 } } }, "n'ouvre pas de booster de loterie")).toBe("fail");
+    const absente = (await run({ ...HEALTHY, "/rest/v1/rpc/ouvrir_booster_loterie": { status: 404, body: {} } })).find((c) => c.label.includes("boosters de loterie sont installés"));
+    expect(absente).toMatchObject({ status: "warn", detail: expect.stringContaining(".cache/a-coller-regles-mon-gaulois.sql") });
+    expect(await statusOf(HEALTHY, "ne note pas de paliers de victoires")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/noter_paliers_victoires": { status: 200, body: { ok: true, comptes: 0 } } }, "ne note pas de paliers de victoires")).toBe("fail");
+    expect(await statusOf(HEALTHY, "ne lit pas les insignes des joueurs")).toBe("ok");
+    expect(await statusOf({ ...HEALTHY, "/rest/v1/rpc/insignes_des_joueurs": { status: 200, body: { ok: true, insignes: {} } } }, "ne lit pas les insignes des joueurs")).toBe("fail");
   });
 });
 

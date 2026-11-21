@@ -342,6 +342,21 @@ export async function runPreflight({ url, publishableKey, secretKey, fetcher = f
   if (isClosed(billets.status) || (billets.ok && billetsAnswer?.ok === false)) add("Un visiteur n'achète pas de billet de loterie", "ok");
   else add("Un visiteur n'achète pas de billet de loterie", "fail", `Réponse ${billets.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois achète des billets.`);
 
+  // Les nouvelles règles de « Mon Gaulois » (migrations 20261121000100 à 000300, collées par le fichier
+  // .cache/a-coller-regles-mon-gaulois.sql) : seul un compte validé avec son Gaulois ouvre un booster de loterie ; seule la clé
+  // de service note les paliers de victoires et lit les insignes des joueurs. Absente : 404, le fichier n'est pas collé.
+  const booster = await rpc("ouvrir_booster_loterie", { p_jour: null });
+  const boosterAnswer = booster.ok ? ((await booster.json().catch(() => null)) as { ok?: boolean } | null) : null;
+  if (booster.status === 404) add("Les boosters de loterie sont installés", "warn", "ouvrir_booster_loterie est absente : collez le fichier .cache/a-coller-regles-mon-gaulois.sql (sa dernière ligne dit « règles de Mon Gaulois : installées ») avant de mettre en ligne ce qui s'en sert.");
+  else if (isClosed(booster.status) || (booster.ok && boosterAnswer?.ok === false)) add("Un visiteur n'ouvre pas de booster de loterie", "ok");
+  else add("Un visiteur n'ouvre pas de booster de loterie", "fail", `Réponse ${booster.status}. Ne mettez pas en ligne : seul un compte validé avec son Gaulois ouvre ses boosters de loterie.`);
+  const paliersDeVictoires = await rpc("noter_paliers_victoires", { p_entries: [] });
+  if (isClosed(paliersDeVictoires.status) || paliersDeVictoires.status === 404) add("Un visiteur ne note pas de paliers de victoires", "ok");
+  else add("Un visiteur ne note pas de paliers de victoires", "fail", `Réponse ${paliersDeVictoires.status}. Ne mettez pas en ligne : seule la clé de service note les paliers de victoires et offre leurs boosters.`);
+  const insignes = await rpc("insignes_des_joueurs", { p_empreintes: [] });
+  if (isClosed(insignes.status) || insignes.status === 404) add("Un visiteur ne lit pas les insignes des joueurs", "ok");
+  else add("Un visiteur ne lit pas les insignes des joueurs", "fail", `Réponse ${insignes.status}. Ne mettez pas en ligne : seule la clé de service lit les insignes de saison des joueurs.`);
+
   // Les bannières du Gaulois (migration 20261115000900, collée par le fichier .cache/a-coller-bannieres.sql) : seul un compte
   // connecté lit ses bannières ; seul un compte validé avec son Gaulois en achète ou choisit celle de /gaulois. Absente : 404,
   // le fichier n'est pas collé.
