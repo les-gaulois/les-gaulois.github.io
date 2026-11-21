@@ -61,6 +61,10 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « La boutique » de « Mon Gaulois » habillée en écran de jeu (21 novembre 2026) : la sélection de la semaine, les onglets
   // des rayons, les filtres, l'essayage et le marché en images, tout sous `.boutique-jeu`.
   { fichier: "19-jeu-boutique.css", pages: ["/village", "/direction"] },
+  // « Le pass » et « La forge » de « Mon Gaulois » habillés en écran de jeu (21 novembre 2026) : la saison et sa récompense,
+  // la route des paliers, les missions, la présence, le défi, l'étal ; la fusion et la gravure. Tout sous `.pass-jeu` et
+  // `.forge-jeu`.
+  { fichier: "20-jeu-pass-forge.css", pages: ["/village", "/direction"] },
   // « La vitrine » et « La loterie » de « Mon Gaulois » en écran de jeu, et la démonstration des visiteurs (21 novembre 2026) :
   // les cartes des Gaulois du clan, la rangée des boosters de loterie de la semaine, le booster d'essai.
   { fichier: "21-jeu-vitrine-loterie.css", pages: ["/village", "/direction"] },

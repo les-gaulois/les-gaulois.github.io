@@ -2,6 +2,8 @@
  * Les dessins en pixels de l'onglet « Le sentier » (16 novembre 2026) : une image par mission, le chaudron du défi du clan
  * et la pochette d'un palier, teintée à la couleur de sa rareté. Dessins originaux, faits pour le site (Claude Fable 5.2),
  * case par case : ils ne reprennent aucune œuvre. Tous sont décoratifs : ce qu'ils montrent est toujours écrit à côté.
+ * Depuis le 21 novembre 2026 (« Le pass » habillé du kit), le pass garde les images des missions ; le chaudron sert au
+ * creuset de la fusion, la pochette teintée au marché de la boutique. Ses autres dessins sont dans `src/lib/jeu/pass-forge.ts`.
  */
 import type { MissionDuSentier, RareteDePalier } from "../../lib/village/contrat";
 import { POCHETTE_COTE, casesDeLaPochette } from "./PochetteDessin";
@@ -48,9 +50,6 @@ export const DESSINS_DES_MISSIONS: Readonly<Record<MissionDuSentier, DessinDuSen
   vocal: dessin(VOIX, { w: "#ffffff", b: "#0b5fff" }),
   pochette: { largeur: POCHETTE_COTE, hauteur: POCHETTE_COTE, cases: casesDeLaPochette() },
 };
-
-/** L'épée de l'en-tête des missions : la même, au bois plus sombre pour un fond clair. */
-export const EPEE_DES_MISSIONS: DessinDuSentier = dessin(EPEE, { ...ACIER, d: "#7a88b4", b: "#8f5727" });
 
 const CHAUDRON = { largeur: 40, hauteur: 36 } as const;
 

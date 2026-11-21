@@ -4,10 +4,10 @@ import { AUTH_ENABLED, ServerError, basePath, call } from "../../lib/compte/api"
 import { clicSurBoutonArme, desarmerALaPerte } from "../../lib/compte/discord-etat";
 import { errorMessage } from "../../lib/compte/errors";
 import { RETOUR_VILLAGE_KEY, changerObjet, tenueDuServeur, vignetteDeLObjet, type Tenue } from "../../lib/gaulois";
+import { sonDeLaGravure } from "../../lib/jeu/sons-de-la-forge";
 import { ADRESSE_BOUTIQUE } from "../../lib/village/boutique-rayons";
-import { PLAQUE, PLAQUE_GRANDE } from "../../lib/village/plaque";
+import { PLAQUE_GRANDE } from "../../lib/village/plaque";
 import type { MaForge, ObjetGravable, PartieGravable } from "../../lib/village/contrat";
-import { motStatere, nombre, stateres } from "../../lib/village/ecran-boutique";
 import {
   PARTIES_MONTREES,
   PLAQUES_CHANGEES,
@@ -23,21 +23,26 @@ import {
   phraseDesPlaquesVues,
   rangerLesObjets,
 } from "../../lib/village/ecran-forge";
+import { stateres } from "../../lib/village/ecran-boutique";
 import { MESSAGES_DE_LA_FORGE, lireMaForge, messageDeLaForge } from "../../lib/village/forge";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import { CodeLogin, DiscordButton, Loading, Problem, codeLoginShown, useMe } from "../compte/common";
-import { MarqueDeRarete, PetitePlaque, Piece, Pixels } from "./BoutiquePixels";
+import { Etiquette, Icone, Px } from "../jeu/Pixels";
+import { MarqueDeRarete, PetitePlaque, Pixels } from "./BoutiquePixels";
+import { BoutonDuJeu, PrixDuJeu, Ruban, SousTitre } from "./BoutiqueDuJeu";
 import { useDecorDuGaulois } from "./Bannieres";
 import { ApercuGaulois } from "./Cases";
 import { Fusion } from "./Fusion";
+import { BoutonDesBoosters, CompteDuBooster, FenetreDuBooster, RefusDuBooster, ResteEnPixels } from "./KitDesBoosters";
 
 /**
- * La forge, onglet de la page « Mon Gaulois ». Deux ateliers, au choix en haut de l'onglet : « Fondre » (`Fusion.tsx`,
- * demande du pilote du 16 novembre 2026 : trois objets d'une rareté en donnent un de la suivante), ouvert d'abord, et
- * « Graver », la forge aux souvenirs (idée du pilote, 14 novembre 2026 : « On paie des
- * statères pour graver une vraie partie sur son épée »). Le membre choisit un de ses objets, puis une de ses parties qui
- * ont rapporté des points au clan, voit la plaque avant de payer, confirme, et la plaque est gravée. Effacer une plaque
- * est gratuit, mais ne se rattrape pas : à part, sous un filet, au second clic.
+ * La forge, partie « La forge » de « Mon Gaulois » (`#forge`), habillée avec le kit du jeu le 21 novembre 2026 (feuille
+ * `20-jeu-pass-forge.css`, tout sous `.forge-jeu`). Deux ateliers, au choix en haut : « Fondre » (`Fusion.tsx`, demande du
+ * pilote du 16 novembre 2026 : trois objets d'une rareté en donnent un de la suivante, dans le moule à la forme de l'objet
+ * reçu), ouvert d'abord, et « Graver », la forge aux souvenirs (idée du pilote, 14 novembre 2026 : « On paie des statères
+ * pour graver une vraie partie sur son épée »). Le membre choisit un de ses objets, puis une de ses parties qui ont rapporté
+ * des points au clan, voit la plaque avant de payer, confirme, et la plaque est gravée. Effacer une plaque est gratuit, mais
+ * ne se rattrape pas : à part, sous un filet, au second clic.
  *
  * Le serveur décide de tout (`get_ma_forge`, `graver_objet`, `effacer_gravure`) : le prix, le solde, les parties, les
  * objets et le texte de chaque plaque viennent de lui. L'écran ne montre jamais l'identifiant d'une partie.
@@ -105,25 +110,17 @@ function CaseDeLaForge({ objet, onChoisir }: { objet: ObjetGravable; onChoisir: 
 type Issue = { ok: true; forge: MaForge } | { ok: false; message: string };
 
 /**
- * La confirmation, comme à la boutique : un vrai `<dialog>` modal qui dit la plaque, l'objet, le prix et ce qu'il restera,
- * puis demande au serveur. Après la gravure, la plaque gravée et le solde. Après un refus, les chiffres de l'ouverture ne
+ * La confirmation, dans une fenêtre du jeu : la plaque, l'objet, le prix et ce qu'il restera, puis la demande au serveur.
+ * Après la gravure, la plaque gravée, trois coups de ciseau et le solde. Après un refus, les chiffres de l'ouverture ne
  * valent plus : il ne reste que les mots du refus et « Fermer ».
  */
 function DialogueGravure({ objet, partie, prix, solde, graver, onFermer }: { objet: ObjetGravable; partie: PartieGravable; prix: number; solde: number; graver: () => Promise<Issue>; onFermer: () => void }) {
-  const fenetre = useRef<HTMLDialogElement>(null);
-  const tete = useRef<HTMLHeadingElement>(null);
   const [etape, setEtape] = useState<"confirmer" | "envoi" | "fait">("confirmer");
   const [refus, setRefus] = useState<string | null>(null);
   const [reste, setReste] = useState<number | null>(null);
   // Ce que la fenêtre montre est ce qu'elle a vu en s'ouvrant : rien ne bouge quand la forge se relit derrière.
   const [depart] = useState({ solde, texte: partie.texte, ancienne: objet.gravure?.texte ?? null, nom: nomDeLObjet(objet) });
   const occupe = etape === "envoi";
-  useEffect(() => {
-    const d = fenetre.current;
-    if (d && !d.open) d.showModal();
-    return () => d?.close();
-  }, []);
-  useEffect(() => tete.current?.focus(), [etape === "fait", refus !== null]);
   const envoyer = async () => {
     setEtape("envoi");
     setRefus(null);
@@ -131,87 +128,41 @@ function DialogueGravure({ objet, partie, prix, solde, graver, onFermer }: { obj
     if (issue.ok) {
       setReste(issue.forge.solde);
       setEtape("fait");
+      sonDeLaGravure();
     } else {
       setRefus(issue.message);
       setEtape("confirmer");
     }
   };
-  const titre = etape === "fait" ? "C'est gravé" : refus ? "Gravure impossible" : `Graver pour ${stateres(prix)} ?`;
+  const titre = etape === "fait" ? "C'est gravé" : refus ? "Gravure impossible" : "Graver cette plaque ?";
   return (
-    <dialog
-      ref={fenetre}
-      class="boutique-dialogue forge-dialogue"
-      aria-labelledby="forge-dialogue-titre"
-      data-testid="forge-dialogue"
-      data-etape={etape === "fait" ? "fait" : "confirmer"}
-      onCancel={(e) => {
-        e.preventDefault();
-        if (!occupe) onFermer();
-      }}
-      onClick={(e) => {
-        if (e.target === fenetre.current && !occupe) onFermer();
-      }}
-    >
-      <div class="boutique-dialogue-corps">
-        <h2 id="forge-dialogue-titre" ref={tete} tabIndex={-1} class="boutique-dialogue-titre">
-          {titre}
-        </h2>
-        <GrandePlaque texte={depart.texte} legende={depart.nom} echelle={7} testid="forge-dialogue-plaque" />
+    <FenetreDuBooster titre={titre} etape={etape === "fait" ? "fait" : refus ? "refus" : "confirmer"} occupe={occupe} onFermer={onFermer} testid="forge-dialogue">
+      <div class="fj-fenetre" data-etape={etape === "fait" ? "fait" : "confirmer"}>
+        <GrandePlaque texte={depart.texte} legende={depart.nom} echelle={6} testid="forge-dialogue-plaque" />
         {etape === "fait" ? (
           <>
-            {reste !== null && (
-              <p class="boutique-dialogue-texte" data-testid="forge-reste">
-                Il vous reste {stateres(reste)}.
-              </p>
-            )}
-            <div class="boutique-dialogue-actions">
-              <button type="button" class="btn btn-primary" onClick={onFermer} data-testid="forge-fermer">
-                Fermer
-              </button>
+            {reste !== null && <ResteEnPixels solde={reste} testid="forge-reste" />}
+            <div class="bst-actions">
+              <BoutonDesBoosters t="Fermer" or onClick={onFermer} testid="forge-fermer" />
             </div>
           </>
         ) : (
           <>
             {!refus && depart.ancienne && (
-              <p class="boutique-dialogue-texte" data-testid="forge-remplace">
+              <p class="bst-mot" data-testid="forge-remplace">
                 Elle remplace la plaque « {depart.ancienne} ».
               </p>
             )}
-            {!refus && (
-              <dl class="boutique-compte">
-                <div>
-                  <dt>Prix</dt>
-                  <dd>{stateres(prix)}</dd>
-                </div>
-                <div>
-                  <dt>Votre bourse</dt>
-                  <dd>{stateres(depart.solde)}</dd>
-                </div>
-                <div class="boutique-compte-reste">
-                  <dt>Il vous restera</dt>
-                  <dd data-testid="forge-restera">{stateres(depart.solde - prix)}</dd>
-                </div>
-              </dl>
-            )}
-            {refus && (
-              <p class="form-problem" role="alert" data-testid="forge-refus">
-                {refus}
-              </p>
-            )}
-            <div class="boutique-dialogue-actions">
-              {!refus && (
-                <button type="button" class="btn btn-primary" disabled={occupe} onClick={() => void envoyer()} data-testid="forge-confirmer">
-                  {occupe ? "Gravure…" : "Graver"}
-                </button>
-              )}
-              <button type="button" class="btn btn-ghost" disabled={occupe} onClick={onFermer} data-testid="forge-annuler">
-                {refus ? "Fermer" : "Annuler"}
-              </button>
+            {!refus && <CompteDuBooster prix={prix} solde={depart.solde} />}
+            <RefusDuBooster message={refus} />
+            <div class="bst-actions">
+              {!refus && <BoutonDesBoosters t={occupe ? "Gravure" : "Graver"} dit={occupe ? "Gravure en cours" : "Graver"} or disabled={occupe} onClick={() => void envoyer()} testid="forge-confirmer" />}
+              <BoutonDesBoosters t={refus ? "Fermer" : "Annuler"} disabled={occupe} onClick={onFermer} testid="forge-annuler" />
             </div>
           </>
         )}
       </div>
-    </dialog>
+    </FenetreDuBooster>
   );
 }
 
@@ -230,12 +181,15 @@ function EffacerLaPlaque({ occupe, onConfirmer }: { occupe: boolean; onConfirmer
     document.addEventListener("pointerdown", ailleurs);
     return () => document.removeEventListener("pointerdown", ailleurs);
   }, [arme]);
+  // Sans « … » : l'écriture en pixels ne l'a pas.
+  const mots = occupe ? "Effacement" : arme ? "Confirmer : effacer la plaque" : "Effacer la plaque";
+  const dit = occupe ? "Effacement en cours" : mots;
   return (
-    <div class="forge-effacer">
+    <div class="forge-effacer fj-effacer">
       <button
         ref={bouton}
         type="button"
-        class="btn btn-ghost forge-effacer-bouton"
+        class="jeu-btn jeu-btn-bleu jeu-n9 forge-effacer-bouton"
         data-arme={arme ? "" : undefined}
         disabled={occupe}
         aria-describedby={arme ? "forge-effacer-note" : undefined}
@@ -258,7 +212,7 @@ function EffacerLaPlaque({ occupe, onConfirmer }: { occupe: boolean; onConfirmer
           setArme(false);
         }}
       >
-        {occupe ? "Effacement…" : arme ? "Confirmer : effacer la plaque" : "Effacer la plaque"}
+        <Px t={mots} couleur="creme" relief="cerne" plie dit={dit} />
       </button>
       {arme && (
         <p id="forge-effacer-note" class="forge-effacer-note" data-testid="forge-effacer-note">
@@ -272,7 +226,7 @@ function EffacerLaPlaque({ occupe, onConfirmer }: { occupe: boolean; onConfirmer
 /** Un message de la forge fermée, et où aller. */
 function Ferme({ testid, children }: { testid: string; children: ComponentChildren }) {
   return (
-    <p class="forge-phrase forge-ferme" data-testid={testid}>
+    <p class="forge-phrase forge-ferme fj-ferme jeu-bulle jeu-n9" data-testid={testid}>
       {children}
     </p>
   );
@@ -310,8 +264,8 @@ function Atelier() {
     }
   };
 
-  // La forge se lit quand sa fenêtre s'ouvre, et se relit à chaque retour : la bourse, la tenue et l'inventaire ont pu
-  // changer au vestiaire ou à la boutique (les onglets voisins).
+  // La forge se lit quand sa partie s'ouvre, et se relit à chaque retour : la bourse, la tenue et l'inventaire ont pu
+  // changer au vestiaire ou à la boutique (les parties voisines).
   const connecte = me?.signed_in === true;
   useEffect(() => {
     if (connecte) void lire(lecture.kind === "prete");
@@ -390,17 +344,10 @@ function Atelier() {
     }
   };
 
-  // La gravure dans la même carte que la fusion et que le sentier : la plaque dorée pour dessin.
-  const enCarte = (contenu: ComponentChildren): ComponentChildren => (
-    <section class="forge-gravure sentier-carte" data-ton="or" data-testid="forge-gravure">
-      <div class="sentier-carte-tete">
-        <span class="sentier-carte-dessin" aria-hidden="true">
-          <Pixels largeur={PLAQUE.largeur} hauteur={PLAQUE.hauteur} cases={PLAQUE.cases} echelle={4} />
-        </span>
-        <div>
-          <h3>La gravure</h3>
-        </div>
-      </div>
+  // La gravure dans un panneau du jeu, comme la fusion : son ruban pour titre.
+  const enPanneau = (contenu: ComponentChildren): ComponentChildren => (
+    <section class="forge-gravure fj-panneau jeu-panneau jeu-n9" aria-labelledby="forge-gravure-titre" data-testid="forge-gravure">
+      <Ruban t="La gravure" bleu id="forge-gravure-titre" />
       {contenu}
     </section>
   );
@@ -409,7 +356,7 @@ function Atelier() {
   if (me === null) corps = <Loading label="Lecture de votre compte…" />;
   else if (!me.signed_in) {
     corps = (
-      <div class="forge-porte" data-testid="forge-porte">
+      <div class="forge-porte fj-porte jeu-panneau jeu-n9" data-testid="forge-porte">
         <GrandePlaque texte={null} echelle={6} />
         <p class="forge-phrase">Connectez-vous pour graver vos parties sur vos objets.</p>
         <div>
@@ -434,46 +381,44 @@ function Atelier() {
     const objet = objetChoisi(forge, cle);
     const choisie = partieChoisie(forge, partie);
     const tete = (
-      <div class="forge-tete" data-testid="forge-tete">
-        <p class="forge-bourse" data-testid="forge-solde">
-          <Piece taille={24} />
-          <span class="forge-solde tnum">{nombre(forge.solde)}</span> {motStatere(forge.solde)}
+      <div class="forge-tete fj-tete" data-testid="forge-tete">
+        <p class="fj-compte" data-testid="forge-solde">
+          <Px t="Votre bourse" couleur="doux" dit="Votre bourse :" />
+          <PrixDuJeu valeur={forge.solde} />
         </p>
-        <p class="forge-prix" data-testid="forge-prix">
-          Une gravure : <strong>{stateres(forge.prix)}</strong>
+        <p class="fj-compte" data-testid="forge-prix">
+          <Px t="Une gravure" couleur="doux" dit="Une gravure :" />
+          <PrixDuJeu valeur={forge.prix} />
         </p>
       </div>
     );
     const ateliers = forge.fusion && (
-      <div class="forge-ateliers" role="group" aria-label="Atelier de la forge" data-testid="forge-ateliers">
-        <button type="button" class="chip" aria-pressed={atelier === "fusion"} onClick={() => setAtelier("fusion")} data-testid="forge-atelier-fusion">
-          Fondre
+      <div class="forge-ateliers fj-ateliers" role="group" aria-label="Atelier de la forge" data-testid="forge-ateliers">
+        <button type="button" class={`jeu-btn ${atelier === "fusion" ? "" : "jeu-btn-bleu"} jeu-n9`} aria-pressed={atelier === "fusion"} onClick={() => setAtelier("fusion")} data-testid="forge-atelier-fusion">
+          <Px t="Fondre" couleur={atelier === "fusion" ? "encre" : "creme"} relief={atelier === "fusion" ? "plat" : "cerne"} dit="Fondre" />
         </button>
-        <button type="button" class="chip" aria-pressed={atelier === "gravure"} onClick={() => setAtelier("gravure")} data-testid="forge-atelier-gravure">
-          Graver
+        <button type="button" class={`jeu-btn ${atelier === "gravure" ? "" : "jeu-btn-bleu"} jeu-n9`} aria-pressed={atelier === "gravure"} onClick={() => setAtelier("gravure")} data-testid="forge-atelier-gravure">
+          <Px t="Graver" couleur={atelier === "gravure" ? "encre" : "creme"} relief={atelier === "gravure" ? "plat" : "cerne"} dit="Graver" />
         </button>
       </div>
     );
     if (!forge.peut_graver) {
-      corps = (
-        <>
-          {me.status === "validated" ? (
-            <Ferme testid="forge-sans-gaulois">
-              La forge grave les objets de votre Gaulois.{" "}
-              <a class="forge-lien" href="#gaulois">
-                Créez votre Gaulois
-              </a>
-            </Ferme>
-          ) : (
-            <Ferme testid="forge-attente">
-              {MESSAGES_DE_LA_FORGE.not_validated}{" "}
-              <a class="forge-lien" href={`${basePath()}/compte`}>
-                Voir mon compte
-              </a>
-            </Ferme>
-          )}
-        </>
-      );
+      corps =
+        me.status === "validated" ? (
+          <Ferme testid="forge-sans-gaulois">
+            La forge grave les objets de votre Gaulois.{" "}
+            <a class="forge-lien" href="#gaulois">
+              Créez votre Gaulois
+            </a>
+          </Ferme>
+        ) : (
+          <Ferme testid="forge-attente">
+            {MESSAGES_DE_LA_FORGE.not_validated}{" "}
+            <a class="forge-lien" href={`${basePath()}/compte`}>
+              Voir mon compte
+            </a>
+          </Ferme>
+        );
     } else if (forge.fusion && atelier === "fusion") {
       corps = (
         <>
@@ -486,30 +431,28 @@ function Atelier() {
       corps = (
         <>
           {ateliers}
-          {enCarte(
+          {enPanneau(
             <>
-          {tete}
-          <h4 id="forge-objets" class="forge-etape">
-            Choisissez un objet
-          </h4>
-          {objets.length > 0 ? (
-            <div class="cases forge-cases" role="group" aria-labelledby="forge-objets" data-testid="forge-objets">
-              {objets.map((o) => (
-                <CaseDeLaForge key={cleDeLObjet(o)} objet={o} onChoisir={() => choisir(cleDeLObjet(o))} />
-              ))}
-            </div>
-          ) : (
-            <p class="forge-mot" data-testid="forge-sans-objet">
-              Seuls les objets à rareté se gravent :{" "}
-              <a class="forge-lien" href={`${basePath()}${ADRESSE_BOUTIQUE}`}>
-                la boutique
-              </a>{" "}
-              en vend.
-            </p>
-          )}
-          <p class="info-discrete" data-testid="forge-vues">
-            {phraseDesPlaquesVues(forge.plaques_vues)}
-          </p>
+              {tete}
+              <SousTitre t="Choisissez un objet" id="forge-objets" />
+              {objets.length > 0 ? (
+                <div class="cases forge-cases" role="group" aria-labelledby="forge-objets" data-testid="forge-objets">
+                  {objets.map((o) => (
+                    <CaseDeLaForge key={cleDeLObjet(o)} objet={o} onChoisir={() => choisir(cleDeLObjet(o))} />
+                  ))}
+                </div>
+              ) : (
+                <p class="forge-mot" data-testid="forge-sans-objet">
+                  Seuls les objets à rareté se gravent :{" "}
+                  <a class="forge-lien" href={`${basePath()}${ADRESSE_BOUTIQUE}`}>
+                    la boutique
+                  </a>{" "}
+                  en vend.
+                </p>
+              )}
+              <p class="fj-note" data-testid="forge-vues">
+                {phraseDesPlaquesVues(forge.plaques_vues)}
+              </p>
             </>,
           )}
         </>
@@ -521,74 +464,73 @@ function Atelier() {
       const parties = toutes ? forge.parties : forge.parties.slice(0, PARTIES_MONTREES);
       const montree = choisie?.texte ?? objet.gravure?.texte ?? null;
       const legende = choisie ? (objet.gravure ? "Aperçu de la nouvelle plaque" : "Aperçu de la plaque") : objet.gravure ? "Plaque gravée" : null;
+      const nom = nomDeLObjet(objet);
       corps = (
         <>
           {ateliers}
-          {enCarte(
+          {enPanneau(
             <>
-          {tete}
-          <div class="forge-etabli" data-testid="forge-etabli">
-            <div class="forge-etabli-tete">
-              <h4 ref={etabli} tabIndex={-1} class="forge-objet-nom" data-testid="forge-objet-nom">
-                {nomDeLObjet(objet)}
-                {objet.porte && <span class="forge-porte-mot"> (porté)</span>}
-              </h4>
-              <button type="button" class="forge-lien" onClick={() => choisir(null)} data-testid="forge-changer">
-                Changer d'objet
-              </button>
-            </div>
-            <GrandePlaque texte={montree} legende={legende} testid="forge-plaque" />
-          </div>
-          <fieldset class="forge-parties" data-testid="forge-parties">
-            <legend class="forge-etape">Choisissez une partie</legend>
-            {forge.parties.length === 0 ? (
-              <p class="forge-mot" data-testid="forge-sans-partie">
-                Vos parties qui rapportent des points au clan viendront ici, prêtes à graver.
-              </p>
-            ) : (
-              <>
-                <ul>
-                  {parties.map((p) => {
-                    const heure = heureDeLaPartie(p.debut);
-                    return (
-                      <li key={p.partie}>
-                        <label class="forge-partie">
-                          <input type="radio" name="forge-partie" checked={partie === p.partie} onChange={() => setPartie(p.partie)} />
-                          <span class="forge-partie-texte">{p.texte}</span>
-                          {heure && (
-                            <span class="forge-partie-heure tnum">
-                              <span class="sr-only">, partie commencée à </span>
-                              {heure}
-                            </span>
-                          )}
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {!toutes && forge.parties.length > PARTIES_MONTREES && (
-                  <button type="button" class="forge-lien forge-plus" onClick={() => setToutes(true)} data-testid="forge-plus">
-                    Voir les parties plus anciennes
-                  </button>
+              {tete}
+              <div class="forge-etabli fj-etabli" data-testid="forge-etabli">
+                <div class="forge-etabli-tete fj-etabli-tete">
+                  <h4 ref={etabli} tabIndex={-1} class="forge-objet-nom fj-objet-nom" data-testid="forge-objet-nom">
+                    <Px t={nom} plie dit={nom} />
+                    {objet.porte && <Etiquette t="Porté" ton="bleu" dit=" (porté)" />}
+                  </h4>
+                  <BoutonDuJeu t="Changer d'objet" bleu onClick={() => choisir(null)} testid="forge-changer" classe="fj-petit" />
+                </div>
+                <GrandePlaque texte={montree} legende={legende} testid="forge-plaque" />
+              </div>
+              <fieldset class="forge-parties fj-parties" data-testid="forge-parties">
+                <legend class="fj-legende">
+                  <Px t="Choisissez une partie" couleur="doux" dit="Choisissez une partie" />
+                </legend>
+                {forge.parties.length === 0 ? (
+                  <p class="forge-mot" data-testid="forge-sans-partie">
+                    Vos parties qui rapportent des points au clan viendront ici, prêtes à graver.
+                  </p>
+                ) : (
+                  <>
+                    <ul>
+                      {parties.map((p) => {
+                        const heure = heureDeLaPartie(p.debut);
+                        return (
+                          <li key={p.partie}>
+                            <label class="forge-partie fj-partie">
+                              <input type="radio" name="forge-partie" checked={partie === p.partie} onChange={() => setPartie(p.partie)} />
+                              <span class="forge-partie-texte">{p.texte}</span>
+                              {heure && (
+                                <span class="forge-partie-heure tnum">
+                                  <span class="sr-only">, partie commencée à </span>
+                                  {heure}
+                                </span>
+                              )}
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {/* Un mot court, qui tient sur un téléphone de 360 px ; le nom entier est dit aux lecteurs d'écran. */}
+                    {!toutes && forge.parties.length > PARTIES_MONTREES && <BoutonDuJeu t="Parties plus anciennes" dit="Voir les parties plus anciennes" bleu onClick={() => setToutes(true)} testid="forge-plus" classe="forge-plus" />}
+                  </>
                 )}
-              </>
-            )}
-          </fieldset>
-          <div class="forge-action">
-            <button type="button" class="btn btn-primary" disabled={bouton.raison !== null || occupe} aria-describedby={raison ? "forge-raison" : undefined} onClick={() => choisie && setDialogue({ prix: forge.prix, objet, partie: choisie })} data-testid="forge-graver">
-              {bouton.libelle}
-            </button>
-            {raison && (
-              <p id="forge-raison" class="forge-raison" data-testid="forge-raison">
-                {raison}
-              </p>
-            )}
-          </div>
-          <Problem message={probleme} />
-          {objet.gravure && (
-            // Effacer ne se rattrape pas : à part, sous un filet, au second clic.
-            <EffacerLaPlaque key={cleDeLObjet(objet)} occupe={occupe} onConfirmer={() => void effacer(objet)} />
-          )}
+              </fieldset>
+              <div class="forge-action fj-action">
+                <button type="button" class="jeu-btn jeu-n9" disabled={bouton.raison !== null || occupe} aria-describedby={raison ? "forge-raison" : undefined} onClick={() => choisie && setDialogue({ prix: forge.prix, objet, partie: choisie })} data-testid="forge-graver">
+                  <Icone nom="forge" classe="fj-bouton-icone" />
+                  <Px t={bouton.libelle} couleur="encre" plie dit={bouton.libelle} />
+                </button>
+                {raison && (
+                  <p id="forge-raison" class="forge-raison fj-raison" data-testid="forge-raison">
+                    {raison}
+                  </p>
+                )}
+              </div>
+              <Problem message={probleme} />
+              {objet.gravure && (
+                // Effacer ne se rattrape pas : à part, sous un filet, au second clic.
+                <EffacerLaPlaque key={cleDeLObjet(objet)} occupe={occupe} onConfirmer={() => void effacer(objet)} />
+              )}
             </>,
           )}
         </>
@@ -611,13 +553,23 @@ function Atelier() {
   const tenueMontree = tenue && forgePrete ? (aLEtabli ? changerObjet(tenue, aLEtabli.emplacement, aLEtabli.objet) : tenue) : null;
 
   return (
-    <div ref={racine} class="forge" data-scene={tenueMontree ? "" : undefined} data-testid="forge">
-      {tenueMontree && (
-        <div class="forge-scene" data-testid="forge-scene">
-          <ApercuGaulois tenue={tenueMontree} decor={decor} />
-        </div>
-      )}
-      <div class="forge-colonne">{corps}</div>
+    <div ref={racine} class="forge-jeu" data-scene={tenueMontree ? "" : undefined} data-testid="forge">
+      {/* Le ruban du titre n'est qu'un dessin : la partie a déjà son titre caché, « La forge » (VillageApp.tsx). */}
+      <div class="fj-titre" aria-hidden="true">
+        <span class="boutique-jeu-ruban">
+          <span class="jeu-ruban jeu-n9">
+            <Px t="La forge" couleur="creme" relief="ombre" muet />
+          </span>
+        </span>
+      </div>
+      <div class="fj-corps">
+        {tenueMontree && (
+          <div class="forge-scene fj-scene jeu-panneau jeu-n9" data-testid="forge-scene">
+            <ApercuGaulois tenue={tenueMontree} decor={decor} />
+          </div>
+        )}
+        <div class="forge-colonne fj-colonne">{corps}</div>
+      </div>
       {dialogue && lecture.kind === "prete" && (
         <DialogueGravure objet={dialogue.objet} partie={dialogue.partie} prix={dialogue.prix} solde={lecture.forge.solde} graver={() => graver(dialogue.objet, dialogue.partie, dialogue.prix)} onFermer={fermerLeDialogue} />
       )}
@@ -629,14 +581,14 @@ function Atelier() {
 }
 
 /**
- * La forge, onglet de la page « Mon Gaulois » (`VillageApp.tsx`) depuis le retrait du monde du village (15 novembre
- * 2026). Sans connexion ouverte sur le site (`AUTH_ENABLED`), elle le dit : graver demande un compte.
+ * La forge, partie de « Mon Gaulois » (`VillageApp.tsx`) depuis le retrait du monde du village (15 novembre 2026). Sans
+ * connexion ouverte sur le site (`AUTH_ENABLED`), elle le dit : graver demande un compte.
  */
 export default function AtelierDeLaForge() {
   if (AUTH_ENABLED) return <Atelier />;
   return (
-    <div class="forge" data-testid="forge">
-      <p class="forge-phrase">La forge grave les parties des membres : la connexion au site n'est pas ouverte.</p>
+    <div class="forge-jeu" data-testid="forge">
+      <p class="forge-phrase fj-ferme jeu-bulle jeu-n9">La forge grave les parties des membres : la connexion au site n'est pas ouverte.</p>
     </div>
   );
 }

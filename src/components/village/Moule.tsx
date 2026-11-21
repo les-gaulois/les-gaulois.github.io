@@ -2,6 +2,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { RARETES_DES_OBJETS as RARETES, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { motionAllowed } from "../../lib/fx/motion";
 import { DUREE_DE_LA_LUEUR, DUREE_DU_MOULE, caseDuMoule, couleEncore, doux, ouverture, rangeePleine, refroidi, remplissage } from "../../lib/village/moule";
+import { arreterLaCoulee, sonDeLaCoulee, sonDuDemoulage } from "../../lib/jeu/sons-de-la-forge";
 import { carillon, couleursDuSite, melange } from "./Carillon";
 
 /**
@@ -10,6 +11,10 @@ import { carillon, couleursDuSite, melange } from "./Carillon";
  * de la rareté donnée à celle de la rareté reçue, refroidit du haut vers le bas, puis le moule s'ouvre et une lueur de la
  * rareté reste un instant. Rien ne clignote. Animations coupées (bouton pause de l'en-tête ou réglage du système) : l'objet
  * est posé tout de suite, démoulé. La toile est décorative : le résultat est écrit à côté, en texte.
+ *
+ * Les sons de la forge (21 novembre 2026, Claude Fable 5.2, `sons-de-la-forge.ts`) : le métal qui gronde et crépite pendant
+ * la coulée, puis la pierre qui glisse et le coup d'enclume au démoulage, avant la note de la rareté reçue. Coupés avec le
+ * son du jeu ; la coulée se tait si l'on passe ou si la fenêtre se ferme.
  */
 
 /** Ce que le moule montre : le dessin de l'objet reçu, en cases. */
@@ -163,6 +168,7 @@ export function Moule({ dessin, depuis, vers, passer, son, onArrive }: { dessin:
     const couleurs = couleursDuSite(cv);
     const anime = motionAllowed();
     const debut = performance.now();
+    if (anime && reglages.current.son && !reglages.current.passer) sonDeLaCoulee(DUREE_DU_MOULE);
     let arrivee: number | null = null;
     let image = 0;
     let fini = false;
@@ -192,7 +198,11 @@ export function Moule({ dessin, depuis, vers, passer, son, onArrive }: { dessin:
     const tour = (now: number) => {
       if (arrivee === null && (!anime || reglages.current.passer || now - debut >= DUREE_DU_MOULE)) {
         arrivee = anime ? now : now - DUREE_DE_LA_LUEUR;
-        if (reglages.current.son) carillon(RARETES[vers].rang);
+        arreterLaCoulee();
+        if (reglages.current.son) {
+          sonDuDemoulage(RARETES[vers].rang);
+          carillon(RARETES[vers].rang);
+        }
         reglages.current.onArrive();
       }
       dessiner(now);
@@ -210,6 +220,7 @@ export function Moule({ dessin, depuis, vers, passer, son, onArrive }: { dessin:
     return () => {
       cancelAnimationFrame(image);
       observateur.disconnect();
+      arreterLaCoulee();
     };
   }, [dessin, depuis, vers]);
   return <canvas ref={toile} class="tambour moule" aria-hidden="true" data-testid="moule" />;

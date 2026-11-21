@@ -3,6 +3,17 @@
     "date": "2026-11-21",
     "kind": "ameliore",
     "rank": "minor",
+    "title": "Le pass et la forge de Mon Gaulois en jeu",
+    "body": "Chaque palier du pass montre sa récompense et s'ouvre comme un booster ; la couronne de fin de saison est en vue, missions, présence, défi et étal sont dessinés. À la forge, la fusion a ses sons.",
+    "link": {
+      "href": "/village#sentier",
+      "label": "Le pass"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "ameliore",
+    "rank": "minor",
     "title": "La vitrine et la loterie en écran de jeu",
     "body": "Les Gaulois du clan en cartes, avec leur bannière et leur finition. À la loterie, chaque booster du jour s'ouvre comme les autres : vos billets en sortent, parfois avec le ticket d'or.",
     "link": {

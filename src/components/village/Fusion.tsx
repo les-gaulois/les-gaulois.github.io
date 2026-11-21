@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { ServerError, basePath, call } from "../../lib/compte/api";
 import { errorMessage } from "../../lib/compte/errors";
 import { ORDRE_RARETES, RARETES, vignetteDeLObjet, type Rarete } from "../../lib/gaulois";
+import { placeDuCreuset, plusDuCreuset } from "../../lib/jeu/pass-forge";
+import { arreterLaCoulee, sonDuCreuset } from "../../lib/jeu/sons-de-la-forge";
 import { ADRESSE_BOUTIQUE } from "../../lib/village/boutique-rayons";
 import type { FusionDeLaForge, FusionReponse, MaForge, ObjetAFondre } from "../../lib/village/contrat";
 import { exemplaires } from "../../lib/village/ecran-boutique";
@@ -26,18 +28,23 @@ import {
   type Creuset,
 } from "../../lib/village/fusion";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
-import { Dialogue, type Issue } from "./BoutiqueDialogue";
+import { Etiquette, PetiteIcone, Px } from "../jeu/Pixels";
+import type { Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
-import { casesDuChaudron } from "./SentierDessins";
+import { Ruban, SousTitre } from "./BoutiqueDuJeu";
+import { preparerLeSon, useSonDuJeu } from "./Carillon";
+import { imageEnCases } from "./ImageEnCases";
+import { BoutonDesBoosters, FenetreDuBooster, LosangesEnPixels, RareteEnPixels, RefusDuBooster, ResultatDuBooster } from "./KitDesBoosters";
 import { Moule, type DessinDuMoule } from "./Moule";
-import { BoutonSon, preparerLeSon, useSonDuJeu } from "./Carillon";
+import { casesDuChaudron } from "./SentierDessins";
 
 /**
- * La fusion, première partie de l'onglet « La forge » (demande du pilote, 16 novembre 2026) : le membre choisit une rareté,
- * pose trois de ses objets dans le creuset, confirme, et reçoit un objet de la rareté suivante. Le serveur décide de tout
+ * La fusion, premier atelier de « La forge » (demande du pilote, 16 novembre 2026) : le membre choisit une rareté, pose trois
+ * de ses objets dans le creuset, confirme, et reçoit un objet de la rareté suivante. Le serveur décide de tout
  * (`fusionner_objets`) : ce qui peut se fondre, le nombre d'objets et l'objet reçu viennent de lui. Le moule (`Moule.tsx`,
  * choix du pilote parmi dix animations d'essai) ne fait que montrer ce qu'il a déjà tiré : son creux a la forme de l'objet
- * reçu. Il ne s'anime pas quand les animations sont coupées.
+ * reçu. Il ne s'anime pas quand les animations sont coupées. Habillée avec le kit du jeu le 21 novembre 2026 (places du
+ * creuset et sons de la forge de Claude Fable 5.2, `pass-forge.ts`, `sons-de-la-forge.ts`).
  */
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
@@ -48,20 +55,9 @@ function Dessin({ objet, place = 80 }: { objet: ObjetAFondre; place?: number }) 
   return vignette ? <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelleEntiere(vignette.largeur, vignette.hauteur, place, 3)} class="case-dessin" /> : null;
 }
 
-/** Les losanges d'un rang de rareté, comme sur les puces de la boutique. */
-function Losanges({ rang }: { rang: number }) {
-  return (
-    <span class="filtre-rang" aria-hidden="true">
-      {Array.from({ length: rang }, (_, i) => (
-        <i key={i} />
-      ))}
-    </span>
-  );
-}
-
 /**
- * La confirmation, puis le résultat : un vrai `<dialog>` modal. Fondre ne se rattrape pas : la fenêtre nomme ce qui part
- * avant de demander au serveur. Après un refus, il ne reste que ses mots et « Fermer ».
+ * La confirmation, puis le moule et le résultat, dans une fenêtre du jeu. Fondre ne se rattrape pas : la fenêtre nomme ce
+ * qui part avant de demander au serveur. Après un refus, il ne reste que ses mots et « Fermer ».
  */
 function DialogueFusion({ creuset, suivante, fondre, onFermer }: { creuset: Creuset; suivante: Rarete; fondre: () => Promise<Issue<FusionReponse>>; onFermer: () => void }) {
   const [etape, setEtape] = useState<"confirmer" | "envoi" | "tourne" | "revele">("confirmer");
@@ -72,6 +68,8 @@ function DialogueFusion({ creuset, suivante, fondre, onFermer }: { creuset: Creu
   const [son, basculerSon] = useSonDuJeu();
   // Ce que la fenêtre montre est ce qu'elle a vu en s'ouvrant : le creuset se vide derrière elle après la fusion.
   const [donnes] = useState(creuset);
+  // La coulée se tait quand la fenêtre se ferme, même en plein moule.
+  useEffect(() => () => arreterLaCoulee(), []);
   const envoyer = async () => {
     if (son) preparerLeSon();
     setEtape("envoi");
@@ -90,51 +88,58 @@ function DialogueFusion({ creuset, suivante, fondre, onFermer }: { creuset: Creu
     }
   };
   const ouverte = (etape === "tourne" || etape === "revele") && recu !== null;
-  const titre = ouverte ? (etape === "revele" ? "Sorti de la forge" : "Le métal coule…") : refus ? "Fusion impossible" : `Fondre ces ${donnes.length} objets ?`;
+  const titre = ouverte ? (etape === "revele" ? "Sorti de la forge" : "Le métal coule") : refus ? "Fusion impossible" : `Fondre ces ${donnes.length} objets ?`;
   return (
-    <Dialogue titre={titre} etape={ouverte ? etape : "confirmer"} occupe={etape === "envoi" || etape === "tourne"} onFermer={onFermer} testid="dialogue-fusion">
+    <FenetreDuBooster titre={titre} etape={ouverte ? etape : refus ? "refus" : "confirmer"} occupe={etape === "envoi" || etape === "tourne"} scene={ouverte} onFermer={onFermer} testid="dialogue-fusion">
       {ouverte && recu ? (
-        <>
+        <div class="fj-fenetre fj-moule">
           {moule && <Moule dessin={moule} depuis={donnes[0]?.rarete ?? recu.rarete} vers={recu.rarete} passer={passer} son={son} onArrive={() => setEtape((e) => (e === "tourne" ? "revele" : e))} />}
           {etape === "tourne" ? (
-            <div class="boutique-dialogue-actions">
+            <div class="bst-outils fj-outils">
               <button
                 type="button"
-                class="btn btn-ghost"
+                class="jeu-btn jeu-btn-bleu jeu-n9"
                 onClick={() => {
+                  arreterLaCoulee();
                   setPasser(true);
                   setEtape("revele");
                 }}
                 data-testid="fusion-passer"
               >
-                Passer
+                <Px t="Passer" couleur="creme" relief="cerne" dit="Passer : montrer l'objet tout de suite" />
               </button>
-              <BoutonSon son={son} onBasculer={basculerSon} testid="fusion-son" />
+              <button type="button" class="jeu-btn jeu-btn-bleu jeu-btn-ic jeu-n9" aria-pressed={son} aria-label="Son" title={son ? "Couper le son" : "Remettre le son"}
+                onClick={() => {
+                  // Couper le son tait aussi la coulée déjà lancée.
+                  if (son) arreterLaCoulee();
+                  basculerSon();
+                }}
+                data-testid="fusion-son"
+              >
+                <PetiteIcone nom={son ? "son" : "muet"} />
+              </button>
             </div>
           ) : (
             <>
-              <div class="tambour-sortie" data-rarete={recu.rarete} data-testid="fusion-recu" data-objet={cleDeLObjet(recu)}>
-                <p class="tambour-nom">{nomDeLObjet(recu)}</p>
-                <MarqueDeRarete rarete={recu.rarete} />
-              </div>
+              <ResultatDuBooster nom={nomDeLObjet(recu)} detail={<RareteEnPixels rarete={recu.rarete} />} double={recu.double} testid="fusion-recu">
+                <span hidden data-objet={cleDeLObjet(recu)} />
+              </ResultatDuBooster>
               {recu.double && (
-                <p class="boutique-dialogue-texte" data-testid="fusion-double">
+                <p class="bst-mot" data-testid="fusion-double">
                   Vous l'aviez déjà : ce double se fond à son tour, ou se vend au marché.
                 </p>
               )}
-              <div class="boutique-dialogue-actions">
-                <button type="button" class="btn btn-primary" onClick={onFermer} data-testid="fusion-fermer">
-                  Fermer
-                </button>
+              <div class="bst-actions">
+                <BoutonDesBoosters t="Fermer" or onClick={onFermer} testid="fusion-fermer" />
               </div>
             </>
           )}
-        </>
+        </div>
       ) : (
-        <>
+        <div class="fj-fenetre">
           {!refus && (
             <>
-              <ul class="fusion-donnes" data-testid="fusion-donnes">
+              <ul class="fusion-donnes fj-donnes" data-testid="fusion-donnes">
                 {donnes.map((objet, i) => (
                   <li key={i} class="case fusion-donne" data-rarete={objet.rarete}>
                     <span class="case-image">
@@ -144,30 +149,27 @@ function DialogueFusion({ creuset, suivante, fondre, onFermer }: { creuset: Creu
                   </li>
                 ))}
               </ul>
-              <p class="boutique-dialogue-texte">
+              <p class="bst-mot">
                 Ils sont fondus pour de bon. Vous recevez un objet <strong>{RARETES[suivante].nom}</strong>, tiré au hasard.
               </p>
             </>
           )}
-          {refus && (
-            <p class="form-problem" role="alert" data-testid="fusion-refus">
-              {refus}
-            </p>
-          )}
-          <div class="boutique-dialogue-actions">
-            {!refus && (
-              <button type="button" class="btn btn-primary" disabled={etape === "envoi"} onClick={() => void envoyer()} data-testid="fusion-confirmer">
-                {etape === "envoi" ? "Fusion…" : "Fondre"}
-              </button>
-            )}
-            <button type="button" class="btn btn-ghost" disabled={etape === "envoi"} onClick={onFermer} data-testid="fusion-annuler">
-              {refus ? "Fermer" : "Annuler"}
-            </button>
+          <RefusDuBooster message={refus} />
+          <div class="bst-actions">
+            {!refus && <BoutonDesBoosters t={etape === "envoi" ? "Fusion" : "Fondre"} dit={etape === "envoi" ? "Fusion en cours" : "Fondre"} or disabled={etape === "envoi"} onClick={() => void envoyer()} testid="fusion-confirmer" />}
+            <BoutonDesBoosters t={refus ? "Fermer" : "Annuler"} disabled={etape === "envoi"} onClick={onFermer} testid="fusion-annuler" />
           </div>
-        </>
+        </div>
       )}
-    </Dialogue>
+    </FenetreDuBooster>
   );
+}
+
+/** Les images du creuset, une par thème : la feuille montre la bonne (`20-jeu-pass-forge.css`). */
+function imagesDuCreuset(): string {
+  const place = (theme: "clair" | "sombre") => imageEnCases(`forge-place|${theme}`, () => placeDuCreuset(theme)).url;
+  const plus = (theme: "clair" | "sombre") => imageEnCases(`forge-plus|${theme}`, () => plusDuCreuset(theme)).url;
+  return `--fj-place:${place("clair")};--fj-place-sombre:${place("sombre")};--fj-plus:${plus("clair")};--fj-plus-sombre:${plus("sombre")}`;
 }
 
 /** L'atelier de fusion : les raretés, le creuset, puis les objets de la rareté choisie. */
@@ -192,15 +194,16 @@ export function Fusion({ fusion, onForge, onRelire }: { fusion: FusionDeLaForge;
 
   if (rarete === null) {
     return (
-      <div class="fusion" data-testid="fusion">
+      <section class="fusion fj-panneau jeu-panneau jeu-n9" aria-labelledby="fusion-titre" data-testid="fusion">
+        <Ruban t="La fusion" bleu id="fusion-titre" />
         <p class="forge-mot" data-testid="fusion-sans-objet">
           {regleDeLaRarete(ORDRE_RARETES[0]!, fusion.nombre)} Les objets de{" "}
           <a class="forge-lien" href={`${basePath()}${ADRESSE_BOUTIQUE}`}>
             la boutique
           </a>{" "}
-          et des pochettes se fondent ici.
+          et des boosters se fondent ici.
         </p>
-      </div>
+      </section>
     );
   }
 
@@ -232,36 +235,40 @@ export function Fusion({ fusion, onForge, onRelire }: { fusion: FusionDeLaForge;
   };
 
   return (
-    <div class="fusion sentier-carte" data-ton="violet" data-testid="fusion">
-      {/* La même carte que celles du sentier (17 novembre 2026) : le chaudron se remplit à mesure qu'on pose des objets. */}
-      <div class="sentier-carte-tete">
-        <span class="sentier-carte-dessin" aria-hidden="true">
-          <Pixels largeur={chaudron.largeur} hauteur={chaudron.hauteur} cases={chaudron.cases} echelle={2} />
-        </span>
-        <div>
-          <h3>La fusion</h3>
-        </div>
-        <span class="sentier-gain tnum">{fusion.nombre} objets en donnent un</span>
-      </div>
-      <div class="fusion-raretes" role="group" aria-label="Rareté à fondre">
-        {RARETES_A_FONDRE.map((r) => (
-          <button key={r} type="button" class="chip filtre" data-rarete={r} aria-pressed={r === rarete} onClick={() => changerDeRarete(r)} data-testid={`fusion-rarete-${r}`}>
-            <Losanges rang={RARETES[r].rang} />
-            {RARETES[r].nom}
-            <span class="filtre-nombre tnum">{libres[r]}</span>
-            <span class="sr-only"> à donner</span>
-          </button>
-        ))}
+    <section class="fusion fj-panneau jeu-panneau jeu-n9" style={imagesDuCreuset()} aria-labelledby="fusion-titre" data-testid="fusion">
+      <Ruban t="La fusion" bleu id="fusion-titre" />
+      <p class="fj-regle">
+        <Etiquette t={`${fusion.nombre} objets en donnent un`} ton="or" dit={`${fusion.nombre} objets d'une rareté en donnent un de la suivante`} />
+      </p>
+      <div class="fusion-raretes fj-raretes" role="group" aria-label="Rareté à fondre">
+        {RARETES_A_FONDRE.map((r) => {
+          const pressee = r === rarete;
+          return (
+            <button key={r} type="button" class={`jeu-btn ${pressee ? "" : "jeu-btn-bleu"} jeu-n9 fj-rarete`} data-rarete={r} aria-pressed={pressee} onClick={() => changerDeRarete(r)} data-testid={`fusion-rarete-${r}`}>
+              <LosangesEnPixels rang={RARETES[r].rang} couleur={pressee ? "encre" : "creme"} />
+              <Px t={`${RARETES[r].nom} ${libres[r]}`} couleur={pressee ? "encre" : "creme"} relief={pressee ? "plat" : "cerne"} dit={`${RARETES[r].nom}, ${libres[r]} à donner`} />
+            </button>
+          );
+        })}
       </div>
 
-      <div class="fusion-creuset" data-testid="fusion-creuset">
-        <ol class="fusion-places" aria-label="Le creuset">
+      <div class="fusion-creuset fj-creuset" data-testid="fusion-creuset">
+        <ol class="fusion-places fj-places" aria-label="Le creuset">
           {Array.from({ length: fusion.nombre }, (_, place) => {
             const pose = creuset[place];
             return (
               <li key={place}>
                 {pose ? (
-                  <button type="button" class="case fusion-place" data-rarete={pose.rarete} onClick={() => setCreuset(reprendre(creuset, place))} data-testid="fusion-place">
+                  <button
+                    type="button"
+                    class="case fusion-place"
+                    data-rarete={pose.rarete}
+                    onClick={() => {
+                      sonDuCreuset(true);
+                      setCreuset(reprendre(creuset, place));
+                    }}
+                    data-testid="fusion-place"
+                  >
                     <span class="case-image">
                       <Dessin objet={pose} place={64} />
                     </span>
@@ -269,7 +276,8 @@ export function Fusion({ fusion, onForge, onRelire }: { fusion: FusionDeLaForge;
                     <span class="sr-only">, le reprendre</span>
                   </button>
                 ) : (
-                  <span class="fusion-place fusion-place-vide" data-testid="fusion-place-vide">
+                  <span class="fusion-place fusion-place-vide fj-place-vide" data-testid="fusion-place-vide">
+                    <span class="fj-plus" aria-hidden="true" />
                     <span class="sr-only">Place vide</span>
                   </span>
                 )}
@@ -278,31 +286,32 @@ export function Fusion({ fusion, onForge, onRelire }: { fusion: FusionDeLaForge;
           })}
         </ol>
         {suivante && (
-          <p class="fusion-donne-mot">
-            donnent
-            <span class="case fusion-recu" data-rarete={suivante} data-testid="fusion-suivante">
+          <div class="fusion-donne-mot fj-donne">
+            <span class="fj-chaudron" aria-hidden="true">
+              <Pixels largeur={chaudron.largeur} hauteur={chaudron.hauteur} cases={chaudron.cases} echelle={2} />
+            </span>
+            <Px t="donnent" couleur="doux" dit="donnent" />
+            <span class="case fusion-recu fj-recu" data-rarete={suivante} data-testid="fusion-suivante">
               <span class="fusion-recu-un">1 objet</span>
               <MarqueDeRarete rarete={suivante} />
               <span class="fusion-recu-hasard">au hasard</span>
             </span>
-          </p>
+          </div>
         )}
       </div>
 
-      <div class="forge-action">
-        <button ref={bouton} type="button" class="btn btn-primary" disabled={!plein} aria-describedby={raison ? "fusion-raison" : undefined} onClick={() => setDialogue(creuset)} data-testid="fusion-fondre">
-          Fondre ces {fusion.nombre} objets
+      <div class="forge-action fj-action">
+        <button ref={bouton} type="button" class="jeu-btn jeu-n9" disabled={!plein} aria-describedby={raison ? "fusion-raison" : undefined} onClick={() => setDialogue(creuset)} data-testid="fusion-fondre">
+          <Px t={`Fondre ces ${fusion.nombre} objets`} couleur="encre" dit={`Fondre ces ${fusion.nombre} objets`} />
         </button>
         {raison && (
-          <p id="fusion-raison" class="forge-raison" data-testid="fusion-raison">
+          <p id="fusion-raison" class="forge-raison fj-raison" data-testid="fusion-raison">
             {raison}
           </p>
         )}
       </div>
 
-      <h3 id="fusion-objets" class="forge-etape">
-        Vos objets de rareté {RARETES[rarete].nom}
-      </h3>
+      <SousTitre t={`Vos objets de rareté ${RARETES[rarete].nom}`} id="fusion-objets" />
       {objets.length > 0 ? (
         <div class="cases forge-cases" role="group" aria-labelledby="fusion-objets" data-testid="fusion-objets">
           {objets.map((objet) => {
@@ -318,7 +327,10 @@ export function Fusion({ fusion, onForge, onRelire }: { fusion: FusionDeLaForge;
                 data-pose={poses > 0 ? "" : undefined}
                 disabled={plein || reste === 0}
                 title={garde ? "Votre Gaulois le porte, ou il est gravé : un exemplaire reste à vous." : undefined}
-                onClick={() => setCreuset(poser(creuset, objet, fusion))}
+                onClick={() => {
+                  sonDuCreuset();
+                  setCreuset(poser(creuset, objet, fusion));
+                }}
                 data-testid="fusion-objet"
               >
                 <span class="case-image">
@@ -344,6 +356,6 @@ export function Fusion({ fusion, onForge, onRelire }: { fusion: FusionDeLaForge;
       <p class="sr-only" role="status" data-testid="fusion-annonce">
         {annonce}
       </p>
-    </div>
+    </section>
   );
 }

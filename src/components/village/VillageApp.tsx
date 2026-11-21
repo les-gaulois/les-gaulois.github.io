@@ -206,21 +206,14 @@ export default function VillageApp() {
         {!aCreer && (
           <Partie prefix={PREFIXE} id={ANCRE_SENTIER} active={active} slide={slide}>
             <h2 class="sr-only">Le pass</h2>
-            {active === ANCRE_SENTIER && (
-              <Ecran>
-                <LeSentier sentier={sentier} />
-              </Ecran>
-            )}
+            {/* Le pass et la forge sont habillés en écran de jeu (21 novembre 2026) : leurs propres panneaux, sans le cadre des parties d'avant. */}
+            {active === ANCRE_SENTIER && <LeSentier sentier={sentier} />}
           </Partie>
         )}
         {!aCreer && (
           <Partie prefix={PREFIXE} id="forge" active={active} slide={slide}>
             <h2 class="sr-only">La forge</h2>
-            {active === "forge" && (
-              <Ecran>
-                <AtelierDeLaForge />
-              </Ecran>
-            )}
+            {active === "forge" && <AtelierDeLaForge />}
           </Partie>
         )}
         {!aCreer && (

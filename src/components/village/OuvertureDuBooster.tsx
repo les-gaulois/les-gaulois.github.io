@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { motionAllowed } from "../../lib/fx/motion";
 import { paquet, type CarteDeScene, type SorteDeBooster } from "../../lib/jeu/boosters";
+import type { Planche } from "../../lib/jeu/planche";
 import { SON_CHANGE, basculerLeSon, sonVoulu } from "../../lib/jeu/sons";
 import { sonRemis } from "../../lib/jeu/sons-des-boosters";
 import { PetiteIcone, Px } from "../jeu/Pixels";
@@ -41,7 +42,23 @@ function useSon(): [boolean, () => void] {
  * le son du jeu, la pause (la page derrière la fenêtre est inerte, sa pause ne s'atteint pas). Une fois la carte retournée,
  * `children` (le résultat écrit et ses actions) paraît dessous ; la scène reste, la carte flotte dans sa fête.
  */
-export function OuvertureDuBooster({ sorte, carte, revelee, onRevelee, children }: { sorte: SorteDeBooster; carte: CarteDeScene; revelee: boolean; onRevelee: () => void; children: ComponentChildren }) {
+export function OuvertureDuBooster({
+  sorte,
+  carte,
+  revelee,
+  onRevelee,
+  autre,
+  children,
+}: {
+  sorte: SorteDeBooster;
+  carte: CarteDeScene;
+  revelee: boolean;
+  onRevelee: () => void;
+  /** Un autre paquet que celui de `sorte`, de la même anatomie (60 × 88 cases), et son nom : le booster d'un palier du pass. */
+  autre?: { paquet: Planche; nom: string };
+  children: ComponentChildren;
+}) {
+  const nomDuPaquet = autre?.nom ?? NOMS_DES_BOOSTERS[sorte];
   const racine = useRef<HTMLDivElement>(null);
   const scene = useRef<Scene | null>(null);
   const rappel = useRef(onRevelee);
@@ -52,7 +69,7 @@ export function OuvertureDuBooster({ sorte, carte, revelee, onRevelee, children 
     const el = racine.current;
     try {
       if (!el) throw new Error("scène absente");
-      scene.current = lancerLaScene(el, { paquet: paquet(sorte), nomDuPaquet: NOMS_DES_BOOSTERS[sorte], carte, onRevelee: () => rappel.current() });
+      scene.current = lancerLaScene(el, { paquet: autre?.paquet ?? paquet(sorte), nomDuPaquet, carte, onRevelee: () => rappel.current() });
     } catch {
       // Sans scène, la fenêtre passe tout de suite au résultat : elle ne reste jamais bloquée.
       rappel.current();
@@ -82,7 +99,7 @@ export function OuvertureDuBooster({ sorte, carte, revelee, onRevelee, children 
   return (
     <div class="bst-ouverture" data-revelee={revelee ? "" : undefined}>
       <div class="bst-cadre">
-        <div ref={racine} class="bst-scene" tabIndex={-1} role="group" aria-label={`Ouverture du ${NOMS_DES_BOOSTERS[sorte].toLowerCase()}`} data-testid="booster-scene" data-rarete={carte.rarete} />
+        <div ref={racine} class="bst-scene" tabIndex={-1} role="group" aria-label={`Ouverture du ${nomDuPaquet.toLowerCase()}`} data-testid="booster-scene" data-rarete={carte.rarete} />
         <div class="bst-outils">
           {!revelee && (
             <button type="button" class="jeu-btn jeu-btn-bleu jeu-n9 bst-passer" onClick={() => scene.current?.passer()} data-testid="booster-passer">

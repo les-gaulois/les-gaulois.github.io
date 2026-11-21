@@ -1,0 +1,1434 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- « Le pass » et « La forge » de « Mon Gaulois » en écran de jeu (21 novembre 2026) ---------- */
+/* Le pass (`/village#sentier`, Sentier.tsx) et la forge (`/village#forge`, Forge.tsx, Fusion.tsx, Moule.tsx) habillés avec le
+   kit du jeu (16-jeu.css, « Le kit du jeu » de docs/DESIGN.md), d'après la maquette validée par le pilote. Les dessins en
+   cases sont de Claude Fable 5.2 (src/lib/jeu/pass-forge.ts), posés dans la page par ImageEnCases.tsx. Tout est sous
+   `.pass-jeu` et `.forge-jeu` ; les mesures sont en points du kit (`--jeu-p`, 2 pixels).
+
+   Dessin de Claude Fable 5.2. Quatre sortes de pièces, pas plus, et jamais un cadre dans son pareil :
+   - le panneau du jeu (`jeu-panneau`), son ruban à cheval sur le bord du haut : la saison, la fin de saison, la route, les
+     quatre blocs d'« Aujourd'hui », la fusion, la gravure ;
+   - la bulle crème (`jeu-bulle`), la même dans les deux thèmes, à l'écriture marine : une mission, une partie à graver, une
+     puce de la légende ;
+   - les boutons du jeu : d'or ce qui est choisi ou l'action, bleus les autres ;
+   - les cases d'objets, claires à la couleur de leur rareté dans les deux thèmes. */
+
+/* Une image en cases : `--w` × `--h` cases, `--e` pixels par case. */
+.pf-img {
+  display: block;
+  flex: none;
+  width: calc(var(--w) * var(--e, 1) * 1px);
+  height: calc(var(--h) * var(--e, 1) * 1px);
+  background: var(--i) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+
+.pass-jeu,
+.forge-jeu {
+  /* Un filet discret, lisible dans les deux thèmes. */
+  --pf-filet: color-mix(in srgb, var(--ecriture) 22%, transparent);
+  /* L'encre de ce qui s'écrit sur une bulle crème, et son lien. */
+  --pf-encre: #0a1230;
+  --pf-encre-douce: #4a4630;
+  --pf-lien: #0b3fc4;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(12 * var(--jeu-p));
+  min-width: 0;
+  padding-top: calc(2 * var(--jeu-p));
+}
+.pass-jeu > *,
+.forge-jeu > * {
+  min-width: 0;
+}
+.pj-titre,
+.fj-titre {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  line-height: 0;
+}
+:is(.pass-jeu, .forge-jeu) .boutique-jeu-ruban {
+  margin: 0;
+  line-height: 0;
+}
+:is(.pass-jeu, .forge-jeu) :is(.form-problem, .form-success):not(:empty) {
+  margin: 0;
+  text-align: center;
+}
+
+/* Sur téléphone, les cadres à une case par pixel : nets, et la place reste au contenu. */
+@media (max-width: 47.99rem) {
+  .pass-jeu,
+  .forge-jeu {
+    gap: calc(10 * var(--jeu-p));
+  }
+  :is(.pass-jeu, .forge-jeu) .jeu-panneau:not(.bst-fenetre-panneau),
+  .pass-jeu .boutique-dialogue {
+    border-width: calc(6 * var(--jeu-p)) calc(6 * var(--jeu-p)) calc(7 * var(--jeu-p));
+    border-image-slice: 12 12 14 12 fill;
+  }
+}
+
+/* Un panneau à ruban : le ruban à cheval sur le bord du haut, le contenu dessous. */
+:is(.pj-fin, .pj-bloc, .fj-panneau) {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: calc(5 * var(--jeu-p));
+  min-width: 0;
+  margin-top: calc(5 * var(--jeu-p));
+  padding: calc(6 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p));
+}
+:is(.pj-fin, .pj-bloc, .fj-panneau) > .boutique-jeu-ruban {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: calc(-22 * var(--jeu-p));
+  translate: -50% 0;
+}
+@media (max-width: 47.99rem) {
+  :is(.pj-fin, .pj-bloc, .fj-panneau) {
+    margin-top: calc(10 * var(--jeu-p));
+    padding: calc(8 * var(--jeu-p)) calc(1 * var(--jeu-p)) calc(1 * var(--jeu-p));
+  }
+  :is(.pj-fin, .pj-bloc, .fj-panneau) > .boutique-jeu-ruban {
+    top: calc(-15 * var(--jeu-p));
+  }
+}
+
+/* Les cases : claires dans les deux thèmes (les jetons du thème clair, posés sur la case), sans rien changer à leur dessin. */
+:is(.pass-jeu, .forge-jeu) .case {
+  --color-navy: #ffffff;
+  --ecriture: #0a1230;
+  --color-muted: #4a5677;
+  --stage-muted: #4a5677;
+  --color-line-strong: #7a88b4;
+  --rarete-commun-texte: #0b5cad;
+  --rarete-peu-commun-texte: #2a3bc4;
+  --rarete-epique-texte: #6a1fd0;
+  --rarete-mystique-texte: #a50f24;
+  --rarete-legendaire-texte: #7d5900;
+  --rarete-divin-texte: #00706a;
+}
+:is(.pass-jeu, .forge-jeu) .case:hover {
+  box-shadow: none;
+}
+:is(.pass-jeu, .forge-jeu) button.case:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+/* Sur une case claire ou une bulle crème, l'écriture en pixels garde son image du thème clair. */
+:root[data-mode="sombre"] :is(.pass-jeu, .forge-jeu) :is(.case, .jeu-bulle) .jeu-px > i {
+  background-image: var(--i);
+}
+
+/* Les phrases en lettres du site : petites, douces, jamais plus larges qu'une ligne qui se lit. */
+.pj-note,
+.fj-note {
+  margin: 0;
+  max-width: 46rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+.pj-raison,
+:is(.pass-jeu, .forge-jeu) .fj-raison {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-warn);
+}
+
+/* ====================================================================== */
+/* Le pass                                                                */
+/* ====================================================================== */
+
+/* ---------- En haut : la saison et ses XP, la récompense de fin de saison ---------- */
+
+.pj-haut {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(8 * var(--jeu-p));
+  align-items: stretch;
+  min-width: 0;
+}
+@media (min-width: 76rem) {
+  .pj-haut:has(.pj-fin) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 25rem);
+  }
+  .pj-haut > .pj-saison {
+    margin-top: calc(5 * var(--jeu-p));
+  }
+}
+
+.pj-saison {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "nom nom reste"
+    "xp progres progres"
+    "mots mots mots"
+    "jours jours jours";
+  align-items: center;
+  align-content: center;
+  gap: calc(7 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  min-width: 0;
+  padding: calc(2 * var(--jeu-p)) calc(3 * var(--jeu-p));
+}
+.pj-saison > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+}
+.pj-saison-nom {
+  grid-area: nom;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: calc(4 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  line-height: 0;
+}
+.pj-saison-reste {
+  grid-area: reste;
+  justify-self: end;
+  line-height: 0;
+}
+.pj-xp {
+  grid-area: xp;
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p));
+  line-height: 0;
+}
+/* Le nombre d'XP, une fois et demie plus grand que le reste : c'est lui qu'on vient lire. */
+.pj-grand {
+  --jeu-p: 3px;
+  display: inline-flex;
+  line-height: 0;
+}
+.pj-progres {
+  grid-area: progres;
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p));
+  min-width: 0;
+}
+.pj-progres > .jeu-etq {
+  flex: none;
+}
+.pj-tube {
+  display: block;
+  min-width: 0;
+}
+.pj-tube-xp {
+  flex: 1 1 calc(60 * var(--jeu-p));
+}
+.pj-saison-mots {
+  grid-area: mots;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: calc(4 * var(--jeu-p)) calc(10 * var(--jeu-p));
+  line-height: 0;
+}
+.pj-saison-mots > span {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+/* Les jours de la saison : un carreau par jour, bleu ceux qui sont passés, rouge aujourd'hui. */
+.pj-jours-saison {
+  grid-area: jours;
+  display: grid;
+  grid-template-columns: repeat(var(--jours, 42), minmax(0, 1fr));
+  gap: var(--jeu-p);
+}
+.pj-jours-saison > i {
+  display: block;
+  height: calc(3 * var(--jeu-p));
+  background: var(--pf-filet);
+}
+.pj-jours-saison > i[data-passe] {
+  background: var(--color-blue);
+}
+.pj-jours-saison > i[data-ici] {
+  height: calc(5 * var(--jeu-p));
+  margin-top: calc(-1 * var(--jeu-p));
+  background: #e0263a;
+}
+@media (max-width: 47.99rem) {
+  .pj-saison {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "nom reste"
+      "xp xp"
+      "progres progres"
+      "mots mots"
+      "jours jours";
+    gap: calc(5 * var(--jeu-p)) calc(4 * var(--jeu-p));
+    padding: calc(2 * var(--jeu-p)) calc(1 * var(--jeu-p));
+  }
+  .pj-saison-reste {
+    align-self: start;
+  }
+  .pj-progres {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .pj-tube-xp {
+    order: 3;
+    flex: 1 0 100%;
+  }
+}
+
+/* La récompense de fin de saison : l'objet dans sa case, l'insigne à côté, la règle dessous. */
+.pj-fin {
+  justify-items: center;
+}
+.pj-fin-corps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(6 * var(--jeu-p)) calc(10 * var(--jeu-p));
+  min-width: 0;
+}
+.pj-fin-objet {
+  width: 7.25rem;
+}
+.pj-fin-objet .case {
+  width: 100%;
+  cursor: default;
+}
+.pj-fin-insigne {
+  display: grid;
+  justify-items: center;
+  gap: calc(4 * var(--jeu-p));
+  max-width: 9rem;
+}
+.pj-fin-insigne .jeu-px-plie {
+  justify-content: center;
+}
+.pj-fin > .pj-note {
+  text-align: center;
+}
+
+/* ---------- La scène : la bannière du membre, la route de pavés, une case par palier ---------- */
+
+.pj-scene {
+  min-width: 0;
+}
+/* L'album d'un booster s'ouvre par-dessus tout le reste du pass, rubans des panneaux voisins compris. */
+.pj-scene:has(.album) {
+  position: relative;
+  z-index: 3;
+}
+.pj-scene-dedans {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: calc(8 * var(--jeu-p));
+  min-width: 0;
+  padding: calc(4 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  /* Coupe la route qui file jusqu'aux bords ; l'album d'un booster, posé sur l'écran, n'est pas coupé. */
+  overflow: clip;
+}
+.pj-scene[data-banniere] .pj-scene-dedans {
+  /* La hauteur de la bannière : six dixièmes de la largeur de la scène (l'écran moins ses marges, et moins le menu sur
+     ordinateur), au plus toute la scène. */
+  --ciel: min(100%, calc((100vw - 4rem) * 0.6));
+  background: rgb(var(--voile, 10, 18, 48));
+}
+/* La bannière, en haut sur toute la largeur ; le voile la fond dans sa teinte sombre par paliers nets, sans dégradé lisse. */
+@media (min-width: 64rem) {
+  .pj-scene[data-banniere] .pj-scene-dedans {
+    --ciel: min(100%, calc((100vw - 23rem) * 0.6));
+  }
+}
+.pj-fond {
+  position: absolute;
+  z-index: -2;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--ciel);
+  object-fit: cover;
+  object-position: 50% 30%;
+  image-rendering: pixelated;
+}
+.pj-voile {
+  --v: var(--voile, 10, 18, 48);
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--ciel);
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--v) / 0.12) 0 46%,
+    rgb(var(--v) / 0.34) 46% 58%,
+    rgb(var(--v) / 0.56) 58% 70%,
+    rgb(var(--v) / 0.78) 70% 84%,
+    rgb(var(--v)) 84% 100%
+  );
+  pointer-events: none;
+}
+.pj-banniere {
+  justify-self: start;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: calc(3 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  max-width: 100%;
+  margin: 0;
+  padding: var(--jeu-p) calc(2 * var(--jeu-p)) 0;
+  line-height: 0;
+}
+
+/* La piste : trois colonnes sur téléphone, cinq, puis dix dès 1 440 px (en dessous, un bouton « Ouvrir » ne tiendrait pas dans sa colonne à côté du menu) : les mêmes seuils que `useColonnes` de Sentier.tsx. Chaque
+   colonne est large d'un nombre entier de pavés (12 pixels), pour que la route se suive sans couture d'une case à l'autre. */
+.pj-piste {
+  --colonnes: 3;
+  display: grid;
+  grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--colonnes), round(down, calc(100% / var(--colonnes)), 12px));
+  justify-content: center;
+  gap: calc(12 * var(--jeu-p)) 0;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 560px) {
+  .pj-piste {
+    --colonnes: 5;
+  }
+}
+@media (min-width: 1440px) {
+  .pj-piste {
+    --colonnes: 10;
+  }
+}
+/* Quand le Gaulois n'est pas dans la première rangée, un peu de ciel avant la route : la bannière se voit. */
+.pj-scene[data-banniere] .pj-piste:not(:has(> .pj-pas:first-child[data-avec-moi])) {
+  margin-top: clamp(64px, 20vw, 112px);
+}
+/* `--decalage` : la hauteur laissée au Gaulois, dans toute la rangée où il se tient. */
+.pj-pas {
+  --decalage: 0px;
+  --route: calc(var(--pj-pave-h, 13) * 2px);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  justify-items: center;
+  gap: calc(5 * var(--jeu-p));
+  min-width: 0;
+  padding-top: var(--decalage);
+}
+.pj-pas[data-avec-moi] {
+  --decalage: 146px;
+}
+/* La route : grise sur toute la largeur de la case, dorée sur la part faite, à deux pixels par case. */
+.pj-pas::before,
+.pj-pas::after {
+  content: "";
+  position: absolute;
+  top: var(--decalage);
+  left: 0;
+  width: 100%;
+  height: var(--route);
+  background: var(--pj-pave-gris) 0 0 / calc(var(--pj-pave-w, 24) * 2px) 100% repeat-x;
+  image-rendering: pixelated;
+}
+.pj-pas::after {
+  width: var(--fait, 0%);
+  width: round(down, var(--fait, 0%), 2px);
+  background-image: var(--pj-pave-or);
+}
+/* Aux deux bouts d'une rangée, la route file jusqu'au bord de la scène, d'un nombre entier de pavés (`--bout`) : la grise
+   toujours, la dorée à gauche dès qu'elle commence, à droite quand la case est toute dorée. */
+.pj-pas {
+  --bout: 72px;
+  --bout-or-gauche: min(var(--bout), calc(var(--fait, 0%) * 100));
+  --bout-or-droit: clamp(0px, calc((var(--fait, 0%) - 99%) * 100), var(--bout));
+}
+.pj-pas:nth-child(3n + 1)::before {
+  left: calc(-1 * var(--bout));
+  width: calc(100% + var(--bout));
+}
+.pj-pas:nth-child(3n)::before {
+  width: calc(100% + var(--bout));
+}
+.pj-pas:nth-child(3n + 1)::after {
+  left: calc(-1 * var(--bout-or-gauche));
+  width: calc(round(down, var(--fait, 0%), 2px) + var(--bout-or-gauche));
+}
+.pj-pas:nth-child(3n)::after {
+  width: calc(round(down, var(--fait, 0%), 2px) + var(--bout-or-droit));
+}
+@media (min-width: 560px) {
+  .pj-pas:nth-child(n)::before {
+    left: 0;
+    width: 100%;
+  }
+  .pj-pas:nth-child(n)::after {
+    left: 0;
+    width: round(down, var(--fait, 0%), 2px);
+  }
+  .pj-pas:nth-child(5n + 1)::before {
+    left: calc(-1 * var(--bout));
+    width: calc(100% + var(--bout));
+  }
+  .pj-pas:nth-child(5n)::before {
+    width: calc(100% + var(--bout));
+  }
+  .pj-pas:nth-child(5n + 1)::after {
+    left: calc(-1 * var(--bout-or-gauche));
+    width: calc(round(down, var(--fait, 0%), 2px) + var(--bout-or-gauche));
+  }
+  .pj-pas:nth-child(5n)::after {
+    width: calc(round(down, var(--fait, 0%), 2px) + var(--bout-or-droit));
+  }
+}
+@media (min-width: 1440px) {
+  .pj-pas:nth-child(n)::before {
+    left: 0;
+    width: 100%;
+  }
+  .pj-pas:nth-child(n)::after {
+    left: 0;
+    width: round(down, var(--fait, 0%), 2px);
+  }
+  .pj-pas:nth-child(10n + 1)::before {
+    left: calc(-1 * var(--bout));
+    width: calc(100% + var(--bout));
+  }
+  .pj-pas:nth-child(10n)::before {
+    width: calc(100% + var(--bout));
+  }
+  .pj-pas:nth-child(10n + 1)::after {
+    left: calc(-1 * var(--bout-or-gauche));
+    width: calc(round(down, var(--fait, 0%), 2px) + var(--bout-or-gauche));
+  }
+  .pj-pas:nth-child(10n)::after {
+    width: calc(round(down, var(--fait, 0%), 2px) + var(--bout-or-droit));
+  }
+}
+.pj-dalle {
+  position: relative;
+  z-index: 1;
+  display: block;
+  line-height: 0;
+}
+/* Le Gaulois du membre, debout sur la route : ses pieds sur la dalle de son palier. */
+.pj-moi-place {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--decalage) + 6px);
+  left: 50%;
+  translate: -50% -100%;
+  pointer-events: none;
+}
+.pj-moi-place[data-depart] {
+  left: 0;
+  translate: 0 -100%;
+}
+.pj-moi {
+  display: grid;
+  justify-items: center;
+  gap: calc(2 * var(--jeu-p));
+  line-height: 0;
+}
+.pj-moi canvas {
+  filter: drop-shadow(0 calc(2 * var(--jeu-p)) 0 rgb(10 18 48 / 0.4));
+}
+
+/* La récompense d'un palier : une case claire à la couleur de sa rareté ; son booster ouvre l'album au survol. */
+.pass-jeu .pj-case {
+  grid-template-rows: none;
+  align-content: start;
+  gap: calc(2 * var(--jeu-p));
+  width: calc(100% - 6px);
+  max-width: 6.75rem;
+  padding: calc(3 * var(--jeu-p)) 2px calc(4 * var(--jeu-p));
+  cursor: default;
+}
+.pass-jeu .pj-case .case-image {
+  height: 92px;
+}
+.pass-jeu .pj-case .case-rarete {
+  font-size: 0.6875rem;
+}
+.pass-jeu .pj-case .album-declencheur {
+  margin: 0;
+  padding: 2px;
+  border-radius: 0;
+}
+.pass-jeu .pj-case .album-declencheur:hover,
+.pass-jeu .pj-case .album-declencheur[aria-expanded="true"] {
+  background: none;
+}
+.pass-jeu .pj-case .album-declencheur:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: 0;
+}
+/* L'album d'un booster s'ouvre dans la case : il reprend les jetons du thème sombre, que la case claire avait reposés. */
+:root[data-mode="sombre"] .pass-jeu .pj-case .album {
+  --color-navy: #0a1230;
+  --ecriture: #fff;
+  --color-muted: #c0c9e2;
+  --stage-muted: #c0c9e2;
+  --color-line-strong: #5469ae;
+  --rarete-commun-texte: #b5d8ff;
+  --rarete-peu-commun-texte: #bcc5ff;
+  --rarete-epique-texte: #dcbcff;
+  --rarete-mystique-texte: #ffb5bd;
+  --rarete-legendaire-texte: #ffdd80;
+  --rarete-divin-texte: #c4fff7;
+}
+/* La pastille de l'album encombrerait dix cases de front. */
+.pass-jeu .pj-case .album-pastille {
+  display: none;
+}
+.pj-seuil {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(15 * var(--jeu-p));
+  line-height: 0;
+}
+.pj-seuil .jeu-px > i {
+  margin-bottom: 0;
+}
+/* « Ouvrir » tient dans la colonne la plus étroite (84 px sur un téléphone de 360 px) : bords de côté de trois cases au lieu
+   de cinq, découpés d'autant dans l'image du bouton (ses coins restent nets), et pas de marge intérieure. */
+.pass-jeu .pj-prendre {
+  margin-top: calc(1 * var(--jeu-p));
+  padding: 0;
+  border-left-width: calc(3 * var(--jeu-p));
+  border-right-width: calc(3 * var(--jeu-p));
+  border-image-slice: 4 3 8 3 fill;
+}
+/* Un palier à prendre : un filet d'or autour de sa case, et son booster qui se soulève doucement. */
+.pj-pas[data-etat="a-prendre"] .pj-case {
+  outline: var(--jeu-p) solid #ffc61a;
+  outline-offset: var(--jeu-p);
+}
+.pj-pas[data-etat="a-prendre"] .pj-sac {
+  animation: pj-souleve 3.6s steps(1) infinite;
+}
+@keyframes pj-souleve {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  40% {
+    translate: 0 -2px;
+  }
+  55% {
+    translate: 0 -4px;
+  }
+  70% {
+    translate: 0 -2px;
+  }
+}
+/* Un palier pris : la case et son objet grisés, le sceau vert tamponné dessous. Le mot « pris » n'est pas écrit. */
+.pj-pas[data-etat="pris"] .pj-case {
+  --rarete: #aab3cd;
+  --rarete-texte: #5a6583;
+  --rarete-cadre: #aab3cd;
+}
+.pj-pas[data-etat="pris"] .pj-case::before {
+  display: none;
+}
+.pj-pas[data-etat="pris"] .pj-case .case-dessin {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+.pj-sceau {
+  margin-top: calc(1 * var(--jeu-p));
+  filter: drop-shadow(0 var(--jeu-p) 0 rgb(10 18 48 / 0.25));
+}
+
+/* Sous la piste : la rangée montrée et le bouton qui déplie, puis la légende des raretés. */
+.pj-voir-tout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  min-width: 0;
+}
+.pj-voir-tout > .jeu-bulle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: calc(3 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  max-width: 100%;
+  padding: var(--jeu-p) calc(2 * var(--jeu-p)) 0;
+  line-height: 0;
+}
+.pj-legende {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(3 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pj-puce {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p));
+  padding: 0 calc(1 * var(--jeu-p));
+  line-height: 0;
+}
+.pj-puce .jeu-px > i {
+  margin-bottom: 0;
+}
+/* Dans la légende, le booster ne montre que son médaillon : un morceau de l'image, à un pixel par case. */
+.pj-booster-mini {
+  width: 28px;
+  height: 22px;
+  background-size: 60px 88px;
+  background-position: -16px -27px;
+}
+
+/* ---------- Aujourd'hui : les missions, la présence, le défi du clan, l'étal ---------- */
+
+.pj-jour {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(8 * var(--jeu-p));
+  min-width: 0;
+}
+.pj-grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(10 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  min-width: 0;
+}
+@media (min-width: 62rem) {
+  .pj-grille {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Chaque bloc se range selon sa propre largeur : étroit sur téléphone, mais aussi à deux de front à côté du menu. */
+.pj-bloc {
+  container: pj-bloc / inline-size;
+}
+.pj-bloc-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(3 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  min-width: 0;
+  margin: 0;
+  line-height: 0;
+}
+.pj-bloc-tete > :only-child {
+  margin-inline: auto;
+}
+
+/* Les missions : une carte crème par mission, son image, ses mots, où elle en est, ses XP et sa coche. */
+.pj-missions-liste {
+  display: grid;
+  gap: calc(3 * var(--jeu-p));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pj-mission {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "image nom suite xp coche";
+  align-items: center;
+  gap: calc(3 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  min-width: 0;
+  padding: var(--jeu-p) calc(2 * var(--jeu-p));
+  line-height: 0;
+}
+.pj-mission-image {
+  grid-area: image;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  /* La tuile marine des images des missions (SentierDessins.ts) : le blanc du salon vocal et l'acier des épées s'y lisent. */
+  background: #0a1230;
+  box-shadow:
+    inset 0 var(--jeu-p) 0 #1c2752,
+    inset 0 calc(-1 * var(--jeu-p)) 0 #040716;
+}
+/* Une mission faite : la tuile passe au vert des choses faites. */
+.pj-mission[data-faite] .pj-mission-image {
+  background: #17743a;
+  box-shadow:
+    inset 0 var(--jeu-p) 0 #3fce6a,
+    inset 0 calc(-1 * var(--jeu-p)) 0 #0c4a24;
+}
+.pj-mission-nom {
+  grid-area: nom;
+  min-width: 0;
+}
+.pj-mission-suite {
+  grid-area: suite;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p));
+}
+.pj-mission-suite .jeu-px > i {
+  margin-bottom: 0;
+}
+.pj-tube-petit {
+  width: calc(34 * var(--jeu-p));
+}
+.pj-mission-xp {
+  grid-area: xp;
+}
+.pj-coche {
+  grid-area: coche;
+}
+/* Une mission faite : son image et ses mots s'effacent un peu, la coche verte et « Faite » restent vives. */
+.pj-mission[data-faite] :is(.pj-mission-image, .pj-mission-nom, .pj-mission-xp) {
+  opacity: 0.62;
+}
+@container pj-bloc (max-width: 30rem) {
+  .pj-mission {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "image nom nom coche"
+      "image suite xp xp";
+    align-items: start;
+  }
+  .pj-mission-suite {
+    flex-wrap: wrap;
+  }
+  .pj-mission-image {
+    align-self: center;
+  }
+}
+
+/* La présence : une petite page de calendrier par jour de visite. */
+.pj-jours {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(3 * var(--jeu-p));
+  margin: 0;
+  padding: calc(2 * var(--jeu-p)) 0 0;
+  list-style: none;
+}
+.pj-jours > li {
+  line-height: 0;
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+@media (max-width: 400px) {
+  .pj-jours {
+    gap: calc(2 * var(--jeu-p));
+  }
+}
+.pj-presence > .pj-note {
+  justify-self: center;
+  text-align: center;
+}
+
+/* Le défi du clan : l'étendard qui se remplit, les chiffres, la carte de France qui se colore. */
+.pj-defi-corps {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(5 * var(--jeu-p)) calc(7 * var(--jeu-p));
+  min-width: 0;
+}
+.pj-etendard {
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+.pj-defi-chiffres {
+  display: grid;
+  justify-items: start;
+  gap: calc(4 * var(--jeu-p));
+  min-width: 0;
+}
+.pj-defi-nombre {
+  margin: 0;
+  line-height: 0;
+}
+.pj-tube-defi {
+  width: 100%;
+  max-width: calc(110 * var(--jeu-p));
+}
+.pass-jeu .pj-gaule {
+  width: 7.5rem;
+}
+.pass-jeu .pj-gaule img {
+  image-rendering: pixelated;
+}
+:root[data-mode="sombre"] .pass-jeu .pj-gaule img {
+  filter: saturate(0.5) brightness(1.05);
+}
+.pj-defi > .pj-note {
+  justify-self: center;
+  text-align: center;
+}
+@container pj-bloc (max-width: 27rem) {
+  .pj-defi-corps {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .pass-jeu .pj-gaule {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: 8.5rem;
+  }
+}
+
+/* L'étal du jour : l'objet dans sa case, la remise épinglée en coin, le prix et l'achat à côté. */
+.pj-etal-corps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(6 * var(--jeu-p)) calc(10 * var(--jeu-p));
+  min-width: 0;
+}
+.pj-etal-case {
+  position: relative;
+  width: 7.25rem;
+}
+.pj-etal-case .case {
+  width: 100%;
+  cursor: default;
+}
+.pj-remise {
+  position: absolute;
+  z-index: 1;
+  top: calc(-4 * var(--jeu-p));
+  right: calc(-7 * var(--jeu-p));
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+.pj-etal-prix {
+  display: grid;
+  justify-items: start;
+  gap: calc(4 * var(--jeu-p));
+  min-width: 0;
+  max-width: 16rem;
+}
+.pj-prix {
+  --jeu-p: 3px;
+}
+.pj-ancien-prix {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+
+/* Le relevé, la mention de la carte, l'entre-deux-saisons. */
+.pj-releve,
+.pj-credit {
+  justify-self: center;
+  text-align: center;
+}
+.pj-credit {
+  font-size: 0.75rem;
+}
+.pj-credit a {
+  color: var(--color-blue-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.pj-credit a:hover {
+  color: var(--ecriture);
+}
+.pj-hors-saison {
+  justify-self: center;
+  padding: calc(2 * var(--jeu-p)) calc(4 * var(--jeu-p)) var(--jeu-p);
+  font-weight: 600;
+  color: var(--pf-encre);
+}
+.pj-insigne-recu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(4 * var(--jeu-p));
+}
+
+/* La fenêtre de l'étal : un panneau du jeu, comme à la boutique. */
+.pass-jeu .boutique-dialogue {
+  --src: var(--jeu-s-panneau);
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(12 * var(--jeu-p)) calc(12 * var(--jeu-p)) calc(14 * var(--jeu-p));
+  border-image-source: var(--src);
+  border-image-slice: 12 12 14 12 fill;
+  border-image-repeat: stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  image-rendering: pixelated;
+  color: var(--ecriture);
+}
+.pass-jeu .boutique-dialogue::backdrop {
+  background: rgb(3 8 26 / 0.72);
+}
+.pass-jeu .boutique-dialogue-corps {
+  padding: calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(2 * var(--jeu-p));
+}
+
+/* ====================================================================== */
+/* La forge                                                               */
+/* ====================================================================== */
+
+.forge-jeu {
+  --forge-or: #e2b23c;
+  --forge-or-clair: #ffe08a;
+  --forge-grave: #3b2a06;
+}
+.fj-corps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(8 * var(--jeu-p));
+  min-width: 0;
+}
+.fj-colonne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(8 * var(--jeu-p));
+  min-width: 0;
+}
+/* Le Gaulois à sa forge, devant sa bannière : à gauche de l'atelier sur un grand écran, au-dessus sur un téléphone. */
+.forge-jeu .fj-scene {
+  position: static;
+  display: grid;
+  justify-items: center;
+  justify-self: center;
+  padding: 0;
+}
+.forge-jeu .fj-scene .gaulois-cadre {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+}
+.forge-jeu .fj-scene .gaulois-apercu {
+  border-radius: 0;
+}
+@media (min-width: 64rem) {
+  .forge-jeu[data-scene] .fj-corps {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: calc(12 * var(--jeu-p));
+  }
+  .forge-jeu .fj-scene {
+    position: sticky;
+    top: calc(var(--jeu-barre-h) + 8 * var(--jeu-p));
+    margin-top: calc(26 * var(--jeu-p));
+  }
+  .forge-jeu .fj-scene .gaulois-apercu {
+    padding: 1rem;
+  }
+}
+
+/* Les deux ateliers : d'or celui qui est ouvert. */
+.forge-jeu .fj-ateliers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(4 * var(--jeu-p));
+}
+.forge-jeu .fj-ateliers > .jeu-btn {
+  min-width: calc(54 * var(--jeu-p));
+}
+
+.forge-jeu .fj-panneau {
+  gap: calc(7 * var(--jeu-p));
+}
+.forge-jeu .forge-mot {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--ecriture);
+}
+.forge-jeu .forge-lien {
+  padding: 0;
+  font-size: inherit;
+}
+.forge-jeu .boutique-jeu-sous-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  margin: 0;
+  line-height: 0;
+}
+/* Les objets, au milieu du panneau : la largeur d'une case de la boutique, trois de front sur un téléphone. */
+.forge-jeu .forge-cases {
+  --ecart: 0.625rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--ecart);
+}
+.forge-jeu .forge-cases > .case {
+  width: 7.25rem;
+}
+@media (max-width: 479px) {
+  .forge-jeu .forge-cases {
+    --ecart: 0.5rem;
+  }
+  .forge-jeu .forge-cases > .case {
+    width: calc((100% - 2 * var(--ecart)) / 3);
+  }
+}
+
+/* ---------- La fusion : la règle, les raretés, le creuset, puis les objets à poser ---------- */
+
+.fj-regle {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  line-height: 0;
+}
+.forge-jeu .fj-raretes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(4 * var(--jeu-p)) calc(3 * var(--jeu-p));
+}
+.fj-rarete {
+  gap: calc(3 * var(--jeu-p));
+}
+.fj-rarete > .bst-losanges,
+.fj-rarete > :first-child:not(.jeu-px) {
+  margin-top: calc(3 * var(--jeu-p));
+}
+.forge-jeu .fj-creuset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(6 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.forge-jeu .fj-places {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(4 * var(--jeu-p));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.forge-jeu .fj-places > li {
+  display: grid;
+}
+/* Une place vide : un creux de pierre taillé dans le panneau, en neuf parts, à deux pixels par case. */
+.forge-jeu .fj-place-vide {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 6.25rem;
+  min-height: 8rem;
+  border: 8px solid transparent;
+  border-radius: 0;
+  border-image: var(--fj-place) 4 fill / 8px stretch;
+  image-rendering: pixelated;
+}
+.fj-plus {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: var(--fj-plus) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+:root[data-mode="sombre"] .forge-jeu .fj-place-vide {
+  border-image-source: var(--fj-place-sombre);
+}
+:root[data-mode="sombre"] .fj-plus {
+  background-image: var(--fj-plus-sombre);
+}
+.forge-jeu .fj-donne {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--jeu-p));
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 0;
+}
+.fj-chaudron {
+  display: block;
+  line-height: 0;
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+.forge-jeu .fj-recu {
+  width: 6.75rem;
+  line-height: 1.2;
+}
+.forge-jeu :is(.fusion-recu-hasard, .fusion-compte) {
+  color: var(--color-muted);
+}
+.forge-jeu .fj-action {
+  display: grid;
+  justify-items: center;
+  gap: calc(3 * var(--jeu-p));
+  text-align: center;
+}
+.forge-jeu .fj-action > .jeu-btn {
+  gap: calc(3 * var(--jeu-p));
+  max-width: 100%;
+}
+/* « Regraver pour 150 statères », « Confirmer : effacer la plaque » : sur un écran étroit, les mots passent à la ligne et le
+   bouton grandit avec eux (sa face s'étire par ses bords droits, ses coins restent nets). */
+.forge-jeu :is(.fj-action > .jeu-btn, .forge-effacer-bouton) {
+  height: auto;
+  min-height: calc(20 * var(--jeu-p));
+  padding-bottom: calc(1 * var(--jeu-p));
+}
+.forge-jeu :is(.fj-action > .jeu-btn, .forge-effacer-bouton) > .jeu-px-plie {
+  justify-content: center;
+  row-gap: calc(3 * var(--jeu-p));
+}
+.fj-bouton-icone {
+  width: calc(12 * var(--jeu-p));
+  height: calc(12 * var(--jeu-p));
+  margin-top: calc(-1 * var(--jeu-p));
+  filter: none;
+}
+@media (max-width: 479px) {
+  .forge-jeu .fj-place-vide {
+    width: 5.25rem;
+  }
+  .forge-jeu .fj-places {
+    gap: calc(2 * var(--jeu-p));
+  }
+}
+
+/* ---------- La gravure : la bourse et le prix, les objets, puis l'établi ---------- */
+
+.forge-jeu .fj-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(4 * var(--jeu-p)) calc(14 * var(--jeu-p));
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.fj-compte {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: calc(4 * var(--jeu-p));
+  margin: 0;
+  line-height: 0;
+}
+.fj-note {
+  justify-self: center;
+  text-align: center;
+}
+.forge-jeu .fj-etabli {
+  display: grid;
+  gap: calc(6 * var(--jeu-p));
+  min-width: 0;
+}
+.forge-jeu .fj-etabli-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
+}
+.forge-jeu .fj-objet-nom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  min-width: 0;
+  margin: 0;
+  line-height: 0;
+}
+.forge-jeu .fj-objet-nom:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: calc(2 * var(--jeu-p));
+}
+.forge-jeu .forge-plaque-cadre {
+  filter: drop-shadow(0 calc(2 * var(--jeu-p)) 0 var(--jeu-ombre));
+}
+.forge-jeu .forge-plaque-legende {
+  color: var(--color-muted);
+}
+.forge-jeu .bst-fenetre .forge-plaque-legende {
+  color: var(--ecriture);
+  font-size: 0.9375rem;
+}
+
+/* Les parties à graver : une bulle crème par partie ; celle qui est choisie prend le filet d'or. */
+.forge-jeu .fj-parties {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.forge-jeu .fj-legende {
+  margin-bottom: calc(4 * var(--jeu-p));
+  padding: 0;
+  line-height: 0;
+}
+.forge-jeu .fj-parties ul {
+  display: grid;
+  gap: calc(3 * var(--jeu-p));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.forge-jeu .fj-partie {
+  min-height: 2.75rem;
+  padding: 0 calc(3 * var(--jeu-p));
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  border-radius: 0;
+  border-image: var(--jeu-s-bulle) 4 4 6 4 fill stretch;
+  background: none;
+  box-shadow: none;
+  image-rendering: pixelated;
+  color: var(--pf-encre);
+  font-size: 0.875rem;
+}
+.forge-jeu .fj-partie .forge-partie-heure {
+  color: var(--pf-encre-douce);
+}
+.forge-jeu .fj-partie input {
+  accent-color: #8a5a00;
+}
+.forge-jeu .fj-partie:has(input:checked) {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: 0;
+  background: none;
+  box-shadow: none;
+}
+.forge-jeu .fj-partie:has(input:focus-visible) {
+  outline: calc(2 * var(--jeu-p)) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.forge-jeu .forge-plus {
+  margin-top: calc(4 * var(--jeu-p));
+  padding: 0 calc(3 * var(--jeu-p));
+}
+
+/* Effacer une plaque ne se rattrape pas : à part, sous un filet en pointillé ; armé, le bouton passe au rouge. */
+.forge-jeu .fj-effacer {
+  display: grid;
+  justify-items: center;
+  gap: calc(4 * var(--jeu-p));
+  margin-top: 0;
+  padding: calc(7 * var(--jeu-p)) 0 0;
+  border: 0;
+  border-top: var(--jeu-p) dashed var(--pf-filet);
+  text-align: center;
+}
+.forge-jeu .forge-effacer-bouton {
+  max-width: 100%;
+}
+.forge-jeu .forge-effacer-bouton[data-arme] {
+  filter: hue-rotate(132deg) saturate(1.35);
+}
+.forge-jeu .forge-effacer-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-danger);
+}
+
+/* La forge fermée et la porte du visiteur. */
+.forge-jeu .fj-ferme {
+  justify-self: center;
+  max-width: 34rem;
+  margin: 0;
+  padding: calc(2 * var(--jeu-p)) calc(4 * var(--jeu-p)) var(--jeu-p);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--pf-encre);
+}
+.forge-jeu .fj-ferme .forge-lien {
+  color: var(--pf-lien);
+}
+.forge-jeu .fj-ferme .forge-lien:hover {
+  color: var(--pf-encre);
+}
+.forge-jeu .fj-porte {
+  display: grid;
+  justify-items: center;
+  gap: calc(8 * var(--jeu-p));
+  min-width: 0;
+  padding: calc(4 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  text-align: center;
+}
+
+/* Les fenêtres de la forge : la plaque ou les trois objets donnés, puis le moule. */
+.fj-fenetre {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: calc(6 * var(--jeu-p));
+  min-width: 0;
+  text-align: center;
+}
+.forge-jeu .fj-donnes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(4 * var(--jeu-p));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.forge-jeu .fj-moule .tambour {
+  width: 100%;
+  max-width: 24rem;
+  border-radius: 0;
+}
+.fj-outils {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(4 * var(--jeu-p));
+}
+
+/* ---------- La pause et « réduire les animations » : plus rien ne bouge ---------- */
+
+:root.fx-off .pass-jeu :is(.pj-sac, .pj-moi canvas),
+:root.fx-off :is(.pass-jeu, .forge-jeu) .case::before {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pass-jeu :is(.pj-sac, .pj-moi canvas),
+  :is(.pass-jeu, .forge-jeu) .case::before {
+    animation: none;
+  }
+}

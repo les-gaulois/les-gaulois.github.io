@@ -22,7 +22,7 @@ export const NOMS_DES_RARETES: Readonly<Record<RareteDeCarte, string>> = { commu
 
 /** Le rang d'une rareté de carte, 1 à 6. */
 export const rangDe = (rarete: RareteDeCarte): number => RARETES_DE_CARTE.indexOf(rarete) + 1;
-/** Une rareté du site lue comme une rareté de carte : une rareté inconnue de l'animation (le légendaire de saison, qui ne sort d'aucun booster) est montrée comme un légendaire. */
+/** Une rareté du site lue comme une rareté de carte : une rareté inconnue de l'animation (le légendaire de saison, qui ne sort que du booster du dernier palier du pass) est montrée comme un légendaire. */
 export const rareteDeCarte = (rarete: string): RareteDeCarte => ((RARETES_DE_CARTE as readonly string[]).includes(rarete) ? (rarete as RareteDeCarte) : "legendaire");
 
 /** Les quatre couleurs d'une case : haut, bas, bord, encre (celles des cases du site). */
