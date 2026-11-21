@@ -93,8 +93,9 @@ jobs:
     # échoue : les victoires partent alors avec la vignette.
     if: ${{ !cancelled() && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
-    # La somme des délais des étapes, achats du village compris (15 novembre 2026), puis le marché (19 novembre 2026).
-    timeout-minutes: 24
+    # La somme des délais des étapes, achats du village compris (15 novembre 2026), puis le marché (19 novembre 2026), puis
+    # les messages du trop-payé rendu (22 novembre 2026).
+    timeout-minutes: 28
     permissions:
       contents: write
     steps:
@@ -284,6 +285,59 @@ jobs:
             sleep 15
           done
           echo "::warning::Marché des Gaulois : état des annonces non enregistré sur main. Sa copie gardée en cache évite de les renvoyer ; il sera de nouveau enregistré avec la prochaine annonce."
+          exit 1
+      # Le trop-payé rendu après les prix baissés du 21 novembre 2026 (docs/DIRECTION.md, « Le trop-payé rendu ») : le
+      # message public, une fois, dans le salon des nouvelles, puis un message privé du robot (DISCORD_BOT_TOKEN) à chaque
+      # joueur remboursé, lu au serveur (rendus_des_prix). Une fois tout parti, l'étape ne fait plus rien. Même garde-fou :
+      # une copie de l'état dans le cache du workflow.
+      - name: Restaurer l'état des messages du trop-payé rendu
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/rendus-prix-envoi.json
+          key: rendus-prix-envoi-${{ github.run_id }}
+          restore-keys: rendus-prix-envoi-
+      - name: Envoyer les messages du trop-payé rendu
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 4
+        run: npm run rendus:envoyer
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      - name: Conserver l'état des messages du trop-payé rendu
+        if: ${{ !cancelled() && hashFiles('.cache/rendus-prix-envoi.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/rendus-prix-envoi.json
+          key: rendus-prix-envoi-${{ hashFiles('.cache/rendus-prix-envoi.json') }}
+      - name: Noter les messages du trop-payé rendu
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          if [ ! -f data/rendus-prix-envoi.json ]; then
+            echo "Aucun message du trop-payé rendu à noter."
+            exit 0
+          fi
+          git add -- data/rendus-prix-envoi.json
+          if git diff --cached --quiet; then
+            echo "Aucun message du trop-payé rendu à noter."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "data: note les messages du trop-payé rendu envoyés sur Discord"
+          for essai in 1 2 3 4 5; do
+            if git pull --rebase origin "${GITHUB_REF_NAME}" && git push; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::warning::Trop-payé rendu : état des messages non enregistré sur main. Sa copie gardée en cache évite de les renvoyer ; il sera de nouveau enregistré au prochain passage."
           exit 1
       # Les statères du village des Gaulois (docs/DIRECTION.md, « Le village des Gaulois ») :
       # 30 statères par point rapporté au clan, à chaque Gaulois présent dans la partie. Chaque partie du mois qui a rapporté
