@@ -56,6 +56,8 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « Les boosters » de « Mon Gaulois » (21 novembre 2026) : leur écran habillé du kit et l'animation d'ouverture validée
   // par le pilote (SceneDuBooster.ts).
   { fichier: "17-jeu-boosters.css", pages: ["/village", "/direction"] },
+  // Le vestiaire du jeu « Mon Gaulois » (21 novembre 2026) : le Gaulois et ses emplacements, ses cartes qu'on lâche sur lui.
+  { fichier: "18-jeu-vestiaire.css", pages: ["/village", "/direction"] },
   // « La boutique » de « Mon Gaulois » habillée en écran de jeu (21 novembre 2026) : la sélection de la semaine, les onglets
   // des rayons, les filtres, l'essayage et le marché en images, tout sous `.boutique-jeu`.
   { fichier: "19-jeu-boutique.css", pages: ["/village", "/direction"] },

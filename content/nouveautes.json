@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-21",
+    "kind": "ameliore",
+    "rank": "minor",
+    "title": "Le vestiaire de Mon Gaulois en jeu",
+    "body": "Votre Gaulois en grand, ses emplacements autour de lui : attrapez une carte d'objet et lâchez-la sur lui pour l'essayer, ou touchez-la. Votre tenue ne change pas avant « Enregistrer ».",
+    "link": {
+      "href": "/village#gaulois",
+      "label": "Le vestiaire"
+    }
+  },
+  {
+    "date": "2026-11-21",
     "kind": "nouveau",
     "rank": "minor",
     "title": "Les boosters s'ouvrent à la main",

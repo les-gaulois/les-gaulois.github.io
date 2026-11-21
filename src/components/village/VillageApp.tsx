@@ -18,6 +18,7 @@ import { ANCRE_SENTIER } from "../../lib/village/sentier";
 import Boutique from "./Boutique";
 import LoterieDuMardi from "./Loterie";
 import AtelierDeLaForge from "./Forge";
+import VestiaireDuJeu from "./VestiaireDuJeu";
 import LeSentier, { objetsQuiAttendent, useSentier } from "./Sentier";
 import VitrineDuClan from "./Vitrine";
 
@@ -199,9 +200,8 @@ export default function VillageApp() {
         <Partie prefix={PREFIXE} id="gaulois" active={aCreer ? "gaulois" : active} slide={aCreer ? null : slide}>
           {/* Le titre caché de la partie, sauf quand « Votre Gaulois », juste au-dessus, la nomme déjà. */}
           {!aCreer && <h2 class="sr-only">Le vestiaire</h2>}
-          <Ecran>
-            <Vestiaire actif={aCreer || active === "gaulois"} />
-          </Ecran>
+          {/* Le vestiaire du jeu (21 novembre 2026) : le Gaulois et ses cartes posés sur le fond du jeu, comme « Ma carte ». */}
+          <VestiaireDuJeu actif={aCreer || active === "gaulois"} />
         </Partie>
         {!aCreer && (
           <Partie prefix={PREFIXE} id={ANCRE_SENTIER} active={active} slide={slide}>

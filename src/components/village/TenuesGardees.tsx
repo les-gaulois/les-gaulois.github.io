@@ -54,7 +54,8 @@ export function TenuesGardees({ mes, tenue, occupe, onRemettre, onGarder }: { me
                   onGarder(place);
                 }}
                 onBlur={() => setArmee((a) => (a === place ? null : a))}
-                aria-label={!gardee ? `Garder à la place ${place} la tenue qui est à l'écran` : armee === place ? `Confirmer : remplacer la tenue ${place} par celle qui est à l'écran` : `Remplacer la tenue ${place} par celle qui est à l'écran`}
+                // Le nom dit commence par le mot écrit sur le bouton (WCAG 2.5.3) : on le dit comme on le lit.
+                aria-label={!gardee ? `Garder ici, à la place ${place}, la tenue qui est à l'écran` : armee === place ? `Confirmer : remplacer la tenue ${place} par celle qui est à l'écran` : `Remplacer la tenue ${place} par celle qui est à l'écran`}
                 data-testid={`tenue-garder-${place}`}
               >
                 {!gardee ? "Garder ici" : armee === place ? "Confirmer" : "Remplacer"}

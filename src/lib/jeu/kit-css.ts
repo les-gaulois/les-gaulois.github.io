@@ -15,6 +15,7 @@ import { JETONS_DES_PIECES } from "./palette";
 import { PALIERS_DE_VICTOIRES, insigne } from "./paliers-de-victoires";
 import { IMAGES_DU_KIT, PIECES_EN_NEUF_PARTS, pieceMini, pionDeSerie } from "./pieces";
 import type { Planche } from "./planche";
+import { VARIABLES_DU_VESTIAIRE } from "./vestiaire";
 
 async function png(p: Planche): Promise<string> {
   const tampon = await sharp(Buffer.from(p.data.buffer, p.data.byteOffset, p.data.byteLength), { raw: { width: p.width, height: p.height, channels: 4 } })
@@ -46,6 +47,13 @@ export function feuilleDuKit(): Promise<{ css: string; version: string }> {
       const nom = grand ? "logo-grand" : "logo";
       clair.push(`--jeu-${nom}:${await png(l)}`, `--jeu-${nom}-w:${l.width}`, `--jeu-${nom}-h:${l.height}`);
     }
+    // Les pièces du vestiaire (21 novembre 2026, `vestiaire.ts`) : des images, et les couleurs de fond de ses cartes.
+    for (const piece of VARIABLES_DU_VESTIAIRE)
+      for (const theme of ["clair", "sombre"] as const) {
+        if (theme === "sombre" && !piece.theme) continue;
+        const valeur = piece.valeur(theme);
+        (theme === "clair" ? clair : sombre).push(`--jeu-v-${piece.nom}:${typeof valeur === "string" ? valeur : await png(valeur)}`);
+      }
     const css = `/* Les images du kit en pixels de « Mon Gaulois » (src/lib/jeu/kit-css.ts), fabriquées à la construction. */\n:root{${clair.join(";")}}\n:root[data-mode="sombre"]{${sombre.join(";")}}\n`;
     let empreinte = 0;
     for (let i = 0; i < css.length; i++) empreinte = (Math.imul(empreinte, 31) + css.charCodeAt(i)) | 0;

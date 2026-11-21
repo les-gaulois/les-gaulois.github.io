@@ -1,4 +1,4 @@
-import type { ComponentChildren } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import {
@@ -70,6 +70,12 @@ function Pastille({ nom, couleur, choisie, onClick }: { nom: string; couleur: st
 
 interface Choix {
   tenue: Tenue;
+  /**
+   * La tenue enregistrée : ce que le Gaulois porte vraiment. Une case de la tenue à l'écran qui n'y est pas porte « essai »
+   * (21 novembre 2026), jusqu'à l'enregistrement ; l'objet enregistré garde sa coche. `null` : le Gaulois n'existe pas
+   * encore, ce qu'on choisit est simplement choisi.
+   */
+  enregistree: Tenue | null;
   /** L'inventaire du membre ; `null` tant que le serveur ne l'a pas donné : seuls les objets gratuits se montrent. */
   boutique: MaBoutique | null;
   /** Les plaques de la forge sur ses objets. */
@@ -78,6 +84,14 @@ interface Choix {
   nouveaux?: ReadonlySet<string>;
   onVu?: (cle: string) => void;
   onChange: (tenue: Tenue) => void;
+}
+
+/** La case d'un objet de la tenue : portée (la coche, ce qui est enregistré) ou en essai (à l'écran, pas encore enregistré). */
+function etatDeLaCase({ tenue, enregistree }: Choix, emplacement: Emplacement, id: string): { portee: boolean; essayee: boolean } {
+  const aLEcran = objetPorte(tenue, emplacement) === id;
+  if (!enregistree) return { portee: aLEcran, essayee: false };
+  const porte = objetPorte(enregistree, emplacement) === id;
+  return { portee: porte, essayee: aLEcran && !porte };
 }
 
 /** Le titre d'une partie du vestiaire et son contenu. */
@@ -115,12 +129,13 @@ function Peau({ tenue, onChange }: Choix) {
 }
 
 /** Les cheveux ou la barbe : une case par coupe, avec le visage du Gaulois ; pour les cheveux, leur couleur dessous. */
-function Poils({ emplacement, tenue, onChange }: Choix & { emplacement: "cheveux" | "barbe" }) {
+function Poils(props: Choix & { emplacement: "cheveux" | "barbe" }) {
+  const { emplacement, tenue, onChange } = props;
   return (
     <Partie emplacement={emplacement}>
       <div class="cases" role="group" aria-labelledby={`vestiaire-${emplacement}`}>
         {Object.entries(OBJETS[emplacement]).map(([id, objet]) => (
-          <Case key={id} objet={objet} vignette={portrait(changerObjet(tenue, emplacement, id), emplacement === "cheveux" ? 2 : 8)} portee={tenue[emplacement] === id} onClick={() => onChange(changerObjet(tenue, emplacement, id))} />
+          <Case key={id} objet={objet} vignette={portrait(changerObjet(tenue, emplacement, id), emplacement === "cheveux" ? 2 : 8)} {...etatDeLaCase(props, emplacement, id)} onClick={() => onChange(changerObjet(tenue, emplacement, id))} />
         ))}
       </div>
       {emplacement === "cheveux" && (
@@ -138,13 +153,14 @@ function Poils({ emplacement, tenue, onChange }: Choix & { emplacement: "cheveux
  * Les yeux, la bouche ou la cicatrice : une case par modèle, avec un gros plan du visage du Gaulois, sans barbe ni coiffe,
  * pour voir le trait qu'on choisit. Gratuits, sans rareté.
  */
-function Visage({ emplacement, tenue, onChange }: Choix & { emplacement: EmplacementDuVisage }) {
+function Visage(props: Choix & { emplacement: EmplacementDuVisage }) {
+  const { emplacement, tenue, onChange } = props;
   const nu = visageNu(tenue);
   return (
     <Partie emplacement={emplacement}>
       <div class="cases" role="group" aria-labelledby={`vestiaire-${emplacement}`}>
         {Object.entries(OBJETS[emplacement]).map(([id, objet]) => (
-          <Case key={id} objet={objet} vignette={grosPlan(casesDuGaulois(changerObjet(nu, emplacement, id)), CADRE_VISAGE)} visage portee={objetPorte(tenue, emplacement) === id} onClick={() => onChange(changerObjet(tenue, emplacement, id))} />
+          <Case key={id} objet={objet} vignette={grosPlan(casesDuGaulois(changerObjet(nu, emplacement, id)), CADRE_VISAGE)} visage {...etatDeLaCase(props, emplacement, id)} onClick={() => onChange(changerObjet(tenue, emplacement, id))} />
         ))}
       </div>
     </Partie>
@@ -155,7 +171,8 @@ function Visage({ emplacement, tenue, onChange }: Choix & { emplacement: Emplace
  * Le rayon d'un emplacement : ce qui se porte, les objets gratuits et ceux que le membre possède. Ce qui reste à acheter
  * est à la boutique (l'onglet « La boutique » de `/village`), plus ici, depuis le 15 novembre 2026.
  */
-function Objets({ emplacement, tenue, boutique, plaques, nouveaux, onVu, onChange }: Choix & { emplacement: Emplacement }) {
+function Objets(props: Choix & { emplacement: Emplacement }) {
+  const { emplacement, tenue, boutique, plaques, nouveaux, onVu, onChange } = props;
   const possede = (id: string): number => (boutique ? quantitePossedee(boutique.inventaire, emplacement, id) : 0);
   return (
     <div class="vestiaire-rayon" data-testid={`vestiaire-${emplacement}`}>
@@ -169,7 +186,7 @@ function Objets({ emplacement, tenue, boutique, plaques, nouveaux, onVu, onChang
             key={id}
             objet={objet}
             vignette={vignetteDeLObjet(emplacement, id, tenue)}
-            portee={tenue[emplacement] === id}
+            {...etatDeLaCase(props, emplacement, id)}
             vente={objet.gratuit ? undefined : { possede: possede(id) }}
             plaque={plaqueDe(plaques, { emplacement, objet: id })}
             nouveau={nouveaux?.has(cleDeLObjet({ emplacement, objet: id })) ?? false}
@@ -187,16 +204,19 @@ function Objets({ emplacement, tenue, boutique, plaques, nouveaux, onVu, onChang
 /** Les parties du rayon du corps, dans l'ordre de leurs pastilles : le corps (humain ou Gaulois unique), puis chaque trait. */
 const PARTIES_DU_CORPS = ["corps", "peau", "cheveux", "barbe", ...EMPLACEMENTS_VISAGE] as const;
 type PartieDuCorps = (typeof PARTIES_DU_CORPS)[number];
+/** Les clés de la tenue que règle le rayon du corps : un essai sur l'une d'elles se dit sur l'emplacement du corps, dans le jeu. */
+export const CLES_DU_CORPS = ["modele", "peau", "cheveux", "barbe", TEINTE_CHEVEUX, ...EMPLACEMENTS_VISAGE] as const;
 
 /** Le visage du Gaulois dans l'onglet du corps : avec sa barbe, sans coiffe ni arme. */
-function visageDuRayon(tenue: Tenue): Vignette {
+export function visageDuRayon(tenue: Tenue): Vignette {
   return grosPlan(casesDuGaulois({ ...tenue, tete: "aucun", arme: "aucune" }), CADRE_VISAGE);
 }
 
 /**
  * La bourse en une ligne. Le détail de la bourse (d'où viennent les statères, les derniers reçus) est dans l'onglet « La
  * boutique », à côté ; le bouton « Aller à la boutique » est parti le 15 novembre 2026 avec la boutique en onglet (demande
- * du pilote). Un solde qui ne se sait pas encore ne s'écrit pas zéro.
+ * du pilote). Un solde qui ne se sait pas encore ne s'écrit pas zéro. Le vestiaire du jeu (21 novembre 2026) ne la montre
+ * plus : la barre du jeu, toujours en vue, la porte déjà.
  */
 function LaBourse({ solde }: { solde: number | null }) {
   return (
@@ -216,31 +236,22 @@ function LaBourse({ solde }: { solde: number | null }) {
   );
 }
 
+/** Le familier et la bannière, dans le vestiaire du jeu, ont leur emplacement à côté du Gaulois, comme ses objets. */
+export const FAMILIER = "familier";
+export const BANNIERE = "banniere";
+/** Ce que le vestiaire ouvre sous son Gaulois : un rayon, ou, dans le jeu, le familier ou la bannière. */
+export type OngletDuVestiaire = Rayon | typeof FAMILIER | typeof BANNIERE;
+export const estUnRayon = (onglet: OngletDuVestiaire): onglet is Rayon => (RAYONS as readonly string[]).includes(onglet);
+
 type Etat = { kind: "lecture" } | { kind: "erreur"; message: string } | { kind: "pret"; enregistree: Tenue | null };
 
 /**
- * « Mon Gaulois », sur `/village` : le visiteur voit le Gaulois de départ et la porte ; un compte lié à Discord habille le
- * sien avec ce qui est à lui, les objets gratuits et son inventaire. Le serveur décide de tout (tenue, inventaire) :
- * l'écran ne fait que proposer et montrer ce qu'il a reçu. Sans réponse de l'inventaire, le vestiaire reste, avec les
- * objets gratuits.
- *
- * Depuis le 14 novembre 2026, le vestiaire s'ouvre un rayon à la fois (`src/lib/village/vestiaire-rayons.ts`) : le corps
- * (peau, cheveux, barbe, et le visage au choix : yeux, bouche, cicatrice), puis la tête, le haut, le bas, les pieds et
- * l'arme. Depuis le 15 novembre 2026, les achats (la boutique de chaque rayon, la pochette surprise, le marché) et la
- * bourse détaillée sont dans l'onglet « La boutique » (`src/components/village/Boutique.tsx`), à côté de celui-ci :
- * ici, la bourse tient en une ligne.
- *
- * Le familier montré à côté du Gaulois (15 novembre 2026) se choisit au-dessus des rayons, parmi ceux qu'on a
- * (`MonFamilier` de `src/components/village/Familiers.tsx`) : le choix part tout de suite au serveur
- * (`choisir_familier`), sans passer par l'enregistrement de la tenue, qui ne change pas. Il ne s'annonce pas par
- * `gal:gaulois-enregistre` : cette annonce porte la tenue enregistrée, que le Gaulois compagnon garde, et le compagnon
- * n'a pas de familier.
- *
- * Le corps (15 novembre 2026) se choisit en tête du rayon du corps : l'humain, ou un des Gaulois uniques du compte
- * (`MonCorps` de `src/components/village/Modeles.tsx`, lus par `get_mes_modeles`). C'est une clé de la tenue : il change
- * l'aperçu et s'enregistre avec elle. « Au hasard » garde le corps choisi.
+ * Tout ce que fait le vestiaire, sans sa mise en page : ce qu'il lit du serveur, la tenue en cours, ce qu'il envoie. Deux
+ * mises en page s'en servent : celle d'avant, ici (l'inscription dans « Mon Compte », la porte des visiteurs), et le
+ * vestiaire du jeu « Mon Gaulois » (`VestiaireDuJeu.tsx`, 21 novembre 2026). `actif` : la partie est ouverte ; à son retour,
+ * l'inventaire et les Gaulois uniques se relisent.
  */
-export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
+export function useVestiaire(actif: boolean | undefined) {
   const { me, refresh } = useMe();
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
   const [tenue, setTenue] = useState<Tenue>(TENUE_DE_DEPART);
@@ -251,8 +262,9 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
   const [occupe, setOccupe] = useState(false);
   const [probleme, setProbleme] = useState<string | null>(null);
   const [reussite, setReussite] = useState<string | null>(null);
-  // Le rayon ouvert. Le corps d'abord : c'est par lui qu'on crée son Gaulois.
-  const [rayon, setRayon] = useState<Rayon>(RAYON_CORPS);
+  // Le rayon ouvert (dans le jeu, le familier et la bannière en sont aussi). Le corps d'abord : c'est par lui qu'on crée
+  // son Gaulois.
+  const [rayon, setRayon] = useState<OngletDuVestiaire>(RAYON_CORPS);
   // La partie du corps ouverte dans son rayon. Sans choix, le corps d'un Gaulois qui existe, sinon la peau.
   const [partieDuCorps, setPartieDuCorps] = useState<PartieDuCorps | null>(null);
   // Le Gaulois existait déjà à la dernière lecture : vrai ou faux jusqu'à la suivante, même une fois le Gaulois créé, pour
@@ -369,7 +381,6 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
     setOccupeFamilier(false);
   };
 
-  const { racine, scene, barre, panneau } = useSceneCollee(rayon, etat.kind);
   // La bannière qu'il montre sur /gaulois, derrière son Gaulois : rien pour un visiteur.
   const decor = useDecorDuGaulois(me !== null && me.signed_in);
   // Les tenues gardées : de l'habillage. Un serveur qui ne les connaît pas encore, ou en panne, n'en montre aucune.
@@ -423,8 +434,65 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
     }
   };
 
-  if (me === null) return <Loading label="Lecture de votre compte…" />;
+  const enregistree = etat.kind === "pret" ? etat.enregistree : null;
+  const choix: Choix = { tenue, enregistree, boutique, plaques, nouveaux, onVu: noterVu, onChange: changer };
+  const partieOuverte: PartieDuCorps = partieDuCorps === null || (partieDuCorps === "corps" && !existait) ? (existait ? "corps" : "peau") : partieDuCorps;
+  return {
+    me,
+    refresh,
+    etat,
+    tenue,
+    enregistree,
+    /** La tenue à l'écran n'est pas l'enregistrée : il y a de quoi enregistrer. */
+    change: !memeTenue(tenue, enregistree),
+    choix,
+    boutique,
+    bourse,
+    panne,
+    occupe,
+    probleme,
+    reussite,
+    rayon,
+    setRayon,
+    partieOuverte,
+    setPartieDuCorps,
+    existait,
+    familiers,
+    occupeFamilier,
+    problemeFamilier,
+    annonceFamilier,
+    modeles,
+    decor,
+    tenuesGardees,
+    occupeTenues,
+    nouveaux,
+    lire,
+    lireLInventaire,
+    changer,
+    enregistrer,
+    choisirLeFamilier,
+    garderLaTenue,
+    /** Une tenue au hasard parmi les objets gratuits, qui garde le corps choisi. */
+    auHasard: () => changer(tenueAvecModele(tenueAuHasard(Math.random), modeleDuGaulois(tenue)?.id ?? null)),
+    /** L'essai s'efface : la tenue enregistrée revient. */
+    annuler: () => changer(enregistree ?? TENUE_DE_DEPART),
+    /** La collection d'un rayon, « 12 sur 62 » : rien pour le corps, ni tant que l'inventaire n'est pas lu. */
+    collection: (id: Rayon): string | null => (id === RAYON_CORPS || !boutique ? null : motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet)))),
+    /** Un objet arrivé depuis la dernière visite attend dans ce rayon. */
+    nouveauDans: (id: Rayon): boolean => id !== RAYON_CORPS && nouveauxDuRayon(nouveaux, id) > 0,
+  };
+}
 
+/** Le vestiaire et ce qu'il sait : ce que rend `useVestiaire`. */
+export type LeVestiaire = ReturnType<typeof useVestiaire>;
+
+/**
+ * Ce qui se montre avant le Gaulois du membre : la porte d'un visiteur (le Gaulois de départ, la connexion), la lecture,
+ * ou la lecture en panne. `null` : le Gaulois est lu, le vestiaire peut s'ouvrir.
+ */
+export function avantLeGaulois(v: LeVestiaire): JSX.Element | null {
+  const { me } = v;
+  if (me === null) return <Loading label="Lecture de votre compte…" />;
   if (!me.signed_in) {
     return (
       <div class="vestiaire" data-testid="vestiaire-porte">
@@ -438,26 +506,138 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
           </div>
           {codeLoginShown() && (
             <div class="mt-6">
-              <CodeLogin connecte={() => void refresh()} />
+              <CodeLogin connecte={() => void v.refresh()} />
             </div>
           )}
         </div>
       </div>
     );
   }
+  if (v.etat.kind === "lecture") return <Loading label="Lecture de votre Gaulois…" />;
+  if (v.etat.kind === "erreur") return <Problem message={v.etat.message} onRetry={() => void v.lire()} />;
+  return null;
+}
 
-  if (etat.kind === "lecture") return <Loading label="Lecture de votre Gaulois…" />;
-  if (etat.kind === "erreur") return <Problem message={etat.message} onRetry={() => void lire()} />;
+/** Le rayon du corps : une partie à la fois, sous ses pastilles. */
+export function RayonDuCorps({ v }: { v: LeVestiaire }) {
+  const { choix, partieOuverte, tenue, modeles } = v;
+  return (
+    <>
+      {/* Une partie du corps à la fois (17 novembre 2026) : empilées, elles faisaient plus de quatre écrans, et le
+          Gaulois sortait de la vue. Le corps ne se choisit que pour un Gaulois qui existe : rien pendant l'inscription. */}
+      <div class="vestiaire-filtre vestiaire-parties" role="group" aria-label="Les parties du corps" data-testid="vestiaire-parties">
+        {PARTIES_DU_CORPS.filter((partie) => partie !== "corps" || v.existait).map((partie) => (
+          <button key={partie} type="button" class="chip filtre" aria-pressed={partie === partieOuverte} onClick={() => v.setPartieDuCorps(partie)} data-testid={`vestiaire-partie-${partie}`}>
+            {partie === "corps" ? "Corps" : NOMS_EMPLACEMENTS[partie]}
+          </button>
+        ))}
+      </div>
+      {partieOuverte === "corps" && <MonCorps etat={modeles.etat} tenue={tenue} vignette={(id) => portrait(tenueAvecModele(tenue, id), 2)} onChange={v.changer} onRelire={() => void modeles.lire()} />}
+      {partieOuverte === "peau" && <Peau {...choix} />}
+      {(partieOuverte === "cheveux" || partieOuverte === "barbe") && <Poils key={partieOuverte} emplacement={partieOuverte} {...choix} />}
+      {EMPLACEMENTS_VISAGE.map((emplacement) => partieOuverte === emplacement && <Visage key={emplacement} emplacement={emplacement} {...choix} />)}
+    </>
+  );
+}
 
-  const change = !memeTenue(tenue, etat.enregistree);
-  const choix: Choix = { tenue, boutique, plaques, nouveaux, onVu: noterVu, onChange: changer };
-  const partieOuverte: PartieDuCorps = partieDuCorps === null || (partieDuCorps === "corps" && !existait) ? (existait ? "corps" : "peau") : partieDuCorps;
+/** Le rayon d'un emplacement d'objets. */
+export function RayonDesObjets({ v, emplacement }: { v: LeVestiaire; emplacement: Emplacement }) {
+  return <Objets key={emplacement} emplacement={emplacement} {...v.choix} />;
+}
+
+/** Le choix du familier montré, pour un Gaulois qui existe. `plie` : dans son pli (la page d'avant), ou ses cartes seules. */
+export function ChoixDuFamilier({ v, plie = true }: { v: LeVestiaire; plie?: boolean }) {
+  if (!v.existait) return null;
+  return <MonFamilier etat={v.familiers.etat} occupe={v.occupeFamilier} probleme={v.problemeFamilier} annonce={v.annonceFamilier} onChoisir={(id) => void v.choisirLeFamilier(id)} onRelire={() => void v.familiers.lire()} plie={plie} />;
+}
+
+/** La bannière montrée sur /gaulois et son livre, pour un Gaulois qui existe. */
+export function ChoixDeLaBanniere({ v, actif }: { v: LeVestiaire; actif: boolean | undefined }) {
+  if (!v.existait || v.me === null || !v.me.signed_in) return null;
+  return <MaBanniere actif={actif} nom={v.me.name ?? "Moi"} tenue={v.enregistree ?? v.tenue} familier={v.familiers.montre} />;
+}
+
+/** Sans réponse de l'inventaire, le vestiaire marche quand même : un compte qui crée son Gaulois ne voit rien de plus. */
+export function PanneDeLInventaire({ v }: { v: LeVestiaire }) {
+  if (!v.panne || !v.existait) return null;
+  return (
+    <div data-testid="vestiaire-panne">
+      <Problem message="Votre inventaire ne répond pas pour l'instant : seuls les objets gratuits se montrent." onRetry={() => void v.lireLInventaire()} />
+    </div>
+  );
+}
+
+/** Ce qui suit le Gaulois et ses rayons : les tenues gardées, puis le livre de la collection, dont une ligne de rayon ouvre ce rayon. */
+export function TenuesEtCollection({ v }: { v: LeVestiaire }) {
+  const { existait, tenuesGardees, boutique, familiers, modeles } = v;
+  return (
+    <>
+      {/* Trois tenues à garder et à remettre : elles ne se portent qu'une fois enregistrées, par le bouton d'enregistrement. */}
+      {existait && tenuesGardees && <TenuesGardees mes={tenuesGardees} tenue={v.tenue} occupe={v.occupeTenues || v.occupe} onRemettre={v.changer} onGarder={(place) => void v.garderLaTenue(place)} />}
+      {/* Le livre de la collection : ce qu'il possède sur ce qui existe, partout. Une ligne de rayon ouvre ce rayon. */}
+      {existait && boutique && (
+        <LivreDeLaCollection
+          inventaire={boutique.inventaire}
+          familiers={familiers.etat.kind === "pret" ? { possedes: familiers.etat.mes.familiers.length, existants: FAMILIERS.length } : null}
+          modeles={modeles.etat.kind === "pret" ? { possedes: modeles.etat.mes.modeles.length, existants: MODELES.length } : null}
+          onRayon={(id) => {
+            v.setRayon(id);
+            document.getElementById(`vestiaire-rayon-${id}`)?.focus();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/** Ce que dit l'enregistrement : son refus, sa réussite, et qu'un Gaulois n'existe qu'enregistré. */
+export function MessagesDuVestiaire({ v }: { v: LeVestiaire }) {
+  return (
+    <>
+      <Problem message={v.probleme} />
+      <Success message={v.reussite} />
+      {!v.enregistree && !v.reussite && <p class="text-sm text-muted">Votre Gaulois n'existe qu'une fois enregistré.</p>}
+    </>
+  );
+}
+
+/**
+ * « Mon Gaulois », sur `/village` jusqu'au 21 novembre 2026, et l'inscription dans « Mon compte » : le visiteur voit le
+ * Gaulois de départ et la porte ; un compte lié à Discord habille le sien avec ce qui est à lui, les objets gratuits et son
+ * inventaire. Le serveur décide de tout (tenue, inventaire) : l'écran ne fait que proposer et montrer ce qu'il a reçu. Sans
+ * réponse de l'inventaire, le vestiaire reste, avec les objets gratuits.
+ *
+ * Depuis le 14 novembre 2026, le vestiaire s'ouvre un rayon à la fois (`src/lib/village/vestiaire-rayons.ts`) : le corps
+ * (peau, cheveux, barbe, et le visage au choix : yeux, bouche, cicatrice), puis la tête, le haut, le bas, les pieds et
+ * l'arme. Depuis le 15 novembre 2026, les achats (la boutique de chaque rayon, la pochette surprise, le marché) et la
+ * bourse détaillée sont dans l'onglet « La boutique » (`src/components/village/Boutique.tsx`), à côté de celui-ci :
+ * ici, la bourse tient en une ligne.
+ *
+ * Le familier montré à côté du Gaulois (15 novembre 2026) se choisit au-dessus des rayons, parmi ceux qu'on a
+ * (`MonFamilier` de `src/components/village/Familiers.tsx`) : le choix part tout de suite au serveur
+ * (`choisir_familier`), sans passer par l'enregistrement de la tenue, qui ne change pas. Il ne s'annonce pas par
+ * `gal:gaulois-enregistre` : cette annonce porte la tenue enregistrée, que le Gaulois compagnon garde, et le compagnon
+ * n'a pas de familier.
+ *
+ * Le corps (15 novembre 2026) se choisit en tête du rayon du corps : l'humain, ou un des Gaulois uniques du compte
+ * (`MonCorps` de `src/components/village/Modeles.tsx`, lus par `get_mes_modeles`). C'est une clé de la tenue : il change
+ * l'aperçu et s'enregistre avec elle. « Au hasard » garde le corps choisi.
+ *
+ * Depuis le 21 novembre 2026, `/village` montre le vestiaire du jeu (`src/components/village/VestiaireDuJeu.tsx`), fait
+ * des mêmes pièces : celui-ci ne sert plus qu'à l'inscription dans « Mon compte » et à la porte des visiteurs.
+ */
+export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
+  const v = useVestiaire(actif);
+  const { racine, scene, barre, panneau } = useSceneCollee(v.rayon, v.etat.kind);
+  const attente = avantLeGaulois(v);
+  if (attente) return attente;
+  const rayon: Rayon = estUnRayon(v.rayon) ? v.rayon : RAYON_CORPS;
   return (
     <div ref={racine} class="vestiaire" data-testid="vestiaire">
-      <div ref={scene} class="vestiaire-scene" data-familier={tailleDeLApercu(familiers.montre) ?? undefined}>
-        <ApercuGaulois tenue={tenue} familier={familiers.montre} decor={decor} />
+      <div ref={scene} class="vestiaire-scene" data-familier={tailleDeLApercu(v.familiers.montre) ?? undefined}>
+        <ApercuGaulois tenue={v.tenue} familier={v.familiers.montre} decor={v.decor} />
         <div class="vestiaire-scene-actions">
-          <button type="button" class="btn btn-ghost" onClick={() => changer(tenueAvecModele(tenueAuHasard(Math.random), modeleDuGaulois(tenue)?.id ?? null))}>
+          <button type="button" class="btn btn-ghost" onClick={v.auHasard}>
             Au hasard
           </button>
         </div>
@@ -465,36 +645,18 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
       <div class="vestiaire-colonne">
         {/* La bourse et la boutique ne servent qu'une fois le Gaulois créé : la ligne ne paraît que pour un Gaulois qui
             existait déjà à la lecture, jamais sous les yeux de qui vient de le créer. */}
-        {existait && boutique && <LaBourse solde={soldeAffiche(boutique.solde, bourse)} />}
-        {/* Sans réponse de l'inventaire, le vestiaire marche quand même : un compte qui crée son Gaulois ne voit rien de plus. */}
-        {panne && existait && (
-          <div data-testid="vestiaire-panne">
-            <Problem message="Votre inventaire ne répond pas pour l'instant : seuls les objets gratuits se montrent." onRetry={() => void lireLInventaire()} />
-          </div>
-        )}
+        {v.existait && v.boutique && <LaBourse solde={soldeAffiche(v.boutique.solde, v.bourse)} />}
+        <PanneDeLInventaire v={v} />
         {/* Le familier ne se montre qu'à côté d'un Gaulois qui existe : rien pendant l'inscription. */}
-        {existait && <MonFamilier etat={familiers.etat} occupe={occupeFamilier} probleme={problemeFamilier} annonce={annonceFamilier} onChoisir={(id) => void choisirLeFamilier(id)} onRelire={() => void familiers.lire()} />}
+        <ChoixDuFamilier v={v} />
         {/* La bannière montrée sur /gaulois, comme le familier : pour un Gaulois qui existe. */}
-        {existait && <MaBanniere actif={actif} nom={me.name ?? "Moi"} tenue={etat.enregistree ?? tenue} familier={familiers.montre} />}
-        {/* Trois tenues à garder et à remettre : elles ne se portent qu'une fois enregistrées, par le bouton du bas. */}
-        {existait && tenuesGardees && <TenuesGardees mes={tenuesGardees} tenue={tenue} occupe={occupeTenues || occupe} onRemettre={changer} onGarder={(place) => void garderLaTenue(place)} />}
-        {/* Le livre de la collection : ce qu'il possède sur ce qui existe, partout. Une ligne de rayon ouvre ce rayon. */}
-        {existait && boutique && (
-          <LivreDeLaCollection
-            inventaire={boutique.inventaire}
-            familiers={familiers.etat.kind === "pret" ? { possedes: familiers.etat.mes.familiers.length, existants: FAMILIERS.length } : null}
-            modeles={modeles.etat.kind === "pret" ? { possedes: modeles.etat.mes.modeles.length, existants: MODELES.length } : null}
-            onRayon={(id) => {
-              setRayon(id);
-              document.getElementById(`vestiaire-rayon-${id}`)?.focus();
-            }}
-          />
-        )}
+        <ChoixDeLaBanniere v={v} actif={actif} />
+        <TenuesEtCollection v={v} />
         <form
           class="vestiaire-choix"
           onSubmit={(e) => {
             e.preventDefault();
-            void enregistrer();
+            void v.enregistrer();
           }}
         >
           <div ref={barre} class="vestiaire-barre">
@@ -504,48 +666,28 @@ export default function Vestiaire({ actif }: { actif?: boolean } = {}) {
               rayons={RAYONS}
               noms={NOMS_RAYONS}
               rayon={rayon}
-              vignette={(id) => (id === RAYON_CORPS ? visageDuRayon(tenue) : vignetteDeLObjet(id, tenue[id] ?? "", tenue))}
+              vignette={(id) => (id === RAYON_CORPS ? visageDuRayon(v.tenue) : vignetteDeLObjet(id, v.tenue[id] ?? "", v.tenue))}
               // La collection de chaque rayon : ce qu'il possède sur ce qui existe. Rien tant que l'inventaire n'est pas lu.
-              mention={(id) => (id === RAYON_CORPS || !boutique ? null : motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet))))}
-              marque={(id) => (id !== RAYON_CORPS && nouveauxDuRayon(nouveaux, id) > 0 ? "Nouveau" : null)}
-              onChoisir={setRayon}
+              mention={v.collection}
+              marque={(id) => (v.nouveauDans(id) ? "Nouveau" : null)}
+              onChoisir={v.setRayon}
             />
           </div>
           <div ref={panneau} id="vestiaire-panneau" class="vestiaire-panneau" role="tabpanel" aria-labelledby={`vestiaire-rayon-${rayon}`}>
-            {rayon === RAYON_CORPS ? (
-              <>
-                {/* Une partie du corps à la fois (17 novembre 2026) : empilées, elles faisaient plus de quatre écrans, et le
-                    Gaulois sortait de la vue. Le corps ne se choisit que pour un Gaulois qui existe : rien pendant l'inscription. */}
-                <div class="vestiaire-filtre vestiaire-parties" role="group" aria-label="Les parties du corps" data-testid="vestiaire-parties">
-                  {PARTIES_DU_CORPS.filter((partie) => partie !== "corps" || existait).map((partie) => (
-                    <button key={partie} type="button" class="chip filtre" aria-pressed={partie === partieOuverte} onClick={() => setPartieDuCorps(partie)} data-testid={`vestiaire-partie-${partie}`}>
-                      {partie === "corps" ? "Corps" : NOMS_EMPLACEMENTS[partie]}
-                    </button>
-                  ))}
-                </div>
-                {partieOuverte === "corps" && <MonCorps etat={modeles.etat} tenue={tenue} vignette={(id) => portrait(tenueAvecModele(tenue, id), 2)} onChange={changer} onRelire={() => void modeles.lire()} />}
-                {partieOuverte === "peau" && <Peau {...choix} />}
-                {(partieOuverte === "cheveux" || partieOuverte === "barbe") && <Poils key={partieOuverte} emplacement={partieOuverte} {...choix} />}
-                {EMPLACEMENTS_VISAGE.map((emplacement) => partieOuverte === emplacement && <Visage key={emplacement} emplacement={emplacement} {...choix} />)}
-              </>
-            ) : (
-              <Objets key={rayon} emplacement={rayon} {...choix} />
-            )}
+            {rayon === RAYON_CORPS ? <RayonDuCorps v={v} /> : <RayonDesObjets v={v} emplacement={rayon} />}
           </div>
-          <div class="vestiaire-envoi" data-colle={change ? "" : undefined}>
+          <div class="vestiaire-envoi" data-colle={v.change ? "" : undefined}>
             <div class="vestiaire-envoi-boutons">
-              <button type="submit" class="btn btn-primary btn-lg" disabled={occupe || !change} data-testid="vestiaire-enregistrer">
-                {occupe ? "Enregistrement…" : etat.enregistree ? "Enregistrer ma tenue" : "Créer mon Gaulois"}
+              <button type="submit" class="btn btn-primary btn-lg" disabled={v.occupe || !v.change} data-testid="vestiaire-enregistrer">
+                {v.occupe ? "Enregistrement…" : v.enregistree ? "Enregistrer ma tenue" : "Créer mon Gaulois"}
               </button>
-              {change && etat.enregistree && (
-                <button type="button" class="btn btn-ghost" onClick={() => changer(etat.enregistree ?? TENUE_DE_DEPART)}>
+              {v.change && v.enregistree && (
+                <button type="button" class="btn btn-ghost" onClick={v.annuler}>
                   Annuler
                 </button>
               )}
             </div>
-            <Problem message={probleme} />
-            <Success message={reussite} />
-            {!etat.enregistree && !reussite && <p class="text-sm text-muted">Votre Gaulois n'existe qu'une fois enregistré.</p>}
+            <MessagesDuVestiaire v={v} />
           </div>
         </form>
       </div>

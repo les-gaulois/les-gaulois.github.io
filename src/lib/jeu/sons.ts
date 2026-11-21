@@ -69,7 +69,7 @@ export function basculerLeSon(): boolean {
 }
 
 /** Les sons courts du jeu. */
-export type NomDeSon = "clic" | "piece" | "flap" | "tic" | "carillon" | "enfile";
+export type NomDeSon = "clic" | "piece" | "flap" | "tic" | "carillon" | "enfile" | "enfile2";
 
 /**
  * Joue un son court, si le son est voulu et que la page a déjà reçu un geste (le contexte existe alors). Un contexte encore
@@ -99,6 +99,8 @@ export function jouer(nom: NomDeSon, retard = 0, rang = 1): void {
   if (nom === "clic") note("square", 300, 170, 0.05, 0.05);
   else if (nom === "tic") note("square", 880, 640, 0.02, 0.02);
   else if (nom === "enfile") note("triangle", 660, 660, 0.1, 0.07);
+  // La seconde note d'un objet enfilé au vestiaire, une quinte au-dessus (maquette validée) : `jouer("enfile2", 0.09)`.
+  else if (nom === "enfile2") note("triangle", 990, 990, 0.18, 0.07);
   else if (nom === "piece") {
     note("triangle", 1568, 1568, 0.09, 0.1);
     note("triangle", 2093, 2093, 0.35, 0.1, t + 0.07);

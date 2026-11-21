@@ -95,9 +95,11 @@ const AUCUN = ficheDe("Aucun", null);
 /**
  * « Mon familier », dans « Mon Gaulois » : le familier montré à côté du Gaulois, à choisir parmi ceux qu'on a, ou aucun.
  * Le choix part tout de suite au serveur (`choisir_familier`) : il ne passe pas par l'enregistrement de la tenue. Sans
- * familier, une ligne mène à la pochette des familiers de « La boutique ». En panne, le vestiaire reste.
+ * familier, une ligne mène à la pochette des familiers de « La boutique ». En panne, le vestiaire reste. `plie` : dans un
+ * pli qui dit le familier montré (par défaut) ; sans pli, les cartes seules, comme dans le vestiaire du jeu, où
+ * l'emplacement du familier, à côté du Gaulois, le montre déjà (21 novembre 2026).
  */
-export function MonFamilier({ etat, occupe, probleme, annonce, onChoisir, onRelire }: { etat: EtatDesFamiliers; occupe: boolean; probleme: string | null; annonce: string | null; onChoisir: (id: string | null) => void; onRelire: () => void }) {
+export function MonFamilier({ etat, occupe, probleme, annonce, onChoisir, onRelire, plie = true }: { etat: EtatDesFamiliers; occupe: boolean; probleme: string | null; annonce: string | null; onChoisir: (id: string | null) => void; onRelire: () => void; plie?: boolean }) {
   const [ouvert, setOuvert] = useState(true);
   if (etat.kind === "lecture") return null;
   if (etat.kind === "panne") {
@@ -119,11 +121,8 @@ export function MonFamilier({ etat, occupe, probleme, annonce, onChoisir, onReli
   const choisir = (id: string | null) => {
     if (!occupe && id !== (montre?.id ?? null)) onChoisir(id);
   };
-  return (
-    <details class="fold familier-choix" open={ouvert} onToggle={(e) => setOuvert(e.currentTarget.open)} data-testid="familier-choix">
-      <summary>
-        <span id="familier-choix-titre">Mon familier</span> <span class="info-discrete">{montre ? montre.nom : "aucun"}</span>
-      </summary>
+  const contenu = (
+    <>
       <div class="cases" role="group" aria-labelledby="familier-choix-titre" aria-busy={occupe}>
         <Case objet={AUCUN} vignette={null} portee={montre === null} onClick={() => choisir(null)} />
         {possedes.map((familier) => (
@@ -134,6 +133,24 @@ export function MonFamilier({ etat, occupe, probleme, annonce, onChoisir, onReli
       <p class="sr-only" role="status" data-testid="familier-annonce">
         {annonce}
       </p>
+    </>
+  );
+  if (!plie) {
+    return (
+      <div class="familier-choix familier-choix-ouvert" data-testid="familier-choix">
+        <p id="familier-choix-titre" class="sr-only">
+          Mon familier
+        </p>
+        {contenu}
+      </div>
+    );
+  }
+  return (
+    <details class="fold familier-choix" open={ouvert} onToggle={(e) => setOuvert(e.currentTarget.open)} data-testid="familier-choix">
+      <summary>
+        <span id="familier-choix-titre">Mon familier</span> <span class="info-discrete">{montre ? montre.nom : "aucun"}</span>
+      </summary>
+      {contenu}
     </details>
   );
 }

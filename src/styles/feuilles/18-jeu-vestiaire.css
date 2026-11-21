@@ -1,0 +1,677 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- Le vestiaire du jeu « Mon Gaulois » (21 novembre 2026) ---------- */
+/* Le vestiaire de /village#gaulois (src/components/village/VestiaireDuJeu.tsx), d'après la maquette validée par le pilote
+   (dessin de Claude Fable 5.2) : le Gaulois en grand devant sa bannière, sur son socle, une lueur tramée derrière lui, ses
+   huit emplacements autour, et les cartes du rayon ouvert sur un plateau, qu'on lâche sur le Gaulois
+   (src/components/village/Essayage.tsx).
+
+   - Les pièces sont des images en cases (src/lib/jeu/vestiaire.ts, variables --jeu-v-* de /village/kit.css) : le cadre et la
+     trame des cartes et des emplacements par rareté, le cadre doré de la bannière, le socle, la lueur, le viseur, la coche,
+     l'éclat d'un essai, le plateau. Jamais de dégradé ni de bordure de site (« pas des trucs Paint »).
+   - Deux mesures : --jeu-p, le point du kit (2 pixels), pour les pièces ; --vj-g, la case du Gaulois (4 pixels sur un grand
+     écran, 3 sur téléphone, jamais à virgule), pour lui, son socle et sa lueur.
+   - Fin et aéré : c'est la demande du pilote. Les cartes gardent leur dessin clair à la couleur de leur rareté
+     (09-village.css), redessiné en cases. */
+
+.vestiaire-jeu {
+  display: grid;
+  gap: calc(12 * var(--jeu-p));
+  min-width: 0;
+  max-width: calc(620 * var(--jeu-p));
+  margin-inline: auto;
+}
+.vestiaire-jeu > * {
+  min-width: 0;
+}
+/* Sur un grand écran, le Gaulois reste en vue à gauche pendant qu'on parcourt les cartes à droite : une carte se lâche
+   toujours sur lui. Plus étroit, les cartes passent dessous, en une rangée : il reste en vue aussi. */
+@media (min-width: 80rem) {
+  .vestiaire-jeu {
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    grid-template-areas:
+      "haut panneau"
+      "haut suite";
+    grid-template-rows: auto 1fr;
+    align-items: start;
+    column-gap: calc(20 * var(--jeu-p));
+    padding-top: calc(4 * var(--jeu-p));
+  }
+  .vj-haut {
+    grid-area: haut;
+    position: sticky;
+    top: calc(var(--jeu-barre-h) + 14 * var(--jeu-p));
+  }
+  .vj-panneau {
+    grid-area: panneau;
+  }
+  .vj-suite {
+    grid-area: suite;
+  }
+}
+
+/* ---------- La scène : le Gaulois, son socle, sa lueur ---------- */
+
+.vj-haut {
+  display: grid;
+  justify-items: center;
+  gap: calc(8 * var(--jeu-p));
+  min-width: 0;
+}
+.vj-scene {
+  --vj-g: 3px;
+  --vj-case: calc(28 * var(--jeu-p));
+  --vj-ecart: calc(6 * var(--jeu-p));
+  /* La hauteur d'un emplacement : sa case, et son nom sur un grand écran. Quatre emplacements tiennent dans la scène. */
+  --vj-rang: var(--vj-case);
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-height: calc(4 * var(--vj-rang) + 12 * var(--jeu-p));
+  padding: 0 calc(var(--vj-case) + var(--vj-ecart));
+}
+/* Sur un grand écran, les noms des emplacements dépassent de leur case : l'écart leur laisse la place. */
+@media (min-width: 64rem) {
+  .vj-scene {
+    --vj-ecart: calc(13 * var(--jeu-p));
+    --vj-rang: calc(var(--vj-case) + 9 * var(--jeu-p));
+  }
+}
+@media (min-width: 90rem) {
+  .vj-scene {
+    --vj-g: 4px;
+  }
+}
+/* Un familier de plus de 30 cases élargit l'image jusqu'à 113 cases : la case du Gaulois rend alors un pixel. */
+.vj-scene[data-familier="large"] {
+  --vj-g: 2px;
+}
+@media (min-width: 90rem) {
+  .vj-scene[data-familier="large"] {
+    --vj-g: 3px;
+  }
+}
+.vj-gaulois {
+  position: relative;
+  display: grid;
+  justify-items: center;
+}
+/* La lueur : plus large que le Gaulois, elle passe sous ses emplacements. Ses bords se répètent sans s'étirer : ses
+   cases restent entières à toute largeur, et elle ne dépasse jamais de la page. */
+.vj-lueur {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  box-sizing: border-box;
+  width: min(calc(100% + 2 * var(--vj-case) + 2 * var(--vj-ecart) + 16 * var(--vj-g)), calc(100vw - 48px));
+  height: calc(100% + 20 * var(--vj-g));
+  translate: -50% -50%;
+  border: calc(12 * var(--vj-g)) solid transparent;
+  border-image: var(--jeu-v-lueur) 12 fill / calc(12 * var(--vj-g)) repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+/* Le cadre doré autour de la bannière. Sans bannière, pas de cadre : le Gaulois se tient seul devant sa lueur. */
+.vj-gaulois .gaulois-cadre {
+  position: relative;
+  z-index: 1;
+  border: 0 solid transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.vj-gaulois .gaulois-cadre[data-decor] {
+  border-width: calc(3 * var(--jeu-p));
+  border-image: var(--jeu-v-cadre) 3 / calc(3 * var(--jeu-p)) stretch;
+  image-rendering: pixelated;
+}
+.vestiaire-jeu .vj-scene .vj-apercu {
+  width: calc(var(--cases, 48) * var(--vj-g));
+  height: calc(64 * var(--vj-g));
+  padding: calc(2 * var(--vj-g)) calc(2 * var(--vj-g)) 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  --saut: calc(3 * var(--vj-g));
+}
+.vj-gaulois .gaulois-cadre:not([data-decor]) .vj-apercu {
+  filter: drop-shadow(var(--vj-g) var(--vj-g) 0 var(--jeu-ombre));
+}
+/* Le socle : il dépasse du cadre de trois cases de chaque côté et en couvre le bas ; il ne s'étire que par son milieu. */
+.vj-socle {
+  position: relative;
+  z-index: 2;
+  justify-self: center;
+  box-sizing: border-box;
+  width: calc(100% + 6 * var(--vj-g));
+  height: calc(10 * var(--vj-g));
+  margin-top: calc(-2 * var(--vj-g));
+  border: 0 solid transparent;
+  border-width: 0 calc(5 * var(--vj-g));
+  border-image: var(--jeu-v-socle) 0 5 fill / 0 calc(5 * var(--vj-g)) stretch;
+  image-rendering: pixelated;
+}
+.vj-socle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: calc(5 * var(--vj-g));
+  height: calc(5 * var(--vj-g));
+  translate: -50% 0;
+  background: var(--jeu-v-losange) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+
+/* ---------- Les emplacements : une colonne de chaque côté du Gaulois ---------- */
+
+.vj-emplacements {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--vj-case) 1fr var(--vj-case);
+  grid-template-rows: repeat(4, auto);
+  grid-auto-flow: row dense;
+  align-content: center;
+  row-gap: calc(4 * var(--jeu-p));
+  pointer-events: none;
+}
+.vj-emplacement {
+  pointer-events: auto;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--vj-case);
+  justify-items: center;
+  gap: calc(2 * var(--jeu-p));
+  width: var(--vj-case);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.vj-emplacement[data-cote="gauche"] {
+  grid-column: 1;
+}
+.vj-emplacement[data-cote="droite"] {
+  grid-column: 3;
+}
+/* Sur un téléphone étroit, le Gaulois et son familier prennent la largeur : les emplacements passent dessous, quatre par
+   rangée, dans l'ordre des onglets. */
+@media (max-width: 29.99rem) {
+  .vj-scene[data-familier] {
+    min-height: 0;
+    padding: 0;
+    row-gap: calc(8 * var(--jeu-p));
+  }
+  .vj-scene[data-familier] .vj-emplacements {
+    position: static;
+    grid-template-columns: repeat(4, var(--vj-case));
+    grid-template-rows: none;
+    justify-content: center;
+    column-gap: calc(5 * var(--jeu-p));
+    row-gap: calc(5 * var(--jeu-p));
+  }
+  .vj-scene[data-familier] .vj-emplacement {
+    grid-column: auto;
+  }
+}
+
+/* Le cadre d'une carte ou d'un emplacement, à la couleur de sa rareté : le trait et la tranche (neuf parts), le fond clair,
+   la trame qui le fonce vers le bas. */
+.vestiaire-jeu .case,
+.vj-emplacement-image {
+  --vj-cadre: var(--jeu-v-tuile-aucune);
+  --vj-trame: var(--jeu-v-trame-aucune);
+  --vj-fond: var(--jeu-v-fond-aucune);
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  border-image: var(--vj-cadre) 2 2 5 / calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p)) stretch;
+  border-radius: 0;
+  background:
+    var(--vj-trame) left bottom / calc(4 * var(--jeu-p)) calc(28 * var(--jeu-p)) repeat-x padding-box,
+    var(--vj-fond) padding-box;
+  image-rendering: pixelated;
+}
+:is(.vestiaire-jeu .case, .vj-emplacement)[data-rarete="commun"] {
+  --vj-cadre: var(--jeu-v-tuile-commun);
+  --vj-trame: var(--jeu-v-trame-commun);
+  --vj-fond: var(--jeu-v-fond-commun);
+}
+:is(.vestiaire-jeu .case, .vj-emplacement)[data-rarete="peu-commun"] {
+  --vj-cadre: var(--jeu-v-tuile-peu-commun);
+  --vj-trame: var(--jeu-v-trame-peu-commun);
+  --vj-fond: var(--jeu-v-fond-peu-commun);
+}
+:is(.vestiaire-jeu .case, .vj-emplacement)[data-rarete="epique"] {
+  --vj-cadre: var(--jeu-v-tuile-epique);
+  --vj-trame: var(--jeu-v-trame-epique);
+  --vj-fond: var(--jeu-v-fond-epique);
+}
+:is(.vestiaire-jeu .case, .vj-emplacement)[data-rarete="mystique"] {
+  --vj-cadre: var(--jeu-v-tuile-mystique);
+  --vj-trame: var(--jeu-v-trame-mystique);
+  --vj-fond: var(--jeu-v-fond-mystique);
+}
+/* Le légendaire de saison (objet du dernier palier du pass, 21 novembre 2026) a les tons du légendaire, comme sur le site. */
+:is(.vestiaire-jeu .case, .vj-emplacement):is([data-rarete="legendaire"], [data-rarete="saison"]) {
+  --vj-cadre: var(--jeu-v-tuile-legendaire);
+  --vj-trame: var(--jeu-v-trame-legendaire);
+  --vj-fond: var(--jeu-v-fond-legendaire);
+}
+:is(.vestiaire-jeu .case, .vj-emplacement)[data-rarete="divin"] {
+  --vj-cadre: var(--jeu-v-tuile-divin);
+  --vj-trame: var(--jeu-v-trame-divin);
+  --vj-fond: var(--jeu-v-fond-divin);
+}
+/* L'emplacement reçoit les tons de sa rareté ; son image les lit. */
+.vj-emplacement[data-rarete] .vj-emplacement-image {
+  --vj-cadre: inherit;
+  --vj-trame: inherit;
+  --vj-fond: inherit;
+}
+.vj-emplacement {
+  --vj-cadre: var(--jeu-v-tuile-aucune);
+  --vj-trame: var(--jeu-v-trame-aucune);
+  --vj-fond: var(--jeu-v-fond-aucune);
+}
+
+.vj-emplacement-image {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: var(--vj-case);
+  height: var(--vj-case);
+  overflow: hidden;
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+  transition: transform 0.12s steps(2);
+}
+.vj-emplacement-dessin {
+  image-rendering: pixelated;
+}
+.vj-emplacement-fond {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+/* Un emplacement vide se voit à sa case vide : pas de rond barré. */
+.vj-emplacement .case-rien {
+  display: none;
+}
+@media (hover: hover) {
+  .vj-emplacement:hover .vj-emplacement-image {
+    transform: translateY(calc(-1 * var(--jeu-p)));
+  }
+}
+/* Le nom de l'emplacement, en pixels : sur un grand écran seulement, cerné de la couleur de la page pour se lire sur toute
+   bannière. Sur téléphone, le ruban du rayon ouvert le dit, et les lecteurs d'écran l'ont toujours. */
+.vj-emplacement-nom {
+  display: none;
+}
+@media (min-width: 64rem) {
+  .vj-emplacement-nom {
+    display: inline-flex;
+    filter: drop-shadow(var(--jeu-p) 0 0 var(--color-navy)) drop-shadow(calc(-1 * var(--jeu-p)) 0 0 var(--color-navy)) drop-shadow(0 var(--jeu-p) 0 var(--color-navy))
+      drop-shadow(0 calc(-1 * var(--jeu-p)) 0 var(--color-navy));
+  }
+}
+/* Le viseur : quatre équerres d'or autour de l'emplacement ouvert, et de celui que vise la carte tenue. */
+.vj-emplacement::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: calc(-2 * var(--jeu-p));
+  box-sizing: border-box;
+  width: calc(var(--vj-case) + 4 * var(--jeu-p));
+  height: calc(var(--vj-case) + 4 * var(--jeu-p));
+  translate: -50% 0;
+  border: calc(6 * var(--jeu-p)) solid transparent;
+  border-image: var(--jeu-v-viseur) 6 / calc(6 * var(--jeu-p)) stretch;
+  image-rendering: pixelated;
+  pointer-events: none;
+  opacity: 0;
+}
+.vj-emplacement[aria-selected="true"]::before,
+.vj-emplacement[data-cible]::before {
+  opacity: 1;
+}
+.vj-emplacement[data-cible] .vj-emplacement-image {
+  transform: translateY(calc(-2 * var(--jeu-p)));
+}
+.vj-emplacement[data-cible]::before {
+  /* Une respiration lente, en quelques pas de pixel : rien qui saute ni clignote (« animations calmes »). */
+  animation: vj-vise 2.6s steps(4, jump-none) infinite alternate;
+}
+/* L'éclat d'un essai : la tenue à l'écran n'est pas encore enregistrée à cet emplacement. */
+.vj-emplacement[data-essai]::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: calc(-3 * var(--jeu-p));
+  top: calc(-3 * var(--jeu-p));
+  width: calc(7 * var(--jeu-p));
+  height: calc(7 * var(--jeu-p));
+  background: var(--jeu-v-eclat) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.vj-emplacement:focus-visible {
+  outline: calc(2 * var(--jeu-p)) solid var(--jeu-or-focus);
+  outline-offset: calc(3 * var(--jeu-p));
+}
+.vj-emplacement .vestiaire-rayon-marque {
+  z-index: 2;
+  top: calc(-4 * var(--jeu-p));
+  right: calc(-7 * var(--jeu-p));
+}
+.vj-emplacement.vj-recoit .vj-emplacement-image {
+  animation: vj-recoit 0.4s steps(6) 1;
+}
+@keyframes vj-recoit {
+  0% {
+    transform: scale(1.28);
+  }
+  50% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes vj-vise {
+  from {
+    scale: 1;
+  }
+  to {
+    scale: 1.08;
+  }
+}
+
+/* La prise : le viseur se pose autour du Gaulois pour dire où lâcher la carte ; il se resserre quand elle est au-dessus. */
+.vj-gaulois::before {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: calc(-5 * var(--jeu-p)) calc(-5 * var(--jeu-p)) calc(-2 * var(--jeu-p));
+  border: calc(6 * var(--jeu-p)) solid transparent;
+  border-image: var(--jeu-v-viseur) 6 / calc(6 * var(--jeu-p)) stretch;
+  image-rendering: pixelated;
+  pointer-events: none;
+  opacity: 0;
+}
+.vj-scene[data-attente] .vj-gaulois::before {
+  opacity: 1;
+  animation: vj-attend 2.6s steps(3, jump-none) infinite alternate;
+}
+.vj-scene[data-survol] .vj-gaulois::before {
+  inset: calc(-2 * var(--jeu-p)) calc(-2 * var(--jeu-p)) 0;
+  animation: none;
+}
+.vj-scene[data-survol] .gaulois-cadre {
+  filter: brightness(1.08);
+}
+@keyframes vj-attend {
+  from {
+    inset: calc(-5 * var(--jeu-p)) calc(-5 * var(--jeu-p)) calc(-2 * var(--jeu-p));
+  }
+  to {
+    inset: calc(-7 * var(--jeu-p)) calc(-7 * var(--jeu-p)) calc(-4 * var(--jeu-p));
+  }
+}
+
+/* ---------- Les actions sous le Gaulois ---------- */
+
+.vj-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(5 * var(--jeu-p));
+}
+.vj-messages {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  max-width: 24rem;
+  font-size: 0.875rem;
+  text-align: center;
+}
+/* Une phrase posée sur le fond du jeu : une bande de la couleur de la page dessous, pour qu'elle se lise sur toute bannière. */
+.vj-messages > p {
+  margin: 0;
+  padding: calc(1 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  background: color-mix(in srgb, var(--color-navy) 90%, transparent);
+}
+.vj-messages:empty {
+  display: none;
+}
+
+/* ---------- Le plateau : le rayon ouvert et ses cartes ---------- */
+
+/* Le plateau, en neuf parts : un trait fin, une face qui laisse à peine passer le fond du jeu. Le ruban du rayon est posé à
+   cheval sur son bord. */
+.vj-panneau,
+.vj-suite {
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(3 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  border-image: var(--jeu-v-plateau) 3 3 5 fill / calc(3 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(5 * var(--jeu-p)) stretch;
+  image-rendering: pixelated;
+}
+.vj-panneau {
+  --vj-marge: calc(7 * var(--jeu-p));
+  display: grid;
+  gap: calc(7 * var(--jeu-p));
+  min-width: 0;
+  margin-top: calc(8 * var(--jeu-p));
+  padding: 0 var(--vj-marge) calc(6 * var(--jeu-p));
+}
+@media (min-width: 80rem) {
+  .vj-panneau {
+    --vj-marge: calc(10 * var(--jeu-p));
+    padding-bottom: calc(9 * var(--jeu-p));
+  }
+}
+.vj-panneau > * {
+  min-width: 0;
+}
+.vj-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  margin-top: calc(-11 * var(--jeu-p));
+}
+.vj-entete > .jeu-ruban {
+  margin: 0;
+}
+.vj-mention {
+  margin-top: calc(14 * var(--jeu-p));
+}
+.vj-cartes {
+  display: grid;
+  gap: calc(7 * var(--jeu-p));
+  min-width: 0;
+}
+/* Une rangée qui défile reste dans sa boîte : sans cela, elle élargirait la page. */
+.vj-cartes > *,
+.vestiaire-jeu :is(.vestiaire-rayon, .vestiaire-emplacement, .familier-choix, .banniere-choix) {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Le nom de la partie du corps est écrit sur sa pastille : il ne sert ici qu'aux lecteurs d'écran. Seulement dans le
+   panneau : « Mes tenues gardées », dessous, garde son titre. */
+.vestiaire-jeu .vj-panneau .vestiaire-titre {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.vestiaire-jeu .vestiaire-emplacement {
+  display: grid;
+  gap: calc(6 * var(--jeu-p));
+  min-width: 0;
+}
+.vestiaire-jeu .banniere-choix {
+  margin-top: 0;
+}
+
+/* Les cartes : une rangée qui défile de côté sur téléphone (le doigt qui part vers le haut prend la carte), une grille sur un
+   grand écran (le doigt qui part de côté la prend). La rangée va jusqu'aux bords du plateau. */
+.vestiaire-jeu .vj-cartes .cases {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: calc(5 * var(--jeu-p));
+  margin: 0 calc(-1 * var(--vj-marge));
+  padding: calc(4 * var(--jeu-p)) var(--vj-marge) calc(5 * var(--jeu-p));
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--vj-marge);
+  scrollbar-width: thin;
+}
+.vestiaire-jeu .case {
+  flex: none;
+  width: calc(58 * var(--jeu-p));
+  grid-template-rows: 4.75rem auto;
+  padding: calc(1 * var(--jeu-p)) calc(1 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  scroll-snap-align: start;
+  touch-action: pan-x;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+  box-shadow: none;
+  transition: transform 0.12s steps(2);
+}
+.vestiaire-jeu .case .case-image {
+  height: 4.75rem;
+}
+/* « essai » sous l'image, et non en haut : sur une carte étroite, elle ne recouvre plus « à vous ». */
+.vestiaire-jeu .case .case-essai {
+  top: 3.5rem;
+}
+.vestiaire-jeu .case .plaque-coin {
+  top: 3.75rem;
+}
+@media (min-width: 80rem) {
+  .vestiaire-jeu .vj-cartes .cases {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(calc(58 * var(--jeu-p)), 1fr));
+    gap: calc(6 * var(--jeu-p)) calc(5 * var(--jeu-p));
+    margin: 0;
+    padding: calc(2 * var(--jeu-p)) 0 0;
+    overflow: visible;
+  }
+  .vestiaire-jeu .vj-cartes .case {
+    width: auto;
+    touch-action: pan-y;
+  }
+}
+/* Le survol soulève la carte, le clic l'enfonce : plus d'anneau autour d'elle. */
+.vestiaire-jeu .case:hover {
+  box-shadow: none;
+}
+@media (hover: hover) {
+  .vestiaire-jeu button.case:not(.sentier-case):hover {
+    transform: translateY(calc(-1 * var(--jeu-p)));
+  }
+}
+.vestiaire-jeu button.case:not(.sentier-case):active {
+  transform: translateY(var(--jeu-p));
+  border-bottom-width: calc(5 * var(--jeu-p));
+}
+/* La carte portée : sortie du rang, un filet d'or autour d'elle, la coche d'or dans son coin. */
+.vestiaire-jeu .case[data-etat="portee"] {
+  box-shadow: none;
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+  transform: translateY(calc(-2 * var(--jeu-p)));
+}
+.vestiaire-jeu .case[data-etat="portee"]::after {
+  top: var(--jeu-p);
+  left: var(--jeu-p);
+  width: calc(9 * var(--jeu-p));
+  height: calc(9 * var(--jeu-p));
+  border-radius: 0;
+  background: var(--jeu-v-coche) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+/* La carte essayée : le même filet, en pointillés, et son étiquette « essai ». */
+.vestiaire-jeu .case[data-etat="essayee"] {
+  box-shadow: none;
+  outline: var(--jeu-p) dashed var(--ecriture);
+  outline-offset: var(--jeu-p);
+}
+.vestiaire-jeu .case:focus-visible {
+  outline: calc(2 * var(--jeu-p)) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.vestiaire-jeu .case[data-prise] {
+  opacity: 0.3;
+}
+
+/* La carte qui suit le pointeur, posée sur la page (Essayage.tsx) : la même carte, sans la mise en page du vestiaire. */
+.vestiaire-jeu.vj-fantome {
+  display: block;
+  max-width: none;
+  padding: 0;
+}
+.vj-fantome .case {
+  cursor: grabbing;
+  filter: drop-shadow(0 calc(3 * var(--jeu-p)) 0 var(--jeu-ombre));
+}
+
+/* ---------- La suite : les tenues gardées et la collection, sur leur plateau ---------- */
+
+.vj-suite {
+  display: grid;
+  gap: calc(8 * var(--jeu-p));
+  min-width: 0;
+  padding: calc(6 * var(--jeu-p)) calc(7 * var(--jeu-p));
+}
+@media (min-width: 80rem) {
+  .vj-suite {
+    padding: calc(8 * var(--jeu-p)) calc(10 * var(--jeu-p));
+  }
+}
+.vj-suite > * {
+  min-width: 0;
+}
+.vj-suite:empty {
+  display: none;
+}
+
+/* ---------- Le mouvement s'arrête avec la pause et « réduire les animations » ---------- */
+
+:root.fx-off .vj-emplacement.vj-recoit .vj-emplacement-image,
+:root.fx-off .vj-emplacement[data-cible]::before,
+:root.fx-off .vj-scene[data-attente] .vj-gaulois::before {
+  animation: none;
+}
+:root.fx-off .vj-emplacement-image,
+:root.fx-off .vestiaire-jeu .case {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vj-emplacement.vj-recoit .vj-emplacement-image,
+  .vj-emplacement[data-cible]::before,
+  .vj-scene[data-attente] .vj-gaulois::before {
+    animation: none;
+  }
+  .vj-emplacement-image,
+  .vestiaire-jeu .case {
+    transition: none;
+  }
+}
