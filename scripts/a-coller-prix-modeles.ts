@@ -3,10 +3,16 @@
  * 3 000 statères, seule, dans une transaction, notée dans supabase_migrations.schema_migrations, avec une dernière ligne de
  * contrôle (docs/DIRECTION.md, « Les Gaulois uniques »). À relancer depuis la racine du dépôt après tout changement de la
  * migration : `npx tsx scripts/a-coller-prix-modeles.ts`. N'envoie rien et ne lit que le dépôt.
+ * Les prix sont ceux de cette migration, écrits ici en clair : le contrat a ceux d'aujourd'hui (prix baissés du 21 novembre
+ * 2026, migration 20261121000500). Ne plus le coller : il remettrait d'anciennes fonctions.
  * Pas de String.replace sur le SQL : « $$ » y deviendrait « $ » (piège du dollar double).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { CHANCES_POCHETTE_MODELES, PRIX_MODELE_PAR_RARETE, PRIX_POCHETTE_MODELES } from "../src/lib/village/contrat";
+import { CHANCES_POCHETTE_MODELES } from "../src/lib/village/contrat";
+
+/** Les prix posés par la migration 20261116000500, ceux du 16 au 21 novembre 2026. */
+const PRIX_MODELE_PAR_RARETE = { commun: 11500, "peu-commun": 15500, epique: 20000, mystique: 25000, legendaire: 28000 } as const;
+const PRIX_POCHETTE_MODELES = 3000;
 
 const NOM = "20261116000500_gaulois_uniques_prix";
 const migration = readFileSync(`supabase/migrations/${NOM}.sql`, "utf8").split("\r\n").join("\n").trimEnd();

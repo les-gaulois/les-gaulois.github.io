@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-21",
+    "kind": "ameliore",
+    "rank": "minor",
+    "title": "Des prix plus bas à la boutique",
+    "body": "Gaulois uniques de 6 000 à 15 000 statères, leur booster à 1 600. Bannières, finitions et cadres : deux fois le prix d'un objet de leur rareté, contre trois. Boosters bannières et familiers : 1 000.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-21",
     "kind": "retire",
     "rank": "minor",
     "title": "Le coffre du druide est arrêté",

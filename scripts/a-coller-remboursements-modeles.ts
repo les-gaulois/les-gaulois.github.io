@@ -4,9 +4,14 @@
  * contrôle (docs/DIRECTION.md, « Les Gaulois uniques »). À relancer depuis la racine du dépôt après tout changement de la
  * migration : `npx tsx scripts/a-coller-remboursements-modeles.ts`. N'envoie rien et ne lit que le dépôt.
  * Pas de String.replace sur le SQL : « $$ » y deviendrait « $ » (piège du dollar double).
+ * Le prix de la pochette est celui de cette migration, écrit ici en clair : le contrat a celui d'aujourd'hui (1 600 depuis
+ * le 21 novembre 2026, migration 20261121000500).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { PALIERS_DE_REMBOURSEMENT, PRIX_POCHETTE_MODELES, REMBOURSEMENT_POCHETTE_MODELES } from "../src/lib/village/contrat";
+import { PALIERS_DE_REMBOURSEMENT, REMBOURSEMENT_POCHETTE_MODELES } from "../src/lib/village/contrat";
+
+/** Le prix de la pochette des Gaulois uniques à cette migration (20261116000600), du 16 au 21 novembre 2026. */
+const PRIX_POCHETTE_MODELES = 3000;
 
 const NOM = "20261116000600_gaulois_uniques_remboursements";
 const VERSION = NOM.slice(0, 14);

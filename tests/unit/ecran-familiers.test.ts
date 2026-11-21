@@ -114,7 +114,7 @@ describe("la raison d'une pochette fermée", () => {
     const tout = lignes(FAMILIERS.map((f) => f.id));
     expect(raisonPochetteFermee(mes({ peut_ouvrir: false, familiers: tout }), 0)).toMatch(/officier/);
     expect(raisonPochetteFermee(mes({ familiers: tout }), 0)).toMatch(/tous les familiers/);
-    expect(raisonPochetteFermee(mes(), 1250)).toBe(`Il vous manque 750${NBSP}statères.`);
+    expect(raisonPochetteFermee(mes(), 250)).toBe(`Il vous manque 750${NBSP}statères.`);
   });
 
   it("suit le prix du serveur", () => {

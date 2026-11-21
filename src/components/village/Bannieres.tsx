@@ -324,8 +324,8 @@ function DialogueBanniere({ lib, banniere, prix, solde, tenue, familier, acheter
 }
 
 /**
- * « Les bannières », l'onglet « Bannière » des rayons de « La boutique » : l'objet le plus cher de la boutique (le triple
- * d'un objet de la même rareté). Depuis le 16 novembre 2026, à la demande du pilote, toutes les bannières sont dans le livre
+ * « Les bannières », l'onglet « Bannière » des rayons de « La boutique » : l'objet le plus cher de la boutique (le
+ * double d'un objet de la même rareté depuis le 21 novembre 2026, le triple avant). Depuis le 16 novembre 2026, à la demande du pilote, toutes les bannières sont dans le livre
  * des bannières (`LivreDesBannieres.tsx`, mode « boutique »), triées par rareté, réduites à une rareté si on le veut : la
  * bannière touchée s'y dresse derrière le Gaulois du membre, et la fiche d'à côté donne sa description, son prix, et de
  * quoi l'acheter ou la mettre sur /gaulois. Le nom de l'onglet sert de titre : celui de la section ne se

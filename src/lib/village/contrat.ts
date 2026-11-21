@@ -441,8 +441,12 @@ export type RefusFusion = "not_validated" | "no_gaulois" | "fusion_invalide" | "
  * Le compte montre un familier à la fois, ou aucun, à côté de son Gaulois, sur le site et sur l'image de /gaulois.
  */
 
-/** Le prix de départ de la pochette des familiers, en statères : le plus bas permis (le serveur refuse moins de 2 000). */
-export const PRIX_POCHETTE_FAMILIERS = 2000;
+/**
+ * Le prix de la pochette des familiers, en statères : 1 000 depuis le 21 novembre 2026 (2 000 avant, le plus bas que
+ * permettait la règle du pilote du 15 novembre, qu'il a levée ; migration 20261121000500_prix_baisses, le pilote :
+ * « baisse tout »). Le serveur refuse moins de 500.
+ */
+export const PRIX_POCHETTE_FAMILIERS = 1000;
 
 /** Les chances de départ de la pochette des familiers, en pour cent, par rareté (choix du chef de chantier) : 100 en tout. */
 export const CHANCES_POCHETTE_FAMILIERS: Readonly<Record<Rarete, number>> = {
@@ -499,15 +503,19 @@ export type RefusFamiliers = "not_validated" | "no_gaulois" | "prix_change" | "t
  * « il pourra choisir la bannière qui s'affichera en faisant /gaulois ») ; migration 20261115000900_bannieres_du_gaulois,
  * dessins et liste dans `supabase/functions/code-discord/bannieres/`, lecture et calculs dans `bannieres.ts`.
  *
- * Une bannière est un fond de l'image de /gaulois, à la place du décor de son lieu. Elle s'achète à la boutique au triple
- * du prix d'un objet de sa rareté, en un seul exemplaire : ni pochette, ni marché, ni forge. Le compte en montre une, ou
- * aucune (le décor du lieu).
+ * Une bannière est un fond de l'image de /gaulois, à la place du décor de son lieu. Elle s'achète à la boutique au double
+ * du prix d'un objet de sa rareté depuis le 21 novembre 2026 (au triple avant), en un seul exemplaire : ni pochette, ni
+ * marché, ni forge. Le compte en montre une, ou aucune (le décor du lieu).
  */
 
-/** Combien de fois le prix d'un objet de la même rareté coûte une bannière (demande du pilote). Le même que le serveur. */
-export const FOIS_LE_PRIX_D_UN_OBJET = 3;
+/**
+ * Combien de fois le prix d'un objet de la même rareté coûte une bannière, une finition ou un cadre de carte : 2 depuis le
+ * 21 novembre 2026 (3 avant, demande du pilote du 15 novembre ; migration 20261121000500_prix_baisses, le pilote :
+ * « baisse tout »). Le même que le serveur (internal.banniere_prix).
+ */
+export const FOIS_LE_PRIX_D_UN_OBJET = 2;
 
-/** Le prix de départ d'une bannière, par rareté, en statères : le triple des prix de la boutique. */
+/** Le prix d'une bannière, par rareté, en statères, aux prix de départ de la boutique : le double. */
 export const PRIX_BANNIERE_PAR_RARETE: Readonly<Record<Rarete, number>> = {
   commun: PRIX_PAR_RARETE.commun * FOIS_LE_PRIX_D_UN_OBJET,
   "peu-commun": PRIX_PAR_RARETE["peu-commun"] * FOIS_LE_PRIX_D_UN_OBJET,
@@ -535,14 +543,19 @@ export interface BannierePossedee {
  * Le prix baissé et les remboursements, depuis le soir du 16 novembre 2026 (le pilote : « baisse le prix des pochettes de
  * bannière car c'est déséquilibré par rapport au prix des bannières dans l'ensemble, et instaure la possibilité de gagner
  * un % de la somme investie en statères, comme pour la pochette des Gaulois » ; migration
- * 20261116000700_pochette_bannieres_remboursements) : la pochette coûte 1 500 statères au lieu de 3 000 ; 40 fois sur 100
- * elle rend 20, 30, 40, 50 ou 60 % de son prix (paliers à chances égales), 60 fois sur 100 elle donne un trésor selon les
- * chances par rareté ci-dessous, prises dans cette part. Au prix de la boutique pour la même rareté, elle vaut en moyenne
- * 1 770 statères pour 1 500 au départ (`valeurMoyenneDeLaPochetteDesBannieres` de `bannieres.ts`, testé).
+ * 20261116000700_pochette_bannieres_remboursements) : la pochette coûtait 1 500 statères au lieu de 3 000 (1 000 depuis le
+ * 21 novembre 2026) ; 40 fois sur 100 elle rend 20, 30, 40, 50 ou 60 % de son prix (paliers à chances égales), 60 fois sur
+ * 100 elle donne un trésor selon les chances par rareté ci-dessous, prises dans cette part. Au prix de la boutique pour la
+ * même rareté, elle valait en moyenne 1 770 statères pour 1 500 (`valeurMoyenneDeLaPochetteDesBannieres` de
+ * `bannieres.ts`, testé) ; 1 180 pour 1 000 depuis le 21 novembre 2026.
  */
 
-/** Le prix de la pochette des bannières, en statères : celui d'une bannière épique de la boutique, au départ. */
-export const PRIX_POCHETTE_BANNIERES = 1500;
+/**
+ * Le prix de la pochette des bannières, en statères : celui d'une bannière épique de la boutique. 1 000 depuis le 21
+ * novembre 2026 (1 500 avant ; migration 20261121000500_prix_baisses, le pilote : « baisse tout ») : elle vaut alors en
+ * moyenne 1 180 statères pour 1 000.
+ */
+export const PRIX_POCHETTE_BANNIERES = 1000;
 
 /** La part des pochettes des bannières qui rendent une partie de leur prix au lieu d'un trésor, en pour cent. */
 export const REMBOURSEMENT_POCHETTE_BANNIERES = 40;
@@ -640,23 +653,34 @@ export type RefusBannieres = "not_validated" | "no_gaulois" | "unknown_banniere"
  * 11 500 ; rajoute la probabilité de récupérer 20 à 60 % de sa somme », puis le choix de 85 % ; migration
  * 20261116000600_gaulois_uniques_remboursements) : une pochette rend, 85 fois sur 100, 20, 30, 40, 50 ou 60 % de son prix
  * (paliers à chances égales), et donne, 15 fois sur 100, un Gaulois unique selon les chances par rareté ci-dessous, prises
- * dans cette part. Au prix de la boutique, elle vaut alors en moyenne 3 249 statères pour 3 000 au départ
- * (`valeurMoyenneDeLaPochette` de `modeles.ts`) ; sans remboursement, elle en valait 14 860. C'est un pari juste en
+ * dans cette part. Au prix de la boutique, elle valait alors en moyenne 3 249 statères pour 3 000
+ * (`valeurMoyenneDeLaPochette` de `modeles.ts`).
+ *
+ * Les prix baissés du 21 novembre 2026 (le pilote, devant ce que gagnent vraiment les membres : « baisse tout » ;
+ * migration 20261121000500_prix_baisses) : 6 000 à 15 000 statères à la boutique, la pochette à 1 600, mêmes chances et
+ * mêmes remboursements. Elle vaut en moyenne 1 692 statères pour 1 600 (7 650 sans remboursement). C'est un pari juste en
  * moyenne, pas un chemin vers un modèle précis : tirer un modèle donné coûte en moyenne, remboursements déduits, environ
- * 50 000 statères pour un commun et 123 000 pour le dragon, quatre fois plus que la boutique.
+ * 26 800 statères pour un commun et 66 000 pour le dragon, quatre fois plus que la boutique.
  */
 
-/** Le prix de chaque Gaulois unique à la boutique, par rareté, en statères (table `internal.modeles_prix` du serveur). */
+/**
+ * Le prix de chaque Gaulois unique à la boutique, par rareté, en statères (table `internal.modeles_prix` du serveur) : depuis
+ * le 21 novembre 2026, 6 000 à 15 000 (11 500 à 28 000 avant ; migration 20261121000500_prix_baisses, le pilote :
+ * « baisse tout »).
+ */
 export const PRIX_MODELE_PAR_RARETE: Readonly<Record<RareteDUnique, number>> = {
-  commun: 11500,
-  "peu-commun": 15500,
-  epique: 20000,
-  mystique: 25000,
-  legendaire: 28000,
+  commun: 6000,
+  "peu-commun": 8000,
+  epique: 10000,
+  mystique: 12500,
+  legendaire: 15000,
 };
 
-/** Le prix de la pochette des Gaulois uniques, en statères (demande du pilote ; le serveur refuse moins de 500). */
-export const PRIX_POCHETTE_MODELES = 3000;
+/**
+ * Le prix de la pochette des Gaulois uniques, en statères : 1 600 depuis le 21 novembre 2026 (3 000 avant), le prix qui la
+ * garde un pari juste en moyenne aux nouveaux prix de la boutique (1 692 statères pour 1 600). Le serveur refuse moins de 500.
+ */
+export const PRIX_POCHETTE_MODELES = 1600;
 
 /** La part des pochettes qui rendent une partie de leur prix au lieu d'un Gaulois unique, en pour cent (choix du pilote). */
 export const REMBOURSEMENT_POCHETTE_MODELES = 85;

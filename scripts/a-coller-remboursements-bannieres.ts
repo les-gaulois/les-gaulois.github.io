@@ -4,9 +4,14 @@
  * dernière ligne de contrôle (docs/DIRECTION.md, « La pochette des bannières »). À relancer depuis la racine du dépôt
  * après tout changement de la migration : `npx tsx scripts/a-coller-remboursements-bannieres.ts`. N'envoie rien et ne lit
  * que le dépôt. Pas de String.replace sur le SQL : « $$ » y deviendrait « $ » (piège du dollar double).
+ * Le prix est celui de cette migration, écrit ici en clair : le contrat a celui d'aujourd'hui (1 000 depuis le 21 novembre
+ * 2026, migration 20261121000500). Ne pas le recoller après celle-ci : il remettrait la pochette à 1 500.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { PALIERS_DE_REMBOURSEMENT_DES_BANNIERES, PRIX_POCHETTE_BANNIERES, REMBOURSEMENT_POCHETTE_BANNIERES } from "../src/lib/village/contrat";
+import { PALIERS_DE_REMBOURSEMENT_DES_BANNIERES, REMBOURSEMENT_POCHETTE_BANNIERES } from "../src/lib/village/contrat";
+
+/** Le prix posé par la migration 20261116000700, celui du 16 au 21 novembre 2026. */
+const PRIX_POCHETTE_BANNIERES = 1500;
 
 const VERSION = "20261116000700";
 const NOM = `${VERSION}_pochette_bannieres_remboursements`;

@@ -55,6 +55,7 @@ import {
 const MIGRATION = readFileSync("supabase/migrations/20261115001000_gaulois_uniques.sql", "utf8").replace(/\r\n/g, "\n");
 const MIGRATION_PRIX = readFileSync("supabase/migrations/20261116000500_gaulois_uniques_prix.sql", "utf8").replace(/\r\n/g, "\n");
 const MIGRATION_REMBOURSEMENTS = readFileSync("supabase/migrations/20261116000600_gaulois_uniques_remboursements.sql", "utf8").replace(/\r\n/g, "\n");
+const BAISSES = readFileSync("supabase/migrations/20261121000500_prix_baisses.sql", "utf8").replace(/\r\n/g, "\n");
 const HEX = /^#[0-9a-f]{6}$/;
 const COMMUNES = couleursDeBase(TENUE_DE_DEPART);
 
@@ -233,16 +234,21 @@ describe("les prix et les chances des Gaulois uniques (16 novembre 2026)", () =>
     expect(RARETES_DES_GAULOIS_UNIQUES.reduce((s, r) => s + c[r], 0)).toBe(100);
   });
 
-  it("vend chaque modèle ce que coûtent en moyenne les pochettes pour le tirer, comme le contrat et le serveur", () => {
-    expect(PRIX_POCHETTE_MODELES).toBe(3000);
-    expect(prixCalculesDeLaBoutique(PRIX_POCHETTE_MODELES, c)).toEqual(PRIX_MODELE_PAR_RARETE);
-    expect(RARETES_DES_GAULOIS_UNIQUES.map((r) => PRIX_MODELE_PAR_RARETE[r])).toEqual([11500, 15500, 20000, 25000, 28000]);
-    // Tout modèle coûte plus cher à la boutique qu'une pochette.
-    for (const r of RARETES_DES_GAULOIS_UNIQUES) expect(PRIX_MODELE_PAR_RARETE[r]).toBeGreaterThan(PRIX_POCHETTE_MODELES);
+  it("vendait chaque modèle ce que coûtaient les pochettes pour le tirer (16 novembre), puis baisse le 21 novembre 2026", () => {
+    // La règle du 16 novembre, avant les remboursements : pochette à 3 000, et la boutique au prix des pochettes qu'il faut.
+    const PRIX_DU_16_NOVEMBRE = { commun: 11500, "peu-commun": 15500, epique: 20000, mystique: 25000, legendaire: 28000 };
+    expect(prixCalculesDeLaBoutique(3000, c)).toEqual(PRIX_DU_16_NOVEMBRE);
     const bloc = MIGRATION_PRIX.slice(MIGRATION_PRIX.indexOf("-- <prix>"), MIGRATION_PRIX.indexOf("-- </prix>"));
     const prixSql = Object.fromEntries([...bloc.matchAll(/\('([a-z-]+)', (\d+)\)/g)].map(([, r, p]) => [r, Number(p)]));
-    expect(prixSql).toEqual(PRIX_MODELE_PAR_RARETE);
-    expect(MIGRATION_PRIX).toContain(`set prix = ${PRIX_POCHETTE_MODELES}, commun = ${c.commun}, peu_commun = ${c["peu-commun"]}, epique = ${c.epique}, mystique = ${c.mystique}, legendaire = ${c.legendaire}, maj_le = now()`);
+    expect(prixSql).toEqual(PRIX_DU_16_NOVEMBRE);
+    expect(MIGRATION_PRIX).toContain(`set prix = 3000, commun = ${c.commun}, peu_commun = ${c["peu-commun"]}, epique = ${c.epique}, mystique = ${c.mystique}, legendaire = ${c.legendaire}, maj_le = now()`);
+    // Le 21 novembre 2026 (« baisse tout ») : 6 000 à 15 000 à la boutique, la pochette à 1 600, mêmes chances.
+    expect(PRIX_POCHETTE_MODELES).toBe(1600);
+    expect(RARETES_DES_GAULOIS_UNIQUES.map((r) => PRIX_MODELE_PAR_RARETE[r])).toEqual([6000, 8000, 10000, 12500, 15000]);
+    for (const r of RARETES_DES_GAULOIS_UNIQUES) expect(BAISSES, r).toContain(`('${r}', ${PRIX_MODELE_PAR_RARETE[r]})`);
+    expect(BAISSES).toContain(`update internal.modeles_pochette p set prix = ${PRIX_POCHETTE_MODELES}, maj_le = now() where p.id and p.prix <> ${PRIX_POCHETTE_MODELES};`);
+    // Tout modèle coûte plus cher à la boutique qu'une pochette.
+    for (const r of RARETES_DES_GAULOIS_UNIQUES) expect(PRIX_MODELE_PAR_RARETE[r]).toBeGreaterThan(PRIX_POCHETTE_MODELES);
     // Seul le réglage de départ change : un réglage déjà modifié reste.
     expect(MIGRATION_PRIX).toContain("where id and prix = 2000 and commun = 45 and peu_commun = 28 and epique = 15 and mystique = 8 and legendaire = 4;");
     expect(MIGRATION_PRIX).toContain("select p.prix from internal.modeles_prix p where p.rarete = p_rarete");
@@ -266,7 +272,7 @@ describe("les remboursements de la pochette (16 novembre 2026, au soir)", () => 
   it("rendent 85 fois sur 100 de 20 à 60 % du prix, et donnent un Gaulois unique le reste du temps", () => {
     expect(REMBOURSEMENT_POCHETTE_MODELES).toBe(85);
     expect([...PALIERS_DE_REMBOURSEMENT]).toEqual([20, 30, 40, 50, 60]);
-    expect(remboursementMoyen(pochette)).toBe(1200);
+    expect(remboursementMoyen(pochette)).toBe(640);
     const toutes = chancesDeLaPochetteDesModeles(pochette, new Set())!;
     expect(toutes.remboursement).toBe(85);
     const nombre = modelesParRarete();
@@ -276,10 +282,13 @@ describe("les remboursements de la pochette (16 novembre 2026, au soir)", () => 
     expect(chancesDeLaPochetteDesModeles(pochette, new Set(MODELES.map((m) => m.id)))).toBeNull();
   });
 
-  it("valent en moyenne à peu près leur prix au départ, au prix de la boutique", () => {
-    expect(valeurMoyenneDeLaPochette({ ...pochette, remboursement: 0, paliers: [] }, PRIX_MODELE_PAR_RARETE, new Set())).toBeCloseTo(14860, 6);
+  it("valent en moyenne à peu près leur prix, au prix de la boutique", () => {
+    // Le 16 novembre : 3 249 statères pour 3 000. Depuis le 21 novembre 2026 : 1 692 pour 1 600.
+    const PRIX_DU_16_NOVEMBRE = { commun: 11500, "peu-commun": 15500, epique: 20000, mystique: 25000, legendaire: 28000 };
+    expect(Math.round(valeurMoyenneDeLaPochette({ ...pochette, prix: 3000 }, PRIX_DU_16_NOVEMBRE, new Set())!)).toBe(3249);
+    expect(valeurMoyenneDeLaPochette({ ...pochette, remboursement: 0, paliers: [] }, PRIX_MODELE_PAR_RARETE, new Set())).toBeCloseTo(7650, 6);
     const valeur = valeurMoyenneDeLaPochette(pochette, PRIX_MODELE_PAR_RARETE, new Set())!;
-    expect(Math.round(valeur)).toBe(3249);
+    expect(Math.round(valeur)).toBe(1692);
     expect(valeur / PRIX_POCHETTE_MODELES).toBeGreaterThan(1);
     expect(valeur / PRIX_POCHETTE_MODELES).toBeLessThan(1.1);
     // Mais tirer un modèle précis par les pochettes coûte, en moyenne et remboursements déduits, bien plus que la boutique :
@@ -287,12 +296,12 @@ describe("les remboursements de la pochette (16 novembre 2026, au soir)", () => 
     const netParPochette = PRIX_POCHETTE_MODELES - (REMBOURSEMENT_POCHETTE_MODELES / 100) * remboursementMoyen(pochette);
     const moyennes = pochettesEnMoyenne(CHANCES_POCHETTE_MODELES);
     const cout = (id: string) => ((moyennes[id] ?? 0) / (1 - REMBOURSEMENT_POCHETTE_MODELES / 100)) * netParPochette;
-    expect(netParPochette).toBe(1980);
-    expect(Math.round(cout("lezard") / 100) * 100).toBe(50200);
-    expect(Math.round(cout("axolotl") / 500) * 500).toBe(67500);
-    expect(Math.round(cout("givre") / 1000) * 1000).toBe(88000);
-    expect(Math.round(cout("magma") / 1000) * 1000).toBe(110000);
-    expect(Math.round(cout("dragon") / 1000) * 1000).toBe(123000);
+    expect(netParPochette).toBe(1056);
+    expect(Math.round(cout("lezard") / 100) * 100).toBe(26800);
+    expect(Math.round(cout("axolotl") / 500) * 500).toBe(36000);
+    expect(Math.round(cout("givre") / 1000) * 1000).toBe(47000);
+    expect(Math.round(cout("magma") / 1000) * 1000).toBe(58000);
+    expect(Math.round(cout("dragon") / 1000) * 1000).toBe(66000);
     expect(cout("dragon") / PRIX_MODELE_PAR_RARETE.legendaire).toBeGreaterThan(4);
     // Les communs possédés, leurs chances vont aux statères rendus, pas aux modèles plus chers : elle vaut moins.
     const sansCommuns = new Set(["lezard", "loup", "sanglier"]);

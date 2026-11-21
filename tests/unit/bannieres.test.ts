@@ -49,6 +49,9 @@ import { CHANCES_POCHETTE_BANNIERES, FOIS_LE_PRIX_D_UN_OBJET, PALIERS_DE_REMBOUR
 const MIGRATION = readFileSync("supabase/migrations/20261115000900_bannieres_du_gaulois.sql", "utf8").replace(/\r\n/g, "\n");
 const MIGRATION_POCHETTE = readFileSync("supabase/migrations/20261116000100_pochette_des_bannieres.sql", "utf8").replace(/\r\n/g, "\n");
 const MIGRATION_REMBOURSEMENTS = readFileSync("supabase/migrations/20261116000700_pochette_bannieres_remboursements.sql", "utf8").replace(/\r\n/g, "\n");
+const BAISSES = readFileSync("supabase/migrations/20261121000500_prix_baisses.sql", "utf8").replace(/\r\n/g, "\n");
+/** Les prix des bannières de la boutique jusqu'au 21 novembre 2026 : le triple des prix de départ des objets. */
+const PRIX_AU_TRIPLE = { commun: 300, "peu-commun": 750, epique: 1500, mystique: 3000, legendaire: 7500 } as const;
 const LOTS_BOUTIQUE = { A: LOT_A, B: LOT_B, C: LOT_C, D: LOT_D, E: LOT_E };
 const LOTS_POCHETTE = { F: LOT_F, G: LOT_G, H: LOT_H, I: LOT_I };
 const LOTS = { ...LOTS_BOUTIQUE, ...LOTS_POCHETTE };
@@ -187,11 +190,13 @@ describe("la liste et les règles du serveur (migration des bannières)", () => 
     expect(MIGRATION_POCHETTE).toContain("on conflict (banniere) do update set rarete = excluded.rarete, pochette = excluded.pochette;");
   });
 
-  it("fait payer le triple du prix d'un objet de la même rareté, comme le contrat", () => {
-    expect(FOIS_LE_PRIX_D_UN_OBJET).toBe(3);
+  it("fait payer le double du prix d'un objet de la même rareté depuis le 21 novembre 2026 (le triple avant), comme le contrat", () => {
+    expect(FOIS_LE_PRIX_D_UN_OBJET).toBe(2);
     expect(MIGRATION).toContain("select 3 * p.prix from internal.village_prix p where p.rarete = p_rarete");
-    expect(ORDRE_RARETES.map((r) => PRIX_BANNIERE_PAR_RARETE[r])).toEqual([300, 750, 1500, 3000, 7500]);
-    for (const r of ORDRE_RARETES) expect(PRIX_BANNIERE_PAR_RARETE[r]).toBe(3 * PRIX_PAR_RARETE[r]);
+    expect(BAISSES).toContain("select 2 * p.prix from internal.village_prix p where p.rarete = p_rarete");
+    expect(BAISSES).toContain("revoke all on function internal.banniere_prix(text) from public, anon, authenticated;");
+    expect(ORDRE_RARETES.map((r) => PRIX_BANNIERE_PAR_RARETE[r])).toEqual([200, 500, 1000, 2000, 5000]);
+    for (const r of ORDRE_RARETES) expect(PRIX_BANNIERE_PAR_RARETE[r]).toBe(FOIS_LE_PRIX_D_UN_OBJET * PRIX_PAR_RARETE[r]);
     expect(MIGRATION).toContain("if p_prix_vu is distinct from v_prix then perform internal.fail('prix_change'); end if;");
     expect(MIGRATION).toContain("perform internal.village_debiter(v_uid, 'achat', v_prix, 'banniere/' || p_banniere);");
   });
@@ -220,10 +225,13 @@ describe("la liste et les règles du serveur (migration des bannières)", () => 
   });
 });
 
-describe("la pochette des bannières au serveur (migrations 20261116000100 et 20261116000700)", () => {
+describe("la pochette des bannières au serveur (migrations 20261116000100, 20261116000700 et 20261121000500)", () => {
   it("a le prix et les chances du contrat", () => {
-    expect(PRIX_POCHETTE_BANNIERES).toBe(1500);
-    expect(MIGRATION_REMBOURSEMENTS).toContain(`select ${PRIX_POCHETTE_BANNIERES}\n`);
+    expect(PRIX_POCHETTE_BANNIERES).toBe(1000);
+    expect(MIGRATION_REMBOURSEMENTS).toContain("select 1500\n");
+    expect(BAISSES).toContain(`create or replace function internal.bannieres_pochette_prix() returns integer\nlanguage sql immutable set search_path = public, pg_temp as $$\n  select ${PRIX_POCHETTE_BANNIERES}\n$$;`);
+    // Le prix d'une bannière épique de la boutique, comme avant.
+    expect(PRIX_POCHETTE_BANNIERES).toBe(PRIX_BANNIERE_PAR_RARETE.epique);
     expect(ORDRE_RARETES.reduce((n, r) => n + CHANCES_POCHETTE_BANNIERES[r], 0)).toBe(100);
     ORDRE_RARETES.forEach((r, i) => expect(MIGRATION_POCHETTE, r).toContain(`('${r}', ${i + 1}, ${CHANCES_POCHETTE_BANNIERES[r]}::numeric)`));
     // Rien ne sort d'une rareté qui n'a pas de trésor.
@@ -288,10 +296,12 @@ describe("le prix baissé et les remboursements de la pochette (migration 202611
   });
 
   it("vaut en moyenne un peu plus que son prix, au prix de la boutique", () => {
-    expect(rendusDesPaliers(PRIX_POCHETTE_BANNIERES, PALIERS_DE_REMBOURSEMENT_DES_BANNIERES)).toEqual([300, 450, 600, 750, 900]);
-    expect(valeurMoyenneDeLaPochetteDesBannieres(PRIX_POCHETTE_BANNIERES, CHANCES_POCHETTE_BANNIERES, REMBOURSEMENT_POCHETTE_BANNIERES, PALIERS_DE_REMBOURSEMENT_DES_BANNIERES, PRIX_BANNIERE_PAR_RARETE)).toBeCloseTo(1770, 6);
-    // Sans remboursement, à l'ancien prix : 2 550 statères de bannières pour 3 000.
-    expect(valeurMoyenneDeLaPochetteDesBannieres(3000, CHANCES_POCHETTE_BANNIERES, 0, [], PRIX_BANNIERE_PAR_RARETE)).toBeCloseTo(2550, 6);
+    expect(rendusDesPaliers(PRIX_POCHETTE_BANNIERES, PALIERS_DE_REMBOURSEMENT_DES_BANNIERES)).toEqual([200, 300, 400, 500, 600]);
+    // Depuis le 21 novembre 2026 : 1 180 statères pour 1 000, la même part qu'avant (1 770 pour 1 500, au triple).
+    expect(valeurMoyenneDeLaPochetteDesBannieres(PRIX_POCHETTE_BANNIERES, CHANCES_POCHETTE_BANNIERES, REMBOURSEMENT_POCHETTE_BANNIERES, PALIERS_DE_REMBOURSEMENT_DES_BANNIERES, PRIX_BANNIERE_PAR_RARETE)).toBeCloseTo(1180, 6);
+    expect(valeurMoyenneDeLaPochetteDesBannieres(1500, CHANCES_POCHETTE_BANNIERES, REMBOURSEMENT_POCHETTE_BANNIERES, PALIERS_DE_REMBOURSEMENT_DES_BANNIERES, PRIX_AU_TRIPLE)).toBeCloseTo(1770, 6);
+    // Sans remboursement, au tout premier prix : 2 550 statères de bannières pour 3 000.
+    expect(valeurMoyenneDeLaPochetteDesBannieres(3000, CHANCES_POCHETTE_BANNIERES, 0, [], PRIX_AU_TRIPLE)).toBeCloseTo(2550, 6);
   });
 
   it("ramène les chances des raretés à la part des pochettes qui donnent un trésor", () => {

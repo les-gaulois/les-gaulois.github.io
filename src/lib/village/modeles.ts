@@ -264,7 +264,8 @@ export function chancesDeLaPochetteDesModeles(pochette: Pick<PochetteDesModeles,
 /**
  * Ce que vaut en moyenne la prochaine pochette pour ce compte, en statères : chaque modèle compté au prix de la boutique,
  * chaque remboursement à ce qu'il rend. `null` s'il n'y a plus rien à recevoir. Au départ, avec 85 % de remboursements :
- * 3 249 statères pour une pochette à 3 000 ; sans remboursement, 14 860.
+ * 1 692 statères pour une pochette à 1 600 aux prix du 21 novembre 2026 (3 249 pour 3 000 avant) ; sans remboursement,
+ * 7 650.
  */
 export function valeurMoyenneDeLaPochette(pochette: PochetteDesModeles, prix: Readonly<Record<RareteDUnique, number>>, possedes: ReadonlySet<string>, liste: readonly ModeleRange[] = MODELES): number | null {
   const chances = chancesDeLaPochetteDesModeles(pochette, possedes, liste);
@@ -277,7 +278,8 @@ export function valeurMoyenneDeLaPochette(pochette: PochetteDesModeles, prix: Re
  * Le prix d'un Gaulois unique de chaque rareté à la boutique, d'après la règle choisie le 16 novembre 2026 : ce que coûtent
  * en moyenne les pochettes qu'il faut pour tirer ce modèle-là (`pochettesEnMoyenne` fois le prix de la pochette), arrondi
  * aux 500 statères (règle du 16 novembre, faite pour une pochette sans remboursement : depuis les remboursements, la
- * pochette coûte bien plus pour un modèle précis, et ces prix restent ceux de la boutique). Acheter, c'était payer le sûr :
+ * pochette coûte bien plus pour un modèle précis ; ces prix sont restés ceux de la boutique jusqu'aux prix baissés du 21
+ * novembre 2026, qui ne suivent plus cette règle). Acheter, c'était payer le sûr :
  * autant, en moyenne, que le hasard, sans les autres modèles qu'il donne en
  * chemin. Les modèles d'une même rareté ont la même moyenne : le premier de la liste la donne.
  */

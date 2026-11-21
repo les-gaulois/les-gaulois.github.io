@@ -33,6 +33,7 @@ import {
 
 // Sous Windows, Git rend le fichier avec des fins de ligne CRLF : les motifs ci-dessous lisent des « \n ».
 const MIGRATION = readFileSync("supabase/migrations/20261115000800_familiers_du_gaulois.sql", "utf8").replace(/\r\n/g, "\n");
+const BAISSES = readFileSync("supabase/migrations/20261121000500_prix_baisses.sql", "utf8").replace(/\r\n/g, "\n");
 
 const tous = new Set<string>();
 const sansRien = new Set<string>();
@@ -77,14 +78,18 @@ describe("la liste du serveur (migration des familiers)", () => {
     expect(lignes.sort()).toEqual(FAMILIERS.map((f) => `${f.id}/${f.rarete}`).sort());
   });
 
-  it("sème le prix et les chances du contrat, et refuse un prix sous 2 000", () => {
+  it("a semé 2 000 et les chances du contrat, puis baisse à 1 000 le 21 novembre 2026, et refuse un prix sous 500", () => {
     const ligne = /insert into internal\.familiers_pochette \(id, prix, commun, peu_commun, epique, mystique, legendaire\) values\n {2}\(true, (\d+), (\d+), (\d+), (\d+), (\d+), (\d+)\)\non conflict \(id\) do nothing;/.exec(MIGRATION);
     expect(ligne).not.toBeNull();
-    expect(Number(ligne?.[1])).toBe(PRIX_POCHETTE_FAMILIERS);
+    expect(Number(ligne?.[1])).toBe(2000);
+    expect(PRIX_POCHETTE_FAMILIERS).toBe(1000);
+    expect(BAISSES).toContain(`update internal.familiers_pochette p set prix = ${PRIX_POCHETTE_FAMILIERS}, maj_le = now() where p.id and p.prix <> ${PRIX_POCHETTE_FAMILIERS};`);
     expect(ligne?.slice(2).map(Number)).toEqual(ORDRE_RARETES.map((r) => CHANCES_POCHETTE_FAMILIERS[r]));
     expect(Object.values(CHANCES_POCHETTE_FAMILIERS).reduce((a, b) => a + b, 0)).toBe(100);
-    expect(PRIX_POCHETTE_FAMILIERS).toBeGreaterThanOrEqual(2000);
+    expect(PRIX_POCHETTE_FAMILIERS).toBeGreaterThanOrEqual(500);
     expect(MIGRATION).toContain("prix integer not null check (prix between 2000 and 1000000)");
+    // La contrainte remplacée par la même, avec 500 : rien d'autre n'y change.
+    expect(BAISSES).toContain("alter table internal.familiers_pochette drop constraint if exists familiers_pochette_prix_check;\nalter table internal.familiers_pochette add constraint familiers_pochette_prix_check check (prix between 500 and 1000000);");
   });
 
   it("garde ses tables privées et n'ouvre ses fonctions qu'aux comptes connectés, /gaulois à la seule clé de service", () => {
