@@ -11,7 +11,7 @@
  */
 import { errorMessage } from "../compte/errors";
 import { addDays } from "../time";
-import { POCHETTES_GAGNEES, type AchatDeBillets, type BoosterDeLoterie, type BoosterOuvert, type LotDeLoterie, type MaLoterie, type PartDeLoterie, type PochetteGagnee } from "./contrat";
+import { POCHETTES_GAGNEES, TICKET_D_OR, type AchatDeBillets, type BoosterDeLoterie, type BoosterOuvert, type LotDeLoterie, type MaLoterie, type PartDeLoterie, type PochetteGagnee } from "./contrat";
 import { stateres } from "./ecran-boutique";
 
 const estObjetJson = (valeur: unknown): valeur is Record<string, unknown> => valeur !== null && typeof valeur === "object" && !Array.isArray(valeur);
@@ -72,7 +72,7 @@ export function lireParts(valeur: unknown, fait: boolean): PartDeLoterie[] | nul
     const banniere = typeof ligne["banniere"] === "string" && ligne["banniere"] !== "" ? ligne["banniere"] : null;
     // Les tickets d'or de la part (migration 20261121000200), dont les billets sont déjà dans `gratuits`.
     const tickets = ligne["tickets_or"];
-    if (tickets !== undefined && (!entier(tickets, 0) || tickets * 5 > gratuits)) return null;
+    if (tickets !== undefined && (!entier(tickets, 0) || tickets * TICKET_D_OR.billets > gratuits)) return null;
     parts.push({ nom, tenue: tenue ?? null, banniere, moi, gratuits, achetes, ...(tickets === undefined ? {} : { tickets_or: tickets }), rang, billet });
   }
   if (parts.filter((part) => part.moi).length > 1) return null;
@@ -154,7 +154,7 @@ export function lireBoosterOuvert(reponse: unknown): BoosterOuvert | null {
   if (!estObjetJson(reponse) || reponse["ok"] !== true) return null;
   const { jour, tirage, billets: n, ticket_or, billets_or, total, restants } = reponse;
   if (!estJour(jour) || !estJour(tirage) || !entier(n, 0) || typeof ticket_or !== "boolean" || !entier(billets_or, 0) || !entier(total, 0) || !entier(restants, 0)) return null;
-  if (billets_or !== (ticket_or ? 5 : 0) || total !== n + billets_or || restants > 6) return null;
+  if (billets_or !== (ticket_or ? TICKET_D_OR.billets : 0) || total !== n + billets_or || restants > 6) return null;
   return { ok: true, jour, tirage, billets: n, ticket_or, billets_or, total, restants };
 }
 

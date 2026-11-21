@@ -43,7 +43,7 @@
 -- - acheter_billets_loterie (remplacée) : refuse toujours.
 -- - le tirage : pg_cron seul, inchangé ; une tâche de plus, chaque heure, note les boosters d'hier et d'aujourd'hui.
 --
--- Une table, une colonne (internal.loterie_parts.tickets_or, 0 par défaut) et onze fonctions ajoutées ; remplacées, avec
+-- Une table, une colonne (internal.loterie_parts.tickets_or, 0 par défaut) et douze fonctions ajoutées ; remplacées, avec
 -- les mêmes signatures et les mêmes droits : internal.loterie_gratuits, internal.loterie_parts_json, internal.loterie_tirer,
 -- public.get_loterie et public.acheter_billets_loterie. Aucune table, colonne ni donnée existante retirée ou changée.
 -- Rejouée, elle se remplace par la même.

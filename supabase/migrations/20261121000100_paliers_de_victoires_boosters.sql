@@ -15,6 +15,8 @@
 -- - LE POINT DE DÉPART : la première fois qu'un compte est vu, son palier du moment est noté, et rien n'est offert. Les
 --   paliers qu'un membre avait déjà dépassés avant cette migration, ou avant d'avoir un compte validé, ne donnent donc rien :
 --   on ne sait pas quand il les a passés. Seul un palier franchi entre deux lectures, sous les yeux du serveur, est offert.
+--   Le point de départ suit le lien OpenFront du compte : si l'équipe relie le compte à un autre identifiant (« refaire la
+--   demande »), la lecture suivante repart d'un nouveau point de départ, sans rien offrir pour l'écart entre les deux.
 -- - Chaque palier franchi ensuite par un compte validé lui offre UN booster surprise : un bon de la pochette surprise
 --   (internal.loterie_bons, 'surprise'), le même que ceux de la loterie. Il s'ouvre dans « Mon Gaulois », par la fonction
 --   habituelle de la pochette, avec le même tirage, les mêmes chances et les mêmes règles : internal.village_debiter
@@ -45,6 +47,8 @@ create table if not exists internal.paliers_victoires (
   palier integer not null check (palier >= 0),
   -- Les victoires de la dernière lecture.
   victoires integer not null check (victoires >= 0),
+  -- L'empreinte du lien OpenFront lu : un autre lien, un nouveau point de départ.
+  empreinte text not null check (empreinte ~ '^[0-9a-f]{64}$'),
   -- La première lecture : le point de départ.
   depart_le timestamptz not null default now(),
   vu_le timestamptz not null default now()
@@ -98,7 +102,8 @@ $$;
 revoke all on function internal.paliers_entree_valide(jsonb) from public, anon, authenticated;
 
 -- Note les victoires de la liste : { ok: true, comptes, nouveaux, boosters }. `comptes` : les comptes du site reconnus ;
--- `nouveaux` : ceux vus pour la première fois, dont le palier du moment devient le point de départ ; `boosters` : les
+-- `nouveaux` : ceux vus pour la première fois, ou avec un autre lien OpenFront, dont le palier du moment devient le point
+-- de départ ; `boosters` : les
 -- boosters offerts par cette lecture. Tout ou rien : une entrée mal formée fait refuser l'envoi entier ('invalid_request'),
 -- sans rien écrire.
 create or replace function public.noter_paliers_victoires(p_entries jsonb) returns jsonb
@@ -107,6 +112,7 @@ declare
   v_c record;
   v_palier integer;
   v_avant integer;
+  v_empreinte text;
   v_t integer;
   v_comptes integer := 0;
   v_nouveaux integer := 0;
@@ -117,20 +123,28 @@ begin
     return internal.error_json('invalid_request', '');
   end if;
   for v_c in
-    select l.user_id, p.status, max((e ->> 'victoires')::integer) as victoires
+    select l.user_id, l.openfront_hash as empreinte, p.status, max((e ->> 'victoires')::integer) as victoires
     from jsonb_array_elements(p_entries) e
     join public.private_links l on l.openfront_hash = e ->> 'hash'
     join public.profiles p on p.user_id = l.user_id
-    group by l.user_id, p.status
+    group by l.user_id, l.openfront_hash, p.status
     order by l.user_id
   loop
     v_comptes := v_comptes + 1;
     v_palier := internal.palier_de_victoires(v_c.victoires);
     -- Le verrou du compte, comme pour toute écriture du village : un bon ne s'ajoute pas pendant qu'une pochette s'ouvre.
     perform internal.village_verrou(v_c.user_id);
-    select pv.palier into v_avant from internal.paliers_victoires pv where pv.user_id = v_c.user_id for update;
+    select pv.palier, pv.empreinte into v_avant, v_empreinte from internal.paliers_victoires pv where pv.user_id = v_c.user_id for update;
     if not found then
-      insert into internal.paliers_victoires (user_id, palier, victoires) values (v_c.user_id, v_palier, v_c.victoires);
+      insert into internal.paliers_victoires (user_id, palier, victoires, empreinte) values (v_c.user_id, v_palier, v_c.victoires, v_c.empreinte);
+      v_nouveaux := v_nouveaux + 1;
+      continue;
+    end if;
+    -- Un autre lien OpenFront : un nouveau point de départ, rien d'offert.
+    if v_empreinte <> v_c.empreinte then
+      update internal.paliers_victoires pv
+        set palier = v_palier, victoires = v_c.victoires, empreinte = v_c.empreinte, depart_le = now(), vu_le = now()
+        where pv.user_id = v_c.user_id;
       v_nouveaux := v_nouveaux + 1;
       continue;
     end if;

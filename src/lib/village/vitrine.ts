@@ -114,7 +114,7 @@ export function provenanceDeLObjet(emplacement: (typeof EMPLACEMENTS_OBJETS)[num
   if (objet.gratuit) return { kind: "gratuit" };
   if (possede) return { kind: "a-moi" };
   if (objet.rarete === RARETE_DIVINE) return { kind: "lien", mots: "Pochette surprise", ancre: "pochettes", pochette: "surprise" };
-  if (objet.rarete === RARETE_DE_SAISON) return { kind: "lien", mots: "Dernier palier du pass", ancre: "sentier" };
+  if (objet.rarete === RARETE_DE_SAISON) return { kind: "lien", mots: "Dernier palier de la saison", ancre: "sentier" };
   return { kind: "lien", mots: "À la boutique", ancre: "boutique", rayon: emplacement };
 }
 
@@ -133,10 +133,14 @@ export function chercherDansLaVitrine<G extends Pick<GauloisVitrine, "nom">>(gau
 /**
  * La couleur du cadre d'une carte : la rareté la plus haute de ce que porte le Gaulois, objets de la tête à l'arme et
  * Gaulois unique compris ; `null` sans rien à rareté. Le familier et la bannière ont leur propre dessin sur la carte : ils
- * n'y comptent pas. Un fait du catalogue sur ce qu'il porte, jamais un total ni un score.
+ * n'y comptent pas. Un fait du catalogue sur ce qu'il porte, jamais un total ni un score. L'objet d'une saison du pass
+ * donne le cadre du légendaire, dont il a l'éclat.
  */
 export function rareteDuCadre(tenue: Tenue): Rarete | null {
-  const raretes: (Rarete | null)[] = EMPLACEMENTS_OBJETS.map((emplacement) => OBJETS[emplacement][objetPorte(tenue, emplacement)]?.rarete ?? null);
+  const raretes: (Rarete | null)[] = EMPLACEMENTS_OBJETS.map((emplacement) => {
+    const rarete = OBJETS[emplacement][objetPorte(tenue, emplacement)]?.rarete ?? null;
+    return rarete === RARETE_DE_SAISON ? "legendaire" : rarete;
+  });
   raretes.push(modeleDuGaulois(tenue)?.rarete ?? null);
   let cadre: Rarete | null = null;
   for (const rarete of raretes) {

@@ -5223,10 +5223,10 @@ button.case:not(.sentier-case):active {
   border-bottom-width: 3px;
 }
 /* Un reflet lent passe sur une case légendaire, de loin en loin. */
-.case[data-rarete="legendaire"]:not(.sentier-case) {
+.case:is([data-rarete="legendaire"], [data-rarete="saison"]):not(.sentier-case) {
   overflow: hidden;
 }
-.case[data-rarete="legendaire"]:not(.sentier-case)::before {
+.case:is([data-rarete="legendaire"], [data-rarete="saison"]):not(.sentier-case)::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -5259,7 +5259,7 @@ button.case:not(.sentier-case):active {
 @media (prefers-reduced-motion: reduce) {
   .gaulois-cadre .gaulois-apercu,
   .gaulois-cadre .gaulois-apercu.gaulois-saut,
-  .case[data-rarete="legendaire"]:not(.sentier-case)::before {
+  .case:is([data-rarete="legendaire"], [data-rarete="saison"]):not(.sentier-case)::before {
     animation: none;
   }
   .case:not(.sentier-case) {
@@ -5316,7 +5316,8 @@ button.case:not(.sentier-case):active {
 .objet-recu[data-rarete="mystique"] {
   --rarete: var(--rarete-mystique);
 }
-.objet-recu[data-rarete="legendaire"] {
+.objet-recu[data-rarete="legendaire"],
+.objet-recu[data-rarete="saison"] {
   --rarete: var(--rarete-legendaire);
 }
 .objet-recu[data-rarete="divin"] {

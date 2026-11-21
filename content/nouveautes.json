@@ -3,11 +3,11 @@
     "date": "2026-11-21",
     "kind": "nouveau",
     "rank": "minor",
-    "title": "Le pass : six semaines, et la Couronne du solstice au bout",
-    "body": "La saison 1 du pass finit le lundi 28 décembre. Au 30e palier : la « Couronne du solstice », qu'on n'obtient que là, et l'insigne de la saison.",
+    "title": "Une saison de six semaines, et la Couronne du solstice au bout",
+    "body": "La saison 1 finit le lundi 28 décembre. Son 30e palier donne la « Couronne du solstice », qu'on n'obtient que là, et l'insigne de la saison.",
     "link": {
       "href": "/village#sentier",
-      "label": "Le pass"
+      "label": "La saison"
     }
   },
   {
@@ -26,7 +26,7 @@
     "kind": "nouveau",
     "rank": "minor",
     "title": "Quatorze paliers de victoires, et un booster à chacun",
-    "body": "Les paliers vont de 10 à 3 000 victoires. Chaque palier franchi désormais offre un booster surprise dans « Mon Gaulois » ; ceux déjà dépassés avant ce changement ne donnent rien.",
+    "body": "Les paliers vont de 10 à 3 000 victoires. Chaque palier franchi désormais offre un booster surprise dans « Mon Gaulois » à un compte validé ; ceux déjà dépassés ne donnent rien.",
     "link": {
       "href": "/membres#paliers",
       "label": "Les paliers"

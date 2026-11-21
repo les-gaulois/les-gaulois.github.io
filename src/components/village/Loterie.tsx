@@ -717,7 +717,7 @@ function MesBoosters({ ma, onOuvert }: { ma: MaLoterie; onOuvert: (apres: MaLote
             {String(moi ? Math.round(partEnPourcent(moi, ma.parts) * 10) / 10 : 0).replace(".", ",")}
             <span class="loterie-pourcent">{" %"}</span>
           </dd>
-          <dt>des {nombre(total)} billets ouverts</dt>
+          <dt>des {nombre(total)} billets comptés pour l'instant</dt>
         </div>
       </dl>
       <div class="loterie-perfo" aria-hidden="true" />
@@ -737,7 +737,7 @@ function MesBoosters({ ma, onOuvert }: { ma: MaLoterie; onOuvert: (apres: MaLote
                     {b.ticket_or ? `, et un ticket d'or : ${nombre(or.billets)} billets de plus` : ""}
                   </span>
                 ) : (
-                  <button type="button" class="btn btn-primary" disabled={enCours !== null} onClick={() => void ouvrir(b.jour)} data-testid="loterie-ouvrir-booster">
+                  <button type="button" class="btn btn-primary" disabled={enCours !== null} onClick={() => void ouvrir(b.jour)} aria-label={`Ouvrir le booster du ${jourEnMots(b.jour)}`} data-testid="loterie-ouvrir-booster">
                     {enCours === b.jour ? "Ouverture…" : "Ouvrir"}
                   </button>
                 )}

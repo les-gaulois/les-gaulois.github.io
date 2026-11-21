@@ -57,6 +57,8 @@ describe("les quatorze paliers de victoires", () => {
     expect(noter).toContain("insert into internal.paliers_boosters (user_id, palier) values (v_c.user_id, v_t) on conflict (user_id, palier) do nothing;");
     expect(noter).toContain("values (v_c.user_id, 'surprise', 1)");
     expect(noter).toContain("set palier = greatest(pv.palier, v_palier)");
+    // Un compte relié à un autre identifiant OpenFront repart d'un nouveau point de départ, sans rien recevoir pour l'écart.
+    expect(noter).toMatch(/if v_empreinte <> v_c\.empreinte then\n[\s\S]*?v_nouveaux := v_nouveaux \+ 1;\n\s+continue;/);
     expect(noter).not.toContain("stateres_mouvements");
   });
 

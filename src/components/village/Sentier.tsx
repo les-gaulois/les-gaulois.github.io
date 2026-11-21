@@ -407,7 +407,7 @@ function Palier({
         {etat === "pris" ? (
           <>
             <span class="case-image">{vignette && <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelle} class="case-dessin" />}</span>
-            <MarqueDeRarete rarete={palier.rarete} />
+            <MarqueDeRarete rarete={deSaison ? "saison" : palier.rarete} />
             <span class="sentier-sceau" aria-hidden="true" />
             <span class="sr-only">{pris ? `${pris.fiche.nom}, pris` : "pris"}</span>
           </>
@@ -426,7 +426,7 @@ function Palier({
                 </AlbumDePochette>
               )}
             </span>
-            <MarqueDeRarete rarete={palier.rarete} />
+            <MarqueDeRarete rarete={deSaison ? "saison" : palier.rarete} />
             {etat === "a-prendre" ? (
               <button type="button" class="btn btn-primary sentier-prendre" disabled={occupe} onClick={onPrendre} data-testid={`palier-prendre-${palier.palier}`}>
                 Prendre<span class="sr-only"> l'objet du palier {palier.palier}</span>
@@ -713,7 +713,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
           {fenetre.recu.insigne && (
             <p class="boutique-dialogue-texte inline-flex items-center gap-2" data-testid="palier-insigne">
               <InsigneDeSaison saison={fenetre.recu.insigne.saison} />
-              Et l'insigne de la {fenetre.recu.insigne.nom.toLowerCase()}, sur votre carte.
+              Et l'insigne de la {fenetre.recu.insigne.nom.toLowerCase()}.
             </p>
           )}
           {fenetre.recu.objet.double && <p class="boutique-dialogue-texte">Un double : vous l'aviez déjà. Il se fond à la forge ou se vend au marché.</p>}
