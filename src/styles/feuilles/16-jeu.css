@@ -1039,6 +1039,45 @@
 .jeu-stat-suivant {
   flex: none;
 }
+/* La carte un peu plus grosse sur les grands écrans (demande du pilote, 21 novembre 2026 : « avoir la carte un peu plus
+   grosse sur ma carte ») : un pixel entier de plus par case à chaque palier d'écran, jamais une échelle à virgule, et
+   seulement quand la hauteur de la fenêtre la laisse tenir. Le panneau des chiffres grandit avec elle, à trois pixels la case
+   du kit (--chiffres-p), pour qu'ils restent en proportion. Le téléphone garde sa carte : plus grande, elle déborderait. */
+@media (min-width: 80rem) and (min-height: 51rem) {
+  .jeu-carte-carte {
+    --px: 6px;
+  }
+}
+@media (min-width: 106rem) and (min-height: 58rem) {
+  .jeu-carte {
+    --chiffres-p: 3px;
+    grid-template-columns: minmax(0, auto) minmax(0, calc(176 * var(--chiffres-p)));
+    column-gap: calc(24 * var(--chiffres-p));
+  }
+  .jeu-carte-carte {
+    --px: 7px;
+  }
+  /* Le bouton « Habiller » grandit avec la carte ; le panneau, lui, garde sa hauteur en serrant ses lignes. */
+  .jeu-chiffres,
+  .jeu-carte-gauche .jeu-btn {
+    --jeu-p: var(--chiffres-p);
+  }
+  .jeu-chiffres {
+    padding-top: calc(10 * var(--jeu-p));
+  }
+  .jeu-chiffres .jeu-stat {
+    margin-bottom: calc(6 * var(--jeu-p));
+  }
+  .jeu-stat-dit,
+  .jeu-chiffres-note {
+    font-size: 0.8125rem;
+  }
+}
+@media (min-width: 144rem) and (min-height: 68rem) {
+  .jeu-carte-carte {
+    --px: 8px;
+  }
+}
 /* Le pied du jeu : une ligne, sur le fond des panneaux. */
 .jeu-pied {
   display: flex;

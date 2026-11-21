@@ -3,6 +3,17 @@
     "date": "2026-11-21",
     "kind": "ameliore",
     "rank": "minor",
+    "title": "Une carte plus grande sur « Ma carte »",
+    "body": "Sur un grand écran, votre carte de joueur et le panneau de vos chiffres grandissent ensemble, toujours en pixels nets.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "ameliore",
+    "rank": "minor",
     "title": "Le pass et la forge de Mon Gaulois en jeu",
     "body": "Chaque palier du pass montre sa récompense et s'ouvre comme un booster ; la couronne de fin de saison est en vue, missions, présence, défi et étal sont dessinés. À la forge, la fusion a ses sons.",
     "link": {
