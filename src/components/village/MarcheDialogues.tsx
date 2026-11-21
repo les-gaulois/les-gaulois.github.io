@@ -1,7 +1,8 @@
 import type { ComponentChildren } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fmtInt } from "../../lib/format";
-import { OBJETS, type RareteDObjet } from "../../lib/gaulois";
+import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, type Emplacement, type RareteDObjet } from "../../lib/gaulois";
+import { objetsADemander } from "../../lib/village/boutique-jeu";
 import { motsDeLaClasse, regleDeLaRevente, type MaRevente, type ObjetRevendable } from "../../lib/village/revente";
 import { stateres } from "../../lib/village/ecran-boutique";
 import { MARCHE_DUREE_JOURS } from "../../lib/village/contrat";
@@ -83,10 +84,6 @@ export function DialogueAchat({
         {/* Les mêmes lignes qu'à la boutique. Après un refus du serveur, ces chiffres ne valent plus : le refus seul. */}
         {!probleme && (
           <dl class="marche-compte">
-            <div>
-              <dt>Vendu par</dt>
-              <dd>{offre.vendeur}</dd>
-            </div>
             <div>
               <dt>Prix</dt>
               <dd>
@@ -394,7 +391,7 @@ export function DialogueDemande({
             <dl class="marche-compte">
               {offre && (
                 <div data-testid="demande-offre">
-                  <dt>Déjà en vente par {offre.vendeur}</dt>
+                  <dt>Déjà en vente au marché</dt>
                   <dd>
                     <Prix valeur={offre.prix} />
                   </dd>
@@ -468,7 +465,7 @@ export function DialogueDemande({
 }
 
 /**
- * Vendre à une demande (19 novembre 2026) : l'objet, celui qui le cherche, son prix, et ce que le jeu en rendrait, quand le
+ * Vendre à une demande (19 novembre 2026) : l'objet, son prix (jamais le nom du membre), et ce que le jeu en rendrait, quand le
  * serveur le dit (`rendu`). L'objet quitte l'inventaire : le bouton qui vend est sous cet avertissement. Le serveur revérifie
  * tout (`servir_demande`).
  */
@@ -479,10 +476,6 @@ export function DialogueServir({ demande, rendu, occupe, probleme, onServir, onF
         <CaseObjet objet={demande} />
         {!probleme && (
           <dl class="marche-compte">
-            <div>
-              <dt>Demandé par</dt>
-              <dd>{demande.acheteur}</dd>
-            </div>
             <div class="marche-compte-reste">
               <dt>Vous recevez</dt>
               <dd>
@@ -510,6 +503,70 @@ export function DialogueServir({ demande, rendu, occupe, probleme, onServir, onF
         )}
         <button type="button" class="btn btn-ghost" onClick={onFermer}>
           {probleme ? "Fermer" : "Annuler"}
+        </button>
+      </div>
+    </Dialogue>
+  );
+}
+
+/**
+ * Demander un objet qu'on n'a pas (21 novembre 2026, bouton « Demander » du marché) : choisir un emplacement, puis l'objet
+ * parmi ceux qui se demandent ; la fenêtre de la demande prend la suite, où se fixe le prix. Le serveur revérifie tout.
+ */
+export function DialogueChoixDemande({
+  inventaire,
+  miennes,
+  mesDemandes,
+  demandesMax,
+  onChoisir,
+  onFermer,
+}: {
+  inventaire: readonly RefObjet[] | null;
+  miennes: readonly RefObjet[];
+  mesDemandes: readonly RefObjet[];
+  demandesMax: number;
+  onChoisir: (objet: ObjetDuMarche) => void;
+  onFermer: () => void;
+}) {
+  const [emplacement, setEmplacement] = useState<Emplacement>(EMPLACEMENTS_OBJETS[0]);
+  const objets = useMemo(() => objetsADemander(emplacement, inventaire, miennes, mesDemandes), [emplacement, inventaire, miennes, mesDemandes]);
+  const plein = mesDemandes.length >= demandesMax;
+  return (
+    <Dialogue titre="Demander un objet" onFermer={onFermer}>
+      <p class="marche-regle" data-testid="choix-demande-regle">
+        Choisissez l'objet que vous cherchez. Vous fixerez ensuite votre prix, mis de côté pendant {MARCHE_DUREE_JOURS} jours jusqu'à ce qu'un membre vous le vende.
+      </p>
+      {plein ? (
+        <p class="form-problem" data-testid="demande-plein">
+          {MESSAGES_DU_MARCHE.trop_de_demandes}
+        </p>
+      ) : (
+        <>
+          <div class="marche-emplacements" role="group" aria-label="L'emplacement de l'objet" data-testid="choix-demande-emplacements">
+            {EMPLACEMENTS_OBJETS.map((e) => (
+              <button key={e} type="button" class="chip" aria-pressed={e === emplacement} onClick={() => setEmplacement(e)}>
+                {NOMS_EMPLACEMENTS[e]}
+              </button>
+            ))}
+          </div>
+          {objets.length > 0 ? (
+            <div class="marche-choix" role="group" aria-label={`Les objets à demander : ${NOMS_EMPLACEMENTS[emplacement].toLowerCase()}`}>
+              {objets.map((objet) => (
+                <button key={objet.objet} type="button" class="marche-choix-case" onClick={() => onChoisir(objet)} data-testid="choix-demande-objet">
+                  <CaseObjet objet={objet} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p class="text-muted" data-testid="choix-demande-vide">
+              Tous ces objets sont déjà à vous, en vente ou demandés par vous.
+            </p>
+          )}
+        </>
+      )}
+      <div class="marche-dialogue-actions">
+        <button type="button" class="btn btn-ghost" onClick={onFermer}>
+          Fermer
         </button>
       </div>
     </Dialogue>

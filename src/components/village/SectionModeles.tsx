@@ -7,7 +7,9 @@ import { nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
 import { albumDesModeles, bandeDesModeles, lignesDesChances, modelesDeLaPochette, rendusDeLaPochette, resteADecouvrir, surCombien, type ActionDeLEssai, type Rendu, type SortieDeLaPochette } from "../../lib/village/ecran-modeles";
 import { MODELES, apercuDuModele, decrireLeModele, etatDuModele, idsDesModeles, modeleNu, modeleParId, modelesParFamille, raisonPochetteFermee, silhouetteDuModele, type DessinDuModele, type EtatDuModele, type ModeleRange } from "../../lib/village/modeles";
 import { Problem } from "../compte/common";
+import { Px } from "../jeu/Pixels";
 import { AlbumDePochette } from "./AlbumPochette";
+import { BoutonDuJeu, PrixDuJeu } from "./BoutiqueDuJeu";
 import { Compte, Dialogue, Refus, type BandeVue, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Piece, Prix, peindre } from "./BoutiquePixels";
 import type { EtatDesModeles } from "./Modeles";
@@ -301,29 +303,18 @@ export function SectionDesModeles({ partie = "modeles", etat, solde, pochetteGag
 export function EssaiDuModele({ modele, action, prix, raison, occupe, onAcheter, onPorter, onFin }: { modele: ModeleRange; action: ActionDeLEssai; prix: number; raison: string | null; occupe: boolean; onAcheter: () => void; onPorter: () => void; onFin: () => void }) {
   return (
     <>
-      <span>
-        Essayage : <strong>{modele.nom}</strong>
-      </span>
-      {action === "acheter" && <Prix montant={prix} class="vestiaire-essai-prix" />}
+      {/* Les pièces du jeu (21 novembre 2026), comme l'essai d'un objet de la boutique. */}
+      <Px t={modele.nom} plie classe="boutique-jeu-essai-nom" dit={`Essayage : ${modele.nom}`} />
+      {action === "acheter" && <PrixDuJeu valeur={prix} classe="vestiaire-essai-prix" />}
       {action === "acheter" && raison && (
         <span class="vestiaire-essai-raison" data-testid="uniques-essai-raison">
           {raison}
         </span>
       )}
-      <span class="vestiaire-essai-actions">
-        {action === "acheter" && !raison && (
-          <button type="button" class="chip chip-fort" onClick={onAcheter} data-testid="uniques-acheter">
-            Acheter
-          </button>
-        )}
-        {action === "porter" && (
-          <button type="button" class="chip chip-fort" disabled={occupe} onClick={onPorter} data-testid="uniques-porter">
-            {occupe ? "Enregistrement…" : "Le porter"}
-          </button>
-        )}
-        <button type="button" class="chip" onClick={onFin} data-testid="uniques-fin-essai">
-          Ne plus essayer
-        </button>
+      <span class="vestiaire-essai-actions boutique-jeu-essai-actions">
+        {action === "acheter" && !raison && <BoutonDuJeu t="Acheter" dit={`Acheter « ${modele.nom} » pour ${stateres(prix)}`} onClick={onAcheter} testid="uniques-acheter" />}
+        {action === "porter" && <BoutonDuJeu t="Le porter" disabled={occupe} onClick={onPorter} testid="uniques-porter" />}
+        <BoutonDuJeu t="Arrêter" bleu dit="Arrêter l'essai" onClick={onFin} testid="uniques-fin-essai" />
       </span>
     </>
   );

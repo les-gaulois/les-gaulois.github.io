@@ -3,6 +3,17 @@
     "date": "2026-11-21",
     "kind": "nouveau",
     "rank": "minor",
+    "title": "La boutique en écran de jeu",
+    "body": "La boutique prend l'habit du jeu : sélection de la semaine et son compte à rebours, rayons dessinés, marché en images. « Demander » cherche un objet sans passer par l'essayage.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "nouveau",
+    "rank": "minor",
     "title": "Une saison de six semaines, et la Couronne du solstice au bout",
     "body": "La saison 1 finit le lundi 28 décembre. Son 30e palier donne la « Couronne du solstice », qu'on n'obtient que là, et l'insigne de la saison.",
     "link": {

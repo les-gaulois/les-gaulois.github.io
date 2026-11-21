@@ -16,6 +16,7 @@ import {
   RAYON_CARTES,
   RAYON_POCHETTES,
   RAYON_UNIQUES,
+  RAYONS_OBJETS,
   demandeLeMarche,
   essaiValide,
   estUnRayonDObjets,
@@ -72,7 +73,7 @@ import { ApercuGaulois, BarreDesRayons, Case, useSceneCollee } from "./Cases";
 import { useFamiliers } from "./Familiers";
 import { CaseObjet, Prix as PrixDuMarche } from "./MarcheCase";
 import { useModeles } from "./Modeles";
-import { DialogueAchat as DialogueOffre, DialogueDemande, DialogueRevente, DialogueServir, DialogueVente } from "./MarcheDialogues";
+import { DialogueAchat as DialogueOffre, DialogueChoixDemande, DialogueDemande, DialogueRevente, DialogueServir, DialogueVente } from "./MarcheDialogues";
 import { EtalDesPochettes } from "./Etal";
 import { DessinPochette, Pochette } from "./Pochette";
 import { DessinPochetteFamiliers, DialogueFamiliers, PochetteFamiliers } from "./PochetteFamiliers";
@@ -81,6 +82,9 @@ import { SectionDesCadres } from "./Cadres";
 import { SectionDesCartes } from "./Cartes";
 import { DessinDeLaPochette, DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles } from "./SectionModeles";
 import { pochetteDeRarete } from "./SentierDessins";
+import { CLE_DES_RAYONS_VUS, faireLePointDesRayons, noterLeRayonOuvert } from "../../lib/village/boutique-jeu";
+import { BoutonDuJeu, ChoixDeRarete, Lot, OngletsDesRayons, PrixDuJeu, RangeeDeLots, Ruban, SelectionDeLaSemaine, SousTitre } from "./BoutiqueDuJeu";
+import { Px } from "../jeu/Pixels";
 
 /** Le repère de forme d'une rareté, de un à cinq losanges : le même que sur les cases. */
 function Losanges({ rang }: { rang: number }) {
@@ -192,7 +196,7 @@ function ChoixDuDouble({ demande, marcheOuvert, rendu, onServir, onVendre, onRev
       <div class="boutique-dialogue-actions">
         {demande && (
           <button type="button" class="btn btn-secondary" onClick={onServir} data-testid="double-servir">
-            Le vendre à {demande.acheteur} pour {stateres(demande.prix)}
+            Le vendre pour {stateres(demande.prix)}
           </button>
         )}
         {marcheOuvert && (
@@ -213,7 +217,7 @@ function ChoixDuDouble({ demande, marcheOuvert, rendu, onServir, onVendre, onRev
 type Etat = { kind: "lecture" } | { kind: "erreur"; message: string } | { kind: "pret"; enregistree: Tenue | null };
 /** Le marché des membres : fermé à un compte pas encore validé (la phrase du serveur), en panne, ou lu. */
 type EtatDuMarche = { kind: "lecture" } | { kind: "ferme"; message: string } | { kind: "panne"; message: string } | { kind: "pret"; marche: MarcheLu };
-type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "familiers" } | { kind: "stateres" } | { kind: "modeles" } | { kind: "modele"; id: string; prix: number } | { kind: "offre"; offre: OffreLisible } | { kind: "vente"; initial?: RefObjet } | { kind: "revente"; initial?: RefObjet } | { kind: "demande"; objet: ObjetDuMarche } | { kind: "servir"; demande: DemandeLisible } | null;
+type Fenetre = { kind: "achat"; emplacement: Emplacement; id: string; prix: number } | { kind: "pochette" } | { kind: "familiers" } | { kind: "stateres" } | { kind: "modeles" } | { kind: "modele"; id: string; prix: number } | { kind: "offre"; offre: OffreLisible } | { kind: "vente"; initial?: RefObjet } | { kind: "revente"; initial?: RefObjet } | { kind: "demande"; objet: ObjetDuMarche } | { kind: "choix-demande" } | { kind: "servir"; demande: DemandeLisible } | null;
 /** Le dernier objet reçu (boutique, pochette ou marché) : il se porte d'un clic. */
 type Acquis = RefObjet & { porte: boolean };
 /** Le dernier familier sorti de la pochette des familiers : il se montre d'un clic. */
@@ -373,6 +377,39 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   const lireLaTournante = async (): Promise<void> => {
     setTournante(await call<unknown>("get_boutique_tournante").then(lireTournante, () => null));
   };
+
+  // « Nouveau » (21 novembre 2026, écran de jeu) : les rayons d'objets dont la sélection de la semaine n'a pas encore été
+  // ouverte sur cet appareil portent la pastille ; un rayon ouvert pour la première fois depuis le changement montre ses
+  // objets en rayon marqués « Nouveau » jusqu'à la prochaine visite. Gardé sur l'appareil, comme au vestiaire : de l'habillage.
+  const [rayonsNouveaux, setRayonsNouveaux] = useState<ReadonlySet<string>>(new Set());
+  const [rayonsDecouverts, setRayonsDecouverts] = useState<ReadonlySet<string>>(new Set());
+  const semaine = tournante?.changeLe ?? null;
+  useEffect(() => {
+    if (pochettes || !semaine) return;
+    try {
+      const point = faireLePointDesRayons(localStorage.getItem(CLE_DES_RAYONS_VUS), semaine, RAYONS_OBJETS);
+      localStorage.setItem(CLE_DES_RAYONS_VUS, point.aGarder);
+      setRayonsNouveaux(point.nouveaux);
+    } catch {
+      // Stockage refusé : aucune pastille.
+    }
+  }, [pochettes, semaine]);
+  useEffect(() => {
+    if (pochettes || !semaine || !rayonsNouveaux.has(rayon)) return;
+    setRayonsNouveaux((avant) => new Set([...avant].filter((r) => r !== rayon)));
+    setRayonsDecouverts((avant) => new Set([...avant, rayon]));
+    try {
+      localStorage.setItem(CLE_DES_RAYONS_VUS, noterLeRayonOuvert(localStorage.getItem(CLE_DES_RAYONS_VUS), semaine, rayon));
+    } catch {
+      // Stockage refusé : la pastille reviendra à la prochaine visite.
+    }
+  }, [pochettes, semaine, rayon, rayonsNouveaux]);
+  // Le compte à rebours arrivé à zéro sur une page restée ouverte : la sélection se relit, une fois par minute au plus
+  // (l'horloge de la page), jusqu'à ce que le serveur ait tourné. Rien avant l'heure.
+  const echeancePassee = semaine !== null && Date.parse(semaine) <= maintenant.getTime();
+  useEffect(() => {
+    if (!pochettes && echeancePassee) void lireLaTournante();
+  }, [pochettes, echeancePassee, maintenant]);
 
   // La revente au jeu : ce qui peut partir, et ce que le jeu rend. Un serveur qui ne la connaît pas encore, ou en panne,
   // ne montre pas son bouton.
@@ -739,7 +776,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   };
   const servirDemande = async (demande: DemandeLisible) => {
     if (await agir("servir_demande", { p_id: demande.id }, true)) {
-      setReussite(`« ${demande.nom} » est vendu à ${demande.acheteur} : vous recevez ${stateres(demande.prix)}.`);
+      setReussite(`« ${demande.nom} » est vendu : vous recevez ${stateres(demande.prix)}.`);
       void lireLaRevente();
     }
   };
@@ -879,6 +916,520 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
     setFenetre(null);
     setProblemeFenetre(null);
   };
+
+  // Les fenêtres (achat, pochettes, marché), communes à la boutique et aux boosters.
+  const fenetres = (
+    <>
+      {fenetre?.kind === "achat" && achat && boutique && (
+        <DialogueAchat
+          objet={achat.fiche}
+          rarete={achat.fiche.rarete}
+          vignette={vignetteDeLObjet(achat.emplacement, achat.objet, tenue)}
+          prix={fenetre.prix}
+          solde={soldeConnu ?? boutique.solde}
+          acheter={() => acheter(achat.emplacement, achat.objet, fenetre.prix)}
+          onPorter={() => void porter({ emplacement: achat.emplacement, objet: achat.objet })}
+          onFermer={fermerLaFenetre}
+        />
+      )}
+      {/* Chaque fenêtre d'ouverture sait si sa pochette a été gagnée à la loterie : elle ne promet alors ni prix ni reste. */}
+      {fenetre?.kind === "pochette" && boutique && (
+        <PochetteGagneeIci.Provider value={Boolean(gagnees.surprise)}>
+          <DialoguePochette
+            prix={boutique.pochette.prix}
+            chances={boutique.pochette.chances}
+            solde={soldeConnu ?? boutique.solde}
+            ouvrir={() => puisRelire(ouvrirPochette(boutique.pochette.prix))}
+            objetDe={(tire) => OBJETS[tire.emplacement][tire.objet]}
+            vignetteDe={(tire) => vignetteDeLObjet(tire.emplacement, tire.objet, tenue)}
+            dejaPorte={(tire) => tenue[tire.emplacement] === tire.objet}
+            onPorter={(tire) => void porter({ emplacement: tire.emplacement, objet: tire.objet })}
+            suiteDuDouble={(tire) => {
+              const ref = { emplacement: tire.emplacement, objet: tire.objet };
+              const demande = meilleureDemande(demandes, ref);
+              const rendu = revente?.objets.find((o) => o.emplacement === ref.emplacement && o.objet === ref.objet)?.rendu ?? null;
+              return (
+                <ChoixDuDouble
+                  demande={demande}
+                  marcheOuvert={marcheLu !== null}
+                  rendu={rendu}
+                  onServir={() => {
+                    if (!demande) return;
+                    setProblemeFenetre(null);
+                    setFenetre({ kind: "servir", demande });
+                  }}
+                  onVendre={() => {
+                    setProblemeFenetre(null);
+                    setFenetre({ kind: "vente", initial: ref });
+                  }}
+                  onRevendre={() => {
+                    setProblemeFenetre(null);
+                    setFenetre({ kind: "revente", initial: ref });
+                  }}
+                />
+              );
+            }}
+            onFermer={fermerLaFenetre}
+          />
+        </PochetteGagneeIci.Provider>
+      )}
+      {fenetre?.kind === "familiers" && familiers.mes && (
+        <PochetteGagneeIci.Provider value={Boolean(gagnees.familiers)}>
+          <DialogueFamiliers
+            prix={familiers.mes.pochette.prix}
+            chances={familiers.mes.pochette.chances}
+            possedes={idsPossedes(familiers.mes)}
+            solde={soldeConnu ?? familiers.mes.solde}
+            village={village}
+            ouvrir={() => puisRelire(ouvrirPochetteFamiliers(familiers.mes?.pochette.prix ?? 0))}
+            dejaMontre={(id) => familiers.mes?.porte === id}
+            onMontrer={(id) => void montrerLeFamilier(id)}
+            onFermer={fermerLaFenetre}
+          />
+        </PochetteGagneeIci.Provider>
+      )}
+      {fenetre?.kind === "stateres" && pochetteStateres.ma && (
+        <PochetteGagneeIci.Provider value={Boolean(gagnees.stateres)}>
+          <DialogueStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} ouvrir={() => puisRelire(ouvrirPochetteStateres(pochetteStateres.ma?.prix ?? 0))} onFermer={fermerLaFenetre} />
+        </PochetteGagneeIci.Provider>
+      )}
+      {fenetre?.kind === "modeles" && modeles.mes && (
+        <PochetteGagneeIci.Provider value={Boolean(gagnees.modeles)}>
+          <DialogueModeles mes={modeles.mes} solde={soldeConnu ?? modeles.mes.solde} tenue={tenue} ouvrir={(prixVu) => puisRelire(ouvrirPochetteModeles(prixVu))} onPorter={(id) => void porterLeModele(id)} onFermer={fermerLaFenetre} />
+        </PochetteGagneeIci.Provider>
+      )}
+      {fenetre?.kind === "modele" && modeleAAcheter && modeles.mes && (
+        <DialogueAchatModele
+          modele={modeleAAcheter}
+          prix={fenetre.prix}
+          solde={soldeConnu ?? modeles.mes.solde}
+          tenue={tenue}
+          acheter={() => acheterLeModele(modeleAAcheter.id, fenetre.prix)}
+          onPorter={() => void porterLeModele(modeleAAcheter.id)}
+          onFermer={fermerLaFenetre}
+        />
+      )}
+      {fenetre?.kind === "offre" && marcheLu && (
+        <DialogueOffre
+          offre={fenetre.offre}
+          solde={soldeConnu ?? marcheLu.solde}
+          boutique={pourLeMarche}
+          miennes={miennes}
+          occupe={occupe}
+          probleme={problemeFenetre}
+          onAcheter={() => void acheterOffre(fenetre.offre)}
+          onFermer={fermerLaFenetre}
+        />
+      )}
+      {fenetre?.kind === "revente" && revente && <DialogueRevente revente={revente} occupe={occupe} probleme={problemeFenetre} initial={fenetre.initial ?? null} onRevendre={(objet, nom) => void revendre(objet, nom)} onFermer={fermerLaFenetre} />}
+      {fenetre?.kind === "vente" && marcheLu && (
+        <DialogueVente boutique={pourLeMarche} offresOuvertes={miennes.length} offresMax={marcheLu.offresMax} occupe={occupe} probleme={problemeFenetre} initial={fenetre.initial ?? null} onVendre={(objet, prix) => void vendre(objet, prix)} onFermer={fermerLaFenetre} />
+      )}
+      {fenetre?.kind === "demande" && marcheLu && pourLeMarche && (
+        <DialogueDemande
+          objet={fenetre.objet}
+          plafond={pourLeMarche.prix[fenetre.objet.rarete]}
+          solde={soldeConnu ?? marcheLu.solde}
+          offre={offres.filter((o) => !o.a_moi && o.emplacement === fenetre.objet.emplacement && o.objet === fenetre.objet.objet).sort((a, b) => a.prix - b.prix)[0] ?? null}
+          demandesOuvertes={mesDemandesAMoi.length}
+          demandesMax={marcheLu.demandesMax}
+          occupe={occupe}
+          probleme={problemeFenetre}
+          onDemander={(prix) => void poserDemande(fenetre.objet, prix)}
+          onFermer={fermerLaFenetre}
+        />
+      )}
+      {fenetre?.kind === "choix-demande" && marcheLu && (
+        <DialogueChoixDemande
+          inventaire={boutique?.inventaire ?? null}
+          miennes={miennes}
+          mesDemandes={mesDemandesAMoi}
+          demandesMax={marcheLu.demandesMax}
+          onChoisir={(objet) => {
+            setProblemeFenetre(null);
+            setFenetre({ kind: "demande", objet });
+          }}
+          onFermer={fermerLaFenetre}
+        />
+      )}
+      {fenetre?.kind === "servir" && (
+        <DialogueServir
+          demande={fenetre.demande}
+          rendu={revente?.objets.find((o) => o.emplacement === fenetre.demande.emplacement && o.objet === fenetre.demande.objet)?.rendu ?? null}
+          occupe={occupe}
+          probleme={problemeFenetre}
+          onServir={() => void servirDemande(fenetre.demande)}
+          onFermer={fermerLaFenetre}
+        />
+      )}
+    </>
+  );
+
+  /*
+   * « La boutique » seule, habillée en écran de jeu (21 novembre 2026, maquette validée par le pilote) : son titre, la
+   * sélection de la semaine et son compte à rebours, la bourse, le marché en images (« je veux pas de texte mais des images
+   * pour le marché » : des cases d'objets et leur prix, jamais le nom d'un membre), puis l'essayage à côté des rayons. Les
+   * mêmes fonctions qu'avant, les mêmes fenêtres ; les pièces dessinées sont dans `BoutiqueDuJeu.tsx`, leur feuille dans
+   * `19-jeu-boutique.css`. Les boosters gardent le dessin d'avant, plus bas.
+   */
+  if (!pochettes) {
+    const ouvrir = (suite: Fenetre): void => {
+      setProblemeFenetre(null);
+      setFenetre(suite);
+    };
+    // Le rayon ouvert pour la première fois depuis le changement de la sélection : ses objets en rayon portent « Nouveau ».
+    const rayonNeuf = rayonObjets !== null && rayonsDecouverts.has(rayonObjets);
+    const nomEssaye = ficheEnEssai?.nom ?? "";
+    return (
+      <div ref={racine} class="boutique-jeu" data-testid="boutique">
+        <div class="boutique-jeu-titre" aria-hidden="true">
+          <span class="jeu-ruban jeu-n9">
+            <Px t="La boutique" couleur="creme" relief="ombre" muet />
+          </span>
+        </div>
+
+        <div class="boutique-jeu-haut">
+          {tournante && <SelectionDeLaSemaine changeLe={tournante.changeLe} maintenant={maintenant} regle={regleDeLaRotation(tournante.changeLe)} />}
+          {bourse && (
+            <div class="boutique-jeu-bourse">
+              <h3 class="sr-only">Vos statères</h3>
+              <Bourse bourse={bourse} solde={soldeConnu} />
+            </div>
+          )}
+        </div>
+        {panne && (
+          <div data-testid="boutique-panne">
+            <Problem message={bourse || boutique ? "Une partie de la boutique ne répond pas pour l'instant." : "La bourse et la boutique ne répondent pas pour l'instant."} onRetry={() => void lireLaBoutique()} />
+          </div>
+        )}
+
+        <section id={ANCRE_MARCHE} class="boutique-jeu-marche jeu-panneau jeu-n9" aria-labelledby="boutique-membres-titre" data-testid="marche" data-etat={etatMarche.kind}>
+          <div class="boutique-jeu-marche-tete">
+            <Ruban t="Le marché" niveau={3} bleu id="boutique-membres-titre" />
+            {marcheLu && (
+              <div class="boutique-jeu-marche-actions">
+                <BoutonDuJeu t="Vendre un objet" onClick={() => ouvrir({ kind: "vente" })} testid="marche-vendre" />
+                {/* Demander un objet qu'on n'a pas : seulement si le serveur connaît les demandes. */}
+                {demandes !== null && pourLeMarche && <BoutonDuJeu t="Demander" bleu onClick={() => ouvrir({ kind: "choix-demande" })} testid="marche-demander" />}
+                {/* Rendre un objet au jeu contre des statères : seulement si le serveur connaît la revente. */}
+                {revente && (
+                  <BoutonDuJeu
+                    t="Revendre au jeu"
+                    bleu
+                    onClick={() => {
+                      ouvrir({ kind: "revente" });
+                      void lireLaRevente();
+                    }}
+                    testid="revente-ouvrir"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+          {etatMarche.kind === "ferme" && (
+            <p class="marche-mot place-mot-fort" data-testid="marche-ferme">
+              {etatMarche.message}
+            </p>
+          )}
+          {etatMarche.kind === "panne" && (
+            <div data-testid="marche-panne">
+              <Problem message={etatMarche.message} onRetry={() => void lireLeMarche(false)} />
+            </div>
+          )}
+          {marcheLu && miennes.length > 0 && (
+            <RangeeDeLots id="marche-vos-offres" titre="Vos offres" compte={`${fmtInt(miennes.length)} sur ${fmtInt(marcheLu.offresMax)}`} testid="marche-mes-offres">
+              {miennes.map((offre) => (
+                <Lot
+                  key={offre.id}
+                  objet={offre}
+                  sorte="mon-offre"
+                  prix={offre.prix}
+                  fin={finDeLOffre(offre.expire_le, maintenant)}
+                  action={{ t: "Retirer", bleu: true, dit: `Retirer « ${offre.nom} », ${fmtInt(offre.prix)} statères`, disabled: occupe, onClick: () => void retirer(offre) }}
+                  testid="marche-mon-offre"
+                />
+              ))}
+            </RangeeDeLots>
+          )}
+          {/* Les demandes d'achat (19 novembre 2026) : ce que d'autres membres cherchent et qu'on a, puis ses propres demandes. */}
+          {marcheLu && aServir.length > 0 && (
+            <RangeeDeLots id="marche-a-servir-titre" titre="On cherche vos objets" compte={aServir.length > 1 ? `${fmtInt(aServir.length)} demandes` : "1 demande"} testid="marche-a-servir">
+              {aServir.map((demande) => (
+                <Lot
+                  key={demande.id}
+                  objet={demande}
+                  sorte="a-servir"
+                  prix={demande.prix}
+                  fin={finDeLOffre(demande.expire_le, maintenant, "Demande finie")}
+                  action={{ t: "Vendre", dit: `Vendre « ${demande.nom} », ${fmtInt(demande.prix)} statères`, disabled: occupe, onClick: () => ouvrir({ kind: "servir", demande }), testid: "marche-servir" }}
+                  testid="marche-demande"
+                />
+              ))}
+            </RangeeDeLots>
+          )}
+          {marcheLu && mesDemandesAMoi.length > 0 && (
+            <RangeeDeLots id="marche-vos-demandes" titre="Vos demandes" compte={`${fmtInt(mesDemandesAMoi.length)} sur ${fmtInt(marcheLu.demandesMax)}, ${stateres(marcheLu.misDeCote)} mis de côté`} testid="marche-mes-demandes">
+              {mesDemandesAMoi.map((demande) => (
+                <Lot
+                  key={demande.id}
+                  objet={demande}
+                  sorte="ma-demande"
+                  prix={demande.prix}
+                  fin={finDeLOffre(demande.expire_le, maintenant, "Demande finie")}
+                  action={{ t: "Retirer", bleu: true, dit: `Retirer la demande de « ${demande.nom} », ${fmtInt(demande.prix)} statères`, disabled: occupe, onClick: () => void retirerDemande(demande) }}
+                  testid="marche-ma-demande"
+                />
+              ))}
+            </RangeeDeLots>
+          )}
+        </section>
+
+        <div class="vestiaire boutique-page boutique-jeu-corps">
+          <div ref={scene} class="vestiaire-scene boutique-jeu-essayage" data-familier={tailleDeLApercu(familiers.montre) ?? undefined}>
+            <Ruban t="Essayage" niveau={3} bleu />
+            <ApercuGaulois tenue={modeleEnEssai ? tenueAvecModele(tenue, modeleEnEssai.id) : essai ? changerObjet(tenue, essai.emplacement, essai.objet) : tenue} familier={familiers.montre} decor={decor} />
+            <div class="vestiaire-scene-actions">
+              <div class="vestiaire-essai boutique-jeu-essai" role="status" data-testid="boutique-essai">
+                {essai && ficheEnEssai && (
+                  <>
+                    <Px t={nomEssaye} plie classe="boutique-jeu-essai-nom" dit={`Essayage : ${nomEssaye}`} />
+                    {prixEssai !== null && <PrixDuJeu valeur={prixEssai} classe="vestiaire-essai-prix" />}
+                    {raisonEssai && (
+                      <span class="vestiaire-essai-raison" data-testid="boutique-raison">
+                        {raisonEssai}
+                      </span>
+                    )}
+                    <span class="vestiaire-essai-actions boutique-jeu-essai-actions">
+                      {essaiAchetable && prixEssai !== null && <BoutonDuJeu t="Acheter" dit={`Acheter « ${nomEssaye} » pour ${stateres(prixEssai)}`} onClick={acheterLEssai} testid="boutique-acheter" />}
+                      {peutDemander && objetEssayeAuMarche && <BoutonDuJeu t="Le demander" bleu={!retourEssai} dit="Le demander au marché" onClick={() => ouvrir({ kind: "demande", objet: objetEssayeAuMarche })} testid="boutique-demander" />}
+                      {/* « Retirer » est le mot des offres qu'on retire du marché : ici, on arrête un essai. */}
+                      <BoutonDuJeu t="Arrêter" bleu dit="Arrêter l'essai" onClick={() => essayer(null)} testid="boutique-fin-essai" />
+                    </span>
+                  </>
+                )}
+                {modeleEnEssai && modeles.mes && (
+                  <EssaiDuModele
+                    modele={modeleEnEssai}
+                    action={actionDeLEssai(modeleEnEssai.id, modeles.mes)}
+                    prix={prixDuModeleEssaye}
+                    raison={raisonDeLAchat(modeles.mes, modeleEnEssai.id, soldeConnu ?? modeles.mes.solde, prixDuModeleEssaye)}
+                    occupe={occupe}
+                    onAcheter={() => setFenetre({ kind: "modele", id: modeleEnEssai.id, prix: prixDuModeleEssaye })}
+                    onPorter={() => void porterLeModele(modeleEnEssai.id)}
+                    onFin={() => essayerLeModele(null)}
+                  />
+                )}
+                {!essai && !modeleEnEssai && <Px t="Touchez un objet pour l'essayer" couleur="doux" plie classe="boutique-jeu-invite" />}
+              </div>
+              {/* Ce qui vient de se passer, près du Gaulois : l'objet reçu se porte d'ici. Pendant qu'une fenêtre d'ouverture
+                  tourne, elle se tait (voir plus bas, dans le dessin des boosters). */}
+              <div class="boutique-avis" data-testid="boutique-avis">
+                <Success message={pochetteOuverte ? null : reussite} />
+                <Problem message={probleme} />
+                {acquis && !pochetteOuverte && (
+                  <p class="boutique-avis-suite">
+                    {!acquis.porte && <BoutonDuJeu t="Le porter" disabled={occupe} onClick={() => void porter(acquis)} testid="boutique-porter" />}
+                    <a href={`${village}#gaulois`} data-testid="boutique-vers-village">
+                      Voir au vestiaire
+                    </a>
+                  </p>
+                )}
+                {modeleRecu && !pochetteOuverte && (
+                  <p class="boutique-avis-suite">
+                    {!modeleRecu.porte && <BoutonDuJeu t="Le porter" disabled={occupe} onClick={() => void porterLeModele(modeleRecu.id)} testid="uniques-porter-ici" />}
+                    <a href={`${village}#gaulois`} data-testid="uniques-avis-village">
+                      Voir au vestiaire
+                    </a>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div id={ID_DES_RAYONS} class="vestiaire-colonne vestiaire-choix boutique-choix boutique-jeu-rayons">
+            <h3 class="sr-only">Les rayons</h3>
+            <OngletsDesRayons
+              rayons={rayonsMontres}
+              noms={NOMS_RAYONS}
+              rayon={rayonChoisi}
+              barre={barre}
+              nouveaux={rayonsNouveaux}
+              vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : id === RAYON_CARTES ? IMAGE_DU_RAYON_CARTES : id === RAYON_CADRES ? IMAGE_DU_RAYON_CADRES : IMAGE_DU_RAYON_BANNIERE)}
+              // Les offres des membres d'abord, puis leurs demandes ; sinon la collection du rayon, ce qu'il possède sur ce qui existe.
+              mention={(id) =>
+                !estUnRayonDObjets(id)
+                  ? null
+                  : comptesDesOffres[id] > 0
+                    ? motsDesOffres(comptesDesOffres[id])
+                    : demandesParRayon(id) > 0
+                      ? demandesParRayon(id) > 1
+                        ? `${demandesParRayon(id)} demandes`
+                        : "1 demande"
+                      : boutique
+                        ? motsDeLaCollection(collectionDuRayon(id, (objet) => quantitePossedee(boutique.inventaire, id, objet)))
+                        : null
+              }
+              onChoisir={setRayon}
+            />
+            <div ref={panneau} id="boutique-panneau" class="vestiaire-panneau boutique-jeu-panneau" role="tabpanel" aria-labelledby={`boutique-rayon-${rayon}`} data-testid={`boutique-rayon-${rayon}`}>
+              {rayonObjets && range && range.total > 0 && (
+                <div class="boutique-jeu-filtres" role="group" aria-label="Montrer une rareté" data-testid="boutique-filtre">
+                  <ChoixDeRarete filtre={TOUT} nombre={range.total} choisi={range.retenu === TOUT} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, TOUT))} />
+                  {ORDRE_RARETES.map((rarete) => (
+                    <ChoixDeRarete key={rarete} filtre={rarete} nombre={range.comptes[rarete]} choisi={range.retenu === rarete} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, rarete))} />
+                  ))}
+                </div>
+              )}
+              {range && range.offres.length > 0 && (
+                <RangeeDeLots id="boutique-des-membres" titre="À vendre au marché" testid="marche-offres">
+                  {range.offres.map((offre) => {
+                    const essayee = essai?.source === "marche" && essai.offre === offre.id;
+                    return (
+                      <Lot
+                        key={offre.id}
+                        objet={offre}
+                        sorte="offre"
+                        prix={offre.prix}
+                        fin={finDeLOffre(offre.expire_le, maintenant)}
+                        essai={{ essayee, testid: "marche-offre-essai", onEssai: () => essayer(essayee ? null : { source: "marche", offre: offre.id, emplacement: offre.emplacement, objet: offre.objet }) }}
+                        action={{ t: "Acheter", dit: `Acheter « ${offre.nom} », ${fmtInt(offre.prix)} statères`, disabled: occupe, onClick: () => ouvrir({ kind: "offre", offre }) }}
+                        testid="marche-offre"
+                      />
+                    );
+                  })}
+                </RangeeDeLots>
+              )}
+              {demandesDuRayon.length > 0 && (
+                <RangeeDeLots id="boutique-demandes" titre="Demandé au marché" testid="marche-demandes">
+                  {demandesDuRayon.map((demande) => (
+                    <Lot
+                      key={demande.id}
+                      objet={demande}
+                      sorte="demande"
+                      prix={demande.prix}
+                      fin={finDeLOffre(demande.expire_le, maintenant, "Demande finie")}
+                      action={peutServir(demande, inventaireLu) ? { t: "Vendre", dit: `Vendre « ${demande.nom} », ${fmtInt(demande.prix)} statères`, disabled: occupe, onClick: () => ouvrir({ kind: "servir", demande }), testid: "marche-servir" } : undefined}
+                      testid="marche-demande"
+                    />
+                  ))}
+                </RangeeDeLots>
+              )}
+              {rayonObjets && enRayon.length > 0 && (
+                <div class="vestiaire-rayon">
+                  <SousTitre t={tournante ? "En rayon cette semaine" : "Boutique du clan"} id="boutique-du-clan" />
+                  <div class="cases" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-du-clan`} data-testid="boutique-cases">
+                    {enRayon.map(([id, objet]) => {
+                      const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
+                      return (
+                        <Case
+                          key={id}
+                          objet={objet}
+                          vignette={vignetteDeLObjet(rayonObjets, id, tenue)}
+                          portee={false}
+                          essayee={essayee}
+                          nouveau={rayonNeuf}
+                          vente={{ prix: prixDeLObjet(boutique?.prix, rayonObjets, id) }}
+                          enVente={miennes.some((offre) => offre.emplacement === rayonObjets && offre.objet === id)}
+                          onClick={() => essayer(essayee ? null : { source: "boutique", emplacement: rayonObjets, objet: id })}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {rayonObjets && horsRayon.length > 0 && (
+                <div class="vestiaire-rayon boutique-jeu-hors-rayon">
+                  <SousTitre t="Pas en rayon cette semaine" id="boutique-hors-rayon" />
+                  <div class="cases" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-hors-rayon`} data-testid="boutique-hors-rayon">
+                    {horsRayon.map(([id, objet]) => {
+                      const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
+                      const retour = retourDe(tournante, { emplacement: rayonObjets, objet: id });
+                      return (
+                        <Case
+                          key={id}
+                          objet={objet}
+                          vignette={vignetteDeLObjet(rayonObjets, id, tenue)}
+                          portee={false}
+                          essayee={essayee}
+                          vente={{ prix: prixDeLObjet(boutique?.prix, rayonObjets, id), revient: retour ? motsDeLaCase(retour) : null }}
+                          enVente={miennes.some((offre) => offre.emplacement === rayonObjets && offre.objet === id)}
+                          onClick={() => essayer(essayee ? null : { source: "boutique", emplacement: rayonObjets, objet: id })}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {/* Les bannières de /gaulois, les cartes, les cadres et les Gaulois uniques : leurs sections et leurs livres,
+                  comme avant. Lues à la première ouverture de leur onglet, puis seulement cachées quand un autre rayon s'ouvre.
+                  Après un achat, la bourse de la page prend le solde du serveur ; après un refus, elle se relit. */}
+              {(bannieresOuvertes || rayon === RAYON_BANNIERE) && (
+                <div hidden={rayon !== RAYON_BANNIERE}>
+                  <SectionDesBannieres
+                    onPrixDeLaPochette={setPrixDesBannieres}
+                    partie="bannieres"
+                    tenue={etat.enregistree}
+                    familier={familiers.montre}
+                    solde={soldeConnu}
+                    pochetteGagnee={Boolean(gagnees.bannieres)}
+                    onSolde={(reste) => {
+                      setBoutique((b) => b && { ...b, solde: reste });
+                      setSolde(reste);
+                    }}
+                    onRefus={() => void lireLaBoutique()}
+                  />
+                </div>
+              )}
+              {(cartesOuvertes || rayon === RAYON_CARTES) && (
+                <div hidden={rayon !== RAYON_CARTES}>
+                  <SectionDesCartes
+                    tenue={etat.enregistree}
+                    familier={familiers.montre}
+                    onSolde={(reste) => {
+                      setBoutique((b) => b && { ...b, solde: reste });
+                      setSolde(reste);
+                    }}
+                    onRefus={() => void lireLaBoutique()}
+                  />
+                </div>
+              )}
+              {(cadresOuverts || rayon === RAYON_CADRES) && (
+                <div hidden={rayon !== RAYON_CADRES}>
+                  <SectionDesCadres
+                    tenue={etat.enregistree}
+                    familier={familiers.montre}
+                    onSolde={(reste) => {
+                      setBoutique((b) => b && { ...b, solde: reste });
+                      setSolde(reste);
+                    }}
+                    onRefus={() => void lireLaBoutique()}
+                  />
+                </div>
+              )}
+              {(uniquesOuverts || rayon === RAYON_UNIQUES) && (
+                <div hidden={rayon !== RAYON_UNIQUES}>
+                  <SectionDesModeles
+                    partie="modeles"
+                    etat={modeles.etat}
+                    solde={soldeConnu}
+                    pochetteGagnee={Boolean(gagnees.modeles)}
+                    essaye={modeleEnEssai?.id ?? null}
+                    occupe={occupe}
+                    onEssayer={essayerLeModele}
+                    onOuvrir={() => setFenetre({ kind: "modeles" })}
+                    onHumain={() => void porterLeModele(null)}
+                    onRelire={() => void modeles.lire()}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        {fenetres}
+      </div>
+    );
+  }
+
 
   return (
     <div ref={racine} class="vestiaire boutique-page" data-testid="boutique">
@@ -1370,135 +1921,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
         </div>
       </div>
 
-      {fenetre?.kind === "achat" && achat && boutique && (
-        <DialogueAchat
-          objet={achat.fiche}
-          rarete={achat.fiche.rarete}
-          vignette={vignetteDeLObjet(achat.emplacement, achat.objet, tenue)}
-          prix={fenetre.prix}
-          solde={soldeConnu ?? boutique.solde}
-          acheter={() => acheter(achat.emplacement, achat.objet, fenetre.prix)}
-          onPorter={() => void porter({ emplacement: achat.emplacement, objet: achat.objet })}
-          onFermer={fermerLaFenetre}
-        />
-      )}
-      {/* Chaque fenêtre d'ouverture sait si sa pochette a été gagnée à la loterie : elle ne promet alors ni prix ni reste. */}
-      {fenetre?.kind === "pochette" && boutique && (
-        <PochetteGagneeIci.Provider value={Boolean(gagnees.surprise)}>
-          <DialoguePochette
-            prix={boutique.pochette.prix}
-            chances={boutique.pochette.chances}
-            solde={soldeConnu ?? boutique.solde}
-            ouvrir={() => puisRelire(ouvrirPochette(boutique.pochette.prix))}
-            objetDe={(tire) => OBJETS[tire.emplacement][tire.objet]}
-            vignetteDe={(tire) => vignetteDeLObjet(tire.emplacement, tire.objet, tenue)}
-            dejaPorte={(tire) => tenue[tire.emplacement] === tire.objet}
-            onPorter={(tire) => void porter({ emplacement: tire.emplacement, objet: tire.objet })}
-            suiteDuDouble={(tire) => {
-              const ref = { emplacement: tire.emplacement, objet: tire.objet };
-              const demande = meilleureDemande(demandes, ref);
-              const rendu = revente?.objets.find((o) => o.emplacement === ref.emplacement && o.objet === ref.objet)?.rendu ?? null;
-              return (
-                <ChoixDuDouble
-                  demande={demande}
-                  marcheOuvert={marcheLu !== null}
-                  rendu={rendu}
-                  onServir={() => {
-                    if (!demande) return;
-                    setProblemeFenetre(null);
-                    setFenetre({ kind: "servir", demande });
-                  }}
-                  onVendre={() => {
-                    setProblemeFenetre(null);
-                    setFenetre({ kind: "vente", initial: ref });
-                  }}
-                  onRevendre={() => {
-                    setProblemeFenetre(null);
-                    setFenetre({ kind: "revente", initial: ref });
-                  }}
-                />
-              );
-            }}
-            onFermer={fermerLaFenetre}
-          />
-        </PochetteGagneeIci.Provider>
-      )}
-      {fenetre?.kind === "familiers" && familiers.mes && (
-        <PochetteGagneeIci.Provider value={Boolean(gagnees.familiers)}>
-          <DialogueFamiliers
-            prix={familiers.mes.pochette.prix}
-            chances={familiers.mes.pochette.chances}
-            possedes={idsPossedes(familiers.mes)}
-            solde={soldeConnu ?? familiers.mes.solde}
-            village={village}
-            ouvrir={() => puisRelire(ouvrirPochetteFamiliers(familiers.mes?.pochette.prix ?? 0))}
-            dejaMontre={(id) => familiers.mes?.porte === id}
-            onMontrer={(id) => void montrerLeFamilier(id)}
-            onFermer={fermerLaFenetre}
-          />
-        </PochetteGagneeIci.Provider>
-      )}
-      {fenetre?.kind === "stateres" && pochetteStateres.ma && (
-        <PochetteGagneeIci.Provider value={Boolean(gagnees.stateres)}>
-          <DialogueStateres ma={pochetteStateres.ma} solde={soldeConnu ?? pochetteStateres.ma.solde} ouvrir={() => puisRelire(ouvrirPochetteStateres(pochetteStateres.ma?.prix ?? 0))} onFermer={fermerLaFenetre} />
-        </PochetteGagneeIci.Provider>
-      )}
-      {fenetre?.kind === "modeles" && modeles.mes && (
-        <PochetteGagneeIci.Provider value={Boolean(gagnees.modeles)}>
-          <DialogueModeles mes={modeles.mes} solde={soldeConnu ?? modeles.mes.solde} tenue={tenue} ouvrir={(prixVu) => puisRelire(ouvrirPochetteModeles(prixVu))} onPorter={(id) => void porterLeModele(id)} onFermer={fermerLaFenetre} />
-        </PochetteGagneeIci.Provider>
-      )}
-      {fenetre?.kind === "modele" && modeleAAcheter && modeles.mes && (
-        <DialogueAchatModele
-          modele={modeleAAcheter}
-          prix={fenetre.prix}
-          solde={soldeConnu ?? modeles.mes.solde}
-          tenue={tenue}
-          acheter={() => acheterLeModele(modeleAAcheter.id, fenetre.prix)}
-          onPorter={() => void porterLeModele(modeleAAcheter.id)}
-          onFermer={fermerLaFenetre}
-        />
-      )}
-      {fenetre?.kind === "offre" && marcheLu && (
-        <DialogueOffre
-          offre={fenetre.offre}
-          solde={soldeConnu ?? marcheLu.solde}
-          boutique={pourLeMarche}
-          miennes={miennes}
-          occupe={occupe}
-          probleme={problemeFenetre}
-          onAcheter={() => void acheterOffre(fenetre.offre)}
-          onFermer={fermerLaFenetre}
-        />
-      )}
-      {fenetre?.kind === "revente" && revente && <DialogueRevente revente={revente} occupe={occupe} probleme={problemeFenetre} initial={fenetre.initial ?? null} onRevendre={(objet, nom) => void revendre(objet, nom)} onFermer={fermerLaFenetre} />}
-      {fenetre?.kind === "vente" && marcheLu && (
-        <DialogueVente boutique={pourLeMarche} offresOuvertes={miennes.length} offresMax={marcheLu.offresMax} occupe={occupe} probleme={problemeFenetre} initial={fenetre.initial ?? null} onVendre={(objet, prix) => void vendre(objet, prix)} onFermer={fermerLaFenetre} />
-      )}
-      {fenetre?.kind === "demande" && marcheLu && pourLeMarche && (
-        <DialogueDemande
-          objet={fenetre.objet}
-          plafond={pourLeMarche.prix[fenetre.objet.rarete]}
-          solde={soldeConnu ?? marcheLu.solde}
-          offre={offres.filter((o) => !o.a_moi && o.emplacement === fenetre.objet.emplacement && o.objet === fenetre.objet.objet).sort((a, b) => a.prix - b.prix)[0] ?? null}
-          demandesOuvertes={mesDemandesAMoi.length}
-          demandesMax={marcheLu.demandesMax}
-          occupe={occupe}
-          probleme={problemeFenetre}
-          onDemander={(prix) => void poserDemande(fenetre.objet, prix)}
-          onFermer={fermerLaFenetre}
-        />
-      )}
-      {fenetre?.kind === "servir" && (
-        <DialogueServir
-          demande={fenetre.demande}
-          rendu={revente?.objets.find((o) => o.emplacement === fenetre.demande.emplacement && o.objet === fenetre.demande.objet)?.rendu ?? null}
-          occupe={occupe}
-          probleme={problemeFenetre}
-          onServir={() => void servirDemande(fenetre.demande)}
-          onFermer={fermerLaFenetre}
-        />
-      )}
+      {fenetres}
     </div>
   );
 }

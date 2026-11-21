@@ -226,11 +226,8 @@ export default function VillageApp() {
         {!aCreer && (
           <Partie prefix={PREFIXE} id="boutique" active={active} slide={slide}>
             <h2 class="sr-only">La boutique</h2>
-            {active === "boutique" && (
-              <Ecran>
-                <Boutique />
-              </Ecran>
-            )}
+            {/* La boutique est habillée en écran de jeu (21 novembre 2026) : ses propres panneaux, sans le cadre des parties d'avant. */}
+            {active === "boutique" && <Boutique />}
           </Partie>
         )}
         {!aCreer && (

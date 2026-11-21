@@ -1,0 +1,887 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- « La boutique » de « Mon Gaulois » en écran de jeu (21 novembre 2026) ---------- */
+/* « La boutique » (`/village#boutique`) habillée avec le kit du jeu (16-jeu.css, « Le kit du jeu » de docs/DESIGN.md),
+   d'après la maquette validée par le pilote : la sélection de la semaine, la bourse, le marché en images, l'essayage et les
+   rayons. Les pièces sont dans src/components/village/BoutiqueDuJeu.tsx. Tout est sous `.boutique-jeu` : les boosters, qui
+   partagent Boutique.tsx, et le vestiaire, qui partage les cases, ne changent pas. Les cases d'objets gardent le dessin de
+   Cases.tsx (cartes claires à la couleur de leur rareté).
+
+   Dessin de Claude Fable 5.2. Quatre sortes de cadres, pas plus, et jamais l'un dans l'autre :
+   - le panneau du jeu (`jeu-panneau`) : la sélection de la semaine, le marché, l'essayage, les fenêtres ;
+   - le fond de page en cadre de jeu (`jeu-ecran-cadre`) : la bourse et les rayons, où le texte du site se lit ;
+   - les boutons du jeu : d'or ce qui est choisi ou l'action, bleus les autres ;
+   - les cases d'objets, claires dans les deux thèmes.
+   Les mesures sont en points du kit (`--jeu-p`, 2 pixels). */
+
+.boutique-jeu {
+  /* Où s'arrête ce qui se colle en haut de l'écran : le bord dessiné de la barre du jeu (son ombre, trois cases, est
+     transparente), qui a deux rangées sur téléphone. */
+  --bj-colle: calc(var(--jeu-barre-h) - 3 * var(--jeu-p));
+  /* L'or d'une case essayée et la ligne sous la barre des rayons, lisibles dans les deux thèmes. */
+  --bj-filet: color-mix(in srgb, var(--ecriture) 16%, transparent);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(16 * var(--jeu-p));
+  min-width: 0;
+  padding-top: calc(2 * var(--jeu-p));
+}
+@media (max-width: 47.99rem) {
+  .boutique-jeu {
+    --bj-colle: calc(44 * var(--jeu-p));
+    gap: calc(12 * var(--jeu-p));
+  }
+}
+
+/* ---------- Les cadres posés par la feuille : mêmes neuf parts que `.jeu-n9` ---------- */
+
+.boutique-jeu :is(.bourse, .boutique-jeu-essayage, .boutique-jeu-rayons, .boutique-dialogue, .marche-dialogue) {
+  --src: var(--jeu-s-panneau);
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(12 * var(--jeu-p)) calc(12 * var(--jeu-p)) calc(14 * var(--jeu-p));
+  border-image-source: var(--src);
+  border-image-slice: 12 12 14 12 fill;
+  border-image-repeat: stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  image-rendering: pixelated;
+}
+.boutique-jeu :is(.bourse, .boutique-jeu-rayons) {
+  --src: var(--jeu-s-ecran);
+}
+/* Sur téléphone, les cadres à une case par pixel : nets, et la place reste au contenu. */
+@media (max-width: 47.99rem) {
+  .boutique-jeu :is(.jeu-panneau, .bourse, .boutique-jeu-essayage, .boutique-jeu-rayons, .boutique-dialogue, .marche-dialogue) {
+    border-width: calc(6 * var(--jeu-p)) calc(6 * var(--jeu-p)) calc(7 * var(--jeu-p));
+  }
+}
+
+/* ---------- Le titre, en ruban rouge ---------- */
+
+.boutique-jeu-titre {
+  display: flex;
+  justify-content: center;
+  line-height: 0;
+}
+.boutique-jeu-ruban {
+  margin: 0;
+  line-height: 0;
+}
+
+/* ---------- La sélection de la semaine et la bourse ---------- */
+
+.boutique-jeu-haut {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(8 * var(--jeu-p));
+  align-items: stretch;
+  min-width: 0;
+}
+.boutique-jeu-haut:empty {
+  display: none;
+}
+@media (min-width: 72rem) {
+  .boutique-jeu-haut:has(.boutique-jeu-selection):has(.boutique-jeu-bourse) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 27rem);
+  }
+}
+.boutique-jeu-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  gap: calc(6 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  min-width: 0;
+  padding: calc(4 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(3 * var(--jeu-p));
+}
+.boutique-jeu-selection-titre {
+  margin: 0;
+  line-height: 0;
+}
+.boutique-jeu-selection .jeu-px-plie {
+  justify-content: center;
+}
+.boutique-jeu-reste {
+  flex: none;
+}
+/* L'heure du changement, puis la règle en court : chacune sur sa ligne, sous le titre et le compte à rebours. */
+.boutique-jeu-selection :is(.boutique-jeu-jusqua, .boutique-jeu-regle) {
+  flex-basis: 100%;
+}
+
+/* La bourse : la pièce, le solde et la règle sur une rangée, le relevé et le pli dessous. */
+.boutique-jeu-bourse {
+  display: grid;
+  min-width: 0;
+}
+.boutique-jeu .bourse.sentier-carte {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  align-items: center;
+  gap: calc(2 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  overflow: visible;
+  padding: 0 calc(2 * var(--jeu-p));
+}
+.boutique-jeu .bourse .sentier-carte-tete {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0 calc(5 * var(--jeu-p));
+  min-width: 0;
+}
+.boutique-jeu .bourse .sentier-carte-dessin {
+  grid-row: 1 / span 2;
+}
+.boutique-jeu .bourse .sentier-carte-dessin {
+  width: 48px;
+  height: 48px;
+}
+.boutique-jeu .bourse .sentier-carte-tete > div {
+  flex: 1 1 6rem;
+}
+.boutique-jeu .bourse h4 {
+  font-size: 1rem;
+}
+/* La règle, en petit sous le titre : plus de pastille, le cadre suffit. */
+.boutique-jeu .bourse .sentier-gain {
+  flex: 1 1 100%;
+  align-self: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-muted);
+  white-space: normal;
+}
+.boutique-jeu .bourse-solde {
+  justify-content: flex-end;
+  gap: 0 0.375rem;
+  margin: 0;
+}
+.boutique-jeu .bourse-nombre {
+  font-size: 2.25rem;
+}
+.boutique-jeu .bourse-unite {
+  padding-bottom: 0.25rem;
+  font-size: 0.875rem;
+}
+.boutique-jeu .bourse > :is(.bourse-etat, .info-discrete, .bourse-credits) {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.boutique-jeu .bourse > .info-discrete {
+  font-size: 0.75rem;
+}
+
+/* ---------- Le marché des membres : un panneau, son ruban bleu à cheval sur le bord, ses lots en images ---------- */
+
+.boutique-jeu-marche {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: calc(10 * var(--jeu-p)) calc(20 * var(--jeu-p));
+  min-width: 0;
+  margin-top: calc(4 * var(--jeu-p));
+  padding: calc(8 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  scroll-margin-top: calc(var(--bj-colle) + 20 * var(--jeu-p));
+}
+.boutique-jeu-marche > .boutique-jeu-marche-tete > .boutique-jeu-ruban,
+.boutique-jeu-essayage > .boutique-jeu-ruban {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: calc(-22 * var(--jeu-p));
+  translate: -50% 0;
+}
+.boutique-jeu-marche > * {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+/* Les rangées du marché côte à côte quand la place le permet : tout le marché d'un coup d'œil. */
+.boutique-jeu-marche > .boutique-jeu-rangee {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+.boutique-jeu-marche-tete {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+.boutique-jeu-marche-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(5 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  min-width: 0;
+}
+.boutique-jeu-marche .marche-mot {
+  margin: 0;
+  text-align: center;
+}
+
+/* Une rangée de lots : son sous-titre en pixels, son compte en lettres du site, puis les lots. */
+.boutique-jeu-rangee {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(6 * var(--jeu-p));
+  min-width: 0;
+}
+.boutique-jeu-sous-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(2 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  margin: 0;
+  line-height: 0;
+}
+.boutique-jeu-compte {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-muted);
+}
+.boutique-jeu-lots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.25rem, 7.25rem));
+  gap: calc(8 * var(--jeu-p)) 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Dans le panneau du marché, les étiquettes « À vous » et « Cherché » peuvent être plus larges qu'une case : chaque lot
+   a leur place, la case garde sa largeur de la boutique. */
+.boutique-jeu-marche > .boutique-jeu-rangee > .boutique-jeu-lots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(8 * var(--jeu-p)) calc(6 * var(--jeu-p));
+}
+.boutique-jeu-marche > .boutique-jeu-rangee > .boutique-jeu-lots > .boutique-jeu-lot {
+  flex: none;
+  grid-template-columns: auto;
+  min-width: 7.25rem;
+}
+.boutique-jeu-marche .boutique-jeu-lot-case {
+  width: 7.25rem;
+}
+.boutique-jeu-marche > .boutique-jeu-rangee > .boutique-jeu-sous-titre {
+  justify-content: center;
+}
+/* Un lot : la case, l'étiquette à cheval sur son bord, le prix en pièce, la fin, le bouton. */
+.boutique-jeu-lot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  align-content: start;
+  gap: calc(3 * var(--jeu-p));
+  min-width: 0;
+}
+.boutique-jeu-lot-case {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 7.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+button.boutique-jeu-lot-case {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.14s ease;
+}
+@media (hover: hover) {
+  button.boutique-jeu-lot-case:hover {
+    transform: translateY(calc(-1 * var(--jeu-p)));
+  }
+}
+button.boutique-jeu-lot-case:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+button.boutique-jeu-lot-case[aria-pressed="true"] {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.boutique-jeu-lot .marche-case {
+  width: 100%;
+  border-bottom-width: 6px;
+}
+.boutique-jeu-lot-sorte {
+  position: relative;
+  z-index: 1;
+  margin-top: calc(-8 * var(--jeu-p));
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+.boutique-jeu-lot-fin {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-muted);
+  text-align: center;
+}
+.boutique-jeu-lot-bouton {
+  margin-top: var(--jeu-p);
+}
+
+/* Un prix en pixels : la pièce du kit et le nombre. */
+.boutique-jeu-prix {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: calc(2 * var(--jeu-p));
+  line-height: 0;
+  white-space: nowrap;
+}
+.boutique-jeu-piece {
+  display: block;
+  flex: none;
+  width: calc(9 * var(--jeu-p));
+  height: calc(9 * var(--jeu-p));
+  margin-top: calc(-1 * var(--jeu-p));
+  background: var(--jeu-i-piece) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+
+/* ---------- L'essayage et les rayons ---------- */
+
+.boutique-jeu .boutique-jeu-corps {
+  gap: calc(14 * var(--jeu-p));
+  min-width: 0;
+  margin-top: calc(4 * var(--jeu-p));
+}
+
+/* L'essayage : un panneau, son ruban bleu, le Gaulois devant sa bannière, puis ce qu'on essaie. */
+.boutique-jeu .boutique-jeu-essayage {
+  gap: calc(6 * var(--jeu-p));
+  padding: calc(6 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p));
+}
+.boutique-jeu-essayage .gaulois-cadre,
+.boutique-jeu-essayage .gaulois-cadre[data-decor] {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  outline: var(--jeu-p) solid color-mix(in srgb, var(--ecriture) 22%, transparent);
+}
+.boutique-jeu-essayage .gaulois-cadre:not([data-decor]) {
+  outline: 0;
+}
+.boutique-jeu-essayage .gaulois-apercu {
+  padding: calc(4 * var(--jeu-p));
+  border: 0;
+  border-radius: 0;
+}
+.boutique-jeu-essayage .vestiaire-scene-actions {
+  gap: calc(6 * var(--jeu-p));
+  min-width: 0;
+}
+.boutique-jeu .boutique-jeu-essai {
+  gap: calc(5 * var(--jeu-p));
+  min-height: calc(20 * var(--jeu-p));
+  line-height: 1.35;
+}
+.boutique-jeu-essai > .jeu-px-plie {
+  flex-basis: 100%;
+  justify-content: center;
+}
+.boutique-jeu-essai .vestiaire-essai-raison {
+  font-size: 0.8125rem;
+}
+.boutique-jeu-essai-actions {
+  gap: calc(5 * var(--jeu-p));
+}
+.boutique-jeu .boutique-avis:empty,
+.boutique-jeu .boutique-avis:not(:has(*)) {
+  display: none;
+}
+.boutique-jeu .boutique-avis-suite {
+  margin: 0;
+  gap: calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
+}
+
+@media (max-width: 767px) and (max-height: 559.98px) {
+  .boutique-jeu .boutique-jeu-essayage {
+    position: relative;
+  }
+}
+@media (min-width: 768px) {
+  .boutique-jeu .boutique-jeu-essayage {
+    top: calc(var(--bj-colle) + 28 * var(--jeu-p));
+  }
+}
+
+/* Les rayons : un fond de page en cadre de jeu, la barre des rayons, les filtres, les cases. */
+.boutique-jeu .boutique-jeu-rayons {
+  gap: calc(10 * var(--jeu-p));
+  padding: calc(2 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  scroll-margin-top: calc(var(--bj-colle) + 8 * var(--jeu-p));
+}
+.boutique-jeu .boutique-jeu-panneau {
+  gap: calc(12 * var(--jeu-p));
+}
+.boutique-jeu .vestiaire-rayon {
+  gap: calc(6 * var(--jeu-p));
+}
+
+/* La barre des rayons : collée sous la barre du jeu, sur le fond du cadre ; chaque rayon est un bouton du jeu, d'or quand il
+   est ouvert, avec dessus l'image de ce que le Gaulois y porte et dessous ce qui l'attend. */
+.boutique-jeu .boutique-jeu-onglets {
+  top: var(--bj-colle);
+  margin: calc(-2 * var(--jeu-p)) calc(-3 * var(--jeu-p)) 0;
+  padding: calc(5 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  background: var(--color-navy);
+  box-shadow: 0 var(--jeu-p) 0 var(--bj-filet);
+}
+.boutique-jeu-onglets-liste {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: calc(5 * var(--jeu-p)) calc(3 * var(--jeu-p));
+  min-width: 0;
+}
+.boutique-jeu-onglet {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: end;
+  gap: calc(2 * var(--jeu-p));
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.boutique-jeu-onglet-image {
+  display: none;
+  place-items: center;
+  width: 48px;
+  height: 36px;
+  transition: transform 0.2s steps(3);
+}
+.boutique-jeu-onglet-dessin {
+  display: block;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+/* Le nom, sur la face d'un bouton du jeu. */
+.boutique-jeu-onglet-nom {
+  box-sizing: border-box;
+  align-items: flex-start;
+  height: calc(20 * var(--jeu-p));
+  padding: 0 calc(2 * var(--jeu-p));
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(4 * var(--jeu-p)) calc(5 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  border-image-source: var(--jeu-s-btn-bleu-repos);
+  border-image-slice: 4 5 8 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+}
+.boutique-jeu-onglet-nom > i {
+  margin-top: var(--jeu-p);
+}
+/* Sur le bleu, le mot clair dans les deux thèmes : l'image du thème sombre. */
+.boutique-jeu-onglet:not([aria-selected="true"]) .boutique-jeu-onglet-nom > i {
+  background-image: var(--i-sombre);
+}
+.boutique-jeu-onglet[aria-selected="true"] .boutique-jeu-onglet-nom {
+  border-image-source: var(--jeu-s-btn-or-repos);
+}
+@media (hover: hover) {
+  .boutique-jeu-onglet:hover .boutique-jeu-onglet-nom {
+    border-image-source: var(--jeu-s-btn-bleu-survol);
+  }
+  .boutique-jeu-onglet[aria-selected="true"]:hover .boutique-jeu-onglet-nom {
+    border-image-source: var(--jeu-s-btn-or-survol);
+  }
+  .boutique-jeu-onglet:hover .boutique-jeu-onglet-image {
+    transform: translateY(calc(-2 * var(--jeu-p)));
+  }
+}
+.boutique-jeu-onglet:active .boutique-jeu-onglet-nom {
+  border-image-source: var(--jeu-s-btn-bleu-enfonce);
+}
+.boutique-jeu-onglet[aria-selected="true"]:active .boutique-jeu-onglet-nom {
+  border-image-source: var(--jeu-s-btn-or-enfonce);
+}
+.boutique-jeu-onglet:active .boutique-jeu-onglet-nom > i {
+  transform: translateY(calc(2 * var(--jeu-p)));
+}
+.boutique-jeu-onglet:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.boutique-jeu-onglet-mention {
+  min-height: 1.2em;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+.boutique-jeu-onglet[aria-selected="true"] .boutique-jeu-onglet-mention {
+  color: var(--ecriture);
+}
+/* Tous les onglets gardent la place de la mention : les boutons restent sur une ligne. */
+.boutique-jeu-onglet:not(:has(.boutique-jeu-onglet-mention))::after {
+  content: "";
+  height: 0.825rem;
+}
+/* « Nouveau » : l'étiquette entière couvrirait les rayons voisins ; ici, une pastille rouge en pixels au coin du bouton
+   (les lecteurs d'écran gardent « nouvelle sélection »). */
+.boutique-jeu-onglet-nouveau {
+  position: absolute;
+  z-index: 1;
+  right: calc(-3 * var(--jeu-p));
+  bottom: calc(0.825rem + 15 * var(--jeu-p));
+  line-height: 0;
+  pointer-events: none;
+}
+.boutique-jeu-onglet-nouveau .jeu-etq > i {
+  position: relative;
+  width: calc(7 * var(--jeu-p));
+  height: calc(7 * var(--jeu-p));
+  background: #0a1230;
+  clip-path: polygon(42.857% 0, 57.143% 0, 57.143% 14.286%, 71.429% 14.286%, 71.429% 28.571%, 85.714% 28.571%, 85.714% 42.857%, 100% 42.857%, 100% 57.143%, 85.714% 57.143%, 85.714% 71.429%, 71.429% 71.429%, 71.429% 85.714%, 57.143% 85.714%, 57.143% 100%, 42.857% 100%, 42.857% 85.714%, 28.571% 85.714%, 28.571% 71.429%, 14.286% 71.429%, 14.286% 57.143%, 0 57.143%, 0 42.857%, 14.286% 42.857%, 14.286% 28.571%, 28.571% 28.571%, 28.571% 14.286%, 42.857% 14.286%);
+}
+.boutique-jeu-onglet-nouveau .jeu-etq > i::before,
+.boutique-jeu-onglet-nouveau .jeu-etq > i::after {
+  content: "";
+  position: absolute;
+  inset: var(--jeu-p);
+  background: #ff3b4f;
+  clip-path: polygon(40% 0, 60% 0, 60% 20%, 80% 20%, 80% 40%, 100% 40%, 100% 60%, 80% 60%, 80% 80%, 60% 80%, 60% 100%, 40% 100%, 40% 80%, 20% 80%, 20% 60%, 0 60%, 0 40%, 20% 40%, 20% 20%, 40% 20%);
+}
+.boutique-jeu-onglet-nouveau .jeu-etq > i::after {
+  inset: calc(2 * var(--jeu-p)) auto auto calc(3 * var(--jeu-p));
+  width: var(--jeu-p);
+  height: var(--jeu-p);
+  background: #ffd9dd;
+  clip-path: none;
+}
+/* Une barre large (grand écran) : une seule ligne, et l'image de chaque rayon au-dessus de son bouton. */
+@container barre-boutique (min-width: 54rem) {
+  .boutique-jeu-onglets-liste {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+  .boutique-jeu-onglet-image {
+    display: grid;
+  }
+}
+
+/* Les filtres de rareté : des boutons du jeu, d'or celui qui est retenu ; les losanges comptent la rareté. */
+.boutique-jeu-filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(5 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  min-width: 0;
+}
+.boutique-jeu-filtre {
+  gap: calc(3 * var(--jeu-p));
+}
+.boutique-jeu-losanges {
+  display: flex;
+  gap: var(--jeu-p);
+  margin-top: calc(3 * var(--jeu-p));
+}
+.boutique-jeu-losanges > i {
+  display: block;
+  width: calc(3 * var(--jeu-p));
+  height: calc(3 * var(--jeu-p));
+  background: #fff7dc;
+  /* Un losange de trois cases : une croix en pixels. */
+  clip-path: polygon(33.4% 0, 66.6% 0, 66.6% 33.4%, 100% 33.4%, 100% 66.6%, 66.6% 66.6%, 66.6% 100%, 33.4% 100%, 33.4% 66.6%, 0 66.6%, 0 33.4%, 33.4% 33.4%);
+}
+.boutique-jeu-filtre[aria-pressed="true"] .boutique-jeu-losanges > i {
+  background: #3a2400;
+}
+
+/* Les cases : claires dans les deux thèmes (les jetons du thème clair, posés sur la case), sans rien changer à leur dessin. */
+.boutique-jeu :is(.case, .marche-case) {
+  --color-navy: #ffffff;
+  --ecriture: #0a1230;
+  --color-muted: #4a5677;
+  --color-line-strong: #7a88b4;
+  --rarete-commun-texte: #0b5cad;
+  --rarete-peu-commun-texte: #2a3bc4;
+  --rarete-epique-texte: #6a1fd0;
+  --rarete-mystique-texte: #a50f24;
+  --rarete-legendaire-texte: #7d5900;
+  --rarete-divin-texte: #00706a;
+}
+.boutique-jeu .cases {
+  gap: 0.75rem;
+}
+@media (max-width: 479px) {
+  .boutique-jeu .cases {
+    gap: 0.5rem;
+  }
+}
+/* La case essayée : un filet d'or en pixels, comme la maquette ; le mot « essai » reste dans son coin. */
+.boutique-jeu .case[data-etat="essayee"] {
+  box-shadow: none;
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.boutique-jeu .case:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.boutique-jeu .case:hover {
+  box-shadow: none;
+}
+/* Au clavier, rien ne reste caché sous la barre du jeu et la barre des rayons. */
+.boutique-jeu .vestiaire-panneau :is(.case, .boutique-jeu-filtre, .boutique-jeu-lot-case, .boutique-jeu-lot-bouton, .banniere-case, .banniere-vitrine, .familiers) {
+  scroll-margin-block: calc(var(--bj-colle) + 9rem) 6rem;
+}
+
+/* ---------- Les fenêtres : un panneau du jeu ---------- */
+
+.boutique-jeu :is(.boutique-dialogue, .marche-dialogue) {
+  color: var(--ecriture);
+}
+.boutique-jeu :is(.boutique-dialogue, .marche-dialogue)::backdrop {
+  background: rgb(3 8 26 / 0.72);
+}
+.boutique-jeu :is(.boutique-dialogue-corps, .marche-dialogue-corps) {
+  padding: calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(2 * var(--jeu-p));
+}
+
+/* ---------- Téléphone : l'essayage collé sous la barre du jeu, la barre des rayons collée dessous ---------- */
+
+@media (max-width: 767px) {
+  .boutique-jeu .boutique-jeu-corps {
+    gap: calc(8 * var(--jeu-p));
+  }
+  .boutique-jeu .boutique-jeu-rayons {
+    padding: 0 calc(1 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  }
+  /* Les rayons sur une ligne qui défile dans la barre, jamais la page. */
+  .boutique-jeu .boutique-jeu-onglets {
+    margin: 0 calc(-1 * var(--jeu-p));
+    padding: 0 calc(1 * var(--jeu-p));
+  }
+  .boutique-jeu-onglets-liste {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: calc(2 * var(--jeu-p));
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding: calc(6 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(3 * var(--jeu-p)) var(--jeu-p);
+  }
+  .boutique-jeu-onglets-liste::-webkit-scrollbar {
+    display: none;
+  }
+  .boutique-jeu-onglet {
+    scroll-margin-inline: calc(8 * var(--jeu-p));
+  }
+  /* Les filtres aussi : une ligne qui défile, pour laisser l'écran aux cases. */
+  .boutique-jeu-filtres {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin: calc(-2 * var(--jeu-p)) calc(-1 * var(--jeu-p));
+    padding: calc(2 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  }
+  .boutique-jeu-filtres::-webkit-scrollbar {
+    display: none;
+  }
+  .boutique-jeu-filtre {
+    flex: none;
+    scroll-margin-inline: calc(8 * var(--jeu-p));
+  }
+  .boutique-jeu-marche {
+    padding: calc(8 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  }
+  .boutique-jeu-marche > .boutique-jeu-marche-tete > .boutique-jeu-ruban {
+    top: calc(-16 * var(--jeu-p));
+  }
+  .boutique-jeu .bourse.sentier-carte {
+    padding: 0 var(--jeu-p);
+  }
+}
+@media (max-width: 479px) {
+  /* Les lots : la case à gauche, à la largeur d'une case de la boutique, et à côté l'étiquette, le prix, la fin, le bouton. */
+  .boutique-jeu-marche > .boutique-jeu-rangee {
+    flex: 0 0 100%;
+  }
+  .boutique-jeu .boutique-jeu-lots,
+  .boutique-jeu-marche > .boutique-jeu-rangee > .boutique-jeu-lots {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: calc(6 * var(--jeu-p));
+  }
+  .boutique-jeu-lot,
+  .boutique-jeu-marche > .boutique-jeu-rangee > .boutique-jeu-lots > .boutique-jeu-lot {
+    grid-template-columns: minmax(5.5rem, 6.25rem) minmax(0, 1fr);
+    grid-auto-rows: min-content;
+    justify-items: start;
+    align-content: center;
+    column-gap: calc(6 * var(--jeu-p));
+    row-gap: calc(3 * var(--jeu-p));
+  }
+  .boutique-jeu-lot-case,
+  .boutique-jeu-marche .boutique-jeu-lot-case {
+    width: 100%;
+    grid-row: 1 / span 5;
+    align-self: center;
+  }
+  .boutique-jeu-lot > :not(.boutique-jeu-lot-case) {
+    grid-column: 2;
+  }
+  .boutique-jeu-lot-sorte {
+    margin-top: 0;
+  }
+  .boutique-jeu-lot-fin {
+    text-align: left;
+  }
+  .boutique-jeu-marche > .boutique-jeu-rangee > .boutique-jeu-sous-titre {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 767px) and (min-height: 560px) {
+  .boutique-jeu .boutique-jeu-essayage {
+    top: var(--bj-colle);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: calc(3 * var(--jeu-p)) calc(5 * var(--jeu-p));
+    margin-inline: 0;
+    padding: 0;
+    border-bottom-style: solid;
+    box-shadow: none;
+  }
+  /* Le ruban n'a plus sa place dans l'essayage collé : son titre reste aux lecteurs d'écran. */
+  .boutique-jeu-essayage > .boutique-jeu-ruban {
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    translate: none;
+  }
+  .boutique-jeu-essayage .gaulois-cadre {
+    flex: none;
+  }
+  /* Le Gaulois à deux pixels la case, avec ou sans familier. */
+  .boutique-jeu .boutique-jeu-essayage .gaulois-apercu {
+    --case: 2px;
+    --saut: 4px;
+    width: 96px;
+    height: 128px;
+    padding: var(--jeu-p);
+  }
+  .boutique-jeu .boutique-jeu-essayage .gaulois-apercu[data-familier] {
+    width: calc(var(--cases) * var(--case));
+  }
+  /* À côté du Gaulois quand la place suffit, dessous sinon. */
+  .boutique-jeu-essayage .vestiaire-scene-actions {
+    flex: 1 1 6.5rem;
+    justify-items: start;
+    gap: calc(3 * var(--jeu-p));
+  }
+  .boutique-jeu-essayage .vestiaire-scene-actions:has(.boutique-jeu-essai-actions) {
+    flex-basis: 13.5rem;
+  }
+  .boutique-jeu .boutique-jeu-essai {
+    gap: calc(3 * var(--jeu-p)) calc(5 * var(--jeu-p));
+    max-width: none;
+    min-height: 0;
+  }
+  .boutique-jeu-essai > .jeu-px-plie {
+    flex-basis: auto;
+    justify-content: flex-start;
+  }
+  .boutique-jeu-essai-actions {
+    gap: calc(3 * var(--jeu-p));
+  }
+  .boutique-jeu .boutique-avis {
+    max-width: none;
+  }
+  .boutique-jeu .boutique-jeu-onglets {
+    top: calc(var(--bj-colle) + var(--vestiaire-scene, 10rem));
+  }
+  .boutique-jeu .vestiaire-panneau :is(.case, .boutique-jeu-filtre, .boutique-jeu-lot-case, .boutique-jeu-lot-bouton, .banniere-case, .banniere-vitrine, .familiers) {
+    scroll-margin-top: calc(var(--bj-colle) + var(--vestiaire-scene, 10rem) + 5rem);
+  }
+  .boutique-jeu .boutique-jeu-rayons {
+    scroll-margin-top: calc(var(--bj-colle) + var(--vestiaire-scene, 10rem));
+  }
+  .boutique-jeu-marche {
+    scroll-margin-top: calc(var(--bj-colle) + var(--vestiaire-scene, 10rem) + 16 * var(--jeu-p));
+  }
+}
+
+/* ---------- Rien ne bouge avec la pause du site ni « réduire les animations » ---------- */
+
+:root.fx-off .boutique-jeu :is(.boutique-jeu-onglet-image, .boutique-jeu-lot-case, .case, .gaulois-apercu),
+:root.fx-off .boutique-jeu .case::before {
+  transition: none;
+  animation: none;
+}
+:root.fx-off .boutique-jeu :is(.boutique-jeu-onglet:hover .boutique-jeu-onglet-image, button.boutique-jeu-lot-case:hover, button.case:hover) {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boutique-jeu :is(.boutique-jeu-onglet-image, .boutique-jeu-lot-case) {
+    transition: none;
+  }
+  .boutique-jeu :is(.boutique-jeu-onglet:hover .boutique-jeu-onglet-image, button.boutique-jeu-lot-case:hover) {
+    transform: none;
+  }
+}
+
+/* Une barre étroite hors téléphone (tablette, colonne serrée) : trois rangées de rayons collées prendraient l'écran ; la
+   même ligne qui défile que sur téléphone. Une souris doit pouvoir la faire défiler : sa barre reste, fine. */
+@container barre-boutique (max-width: 40rem) {
+  .boutique-jeu-onglets-liste {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: calc(2 * var(--jeu-p));
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    padding: calc(6 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(3 * var(--jeu-p)) var(--jeu-p);
+  }
+  .boutique-jeu-onglet {
+    scroll-margin-inline: calc(8 * var(--jeu-p));
+  }
+}
+
+/* Entre tablette et grand écran, le Gaulois de l'essayage à trois pixels la case : la place va aux cases. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .boutique-jeu .boutique-jeu-essayage .gaulois-apercu {
+    --case: 3px;
+    width: 144px;
+    height: 192px;
+  }
+  .boutique-jeu .boutique-jeu-essayage .gaulois-apercu[data-familier] {
+    width: calc(var(--cases) * var(--case));
+  }
+  .boutique-jeu .boutique-jeu-corps {
+    gap: calc(10 * var(--jeu-p));
+  }
+}
