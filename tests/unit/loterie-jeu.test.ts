@@ -3,7 +3,7 @@ import { OBJETS } from "../../src/lib/gaulois";
 import { objetsDeLaPochette } from "../../src/lib/village/boutique";
 import { CHANCES_DU_TIRAGE } from "../../src/lib/village/contrat";
 import { tirageDEssai } from "../../src/lib/village/demo-booster";
-import { billetsEnMots, boosterSuivant, jourDeLaRangee, jourDeParis, semaineDesBoosters } from "../../src/lib/village/loterie";
+import { billetsEnMots, boosterSuivant, decompteDuTirage, decompteEnMots, jourDeLaRangee, jourDeParis, semaineDesBoosters } from "../../src/lib/village/loterie";
 
 // « La loterie » de « Mon Gaulois » en écran de jeu (21 novembre 2026) : la rangée des sept jours de la semaine d'un tirage,
 // un booster de loterie par jour joué avec le clan ; et le booster d'essai des visiteurs.
@@ -74,5 +74,25 @@ describe("le booster d'essai des visiteurs", () => {
       vus.add(t!.rarete);
     }
     expect(vus.has("commun")).toBe(true);
+  });
+});
+
+describe("le compte à rebours du tirage", () => {
+  // Le tirage du mardi 24 novembre 2026 à 21 h 30 à Paris : 20 h 30 en temps universel (heure d'hiver).
+  const heure = "2026-11-24T20:30:00Z";
+  it("compte les jours, les heures et les minutes jusqu'à l'heure du serveur, à la minute du dessous", () => {
+    expect(decompteDuTirage(heure, new Date("2026-11-21T18:14:59Z"))).toEqual({ jours: 3, heures: 2, minutes: 15 });
+    expect(decompteDuTirage(heure, new Date("2026-11-24T20:28:30Z"))).toEqual({ jours: 0, heures: 0, minutes: 1 });
+  });
+  it("ne compte plus à moins d'une minute, ni après l'heure", () => {
+    expect(decompteDuTirage(heure, new Date("2026-11-24T20:29:30Z"))).toBeNull();
+    expect(decompteDuTirage(heure, new Date("2026-11-24T21:00:00Z"))).toBeNull();
+    expect(decompteDuTirage("pas une date", new Date())).toBeNull();
+  });
+  it("le dit en toutes lettres", () => {
+    expect(decompteEnMots({ jours: 3, heures: 2, minutes: 15 })).toBe("3 jours, 2 heures et 15 minutes");
+    expect(decompteEnMots({ jours: 1, heures: 0, minutes: 1 })).toBe("1 jour et 1 minute");
+    expect(decompteEnMots({ jours: 0, heures: 5, minutes: 0 })).toBe("5 heures");
+    expect(decompteEnMots({ jours: 0, heures: 0, minutes: 0 })).toBe("moins d'une minute");
   });
 });

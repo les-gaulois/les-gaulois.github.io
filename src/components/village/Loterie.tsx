@@ -1,28 +1,31 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { GAULOIS as PLACE_DU_GAULOIS, HAUTEUR as DECOR_HAUTEUR, LARGEUR as DECOR_LARGEUR } from "../../../supabase/functions/code-discord/decors/commun";
-import { casesDuStatere } from "../../../supabase/functions/code-discord/statere";
+import { HAUTEUR as DECOR_HAUTEUR, LARGEUR as DECOR_LARGEUR } from "../../../supabase/functions/code-discord/decors/commun";
 import { ServerError, call } from "../../lib/compte/api";
 import { motionAllowed } from "../../lib/fx/motion";
 import type { CarteDeScene } from "../../lib/jeu/boosters";
 import { urlDeLaPlanche } from "../../lib/jeu/dans-la-page";
 import { nombreEcrit } from "../../lib/jeu/ecriture";
-import { carteDuBoosterDeLoterie, miniBooster } from "../../lib/jeu/loterie-dessins";
-import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
-import { CLE_MODELE, GAULOIS_HAUTEUR, GAULOIS_LARGEUR, TENUE_DE_DEPART, casesDuGaulois, lireTenue } from "../../lib/gaulois";
+import { carteDuBoosterDeLoterie, miniBooster, ticketDOr } from "../../lib/jeu/loterie-dessins";
+import { disqueDeChance, medaille, petitBooster, pileDeBillets, sablier } from "../../lib/jeu/loterie-pieces";
+import type { Planche } from "../../lib/jeu/planche";
+import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois, lireTenue } from "../../lib/gaulois";
+import { jouer } from "../../lib/jeu/sons";
+import { reveillerLeSon, sonRevele } from "../../lib/jeu/sons-des-boosters";
 import { addDays } from "../../lib/time";
-import { POCHETTES_GAGNEES, PREMIER_TIRAGE_LOTERIE, TICKET_D_OR, type BoosterOuvert, type LotDeLoterie, type MaLoterie, type PartDeLoterie, type PochetteGagnee } from "../../lib/village/contrat";
+import { POCHETTES_GAGNEES, PREMIER_TIRAGE_LOTERIE, TICKET_D_OR, type BoosterOuvert, type LotDeLoterie, type MaLoterie, type PartDeLoterie } from "../../lib/village/contrat";
 import { instant, nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
 import { boostersGagnesEnMots } from "../../lib/village/etal";
 import {
+  CLE_DU_TIRAGE_VU,
   NOMS_DES_RANGS,
   RANGS,
-  abscisseDuBillet,
   apresLOuverture,
   billetsDe,
   billetsEnMots,
   boosterSuivant,
   bustesDeLaJauge,
-  dispositionDeLaJauge,
+  decompteDuTirage,
+  decompteEnMots,
   dureeDuTirage,
   etatDuTirage,
   gagnants,
@@ -32,456 +35,32 @@ import {
   jourEnMots,
   lireBoosterOuvert,
   lireLoterie,
-  lisse,
   maPart,
   messageDuRefusDuBooster,
   ordreDeLaJauge,
   partEnPourcent,
   pochettesDuLot,
-  pointeDeLaJauge,
   semaineDesBoosters,
   semaineDuTirage,
   totalDesBillets,
-  type CadreDeJauge,
   type EtatDuJour,
   type Rang,
 } from "../../lib/village/loterie";
-import { MODELES } from "../../lib/village/modeles";
 import { Loading, Problem, messageOf } from "../compte/common";
 import { Etiquette, Px } from "../jeu/Pixels";
 import { charger as chargerLesBannieres } from "./Bannieres";
-import { casesDeLaPochetteBannieres } from "./PochetteBannieresDessin";
-import { POCHETTE_COTE, casesDeLaPochette } from "./PochetteDessin";
-import { casesDeLaPochetteFamiliers } from "./PochetteFamiliersDessin";
-import { casesDeLaPochetteDeStateres } from "./PochetteStateres";
-import { BoutonDesBoosters, FenetreDuBooster, PaquetEnImage, RefusDuBooster, ResultatDuBooster } from "./KitDesBoosters";
+import { MESURES, dessinDuGaulois, encresDe, images, peindreLaScene, tailleDe, toileDe, type Dessin, type Taille } from "./LoterieToile";
+import { BoutonDesBoosters, FenetreDuBooster, PaquetEnImage, RefusDuBooster, ResultatDuBooster, StateresEnPixels } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
+import { Toile } from "./PlaceToile";
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
 /** Refus après lesquels réessayer ne sert à rien. */
 const SANS_RETOUR = new Set(["not_signed_in", "suspended", "not_validated"]);
-/** Le dernier tirage dont ce navigateur a vu l'animation : elle ne se joue seule qu'une fois. */
-const CLE_VU = "gal-loterie-vu";
-
-/* ---------- Les dessins ---------- */
-
-/** Les couleurs des lots : la face et son ombre. L'écriture y reste le marine de la page claire : les faces sont claires. */
-const MEDAILLES: Readonly<Record<Rang, { face: string; ombre: string }>> = {
-  1: { face: "#f2b632", ombre: "#a86d0c" },
-  2: { face: "#c9d1e6", ombre: "#7a88b4" },
-  3: { face: "#d98a4e", ombre: "#8f4f1f" },
-};
-const MARINE = "#0a1230";
-
-/** Une grille de cases (« #rrggbb » ou vide) peinte une fois, à une case par pixel. */
-function toileDe(cases: readonly (string | null)[], largeur: number, hauteur: number): HTMLCanvasElement | null {
-  const toile = document.createElement("canvas");
-  toile.width = largeur;
-  toile.height = hauteur;
-  const contexte = toile.getContext("2d");
-  if (!contexte) return null;
-  const image = contexte.createImageData(largeur, hauteur);
-  cases.forEach((couleur, i) => {
-    if (!couleur || !/^#[0-9a-f]{6}$/i.test(couleur)) return;
-    const n = parseInt(couleur.slice(1), 16);
-    image.data.set([(n >> 16) & 255, (n >> 8) & 255, n & 255, 255], i * 4);
-  });
-  contexte.putImageData(image, 0, 0);
-  return toile;
-}
-
-interface Dessin {
-  toile: HTMLCanvasElement;
-  /** La dernière rangée dessinée : les pieds. */
-  bas: number;
-}
-
-/** Le Gaulois d'une part ; `null` si sa tenue est illisible. */
-function dessinDuGaulois(tenue: unknown): Dessin | null {
-  let cases: (string | null)[] | null = null;
-  try {
-    const lue = lireTenue(tenue);
-    cases = lue ? casesDuGaulois(lue) : null;
-  } catch {
-    return null;
-  }
-  if (!cases) return null;
-  let bas = -1;
-  cases.forEach((couleur, i) => {
-    if (couleur) bas = Math.max(bas, Math.floor(i / GAULOIS_LARGEUR));
-  });
-  const toile = bas < 0 ? null : toileDe(cases, GAULOIS_LARGEUR, GAULOIS_HAUTEUR);
-  return toile ? { toile, bas } : null;
-}
-
-/** La pièce et les pochettes des lots, dessinées une fois par page avec les dessins du site. */
-interface Images {
-  piece: HTMLCanvasElement | null;
-  pochettes: Partial<Record<PochetteGagnee, HTMLCanvasElement | null>>;
-  /** La pochette des Gaulois uniques n'a pas de sac sur le site : la tête d'un Gaulois unique la dit. */
-  unique: HTMLCanvasElement | null;
-}
-let IMAGES: Images | null = null;
-function images(): Images {
-  if (IMAGES) return IMAGES;
-  const unique = MODELES[0] ? dessinDuGaulois({ ...TENUE_DE_DEPART, [CLE_MODELE]: MODELES[0].id }) : null;
-  IMAGES = {
-    piece: toileDe(casesDuStatere(16), 16, 16),
-    pochettes: {
-      surprise: toileDe(casesDeLaPochette(), POCHETTE_COTE, POCHETTE_COTE),
-      familiers: toileDe(casesDeLaPochetteFamiliers(), POCHETTE_COTE, POCHETTE_COTE),
-      bannieres: toileDe(casesDeLaPochetteBannieres(), POCHETTE_COTE, POCHETTE_COTE),
-      stateres: toileDe(casesDeLaPochetteDeStateres(), POCHETTE_COTE, POCHETTE_COTE),
-    },
-    unique: unique?.toile ?? null,
-  };
-  return IMAGES;
-}
-
-/** Les mesures de la scène : les trois cases des lots en haut, la ligne des parts dessous. */
-interface Mesures {
-  largeur: number;
-  hauteur: number;
-  carte: {
-    l: number;
-    h: number;
-    x: Readonly<Record<Rang, number>>;
-    haut: Readonly<Record<Rang, number>>;
-    bande: number;
-    titreY: number;
-    rang: number;
-    gain: number;
-    /** Le tableau du gagnant : sa bannière, `echelle` pixels par case, et lui devant. */
-    tableauY: number;
-    echelle: number;
-    nom: number;
-    nomY: number;
-    pochesY: number;
-    poche: number;
-    pas: number;
-    attente: string;
-  };
-  ligne: { cadre: CadreDeJauge; y: number; h: number; bas: number };
-}
-/** La taille de la scène selon la place : 0 le téléphone, 1 l'ordinateur, 2 le grand écran. */
-type Taille = 0 | 1 | 2;
-const tailleDe = (largeur: number): Taille => (largeur >= 1100 ? 2 : largeur >= 620 ? 1 : 0);
-const MESURES: Readonly<Record<Taille, Mesures>> = {
-  2: {
-    largeur: 1200,
-    hauteur: 624,
-    carte: { l: 340, h: 314, x: { 2: 60, 1: 430, 3: 800 }, haut: { 1: 8, 2: 30, 3: 50 }, bande: 12, titreY: 40, rang: 26, gain: 24, tableauY: 62, echelle: 2, nom: 15, nomY: 17, pochesY: 262, poche: 1.25, pas: 30, attente: "Le gagnant et sa bannière" },
-    ligne: { cadre: { x: 40, largeur: 1120, joint: 5, buste: 70 }, y: 522, h: 34, bas: 512 },
-  },
-  1: {
-    largeur: 800,
-    hauteur: 566,
-    carte: { l: 256, h: 276, x: { 2: 8, 1: 272, 3: 536 }, haut: { 1: 6, 2: 22, 3: 36 }, bande: 10, titreY: 32, rang: 20, gain: 18, tableauY: 50, echelle: 2, nom: 14, nomY: 15, pochesY: 238, poche: 1, pas: 30, attente: "Le gagnant et sa bannière" },
-    ligne: { cadre: { x: 30, largeur: 740, joint: 4, buste: 66 }, y: 468, h: 32, bas: 458 },
-  },
-  0: {
-    largeur: 420,
-    hauteur: 452,
-    carte: { l: 132, h: 172, x: { 2: 6, 1: 144, 3: 282 }, haut: { 1: 4, 2: 14, 3: 24 }, bande: 8, titreY: 22, rang: 13, gain: 12, tableauY: 34, echelle: 1, nom: 11, nomY: 13, pochesY: 142, poche: 0.75, pas: 22, attente: "Le gagnant" },
-    ligne: { cadre: { x: 16, largeur: 388, joint: 3, buste: 66 }, y: 356, h: 28, bas: 346 },
-  },
-};
-
-/** Les couleurs et les polices de la page, lues dans ses jetons au moment de peindre : le clair, le sombre, le thème rouge. */
-interface Encres {
-  ecriture: string;
-  discret: string;
-  filet: string;
-  leger: string;
-  bleu: string;
-  /** Le second bleu du ruban : le bleu de la page, éclairci. */
-  clair: string;
-  page: string;
-  surface: string;
-  surface2: string;
-  /** La police des titres (le nom des lots). */
-  police: string;
-  /** La police du texte courant : un nom ne s'écrit jamais en onciale. */
-  sans: string;
-}
-/** Un bleu éclairci d'un tiers vers le blanc ; la couleur d'origine si elle ne s'écrit pas « #rrggbb ». */
-function eclaircir(couleur: string): string {
-  const m = /^#([0-9a-f]{6})$/i.exec(couleur);
-  if (!m) return couleur;
-  const n = parseInt(m[1]!, 16);
-  const vers = (v: number) => Math.round(v + (255 - v) * 0.36);
-  return `rgb(${vers((n >> 16) & 255)} ${vers((n >> 8) & 255)} ${vers(n & 255)})`;
-}
-function encresDe(element: Element): Encres {
-  const style = getComputedStyle(element);
-  const jeton = (nom: string, secours: string) => style.getPropertyValue(nom).trim() || secours;
-  const bleu = jeton("--color-blue", "#0b5fff");
-  return {
-    ecriture: jeton("--ecriture", MARINE),
-    discret: jeton("--color-muted", "#4a5677"),
-    filet: jeton("--color-line-strong", "#7a88b4"),
-    leger: jeton("--color-line", "#d5dcee"),
-    bleu,
-    clair: eclaircir(bleu),
-    page: jeton("--color-navy", "#ffffff"),
-    surface: jeton("--color-surface", "#f5f7fc"),
-    surface2: jeton("--color-surface-2", "#e6ecf9"),
-    police: jeton("--font-display", "system-ui, sans-serif"),
-    sans: jeton("--font-sans", "system-ui, sans-serif"),
-  };
-}
-
-interface Options {
-  align?: CanvasTextAlign;
-  graisse?: number;
-  /** La largeur au-delà de laquelle le texte est coupé, avec des points de suspension. */
-  max?: number;
-  /** Un texte centré près d'un bord glisse vers l'intérieur plutôt que d'être rogné. */
-  bords?: readonly [number, number];
-}
-function ecrire(c: CanvasRenderingContext2D, police: string, texte: string, x: number, y: number, taille: number, couleur: string, o: Options = {}) {
-  c.font = `${o.graisse ?? 600} ${taille}px ${police}`;
-  c.fillStyle = couleur;
-  c.textAlign = o.align ?? "center";
-  c.textBaseline = "middle";
-  let ecrit = texte;
-  if (o.max !== undefined && c.measureText(ecrit).width > o.max) {
-    while (ecrit.length > 1 && c.measureText(`${ecrit}…`).width > o.max) ecrit = ecrit.slice(0, -1);
-    ecrit = `${ecrit.trimEnd()}…`;
-  }
-  let ou = x;
-  if (o.bords && (o.align ?? "center") === "center") {
-    const demi = c.measureText(ecrit).width / 2;
-    ou = Math.min(Math.max(x, o.bords[0] + demi), o.bords[1] - demi);
-  }
-  c.fillText(ecrit, ou, y);
-}
-
-/** Un cadre de couleur cerné d'écriture, pour se lire sur la page. */
-function cerne(c: CanvasRenderingContext2D, encres: Encres, x: number, y: number, largeur: number, hauteur: number, couleur: string, rayon: number) {
-  c.beginPath();
-  c.roundRect(x, y, largeur, hauteur, rayon);
-  c.strokeStyle = encres.ecriture;
-  c.lineWidth = 7;
-  c.stroke();
-  c.strokeStyle = couleur;
-  c.lineWidth = 4;
-  c.stroke();
-}
-
-/** Les pochettes d'un lot à la suite ; plusieurs de la même sorte se chevauchent, pour se compter sans chiffre. */
-function largeurDesPoches(lot: LotDeLoterie, e: number, pas: number): number {
-  return POCHETTES_GAGNEES.reduce((somme, sorte) => somme + (lot.pochettes[sorte] > 0 ? ((lot.pochettes[sorte] - 1) * 10 + pas) * e : 0), 0) - (pas - 32) * e;
-}
-function peindreLesPoches(c: CanvasRenderingContext2D, img: Images, lot: LotDeLoterie, x: number, y: number, e: number, pas: number) {
-  let px = x;
-  for (const sorte of POCHETTES_GAGNEES) {
-    for (let k = 0; k < lot.pochettes[sorte]; k++) {
-      const dessin = sorte === "modeles" ? img.unique : img.pochettes[sorte];
-      if (dessin && sorte === "modeles") c.drawImage(dessin, 6, 1, 34, 34, px, y, 32 * e, 32 * e);
-      else if (dessin) c.drawImage(dessin, px, y, 32 * e, 32 * e);
-      px += (k < lot.pochettes[sorte] - 1 ? 10 : pas) * e;
-    }
-  }
-}
-
-/** Ce que la scène dessine. */
-interface Scene {
-  parts: readonly PartDeLoterie[];
-  lots: readonly LotDeLoterie[];
-  ordre: readonly number[];
-  avecBuste: ReadonlySet<number>;
-  dessins: ReadonlyMap<number, Dessin>;
-  /** La bannière de chaque gagnant qui en montre une, par l'indice de sa part. */
-  fonds: ReadonlyMap<number, HTMLCanvasElement>;
-}
-
-/**
- * Peint la scène à l'instant `t` du tirage (en secondes ; `Infinity` : le bilan), ou, sans tirage (`t` null), les lots et
- * les parts du tirage à venir. Rien n'est décidé ici : le billet tiré est celui que le serveur a noté.
- */
-function peindreLaScene(c: CanvasRenderingContext2D, m: Mesures, encres: Encres, img: Images, s: Scene, t: number | null) {
-  const { parts } = s;
-  const podium = t === null ? [] : gagnants(parts);
-  const etat = t === null ? null : etatDuTirage(t, podium.length);
-  const fermetures = parts.map(() => 0);
-  if (etat) podium.forEach((g, k) => (fermetures[g.index] = etat.fermetures[k] ?? 0));
-  const k = m.carte;
-  const tableau = (rang: Rang) => ({ x: k.x[rang] + (k.l - DECOR_LARGEUR * k.echelle) / 2, y: k.haut[rang] + k.tableauY, l: DECOR_LARGEUR * k.echelle, h: DECOR_HAUTEUR * k.echelle });
-  c.imageSmoothingEnabled = false;
-
-  // Les trois cases : le lot, et la place du gagnant, vide et en pointillé tant qu'il n'est pas tiré.
-  for (const rang of [2, 1, 3] as const) {
-    const lot = s.lots.find((l) => l.rang === rang);
-    if (!lot) continue;
-    const x = k.x[rang];
-    const y = k.haut[rang];
-    const rayon = Math.min(18, k.l / 8);
-    const n = podium.findIndex((g) => g.rang === rang);
-    const g = n < 0 ? null : podium[n]!;
-    const arrivee = g && etat ? (etat.montees[n] ?? 0) : 0;
-    const tb = tableau(rang);
-    c.beginPath();
-    c.roundRect(x, y, k.l, k.h, rayon);
-    c.fillStyle = encres.surface;
-    c.fill();
-    c.save();
-    c.clip();
-    c.fillStyle = MEDAILLES[rang].face;
-    c.fillRect(x, y, k.l, k.bande);
-    c.restore();
-    c.beginPath();
-    c.roundRect(x, y, k.l, k.h, rayon);
-    c.strokeStyle = arrivee >= 1 ? MEDAILLES[rang].face : encres.leger;
-    c.lineWidth = arrivee >= 1 ? 4 : 1.5;
-    c.stroke();
-    // Le gain à droite, la pièce devant ; le nom du lot à gauche, dans la place qui reste.
-    c.font = `700 ${k.gain}px ${encres.sans}`;
-    const chiffres = nombre(lot.gain);
-    const largeurDuGain = c.measureText(chiffres).width;
-    const cote = Math.round(k.gain * 0.92);
-    const marge = Math.max(8, Math.round(k.l * 0.07));
-    if (img.piece) c.drawImage(img.piece, x + k.l - marge - largeurDuGain - cote - 5, y + k.titreY - cote / 2, cote, cote);
-    ecrire(c, encres.sans, chiffres, x + k.l - marge, y + k.titreY + 1, k.gain, encres.ecriture, { align: "right", graisse: 700 });
-    ecrire(c, encres.police, NOMS_DES_RANGS[rang], x + marge, y + k.titreY, k.rang, encres.ecriture, { align: "left", graisse: 700, max: k.l - 2 * marge - largeurDuGain - cote - 12 });
-    c.save();
-    c.beginPath();
-    c.roundRect(tb.x, tb.y, tb.l, tb.h, 10);
-    c.clip();
-    c.fillStyle = encres.page;
-    c.fillRect(tb.x, tb.y, tb.l, tb.h);
-    if (g && arrivee > 0) {
-      // Le gagnant paraît devant sa bannière, comme sur /gaulois ; sans bannière, devant un fond uni.
-      c.globalAlpha = lisse((arrivee - 0.45) / 0.55);
-      const fond = s.fonds.get(g.index);
-      if (fond) c.drawImage(fond, tb.x, tb.y, tb.l, tb.h);
-      else {
-        c.fillStyle = encres.surface2;
-        c.fillRect(tb.x, tb.y, tb.l, tb.h);
-      }
-      const dessin = s.dessins.get(g.index);
-      if (dessin) c.drawImage(dessin.toile, tb.x + PLACE_DU_GAULOIS.x * k.echelle, tb.y + PLACE_DU_GAULOIS.y * k.echelle, GAULOIS_LARGEUR * k.echelle, GAULOIS_HAUTEUR * k.echelle);
-      c.globalAlpha = 1;
-    }
-    c.restore();
-    c.beginPath();
-    c.roundRect(tb.x, tb.y, tb.l, tb.h, 10);
-    if (g && arrivee >= 1) {
-      c.strokeStyle = encres.ecriture;
-      c.lineWidth = 2;
-      c.stroke();
-      ecrire(c, encres.sans, g.part.nom, x + k.l / 2, tb.y + tb.h + k.nomY, k.nom, encres.ecriture, { graisse: 700, max: k.l - 16 });
-    } else {
-      c.setLineDash([6, 6]);
-      c.strokeStyle = encres.filet;
-      c.lineWidth = 1.5;
-      c.stroke();
-      c.setLineDash([]);
-      if (arrivee <= 0) ecrire(c, encres.sans, k.attente, tb.x + tb.l / 2, tb.y + tb.h / 2, Math.max(11, k.nom - 2), encres.discret, { graisse: 500, max: tb.l - 12 });
-    }
-    peindreLesPoches(c, img, lot, x + k.l / 2 - largeurDesPoches(lot, k.poche, k.pas) / 2, y + k.pochesY, k.poche, k.pas);
-  }
-
-  // La ligne des parts : un seul ruban arrondi aux deux bouts, deux bleus en alternance, une lumière en haut.
-  const { cadre, y: Y, h: H, bas: BAS } = m.ligne;
-  const segments = dispositionDeLaJauge(parts, s.ordre, fermetures, cadre, s.avecBuste);
-  const vus = segments.filter((seg) => seg.ouverture > 0.01 && seg.largeur > 0);
-  const joint = vus.length > 1 ? vus[1]!.x - vus[0]!.x - vus[0]!.largeur : 0;
-  c.save();
-  c.beginPath();
-  c.roundRect(cadre.x, Y + 2, cadre.largeur, H - 4, (H - 4) / 2);
-  c.clip();
-  vus.forEach((seg, n) => {
-    c.globalAlpha = seg.ouverture;
-    c.fillStyle = n % 2 ? encres.clair : encres.bleu;
-    c.fillRect(seg.x - joint / 2, Y, seg.largeur + joint, H);
-  });
-  c.globalAlpha = 1;
-  c.fillStyle = encres.page;
-  for (const seg of vus.slice(1)) c.fillRect(seg.x - joint / 2 - 1, Y, 2, H);
-  c.fillStyle = "rgb(255 255 255 / 0.22)";
-  c.fillRect(cadre.x, Y + 2, cadre.largeur, 5);
-  c.restore();
-
-  // Les Gaulois au-dessus de leur part. Les noms sur deux rangées, une sur deux, d'après la place du Gaulois parmi tous
-  // ceux de la ligne, ouverts ou non : un nom ne change pas de rangée quand la part d'un voisin se referme.
-  let place = 0;
-  const noms = new Map<number, { x: number; rangee: number }>();
-  for (const seg of segments) {
-    if (seg.buste === null) continue;
-    const rangee = place++ % 2;
-    if (seg.ouverture > 0.01 && seg.largeur > 0) noms.set(seg.index, { x: seg.buste, rangee });
-  }
-  const largeurDuNom = (index: number): number => {
-    const nom = noms.get(index)!;
-    let libre = 2 * cadre.buste;
-    for (const [autre, voisin] of noms) if (autre !== index && voisin.rangee === nom.rangee) libre = Math.min(libre, Math.abs(voisin.x - nom.x));
-    return Math.max(24, libre - 10);
-  };
-  const enVol = new Set<number>();
-  if (etat) podium.forEach((g, n) => (etat.montees[n] ?? 0) > 0 && enVol.add(g.index));
-  for (const seg of segments) {
-    if (seg.ouverture <= 0.01 || seg.largeur <= 0 || seg.buste === null) continue;
-    const part = parts[seg.index]!;
-    c.globalAlpha = seg.ouverture;
-    c.strokeStyle = encres.filet;
-    c.lineWidth = 1.5;
-    c.beginPath();
-    c.moveTo(seg.buste, BAS);
-    c.lineTo(seg.x + seg.largeur / 2, Y - 2);
-    c.stroke();
-    const dessin = s.dessins.get(seg.index);
-    if (dessin && !enVol.has(seg.index)) c.drawImage(dessin.toile, 8, 0, 32, 38, Math.round(seg.buste - 32), BAS - 76, 64, 76);
-    ecrire(c, encres.sans, part.nom, seg.buste, BAS - 76 - (noms.get(seg.index)?.rangee === 1 ? 26 : 11), 13, part.moi ? encres.ecriture : encres.discret, { graisse: part.moi ? 700 : 500, max: largeurDuNom(seg.index), bords: [2, m.largeur - 2] });
-    c.globalAlpha = 1;
-  }
-
-  if (!etat) return;
-  podium.forEach((g, n) => {
-    const seg = segments.find((x) => x.index === g.index);
-    if (!seg) return;
-    const medaille = MEDAILLES[g.rang];
-    const arrivee = etat.montees[n] ?? 0;
-    if (etat.arrives[n] && seg.ouverture > 0.01) {
-      c.globalAlpha = seg.ouverture;
-      cerne(c, encres, seg.x - 3, Y - 3, seg.largeur + 6, H + 6, medaille.face, H / 2);
-      c.globalAlpha = 1;
-    }
-    // Le gagnant quitte la ligne et rejoint son tableau, où il se fond dans sa bannière.
-    const dessin = s.dessins.get(g.index);
-    if (dessin && seg.buste !== null && arrivee > 0 && arrivee < 1) {
-      const tb = tableau(g.rang);
-      const u = lisse(arrivee);
-      const e = 2 + (k.echelle - 2) * u;
-      const x = seg.buste + (tb.x + (PLACE_DU_GAULOIS.x + GAULOIS_LARGEUR / 2) * k.echelle - seg.buste) * u;
-      const y = BAS + (tb.y + (PLACE_DU_GAULOIS.y + 38) * k.echelle - BAS) * u - Math.sin(Math.PI * arrivee) * 50;
-      c.globalAlpha = 1 - lisse((arrivee - 0.45) / 0.55);
-      c.drawImage(dessin.toile, 8, 0, 32, 38, x - 16 * e, y - 38 * e, 32 * e, 38 * e);
-      c.globalAlpha = 1;
-    }
-    const avancee = etat.pointes[n];
-    const visible = etat.visibles[n] ?? 0;
-    if (avancee === null || avancee === undefined || visible <= 0) return;
-    // L'épingle : une pastille à la couleur du lot, sa pointe vers la ligne.
-    const px = pointeDeLaJauge(abscisseDuBillet(seg, g.part, g.billet), cadre, avancee);
-    const py = Y + H + 30;
-    c.globalAlpha = visible;
-    c.beginPath();
-    c.moveTo(px, Y + H + 4);
-    c.lineTo(px + 9, py - 8);
-    c.arc(px, py, 13, -0.7, Math.PI + 0.7);
-    c.closePath();
-    c.fillStyle = medaille.face;
-    c.fill();
-    c.strokeStyle = encres.ecriture;
-    c.lineWidth = 2;
-    c.lineJoin = "round";
-    c.stroke();
-    ecrire(c, encres.sans, String(g.rang), px, py + 1, 14, MARINE, { graisse: 700 });
-    ecrire(c, encres.police, NOMS_DES_RANGS[g.rang], px, py + 27, 12, encres.ecriture, { graisse: 700 });
-    c.globalAlpha = 1;
-  });
-}
+/** Les crans de la course de la pointe, chacun avec son tic : ils s'espacent quand elle ralentit. */
+const CRANS_DE_LA_POINTE = 30;
+/** Le son de la carte retournée qui dit chaque marche, celui d'une rareté des boosters : l'or le plus grand. */
+const SON_DU_RANG = { 1: 5, 2: 4, 3: 3 } as const;
 
 /**
  * La scène de la loterie, dessinée sur une toile sans fond : les trois cases des lots, puis la ligne des parts en ruban.
@@ -610,8 +189,39 @@ function SceneDeLoterie({ parts, lots, tirage = false, lecture = 0, onFini }: { 
     anime.current = true;
     let image = 0;
     const debut = performance.now();
+    // Les sons du jeu suivent le tirage (21 novembre 2026, demande d'une page de loterie « plus jeu ») : un tic à chaque cran de
+    // la pointe, qui ralentit avec elle ; à l'arrêt, le son d'une carte retournée, plus grand pour l'or ; un battement quand le
+    // gagnant s'envole vers sa case. Ils suivent le réglage du son du jeu, et se taisent avec l'animation. Après une image
+    // tardive (l'onglet est revenu au premier plan), ce qui est passé est noté sans bruit : rien ne part d'un coup.
+    reveillerLeSon();
+    const podium = gagnants(parts);
+    const ecoute = podium.map(() => ({ cran: -1, arrive: false, envol: false }));
+    let derniere = 0;
+    const ecouter = (t: number) => {
+      const muet = t - derniere > 0.5;
+      derniere = t;
+      const e = etatDuTirage(t, podium.length);
+      ecoute.forEach((suivi, k) => {
+        const pointe = e.pointes[k];
+        if (pointe === null || pointe === undefined) return;
+        const cran = Math.floor(pointe * CRANS_DE_LA_POINTE);
+        if (!e.arrives[k] && cran !== suivi.cran) {
+          suivi.cran = cran;
+          if (!muet) jouer("tic");
+        }
+        if (e.arrives[k] && !suivi.arrive) {
+          suivi.arrive = true;
+          if (!muet) sonRevele(SON_DU_RANG[podium[k]!.rang]);
+        }
+        if ((e.montees[k] ?? 0) > 0 && !suivi.envol) {
+          suivi.envol = true;
+          if (!muet) jouer("flap");
+        }
+      });
+    };
     const boucle = (maintenant: number) => {
       const t = (maintenant - debut) / 1000;
+      ecouter(t);
       // Mises en pause en cours de route (bouton de l'en-tête) : le bilan, tout de suite.
       if (t >= duree || !motionAllowed() || !peindre(t)) {
         anime.current = false;
@@ -770,34 +380,187 @@ function FenetreDuBoosterDeLoterie({ jour, aujourdhui, suivant, onOuvert, onSuiv
   );
 }
 
+/** Une pièce dessinée de la loterie, en image à l'échelle du kit ; décorative. */
+function Piece({ cle, planche, classe = "" }: { cle: string; planche: () => Planche; classe?: string }) {
+  const p = useMemo(planche, [cle]);
+  const url = urlDeLaPlanche(`loterie|${cle}`, () => p);
+  return <i class={`loterie-jeu-piece ${classe}`} aria-hidden="true" style={`--i:${url};--w:${p.width};--h:${p.height}`} />;
+}
+
 /**
- * Vos boosters de loterie (décision du pilote, 20 novembre 2026, à la place du guichet : plus aucun billet ne s'achète), en
- * écran de jeu (21 novembre 2026) : vos billets, vos tickets d'or et votre part en trois chiffres, la barre de vos billets
- * parmi ceux du tirage, puis la rangée des sept jours de la semaine, un booster par jour joué avec le clan, à ouvrir d'un
- * clic par l'animation des boosters. Le serveur tire le ticket d'or ; l'écran montre ce qu'il répond, puis relit la loterie.
+ * Le compte à rebours du tirage (21 novembre 2026 : le tirage du mardi comme un événement) : les jours, les heures et les
+ * minutes jusqu'au mardi 21 h 30, en grands chiffres du jeu, relus chaque demi-minute (rien ne bouge entre deux). Il ne fait
+ * que compter jusqu'à l'heure que donne le serveur (`heure` de `get_loterie`) : le serveur seul tire.
  */
-function MesBoosters({ ma, onOuvert }: { ma: MaLoterie; onOuvert: (apres: MaLoterie) => void }) {
+function CompteARebours({ heure, tirage, releve, enAttente }: { heure: string; tirage: string; releve: string | null; enAttente: boolean }) {
+  const [maintenant, setMaintenant] = useState(() => new Date());
+  useEffect(() => {
+    const minuterie = setInterval(() => setMaintenant(new Date()), 30_000);
+    return () => clearInterval(minuterie);
+  }, []);
+  const reste = decompteDuTirage(heure, maintenant);
+  const quand = majuscule(jourEnMots(tirage));
+  const cases: [number, string][] = reste
+    ? [
+        [reste.jours, "Jours"],
+        [reste.heures, "Heures"],
+        [reste.minutes, "Minutes"],
+      ]
+    : [];
+  return (
+    <section class="loterie-jeu-compte jeu-panneau jeu-n9" aria-labelledby="loterie-compte-titre" data-testid="loterie-compte">
+      <h3 id="loterie-compte-titre" class="loterie-jeu-ruban">
+        <span class="jeu-ruban jeu-n9">
+          <Px t="Prochain tirage" couleur="creme" relief="ombre" />
+        </span>
+      </h3>
+      <div class="loterie-jeu-compte-corps">
+        <Piece cle="sablier" planche={sablier} classe="loterie-jeu-sablier" />
+        {reste ? (
+          <p class="loterie-jeu-compte-chiffres" role="timer" aria-live="off" aria-label={`Tirage dans ${decompteEnMots(reste)}`} data-testid="loterie-reste">
+            {cases.map(([n, mot]) => (
+              <span key={mot} class="loterie-jeu-compte-case">
+                <Px t={String(n).padStart(2, "0")} classe="loterie-jeu-compte-n" muet />
+                <Px t={mot} couleur="doux" muet />
+              </span>
+            ))}
+          </p>
+        ) : (
+          <p class="loterie-jeu-compte-chiffres" data-testid="loterie-reste">
+            <Px t={enAttente ? "Tirage en cours" : "C'est l'heure"} classe="loterie-jeu-compte-n" />
+          </p>
+        )}
+        <div class="loterie-jeu-compte-quand">
+          <p data-testid="loterie-quand">
+            <Px t={quand} dit={quand} />
+          </p>
+          <p class="loterie-jeu-heure">
+            <Etiquette t="21 h 30" ton="bleu" dit="21 h 30" />
+            <Px t="heure de Paris" couleur="doux" />
+          </p>
+        </div>
+      </div>
+      {releve && (
+        <p class="info-discrete loterie-jeu-releve" data-testid="loterie-releve">
+          Parties relues le {instant(releve)}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Vos billets (21 novembre 2026, page de loterie « plus jeu ») : une pile de billets dessinée avec leur nombre, le ticket
+ * d'or qui brille, la part de chances lisible d'un coup d'œil. La pile, ses billets ; le ticket d'or, combien ; le disque de votre part des billets
+ * comptés pour l'instant (avant le tirage, seuls les boosters ouverts comptent), et la barre de vos billets parmi tous.
+ */
+function MesBillets({ ma }: { ma: MaLoterie }) {
   const moi = maPart(ma.parts);
   const total = totalDesBillets(ma.parts);
   const mesBillets = moi ? billetsDe(moi) : 0;
+  const tickets = moi?.tickets_or ?? 0;
+  const part = moi && total > 0 ? mesBillets / total : 0;
+  const partEcrite = String(Math.round(part * 1000) / 10).replace(".", ",");
+  return (
+    <section class="loterie-jeu-billets jeu-panneau jeu-n9" aria-labelledby="loterie-billets-titre" data-testid="loterie-mes-billets">
+      <h3 id="loterie-billets-titre" class="loterie-jeu-ruban">
+        <span class="jeu-ruban jeu-ruban-bleu jeu-n9">
+          <Px t="Vos billets" couleur="creme" relief="ombre" />
+        </span>
+      </h3>
+      <dl class="loterie-jeu-chiffres">
+        <div class="loterie-jeu-chiffre" data-sorte="billets">
+          <dt>
+            <Piece cle={`pile|${Math.min(mesBillets, 100)}`} planche={() => pileDeBillets(mesBillets)} classe="loterie-jeu-pile" />
+            <Px t="Billets" couleur="doux" dit="Vos billets" />
+          </dt>
+          <dd>
+            <Px t={nombreEcrit(mesBillets)} classe="loterie-jeu-grand" dit={nombre(mesBillets)} />
+          </dd>
+        </div>
+        <div class="loterie-jeu-chiffre" data-sorte="or" data-brille={tickets > 0 ? "" : undefined}>
+          <dt>
+            <Piece cle="ticket-d-or" planche={ticketDOr} classe="loterie-jeu-ticket" />
+            <Px t="Tickets d'or" couleur="doux" dit="Vos tickets d'or" />
+          </dt>
+          <dd>
+            <Px t={nombreEcrit(tickets)} couleur="or" classe="loterie-jeu-grand" dit={nombre(tickets)} />
+          </dd>
+        </div>
+        <div class="loterie-jeu-chiffre" data-sorte="part">
+          <dt>
+            <Piece cle={`disque|${part <= 0 ? 0 : part >= 1 ? 100 : Math.min(99, Math.max(1, Math.round(part * 100)))}`} planche={() => disqueDeChance(part)} classe="loterie-jeu-disque" />
+            <Px t="Votre part" couleur="doux" dit="Votre part des billets comptés pour l'instant" />
+          </dt>
+          <dd>
+            <Px t={`${partEcrite} %`} classe="loterie-jeu-grand" dit={`${partEcrite} %`} />
+          </dd>
+        </div>
+      </dl>
+      <div class="jeu-tube jeu-n9 loterie-jeu-barre" role="img" aria-label={`Vos billets : ${nombre(mesBillets)} sur ${nombre(total)} comptés pour l'instant`}>
+        <div class="jeu-plein jeu-plein-bleu jeu-n9" style={`--part:${total > 0 && mesBillets > 0 ? Math.max(0.02, Math.min(1, mesBillets / total)) : 0}`} />
+        <Px t={`${nombreEcrit(mesBillets)} sur ${nombreEcrit(total)}`} couleur="creme" relief="cerne" muet />
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Votre semaine (décision du pilote, 20 novembre 2026, à la place du guichet : plus aucun billet ne s'achète ; écran de jeu
+ * du 21 novembre 2026) : le booster du jour en grand, à ouvrir d'un clic par l'animation des boosters, puis les sept jours du
+ * mardi au lundi, un booster par jour joué avec le clan, fermé ou ouvert. Le serveur tire le ticket d'or ; l'écran montre ce
+ * qu'il répond, puis relit la loterie.
+ */
+function MesBoosters({ ma, onOuvert }: { ma: MaLoterie; onOuvert: (apres: MaLoterie) => void }) {
   const or = ma.or ?? TICKET_D_OR;
   const [aujourdhui] = useState(() => jourDeParis(new Date()));
   const rangee = useMemo(() => semaineDesBoosters(ma.tirage, ma.boosters ?? [], aujourdhui), [ma.tirage, ma.boosters, aujourdhui]);
   const fermes = rangee.filter((j) => j.etat === "ferme").length;
+  const duJour = rangee.find((j) => j.jour === aujourdhui) ?? null;
   // Le booster en cours d'ouverture : son jour, et un compteur pour qu'un « suivant » ouvre une fenêtre neuve.
   const [enCours, setEnCours] = useState<{ jour: string; n: number } | null>(null);
   // La loterie la plus récente, pour qu'une réponse arrivée après une autre ne la remplace pas par une plus ancienne.
   const derniere = useRef(ma);
   derniere.current = ma;
-  const part = moi ? Math.round(partEnPourcent(moi, ma.parts) * 10) / 10 : 0;
-  const partEcrite = String(part).replace(".", ",");
+  const ouvrir = (jour: string) => {
+    // Dans le clic : sinon certains navigateurs gardent la scène muette.
+    reveillerLeSon();
+    setEnCours((e) => ({ jour, n: (e?.n ?? 0) + 1 }));
+  };
   return (
     <section class="loterie-jeu-boosters jeu-panneau jeu-n9" aria-labelledby="loterie-boosters-titre" data-testid="loterie-boosters">
       <h3 id="loterie-boosters-titre" class="loterie-jeu-ruban">
         <span class="jeu-ruban jeu-ruban-bleu jeu-n9">
-          <Px t="Vos boosters de la semaine" couleur="creme" relief="ombre" />
+          <Px t="Votre semaine" couleur="creme" relief="ombre" />
         </span>
       </h3>
+      <div class="loterie-jeu-du-jour" data-etat={duJour?.etat ?? "autre-tirage"} data-testid="loterie-du-jour">
+        {duJour?.etat === "ferme" ? (
+          <button type="button" class="loterie-jeu-du-jour-paquet" tabIndex={-1} disabled={enCours !== null} onClick={() => ouvrir(duJour.jour)} data-testid="loterie-ouvrir-du-jour">
+            <PaquetEnImage sorte="loterie" classe="loterie-jeu-du-jour-image" />
+            <span class="sr-only">Ouvrir le booster de loterie d'aujourd'hui</span>
+          </button>
+        ) : (
+          <span class="loterie-jeu-du-jour-paquet" aria-hidden="true">
+            <MiniBooster etat={duJour?.etat === "ouvert" ? "ouvert" : "vide"} />
+          </span>
+        )}
+        <div class="loterie-jeu-du-jour-texte">
+          <p>
+            <Px t="Booster du jour" couleur="doux" />
+          </p>
+          {duJour?.etat === "ferme" && <BoutonDesBoosters t="Ouvrir" dit="Ouvrir le booster de loterie d'aujourd'hui" or disabled={enCours !== null} onClick={() => ouvrir(duJour.jour)} testid="loterie-ouvrir-du-jour-bouton" />}
+          {duJour?.etat === "ouvert" && duJour.booster && (
+            <p class="loterie-jeu-gain-du-jour">
+              <Px t={`+${nombreEcrit(duJour.booster.billets ?? 0)}`} classe="loterie-jeu-grand" dit={billetsEnMots(duJour.booster.billets ?? 0)} />
+              {duJour.booster.ticket_or && <Etiquette t={`Ticket d'or +${nombreEcrit(or.billets)}`} ton="or" dit={`et un ticket d'or, ${billetsEnMots(or.billets)} de plus`} />}
+            </p>
+          )}
+          {duJour?.etat === "ouvert" && <p class="loterie-jeu-mot">Les points de vos parties de plus tard aujourd'hui s'y ajoutent.</p>}
+          {duJour?.etat === "a-venir" && <p class="loterie-jeu-mot">Il arrive après votre première partie avec le clan aujourd'hui, une fois relue.</p>}
+          {duJour === null && <p class="loterie-jeu-mot">Vos parties d'aujourd'hui comptent pour le tirage suivant.</p>}
+        </div>
+      </div>
       <ol class="loterie-jeu-semaine" aria-label="Vos boosters de loterie, un par jour joué avec le clan" data-testid="loterie-semaine">
         {rangee.map((j) => {
           const nom = jourDeLaRangee(j.jour);
@@ -805,18 +568,7 @@ function MesBoosters({ ma, onOuvert }: { ma: MaLoterie; onOuvert: (apres: MaLote
           return (
             <li key={j.jour} class="loterie-jeu-jour" data-etat={j.etat} data-aujourdhui={j.jour === aujourdhui ? "" : undefined} data-testid="loterie-booster">
               {j.etat === "ferme" ? (
-                <button
-                  type="button"
-                  class="loterie-jeu-case"
-                  disabled={enCours !== null}
-                  onClick={() => {
-                    // Dans le clic : sinon certains navigateurs gardent la scène muette.
-                    reveillerLeSon();
-                    setEnCours((e) => ({ jour: j.jour, n: (e?.n ?? 0) + 1 }));
-                  }}
-                  aria-label={`Ouvrir le booster du ${jourEnMots(j.jour)}`}
-                  data-testid="loterie-ouvrir-booster"
-                >
+                <button type="button" class="loterie-jeu-case" disabled={enCours !== null} onClick={() => ouvrir(j.jour)} aria-label={`Ouvrir le booster du ${jourEnMots(j.jour)}`} data-testid="loterie-ouvrir-booster">
                   <MiniBooster etat="ferme" />
                 </button>
               ) : (
@@ -837,36 +589,6 @@ function MesBoosters({ ma, onOuvert }: { ma: MaLoterie; onOuvert: (apres: MaLote
           );
         })}
       </ol>
-      <dl class="loterie-jeu-chiffres" data-testid="loterie-mes-billets">
-        <div>
-          <dt>
-            <Px t="Vos billets" couleur="doux" dit="Vos billets" />
-          </dt>
-          <dd>
-            <Px t={nombreEcrit(mesBillets)} classe="loterie-jeu-grand" dit={nombre(mesBillets)} />
-          </dd>
-        </div>
-        <div>
-          <dt>
-            <Px t="Tickets d'or" couleur="doux" dit="Tickets d'or" />
-          </dt>
-          <dd>
-            <Px t={nombreEcrit(moi?.tickets_or ?? 0)} couleur="or" classe="loterie-jeu-grand" dit={nombre(moi?.tickets_or ?? 0)} />
-          </dd>
-        </div>
-        <div>
-          <dt>
-            <Px t="Votre part" couleur="doux" dit="Votre part des billets comptés pour l'instant" />
-          </dt>
-          <dd>
-            <Px t={`${partEcrite} %`} classe="loterie-jeu-grand" dit={`${partEcrite} %`} />
-          </dd>
-        </div>
-      </dl>
-      <div class="jeu-tube jeu-n9 loterie-jeu-barre" role="img" aria-label={`Vos billets : ${nombre(mesBillets)} sur ${nombre(total)} comptés pour l'instant`}>
-        <div class="jeu-plein jeu-plein-bleu jeu-n9" style={`--part:${total > 0 && mesBillets > 0 ? Math.max(0.02, Math.min(1, mesBillets / total)) : 0}`} />
-        <Px t={`Vos billets : ${nombreEcrit(mesBillets)} sur ${nombreEcrit(total)}`} couleur="creme" relief="cerne" muet />
-      </div>
       <div class="loterie-jeu-notes" aria-live="polite">
         {(ma.boosters ?? []).length === 0 ? (
           <p data-testid="loterie-sans-booster">
@@ -883,10 +605,7 @@ function MesBoosters({ ma, onOuvert }: { ma: MaLoterie; onOuvert: (apres: MaLote
           aujourdhui={aujourdhui}
           suivant={boosterSuivant(rangee, enCours.jour)}
           onOuvert={(ouvert) => onOuvert(apresLOuverture(derniere.current, ouvert))}
-          onSuivant={(jour) => {
-            reveillerLeSon();
-            setEnCours((e) => ({ jour, n: (e?.n ?? 0) + 1 }));
-          }}
+          onSuivant={ouvrir}
           onFermer={() => setEnCours(null)}
         />
       )}
@@ -894,19 +613,76 @@ function MesBoosters({ ma, onOuvert }: { ma: MaLoterie; onOuvert: (apres: MaLote
   );
 }
 
-/** Le dernier tirage : la scène animée, son podium en toutes lettres, et le bouton pour le revoir. */
-function DernierTirage({ dernier, lots }: { dernier: NonNullable<MaLoterie["dernier"]>; lots: readonly LotDeLoterie[] }) {
+/** Le code des bannières, demandé une fois s'il y a un gagnant à montrer devant la sienne ; `null` tant qu'il n'est pas là. */
+function useLibDesBannieres(utile: boolean): Awaited<ReturnType<typeof chargerLesBannieres>> | null {
+  const [lib, setLib] = useState<Awaited<ReturnType<typeof chargerLesBannieres>> | null>(null);
+  useEffect(() => {
+    if (!utile || lib) return;
+    let vivant = true;
+    void chargerLesBannieres().then(
+      (charge) => vivant && setLib(charge),
+      () => undefined,
+    );
+    return () => {
+      vivant = false;
+    };
+  }, [utile, lib]);
+  return lib;
+}
+
+/**
+ * Un gagnant du dernier tirage, en carte (21 novembre 2026, page de loterie « plus jeu ») : sa médaille,
+ * lui devant sa bannière (le Gaulois seul, sans bannière), son nom, son lot en pièce et en boosters dessinés, et le billet
+ * tiré (gagné, ou acheté avant le 24 novembre 2026). Rien de plus que ce que le serveur a noté.
+ */
+function CarteDuGagnant({ rang, part, billet, lot, lib }: { rang: Rang; part: PartDeLoterie; billet: number; lot: LotDeLoterie | null; lib: Awaited<ReturnType<typeof chargerLesBannieres>> | null }) {
+  const tenue = useMemo(() => lireTenue(part.tenue), [part.tenue]);
+  const scene = useMemo(() => (lib && part.banniere && tenue ? lib.sceneDeLaBanniere(part.banniere, tenue) : null), [lib, part.banniere, tenue]);
+  const seul = useMemo(() => (tenue && !scene ? casesDuGaulois(tenue) : null), [tenue, scene]);
+  return (
+    <li class="loterie-jeu-gagnant" data-rang={rang} data-moi={part.moi ? "" : undefined}>
+      <span class="loterie-jeu-gagnant-medaille">
+        <Piece cle={`medaille|${rang}`} planche={() => medaille(rang)} />
+        <Px t={NOMS_DES_RANGS[rang]} couleur="doux" dit={NOMS_DES_RANGS[rang]} />
+      </span>
+      <span class="loterie-jeu-gagnant-image" aria-hidden="true">
+        {scene ? <Toile largeur={scene.largeur} hauteur={scene.hauteur} cases={scene.cases} echelle={2} /> : seul ? <Toile largeur={GAULOIS_LARGEUR} hauteur={GAULOIS_HAUTEUR} cases={seul} echelle={2} /> : null}
+      </span>
+      <span class="loterie-jeu-gagnant-nom">
+        {part.nom}
+        {part.moi ? " (vous)" : ""}
+      </span>
+      {lot && (
+        <span class="loterie-jeu-gagnant-lot">
+          <StateresEnPixels n={lot.gain} />
+          <span class="loterie-jeu-gagnant-boosters" aria-hidden="true">
+            {POCHETTES_GAGNEES.flatMap((sorte) => Array.from({ length: lot.pochettes[sorte] }, (_, k) => <Piece key={`${sorte}-${k}`} cle={`petit|${sorte}`} planche={() => petitBooster(sorte)} />))}
+          </span>
+          <span class="sr-only">, {pochettesDuLot(lot).join(", ")}</span>
+        </span>
+      )}
+      <span class="pochette-note">billet {billet < part.gratuits ? "gagné" : "acheté"}</span>
+    </li>
+  );
+}
+
+/**
+ * Le dernier tirage : la scène animée, ses gagnants en cartes, et le bouton pour le revoir. `nouveau` : la première visite
+ * après le tirage, où il se montre en tête de la page, comme un événement.
+ */
+function DernierTirage({ dernier, lots, nouveau = false }: { dernier: NonNullable<MaLoterie["dernier"]>; lots: readonly LotDeLoterie[]; nouveau?: boolean }) {
   const [lecture, setLecture] = useState(0);
   const [enCours, setEnCours] = useState(false);
   const podium = gagnants(dernier.parts);
   const semaine = semaineDuTirage(dernier.tirage);
+  const lib = useLibDesBannieres(podium.some((g) => g.part.banniere !== null));
 
   // La première fois que ce navigateur voit ce tirage, il se joue seul ; ensuite, le bilan attend.
   useEffect(() => {
     let vu: string | null = null;
     try {
-      vu = localStorage.getItem(CLE_VU);
-      localStorage.setItem(CLE_VU, dernier.tirage);
+      vu = localStorage.getItem(CLE_DU_TIRAGE_VU);
+      localStorage.setItem(CLE_DU_TIRAGE_VU, dernier.tirage);
     } catch {
       // Sans stockage, le tirage se joue à chaque ouverture : rien de grave.
     }
@@ -925,16 +701,16 @@ function DernierTirage({ dernier, lots }: { dernier: NonNullable<MaLoterie["dern
 
   if (dernier.parts.length === 0) return null;
   return (
-    <section class="loterie-bloc loterie-jeu-dernier jeu-ecran-cadre jeu-n9" aria-labelledby="loterie-dernier-titre" data-testid="loterie-dernier">
+    <section class="loterie-bloc loterie-jeu-dernier jeu-ecran-cadre jeu-n9" data-nouveau={nouveau ? "" : undefined} aria-labelledby="loterie-dernier-titre" data-testid="loterie-dernier">
       <div class="loterie-jeu-ruban" aria-hidden="true">
-        <span class="jeu-ruban jeu-ruban-bleu jeu-n9">
-          <Px t="Dernier tirage" couleur="creme" relief="ombre" muet />
+        <span class={`jeu-ruban ${nouveau ? "" : "jeu-ruban-bleu"} jeu-n9`}>
+          <Px t={nouveau ? "Le tirage a eu lieu" : "Dernier tirage"} couleur="creme" relief="ombre" muet />
         </span>
       </div>
       <div class="loterie-bloc-tete">
         <div>
           <h3 id="loterie-dernier-titre" class="loterie-jeu-date">
-            <span class="sr-only">Dernier tirage : </span>
+            <span class="sr-only">{nouveau ? "Le tirage a eu lieu : " : "Dernier tirage : "}</span>
             <Px t={majuscule(jourEnMots(dernier.tirage))} dit={majuscule(jourEnMots(dernier.tirage))} />
           </h3>
           <p class="pochette-note">
@@ -945,6 +721,7 @@ function DernierTirage({ dernier, lots }: { dernier: NonNullable<MaLoterie["dern
           t="Revoir le tirage"
           disabled={enCours}
           onClick={() => {
+            reveillerLeSon();
             setEnCours(true);
             setLecture((n) => n + 1);
           }}
@@ -952,20 +729,13 @@ function DernierTirage({ dernier, lots }: { dernier: NonNullable<MaLoterie["dern
         />
       </div>
       <SceneDeLoterie parts={dernier.parts} lots={lots} tirage lecture={lecture} onFini={() => setEnCours(false)} />
-      {/* Le podium en toutes lettres : caché pendant que la scène le dévoile, pour ne pas le dire avant elle, puis
-          annoncé aux lecteurs d'écran quand il paraît. */}
+      {/* Les gagnants en cartes : cachés pendant que la scène les dévoile, pour ne pas les dire avant elle, puis annoncés aux
+          lecteurs d'écran quand ils paraissent. */}
       <div aria-live="polite">
-        {!enCours && (
-          <ol class="loterie-podium" aria-label="Le podium du tirage" data-testid="loterie-podium">
+        {!enCours && podium.length > 0 && (
+          <ol class="loterie-podium loterie-jeu-gagnants" aria-label="Le podium du tirage" data-testid="loterie-podium">
             {podium.map((g) => (
-              <li key={g.rang} data-rang={g.rang}>
-                <span class="loterie-rang">{NOMS_DES_RANGS[g.rang]}</span>
-                <span>
-                  {g.part.nom}
-                  {g.part.moi ? " (vous)" : ""}
-                </span>
-                <span class="pochette-note">billet {g.billet < g.part.gratuits ? "gagné" : "acheté"}</span>
-              </li>
+              <CarteDuGagnant key={g.rang} rang={g.rang} part={g.part} billet={g.billet} lot={lots.find((l) => l.rang === g.rang) ?? null} lib={lib} />
             ))}
           </ol>
         )}
@@ -1004,6 +774,21 @@ export default function LoterieDuMardi({ actif }: { actif: boolean }) {
   }, [actif]);
 
   const ma = etat.kind === "prete" ? etat.ma : null;
+  // Le dernier tirage pas encore vu par ce navigateur se montre en tête, comme un événement, le temps de cette visite ; il se
+  // range ensuite en bas de la page. Décidé une fois par tirage : sa lecture le note vu, et la page ne saute pas.
+  const nouveaux = useRef(new Map<string, boolean>());
+  const tirageFait = ma?.dernier?.tirage ?? null;
+  if (tirageFait && !nouveaux.current.has(tirageFait)) {
+    let vu: string | null = null;
+    try {
+      vu = localStorage.getItem(CLE_DU_TIRAGE_VU);
+    } catch {
+      // Sans stockage : le tirage n'est pas en tête, il se joue quand même à sa place.
+      vu = tirageFait;
+    }
+    nouveaux.current.set(tirageFait, vu !== tirageFait);
+  }
+  const dernierNouveau = tirageFait !== null && nouveaux.current.get(tirageFait) === true;
   // Le tirage attendu n'est pas encore lu : l'heure vient de passer, le serveur le fait dans la minute. Au-delà de vingt
   // minutes, l'écran n'attend plus : il ne promet pas un tirage qui n'est pas venu.
   const attendu = ma ? addDays(ma.tirage, -7) : null;
@@ -1026,7 +811,7 @@ export default function LoterieDuMardi({ actif }: { actif: boolean }) {
   const { ma: loterie } = etat;
   const semaine = semaineDuTirage(loterie.tirage);
   const gagnees = boostersGagnesEnMots(loterie.bons);
-  const quand = majuscule(jourEnMots(loterie.tirage));
+  const dernier = loterie.dernier ? <DernierTirage key={loterie.dernier.tirage} dernier={loterie.dernier} lots={loterie.lots} nouveau={dernierNouveau} /> : null;
   return (
     <div class="loterie loterie-jeu" data-testid="loterie">
       <div class="loterie-jeu-titre" aria-hidden="true">
@@ -1034,23 +819,9 @@ export default function LoterieDuMardi({ actif }: { actif: boolean }) {
           <Px t="La loterie du mardi" couleur="creme" relief="ombre" muet />
         </span>
       </div>
-      <div class="loterie-jeu-tete">
-        <p class="loterie-jeu-surtitre">
-          <Px t="Prochain tirage" couleur="doux" />
-        </p>
-        <p class="loterie-jeu-quand" data-testid="loterie-quand">
-          <Px t={quand} classe="loterie-jeu-grand" dit={quand} />
-        </p>
-        <p class="loterie-jeu-heure">
-          <Etiquette t="21 h 30" ton="bleu" dit="21 h 30" />
-          <Px t="heure de Paris" couleur="doux" />
-        </p>
-        {loterie.releve && (
-          <p class="info-discrete" data-testid="loterie-releve">
-            Parties relues le {instant(loterie.releve)}
-          </p>
-        )}
-      </div>
+      {dernierNouveau && dernier}
+
+      <CompteARebours heure={loterie.heure} tirage={loterie.tirage} releve={loterie.releve} enAttente={enAttente} />
 
       {gagnees.length > 0 && (
         <p class="loterie-gagnees loterie-jeu-bulle jeu-bulle jeu-n9" data-testid="loterie-gagnees">
@@ -1070,6 +841,7 @@ export default function LoterieDuMardi({ actif }: { actif: boolean }) {
         </h3>
         <SceneDeLoterie parts={loterie.parts} lots={loterie.lots} />
       </section>
+      <MesBillets ma={loterie} />
       <MesBoosters
         ma={loterie}
         onOuvert={(apres) => {
@@ -1105,7 +877,7 @@ export default function LoterieDuMardi({ actif }: { actif: boolean }) {
         </details>
       </div>
 
-      {loterie.dernier && <DernierTirage key={loterie.dernier.tirage} dernier={loterie.dernier} lots={loterie.lots} />}
+      {!dernierNouveau && dernier}
     </div>
   );
 }

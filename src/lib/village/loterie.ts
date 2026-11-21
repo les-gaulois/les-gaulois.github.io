@@ -523,3 +523,40 @@ export const jourDeLaRangee = (jour: string): string => JOUR_DE_LA_RANGEE.format
 
 /** « 1 billet », « 12 billets », « 0 billet ». */
 export const billetsEnMots = (n: number): string => `${nombre(n)} ${n > 1 ? "billets" : "billet"}`;
+
+/* ---------- Le compte à rebours du tirage ---------- */
+
+/** Ce qui reste avant le tirage, en jours, heures et minutes entiers ; `null` quand l'heure est passée (le serveur tire). */
+export interface Decompte {
+  jours: number;
+  heures: number;
+  minutes: number;
+}
+
+/**
+ * Le compte à rebours jusqu'au tirage (21 novembre 2026, écran de jeu) : `heure` est l'instant du tirage donné par le
+ * serveur (`get_loterie`, mardi 21 h 30 à Paris). Arrondi à la minute du dessous ; moins d'une minute, ou passé : `null`.
+ * Ceci ne fait que compter : le serveur seul tire.
+ */
+export function decompteDuTirage(heure: string, maintenant: Date): Decompte | null {
+  const ms = Date.parse(heure) - maintenant.getTime();
+  if (!Number.isFinite(ms) || ms < 60_000) return null;
+  const minutesEnTout = Math.floor(ms / 60_000);
+  return { jours: Math.floor(minutesEnTout / 1440), heures: Math.floor((minutesEnTout % 1440) / 60), minutes: minutesEnTout % 60 };
+}
+
+/** Le compte à rebours en toutes lettres, pour un lecteur d'écran : « 3 jours, 4 heures et 12 minutes ». */
+export function decompteEnMots(d: Decompte): string {
+  const mots = [
+    [d.jours, "jour"],
+    [d.heures, "heure"],
+    [d.minutes, "minute"],
+  ]
+    .filter(([n]) => (n as number) > 0)
+    .map(([n, mot]) => `${n as number} ${mot as string}${(n as number) > 1 ? "s" : ""}`);
+  if (mots.length === 0) return "moins d'une minute";
+  return mots.length === 1 ? mots[0]! : `${mots.slice(0, -1).join(", ")} et ${mots[mots.length - 1]}`;
+}
+
+/** Le dernier tirage dont ce navigateur a vu l'animation : elle ne se joue seule qu'une fois. */
+export const CLE_DU_TIRAGE_VU = "gal-loterie-vu";

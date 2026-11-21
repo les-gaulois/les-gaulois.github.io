@@ -17,7 +17,7 @@
 
 /* Quatre sortes de pièces, pas plus, et jamais l'une dans l'autre : le panneau du jeu (les boosters de la semaine, la
    démonstration, la vitrine des visiteurs), le fond de page en cadre de jeu (la scène de la loterie, le dernier tirage, les
-   plis), la bulle fine (la recherche, la tête de la loterie, les annonces) et les cartes claires au cadre de leur rareté
+   plis), la bulle fine (la recherche, les annonces de la loterie) et les cartes claires au cadre de leur rareté
    (les tuiles du vestiaire, `--jeu-v-tuile-<rareté>`, neuf parts 2 2 5 2). Les mesures sont en points du kit (`--jeu-p`). */
 
 /* ---------- Les titres en ruban, et les rubans posés à cheval sur le bord d'un cadre ---------- */
@@ -32,7 +32,7 @@
   justify-content: center;
   line-height: 0;
 }
-:is(.loterie-jeu-boosters, .loterie-jeu-dernier, .demo-jeu-essai, .demo-jeu-rejoindre, .vitrine-publique) {
+:is(.loterie-jeu-compte, .loterie-jeu-billets, .loterie-jeu-boosters, .loterie-jeu-dernier, .demo-jeu-essai, .demo-jeu-rejoindre, .vitrine-publique) {
   position: relative;
   margin-top: calc(10 * var(--jeu-p));
 }
@@ -117,19 +117,15 @@
 
 /* La bulle du kit reste claire la nuit : ce qu'elle porte garde l'écriture du thème clair, en lettres comme en pixels. */
 .vitrine-jeu .vitrine-jeu-recherche,
-.loterie-jeu :is(.loterie-jeu-tete, .loterie-jeu-bulle) {
+.loterie-jeu .loterie-jeu-bulle {
   --ecriture: #0a1230;
   --texte-courant: #2b3557;
   --color-muted: #4a5677;
   --color-blue-text: #0b3fc4;
   color: var(--ecriture);
 }
-.vitrine-jeu .vitrine-jeu-recherche .jeu-px > i,
-.loterie-jeu .loterie-jeu-tete .jeu-px > i {
+.vitrine-jeu .vitrine-jeu-recherche .jeu-px > i {
   background-image: var(--i);
-}
-.loterie-jeu .loterie-jeu-tete .info-discrete {
-  color: var(--color-muted);
 }
 
 /* ---------- La vitrine : la recherche ---------- */
@@ -374,47 +370,93 @@
   justify-content: center;
 }
 
-/* ---------- La loterie : la tête, les annonces, la scène ---------- */
+/* ---------- La loterie (seconde version, 21 novembre 2026) : un événement, des pièces dessinées ---------- */
+/* De haut en bas : le tirage qui vient d'avoir lieu (à la première visite), le compte à rebours, la scène du prochain
+   tirage, vos billets, votre semaine, les plis, le dernier tirage. Les pièces (`i.loterie-jeu-piece`) sont celles de
+   `src/lib/jeu/loterie-pieces.ts`, posées à l'échelle de leur place (`--jeu-p`). */
 
 .loterie-jeu {
   gap: calc(12 * var(--jeu-p));
 }
-/* La tête : une bulle fine, centrée ; la date en grand. */
-.loterie-jeu-tete {
-  justify-self: center;
-  display: grid;
-  justify-items: center;
-  gap: calc(4 * var(--jeu-p));
-  max-width: 100%;
-  padding: calc(3 * var(--jeu-p)) calc(8 * var(--jeu-p)) calc(2 * var(--jeu-p));
-  border-style: solid;
-  border-color: transparent;
-  border-width: calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
-  border-image: var(--jeu-s-bulle) 4 4 6 fill / calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p)) stretch;
+.loterie-jeu-piece {
+  display: block;
+  flex: none;
+  width: calc(var(--w) * var(--jeu-p));
+  height: calc(var(--h) * var(--jeu-p));
+  background: var(--i) 0 0 / 100% 100% no-repeat;
   image-rendering: pixelated;
-  text-align: center;
-}
-.loterie-jeu-tete > p {
-  margin: 0;
-}
-.loterie-jeu-surtitre,
-.loterie-jeu-quand {
-  line-height: 0;
 }
 .loterie-jeu-grand {
   --jeu-p: 4px;
+}
+.loterie-jeu :is(.loterie-jeu-compte, .loterie-jeu-billets, .loterie-jeu-boosters) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  padding: calc(9 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p));
+}
+
+/* ---------- Le compte à rebours : le sablier, trois grands nombres, la date ---------- */
+
+.loterie-jeu-compte {
+  gap: calc(6 * var(--jeu-p));
+}
+.loterie-jeu-compte-corps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(8 * var(--jeu-p)) calc(16 * var(--jeu-p));
+  max-width: 100%;
+}
+.loterie-jeu-sablier {
+  --jeu-p: 4px;
+  filter: drop-shadow(0 2px 0 var(--jeu-ombre));
+}
+.loterie-jeu-compte-chiffres {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: calc(12 * var(--jeu-p));
+  margin: 0;
+  line-height: 0;
+}
+.loterie-jeu-compte-case {
+  display: grid;
+  justify-items: center;
+  gap: calc(5 * var(--jeu-p));
+}
+.loterie-jeu-compte-n {
+  --jeu-p: 6px;
+}
+/* « Tirage en cours », « C'est l'heure » : des mots, pas un nombre. */
+.loterie-jeu-compte-chiffres:not([role="timer"]) .loterie-jeu-compte-n {
+  --jeu-p: 3px;
+}
+.loterie-jeu-compte-quand {
+  display: grid;
+  justify-items: center;
+  gap: calc(5 * var(--jeu-p));
+}
+.loterie-jeu-compte-quand > p {
+  margin: 0;
+  line-height: 0;
 }
 .loterie-jeu-heure {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: calc(5 * var(--jeu-p));
-  line-height: 0;
 }
-.loterie-jeu-tete .info-discrete {
+.loterie-jeu-releve {
+  margin: 0;
   font-size: 0.75rem;
   line-height: 1.4;
+  text-align: center;
 }
+
+/* ---------- Les annonces, en bulle fine ---------- */
+
 .loterie-jeu-bulle {
   justify-self: center;
   max-width: 100%;
@@ -435,7 +477,9 @@
   outline: var(--jeu-p) solid var(--jeu-or-focus);
   outline-offset: var(--jeu-p);
 }
-/* La scène choisie par le pilote, « le podium d'abord », telle quelle, dans un fond de page en cadre de jeu. */
+
+/* ---------- La scène : le podium en pixels et la ligne des parts, dans un fond de page en cadre de jeu ---------- */
+
 .loterie-jeu-scene {
   justify-items: center;
   padding: calc(2 * var(--jeu-p)) 0 0;
@@ -443,15 +487,151 @@
 .loterie-jeu .loterie-scene {
   margin-inline: auto;
 }
+/* La toile hérite déjà `image-rendering: pixelated` de son cadre (`.jeu-n9`) : rien à ajouter. */
 
-/* ---------- La loterie : « Vos boosters de la semaine » ---------- */
+/* ---------- Vos billets : la pile, le ticket d'or, le disque de la part ---------- */
+
+.loterie-jeu-billets {
+  gap: calc(8 * var(--jeu-p));
+}
+.loterie-jeu-chiffres {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto));
+  justify-content: center;
+  align-items: end;
+  gap: calc(6 * var(--jeu-p)) calc(24 * var(--jeu-p));
+  margin: 0;
+}
+.loterie-jeu-chiffre {
+  display: grid;
+  justify-items: center;
+  gap: calc(5 * var(--jeu-p));
+  min-width: 0;
+}
+.loterie-jeu-chiffre :is(dt, dd) {
+  margin: 0;
+  line-height: 0;
+}
+/* L'image au-dessus de son mot ; les trois images posées sur la même ligne de sol. */
+.loterie-jeu-chiffre dt {
+  display: grid;
+  grid-template-rows: 78px auto;
+  justify-items: center;
+  align-items: end;
+  gap: calc(5 * var(--jeu-p));
+}
+.loterie-jeu-chiffre .loterie-jeu-piece {
+  --jeu-p: 3px;
+}
+.loterie-jeu-chiffre .loterie-jeu-ticket {
+  align-self: center;
+}
+/* Sans ticket d'or : le ticket éteint. Avec : un reflet lent le traverse, taillé à sa forme. */
+.loterie-jeu-chiffre[data-sorte="or"]:not([data-brille]) .loterie-jeu-ticket {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.loterie-jeu-chiffre[data-brille] .loterie-jeu-ticket {
+  position: relative;
+  filter: drop-shadow(0 3px 0 var(--jeu-ombre));
+}
+.loterie-jeu-chiffre[data-brille] .loterie-jeu-ticket::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0 44%, rgb(255 251 230 / 0.85) 44% 49%, transparent 49% 52%, rgb(255 251 230 / 0.55) 52% 54%, transparent 54%) 0 0 / 300% 100% no-repeat;
+  -webkit-mask: var(--i) 0 0 / 100% 100% no-repeat;
+  mask: var(--i) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  animation: vj-l-reflet 7s steps(40) infinite;
+}
+@keyframes vj-l-reflet {
+  0%,
+  70% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+.loterie-jeu-barre {
+  width: min(100%, calc(240 * var(--jeu-p)));
+}
+
+/* ---------- Votre semaine : le booster du jour en vedette, puis les sept jours ---------- */
 
 .loterie-jeu-boosters {
+  gap: calc(10 * var(--jeu-p));
+}
+.loterie-jeu-du-jour {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(8 * var(--jeu-p)) calc(14 * var(--jeu-p));
+  max-width: 100%;
+}
+.loterie-jeu-du-jour-paquet {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  margin: 0;
+  padding: calc(4 * var(--jeu-p));
+  border: 0;
+  background: none;
+  line-height: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.loterie-jeu-du-jour-paquet .loterie-jeu-mini {
+  --jeu-p: 4px;
+}
+.loterie-jeu-du-jour-texte {
+  display: grid;
   justify-items: center;
-  gap: calc(9 * var(--jeu-p));
-  padding: calc(9 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  gap: calc(6 * var(--jeu-p));
+  max-width: 17rem;
+  text-align: center;
+}
+.loterie-jeu-du-jour-texte > p {
+  margin: 0;
+  line-height: 0;
+}
+.loterie-jeu-gain-du-jour {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(5 * var(--jeu-p));
+}
+.loterie-jeu-du-jour-texte > .loterie-jeu-mot {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+/* Le grand paquet est un bouton : il respire doucement, se penche au survol, et s'entoure d'or au clavier. */
+button.loterie-jeu-du-jour-paquet {
+  cursor: pointer;
+}
+.loterie-jeu-du-jour-image {
+  filter: drop-shadow(0 calc(3 * var(--jeu-p)) 0 var(--jeu-ombre));
+  animation: vj-l-respire 2.6s ease-in-out infinite alternate;
+  transition: transform 0.14s steps(3);
+}
+@media (hover: hover) {
+  button.loterie-jeu-du-jour-paquet:hover .loterie-jeu-du-jour-image {
+    transform: translateY(calc(-2 * var(--jeu-p))) rotate(-3deg);
+  }
+}
+button.loterie-jeu-du-jour-paquet:active .loterie-jeu-du-jour-image {
+  transform: translateY(var(--jeu-p));
+}
+button.loterie-jeu-du-jour-paquet:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: 0;
+}
+button.loterie-jeu-du-jour-paquet:disabled {
+  cursor: default;
+}
+button.loterie-jeu-du-jour-paquet:disabled .loterie-jeu-du-jour-image {
+  animation: none;
 }
 /* Les sept jours, sur une ligne : le petit booster, le jour, et ce qu'il a donné. */
 .loterie-jeu-semaine {
@@ -495,7 +675,8 @@
   image-rendering: pixelated;
   filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
 }
-.loterie-jeu-jour:is([data-etat="sans-booster"], [data-etat="a-venir"]) .loterie-jeu-mini {
+.loterie-jeu-jour:is([data-etat="sans-booster"], [data-etat="a-venir"]) .loterie-jeu-mini,
+.loterie-jeu-du-jour:not([data-etat="ouvert"]) .loterie-jeu-mini {
   filter: none;
 }
 .loterie-jeu-nom,
@@ -545,30 +726,9 @@ button.loterie-jeu-case:disabled .loterie-jeu-mini {
 }
 /* Sur ordinateur, le petit booster à trois pixels la case. */
 @media (min-width: 48rem) {
-  .loterie-jeu-mini {
+  .loterie-jeu-semaine .loterie-jeu-mini {
     --jeu-p: 3px;
   }
-}
-/* Les trois chiffres : le mot en petit, le nombre en grand. */
-.loterie-jeu-chiffres {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, auto));
-  justify-content: center;
-  gap: calc(6 * var(--jeu-p)) calc(22 * var(--jeu-p));
-  margin: 0;
-}
-.loterie-jeu-chiffres > div {
-  display: grid;
-  justify-items: center;
-  gap: calc(5 * var(--jeu-p));
-  min-width: 0;
-}
-.loterie-jeu-chiffres :is(dt, dd) {
-  margin: 0;
-  line-height: 0;
-}
-.loterie-jeu-barre {
-  width: min(100%, calc(240 * var(--jeu-p)));
 }
 .loterie-jeu-notes {
   max-width: 44rem;
@@ -584,7 +744,7 @@ button.loterie-jeu-case:disabled .loterie-jeu-mini {
   display: none;
 }
 
-/* ---------- La loterie : le dernier tirage et les plis ---------- */
+/* ---------- Le dernier tirage : sa scène, puis ses gagnants en cartes, l'or au milieu et plus grand ---------- */
 
 .loterie-jeu-dernier {
   gap: calc(8 * var(--jeu-p));
@@ -603,16 +763,190 @@ button.loterie-jeu-case:disabled .loterie-jeu-mini {
   font-size: 0.8125rem;
   line-height: 1.45;
 }
-/* Le podium et les lots écrits : un carré de métal en cases devant chaque rang, sans filet. */
-.loterie-jeu :is(.loterie-podium, .loterie-lots) {
+.loterie-jeu .loterie-jeu-gagnants {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: calc(8 * var(--jeu-p)) calc(7 * var(--jeu-p));
+  width: 100%;
+  margin: calc(4 * var(--jeu-p)) 0 0;
+  padding: 0;
+  list-style: none;
+}
+/* Une carte claire dans les deux thèmes, au cadre du kit : celui du légendaire pour l'or, le cadre nu pour les deux autres. */
+.loterie-jeu .loterie-jeu-gagnant {
+  --vjl-cadre: var(--jeu-v-tuile-aucune);
+  --vjl-teinte: #7a88b4;
+  --ecriture: #0a1230;
+  --texte-courant: #2b3557;
+  --color-muted: #4a5677;
+  --color-blue-text: #0b3fc4;
+  order: 2;
+  box-sizing: border-box;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: calc(4 * var(--jeu-p));
+  min-width: 0;
+  padding: calc(4 * var(--jeu-p)) calc(5 * var(--jeu-p)) calc(3 * var(--jeu-p));
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  border-image: var(--vjl-cadre) 2 2 5 / calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p)) stretch;
+  background: color-mix(in srgb, var(--vjl-teinte) 13%, #fffaf0) padding-box;
+  box-shadow: 0 calc(2 * var(--jeu-p)) 0 var(--jeu-ombre);
+  color: var(--ecriture);
+  image-rendering: pixelated;
+}
+.loterie-jeu .loterie-jeu-gagnant::before {
+  content: none;
+}
+.loterie-jeu .loterie-jeu-gagnant[data-rang="2"] {
+  order: 1;
+}
+.loterie-jeu .loterie-jeu-gagnant[data-rang="1"] {
+  --vjl-cadre: var(--jeu-v-tuile-legendaire);
+  --vjl-teinte: #f2b632;
+  margin-bottom: calc(8 * var(--jeu-p));
+}
+.loterie-jeu .loterie-jeu-gagnant[data-rang="3"] {
+  --vjl-teinte: #d98a4e;
+  order: 3;
+}
+/* L'écriture en pixels d'une carte claire garde son image du thème clair. */
+.loterie-jeu .loterie-jeu-gagnant .jeu-px > i {
+  background-image: var(--i);
+}
+.loterie-jeu-gagnant-medaille {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p));
+  line-height: 0;
+}
+.loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-medaille > .loterie-jeu-piece {
+  --jeu-p: 3px;
+}
+/* L'image : le gagnant devant sa bannière (124 cases) ou seul (48), l'or à deux pixels la case, les autres à un. */
+.loterie-jeu-gagnant-image {
+  display: grid;
+  place-items: end center;
+  width: 124px;
+  height: 80px;
+  line-height: 0;
+}
+.loterie-jeu-gagnant-image > canvas {
+  image-rendering: pixelated;
+}
+.loterie-jeu-gagnant-image > canvas[width="124"] {
+  width: 124px !important;
+  height: 80px !important;
+}
+.loterie-jeu-gagnant-image > canvas[width="48"] {
+  width: 48px !important;
+  height: 64px !important;
+}
+.loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-image {
+  width: 248px;
+  height: 160px;
+}
+.loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-image > canvas[width="124"] {
+  width: 248px !important;
+  height: 160px !important;
+}
+.loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-image > canvas[width="48"] {
+  width: 96px !important;
+  height: 128px !important;
+}
+.loterie-jeu-gagnant-nom {
+  max-width: 100%;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-nom {
+  font-size: 1rem;
+}
+.loterie-jeu-gagnant[data-moi] .loterie-jeu-gagnant-nom {
+  color: var(--color-blue-text);
+}
+.loterie-jeu-gagnant-lot {
+  display: grid;
+  justify-items: center;
+  gap: calc(4 * var(--jeu-p));
+  line-height: 0;
+}
+/* Les boosters du lot : ceux d'une rangée se chevauchent un peu, pour tenir sur une carte étroite. */
+.loterie-jeu-gagnant-boosters {
+  display: flex;
+  justify-content: center;
+  padding-left: calc(3 * var(--jeu-p));
+}
+.loterie-jeu-gagnant-boosters > .loterie-jeu-piece {
+  margin-left: calc(-3 * var(--jeu-p));
+}
+.loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-boosters {
+  padding-left: 0;
+  gap: calc(2 * var(--jeu-p));
+}
+.loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-boosters > .loterie-jeu-piece {
+  margin-left: 0;
+}
+.loterie-jeu .loterie-jeu-gagnant .pochette-note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+/* Sur un grand écran, tout monte d'un cran : l'or à trois pixels la case, les autres à deux. */
+@media (min-width: 90rem) {
+  .loterie-jeu-gagnant-image {
+    width: 248px;
+    height: 160px;
+  }
+  .loterie-jeu-gagnant-image > canvas[width="124"] {
+    width: 248px !important;
+    height: 160px !important;
+  }
+  .loterie-jeu-gagnant-image > canvas[width="48"] {
+    width: 96px !important;
+    height: 128px !important;
+  }
+  .loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-image {
+    width: 372px;
+    height: 240px;
+  }
+  .loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-image > canvas[width="124"] {
+    width: 372px !important;
+    height: 240px !important;
+  }
+  .loterie-jeu-gagnant[data-rang="1"] .loterie-jeu-gagnant-image > canvas[width="48"] {
+    width: 144px !important;
+    height: 192px !important;
+  }
+  .loterie-jeu-gagnant-boosters {
+    padding-left: 0;
+    gap: calc(2 * var(--jeu-p));
+  }
+  .loterie-jeu-gagnant-boosters > .loterie-jeu-piece {
+    margin-left: 0;
+  }
+}
+
+/* ---------- Les plis ---------- */
+
+/* Les lots écrits : un carré de métal en cases devant chaque rang, sans filet. */
+.loterie-jeu .loterie-lots {
   gap: calc(4 * var(--jeu-p));
 }
-.loterie-jeu :is(.loterie-podium, .loterie-lots) li {
+.loterie-jeu .loterie-lots li {
   position: relative;
   padding-left: calc(9 * var(--jeu-p));
   border-left: 0;
 }
-.loterie-jeu :is(.loterie-podium, .loterie-lots) li::before {
+.loterie-jeu .loterie-lots li::before {
   content: "";
   position: absolute;
   left: 0;
@@ -621,12 +955,6 @@ button.loterie-jeu-case:disabled .loterie-jeu-mini {
   height: calc(4 * var(--jeu-p));
   background: var(--loterie-marche);
   box-shadow: 0 var(--jeu-p) 0 color-mix(in srgb, var(--loterie-marche) 55%, #0a1230);
-}
-.loterie-jeu .loterie-podium {
-  justify-content: center;
-  width: fit-content;
-  max-width: 100%;
-  margin-inline: auto;
 }
 .loterie-jeu-plis {
   padding: 0 calc(2 * var(--jeu-p));
@@ -645,12 +973,43 @@ button.loterie-jeu-case:disabled .loterie-jeu-mini {
   .loterie-jeu-grand {
     --jeu-p: 3px;
   }
-  .loterie-jeu-tete {
-    padding-inline: calc(2 * var(--jeu-p));
-  }
-  .loterie-jeu-boosters,
+  .loterie-jeu :is(.loterie-jeu-compte, .loterie-jeu-billets, .loterie-jeu-boosters),
   .loterie-jeu-dernier {
     padding: calc(8 * var(--jeu-p)) 0 calc(1 * var(--jeu-p));
+  }
+  .loterie-jeu-compte-corps {
+    gap: calc(8 * var(--jeu-p)) calc(8 * var(--jeu-p));
+  }
+  .loterie-jeu-sablier {
+    --jeu-p: 3px;
+  }
+  .loterie-jeu-compte-n {
+    --jeu-p: 4px;
+  }
+  .loterie-jeu-compte-chiffres:not([role="timer"]) .loterie-jeu-compte-n {
+    --jeu-p: 2px;
+  }
+  .loterie-jeu-compte-chiffres {
+    gap: calc(7 * var(--jeu-p));
+  }
+  /* Les mots des cases, de la rangée et des chiffres à une case par pixel : tout tient sur 360 pixels. */
+  .loterie-jeu-compte-case > .jeu-px:not(.loterie-jeu-compte-n),
+  .loterie-jeu-nom,
+  .loterie-jeu-chiffre dt > .jeu-px {
+    --jeu-p: 1px;
+  }
+  .loterie-jeu-chiffres {
+    gap: 12px 14px;
+  }
+  .loterie-jeu-chiffre {
+    gap: 8px;
+  }
+  .loterie-jeu-chiffre dt {
+    grid-template-rows: 52px auto;
+    gap: 8px;
+  }
+  .loterie-jeu-chiffre .loterie-jeu-piece {
+    --jeu-p: 2px;
   }
   .loterie-jeu-semaine {
     gap: 0;
@@ -658,22 +1017,34 @@ button.loterie-jeu-case:disabled .loterie-jeu-mini {
   .loterie-jeu-case {
     padding: calc(2 * var(--jeu-p)) 0;
   }
-  /* Les mots de la rangée et des chiffres à une case par pixel : sept jours tiennent sur 360 pixels. */
-  .loterie-jeu-nom,
-  .loterie-jeu-chiffres dt {
-    --jeu-p: 1px;
-  }
-  .loterie-jeu-chiffres {
-    gap: 12px 20px;
-  }
-  .loterie-jeu-chiffres > div {
-    gap: 8px;
-  }
   .loterie-jeu-scene {
     padding: 0;
   }
   .loterie-jeu-plis {
     padding: 0;
+  }
+  /* Les gagnants : l'or en haut, sur toute la largeur ; l'argent et le bronze côte à côte dessous. */
+  .loterie-jeu .loterie-jeu-gagnants {
+    gap: calc(6 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  }
+  .loterie-jeu .loterie-jeu-gagnant {
+    padding-inline: calc(3 * var(--jeu-p));
+  }
+  .loterie-jeu .loterie-jeu-gagnant[data-rang="1"] {
+    order: 0;
+    flex-basis: 100%;
+    justify-self: center;
+    margin-bottom: 0;
+  }
+  .loterie-jeu .loterie-jeu-gagnant:not([data-rang="1"]) {
+    flex: 1 1 0;
+    max-width: 50%;
+  }
+  .loterie-jeu-gagnant:not([data-rang="1"]) .loterie-jeu-gagnant-boosters {
+    padding-left: calc(6 * var(--jeu-p));
+  }
+  .loterie-jeu-gagnant:not([data-rang="1"]) .loterie-jeu-gagnant-boosters > .loterie-jeu-piece {
+    margin-left: calc(-6 * var(--jeu-p));
   }
 }
 
@@ -891,17 +1262,24 @@ button.loterie-jeu-case:disabled .loterie-jeu-mini {
 
 /* ---------- La pause et « réduire les animations » : plus rien ne bouge ---------- */
 
-:root.fx-off :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .vitrine-grand-case, .loterie-jeu-mini, .demo-jeu-paquet-image, .vitrine-publique-case) {
+:root.fx-off :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .vitrine-grand-case, .loterie-jeu-mini, .loterie-jeu-du-jour-image, .demo-jeu-paquet-image, .vitrine-publique-case) {
   animation: none;
   transition: none;
   translate: none;
   transform: none;
 }
+/* Un pseudo-élément ne peut pas être dans :is() : le reflet du ticket d'or a sa règle. */
+:root.fx-off .loterie-jeu .loterie-jeu-ticket::after {
+  animation: none;
+}
 @media (prefers-reduced-motion: reduce) {
-  :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .vitrine-grand-case, .loterie-jeu-mini, .demo-jeu-paquet-image, .vitrine-publique-case) {
+  :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .vitrine-grand-case, .loterie-jeu-mini, .loterie-jeu-du-jour-image, .demo-jeu-paquet-image, .vitrine-publique-case) {
     animation: none;
     transition: none;
     translate: none;
     transform: none;
+  }
+  .loterie-jeu .loterie-jeu-ticket::after {
+    animation: none;
   }
 }

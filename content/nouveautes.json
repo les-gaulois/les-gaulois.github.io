@@ -3,6 +3,17 @@
     "date": "2026-11-21",
     "kind": "ameliore",
     "rank": "minor",
+    "title": "La loterie, plus jeu",
+    "body": "Un compte à rebours jusqu'au mardi 21 h 30, un podium dessiné, vos billets en pile et votre part en disque, le booster du jour en vedette, et les gagnants du dernier tirage en cartes.",
+    "link": {
+      "href": "/village#loterie",
+      "label": "La loterie"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "ameliore",
+    "rank": "minor",
     "title": "Une carte plus grande sur « Ma carte »",
     "body": "Sur un grand écran, votre carte de joueur et le panneau de vos chiffres grandissent ensemble, toujours en pixels nets.",
     "link": {
