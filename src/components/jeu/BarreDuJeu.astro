@@ -12,11 +12,9 @@
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 
-{/* Le fond de l'écran : la bannière du joueur, ou des collines vivantes sans bannière (src/scripts/jeu.ts). */}
-<div class="jeu-fond" data-jeu-fond data-banniere="non" aria-hidden="true">
+{/* Le fond de l'écran : huit paysages animés qui tournent toutes les 15 minutes (src/scripts/jeu.ts). */}
+<div class="jeu-fond" data-jeu-fond aria-hidden="true">
   <canvas class="jeu-fond-vivant" width="1" height="1"></canvas>
-  <div class="jeu-fond-banniere"></div>
-  <div class="jeu-fond-voile"></div>
 </div>
 <header class="jeu-barre" data-testid="jeu-barre">
   <h1 class="jeu-titre">

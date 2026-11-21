@@ -1,13 +1,15 @@
 /**
  * Le cadre de jeu de « Mon Gaulois » (/village, 21 novembre 2026) : les boutons du son et de la musique de la barre du jeu
- * (BarreDuJeu.astro), le petit bruit des boutons, leur rebond, et le fond de l'écran : la bannière du joueur, qui respire et
- * suit la souris, ou, sans bannière, des collines vivantes dessinées en cases (maquette validée par le pilote, planche de
- * Claude Fable 5.2). Il ne change aucun texte ni aucun chiffre.
+ * (BarreDuJeu.astro), le petit bruit des boutons, leur rebond, et le fond de l'écran : huit paysages animés en cases, de
+ * jour en thème clair et de nuit en thème sombre, qui tournent toutes les 15 minutes (choix du pilote du 21 novembre 2026 ;
+ * dessins de Claude Fable 5.2 dans `public/paysages/`, calculs dans `src/lib/jeu/fonds-du-jeu.ts`). Ils ont remplacé la
+ * bannière du joueur et les collines pâles derrière l'écran ; la bannière reste sur sa carte. Il ne change aucun texte ni
+ * aucun chiffre.
  *
- * La page dit la bannière du joueur par l'annonce `jeu:banniere` (`detail.url`, ou `null` sans bannière) : VillageApp.tsx
- * l'envoie une fois le compte lu. Le bouton pause du site (`fx-off`), « réduire les animations » et un onglet caché arrêtent
- * tout mouvement ; les collines restent dessinées, immobiles.
+ * Le bouton pause du site (`fx-off`), « réduire les animations » et un onglet caché arrêtent tout mouvement : le paysage
+ * reste dessiné, immobile, et le suivant arrive sans fondu.
  */
+import { type FondDuJeu, type IdDeFond, VERSION_DES_FONDS, estUnFond, fondDuMoment, toileDuFond } from "../lib/jeu/fonds-du-jeu";
 import { MUSIQUE_CHANGE, SON_CHANGE, basculerLaMusique, basculerLeSon, jouer, musiqueEnMarche, musiqueVoulue, preparerLeSon, sonVoulu } from "../lib/jeu/sons";
 
 const racine = document.documentElement;
@@ -89,158 +91,218 @@ document.addEventListener("animationend", (ev) => {
   if (ev.animationName === "jeu-rebond") (ev.target as Element).classList.remove("jeu-rebond");
 });
 
-// ---------- Le fond ----------
+
+// ---------- Le fond : huit paysages qui tournent toutes les 15 minutes ----------
+
+declare global {
+  interface Window {
+    FONDS?: unknown[];
+  }
+}
 
 const fond = document.querySelector<HTMLElement>("[data-jeu-fond]");
-const toile = fond?.querySelector<HTMLCanvasElement>(".jeu-fond-vivant") ?? null;
+const premiereToile = fond?.querySelector<HTMLCanvasElement>(".jeu-fond-vivant") ?? null;
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-// La bannière du joueur, dite par la page.
-window.addEventListener("jeu:banniere", (ev) => {
-  if (!fond) return;
-  const url = (ev as CustomEvent<{ url: string | null }>).detail?.url ?? null;
-  if (url) fond.style.setProperty("--jeu-banniere", `url("${url}")`);
-  else fond.style.removeProperty("--jeu-banniere");
-  fond.dataset["banniere"] = url ? "oui" : "non";
-  if (!url) dessinerLesCollines(0);
-});
-
-// Elle suit doucement la souris.
+// La souris décale doucement les plans des paysages (jamais au doigt).
 let mx = 0;
+let my = 0;
 let vx = 0;
+let vy = 0;
 document.addEventListener("pointermove", (ev) => {
   if (fige() || ev.pointerType === "touch") return;
   mx = (ev.clientX / Math.max(1, innerWidth)) * 2 - 1;
-  const my = (ev.clientY / Math.max(1, innerHeight)) * 2 - 1;
-  fond?.style.setProperty("--jeu-mx", mx.toFixed(3));
-  fond?.style.setProperty("--jeu-my", my.toFixed(3));
+  my = (ev.clientY / Math.max(1, innerHeight)) * 2 - 1;
 });
 
-// Les collines : une lueur et ses rayons, deux lignes de collines (sapins sur la plus lointaine), neige le jour, lucioles et
-// étoiles la nuit. Une case de la toile vaut quatre pixels ; dix images par seconde suffisent.
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-const COULEURS = {
-  clair: { a: "#f8fafe", b: "#dde6f8", lueur: "#ffffff", loin: "#c5d3f0", pres: "#eef3fc", crete: "#ffffff", sapin: "#9db2e0", g1: "#8fa8de", g2: "#e0263a", g3: "#2f6bff" },
-  sombre: { a: "#070c24", b: "#111c50", lueur: "#24389e", loin: "#16236a", pres: "#0a1238", crete: "#1f3187", sapin: "#0d1746", g1: "#f6f1e3", g2: "#ff5a6a", g3: "#6aa5ff" },
-} as const;
-const octets = (hex: string): [number, number, number] => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
-interface Grain {
-  x: number;
-  y: number;
-  v: number;
-  ph: number;
-  k: number;
+// Chaque paysage n'est chargé qu'à son tour, une seule fois ; un échec se retente au tour suivant.
+const charges = new Map<IdDeFond, Promise<FondDuJeu>>();
+function chargerLeFond(id: IdDeFond): Promise<FondDuJeu> {
+  const deja = charges.get(id);
+  if (deja) return deja;
+  const trouver = (): FondDuJeu | undefined => (window.FONDS ?? []).find((f): f is FondDuJeu => estUnFond(f) && f.id === id);
+  const promesse = new Promise<FondDuJeu>((ok, ko) => {
+    const present = trouver();
+    if (present) return ok(present);
+    const script = document.createElement("script");
+    script.src = `${BASE}/paysages/${id}.js?v=${VERSION_DES_FONDS}`;
+    script.async = true;
+    script.onload = () => {
+      const f = trouver();
+      if (f) ok(f);
+      else ko(new Error(`le fond ${id} ne s'est pas déclaré`));
+    };
+    script.onerror = () => ko(new Error(`le fond ${id} n'a pas pu être chargé`));
+    document.head.append(script);
+  });
+  charges.set(id, promesse);
+  promesse.catch(() => charges.delete(id));
+  return promesse;
 }
-let grains: Grain[] = [];
-let temps = 0;
-let image: ImageData | null = null;
 
-function dessinerLesCollines(dt: number): void {
-  if (!toile || fond?.dataset["banniere"] === "oui") return;
-  const W = Math.max(40, Math.ceil(innerWidth / 4));
-  const H = Math.max(40, Math.ceil(innerHeight / 4));
-  if (toile.width !== W || toile.height !== H) {
-    toile.width = W;
-    toile.height = H;
-    image = null;
+interface Scene {
+  id: IdDeFond;
+  fond: FondDuJeu;
+  toile: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  casse: boolean;
+}
+let actuelle: Scene | null = null;
+let sortante: Scene | null = null;
+// Le temps des animations ne court que quand rien n'est figé : une pause reprend où elle s'était arrêtée.
+let tempsAnime = 0;
+
+function dessiner(s: Scene): void {
+  if (s.casse) return;
+  try {
+    s.fond.dessiner(s.ctx, tempsAnime, { x: vx, y: vy });
+  } catch (e) {
+    s.casse = true;
+    console.error(e);
   }
-  const g = toile.getContext("2d");
-  if (!g) return;
-  if (!image) {
-    image = g.createImageData(W, H);
-    grains = Array.from({ length: Math.round((W * H) / 1100) }, (_, i) => ({ x: Math.random() * W, y: Math.random() * H, v: 1.5 + Math.random() * 3.5, ph: Math.random() * 6.28, k: i % 9 }));
+}
+
+// La taille de la dernière toile montée. Au défilement d'un téléphone, la barre d'adresse qui rentre ou sort ne change que
+// la hauteur, d'un dixième environ : une hauteur un peu plus petite garde la toile (le surplus est coupé), et seule une plus
+// grande, ou bien plus petite, la refait. Sans cela, le paysage se recomposerait à chaque changement de sens du défilement.
+let posee: { l: number; h: number } | null = null;
+function tailleVoulue(): { l: number; h: number } {
+  const l = fond?.clientWidth || innerWidth;
+  const h = fond?.clientHeight || innerHeight;
+  if (posee && posee.l === l && h <= posee.h && h >= posee.h * 0.8) return posee;
+  return { l, h };
+}
+
+// La toile en cases, à la taille du fond (barre de défilement exclue) ; chaque case fait exactement `echelle` pixels, ce qui
+// dépasse est coupé par le fond. Le paysage refait ses calques (thème, taille) puis peint une image.
+function monter(s: Scene): void {
+  posee = tailleVoulue();
+  const { largeur, hauteur, echelle } = toileDuFond(posee.l, posee.h);
+  s.toile.width = largeur;
+  s.toile.height = hauteur;
+  s.toile.style.width = `${largeur * echelle}px`;
+  s.toile.style.height = `${hauteur * echelle}px`;
+  s.ctx.imageSmoothingEnabled = false;
+  try {
+    s.fond.monter({ largeur, hauteur, sombre: racine.dataset["mode"] === "sombre", echelle });
+    s.casse = false;
+  } catch (e) {
+    s.casse = true;
+    console.error(e);
+    return;
   }
-  const sombre = racine.dataset["mode"] === "sombre";
-  const c = COULEURS[sombre ? "sombre" : "clair"];
-  const ca = octets(c.a);
-  const cb = octets(c.b);
-  const cl = octets(c.lueur);
-  temps += dt;
-  vx += (mx - vx) * Math.min(1, dt * 3);
-  const d = image.data;
-  const cx = W * 0.5;
-  const cy = H * 0.42;
-  const rayon = Math.max(W, H) * 0.5;
-  const tour = temps * 0.025;
-  for (let y = 0, i = 0; y < H; y++) {
-    const pente = (y / H) * 17 - 1;
-    for (let x = 0; x < W; x++, i += 4) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const b = BAYER[(y & 3) * 4 + (x & 3)]!;
-      let L = Math.max(0, 1 - dist / rayon);
-      L = L * L * 12;
-      if (Math.sin((Math.atan2(dy, dx) + tour) * 9) > 0.3) L += 2.6 * Math.max(0, 1 - dist / (rayon * 1.7));
-      const k = b < L ? cl : b < pente ? cb : ca;
-      d[i] = k[0];
-      d[i + 1] = k[1];
-      d[i + 2] = k[2];
-      d[i + 3] = 255;
+  dessiner(s);
+}
+
+// Un changement de fond refait tous les calques (jusqu'à un dixième de seconde) : attendre que le navigateur souffle, pour
+// ne pas accrocher un geste en cours, comme le glisser d'une carte au vestiaire.
+const souffle = (): Promise<void> =>
+  new Promise((ok) => {
+    if ("requestIdleCallback" in window) requestIdleCallback(() => ok(), { timeout: 2000 });
+    else setTimeout(ok, 0);
+  });
+
+// Le fond voulu par l'horloge, et seulement lui : un chargement lent dépassé par le quart d'heure suivant ne s'affiche pas.
+const toujoursVoulu = (id: IdDeFond): boolean => actuelle?.id !== id && fondDuMoment(Date.now()).id === id;
+let enCours: IdDeFond | null = null;
+
+async function passerAuFond(id: IdDeFond): Promise<void> {
+  if (!fond || !premiereToile || enCours === id || !toujoursVoulu(id)) return;
+  enCours = id;
+  try {
+    let f: FondDuJeu;
+    try {
+      f = await chargerLeFond(id);
+    } catch (e) {
+      console.error(e);
+      return;
     }
-  }
-  g.putImageData(image, 0, 0);
-  if (sombre)
-    for (const p of grains)
-      if (p.k > 5) {
-        g.fillStyle = Math.sin(temps * 0.6 + p.ph) > 0 ? c.g1 : c.g3;
-        g.fillRect(Math.round(p.x), Math.round(p.ph * H * 0.11), 1, 1);
+    if (actuelle) await souffle();
+    if (!toujoursVoulu(id)) return;
+    // Le premier fond prend la toile de la page ; les suivants arrivent dans une toile neuve, en fondu, par-dessus l'ancien.
+    const toile = actuelle ? (premiereToile.cloneNode(false) as HTMLCanvasElement) : premiereToile;
+    const ctx = toile.getContext("2d");
+    if (!ctx) return;
+    const nouvelle: Scene = { id, fond: f, toile, ctx, casse: false };
+    const ancienne = actuelle;
+    if (ancienne) {
+      sortante?.toile.remove();
+      sortante = null;
+      toile.style.opacity = "0";
+      fond.append(toile);
+    }
+    monter(nouvelle);
+    actuelle = nouvelle;
+    if (!ancienne) return;
+    if (fige()) {
+      ancienne.toile.remove();
+      toile.style.opacity = "";
+      return;
+    }
+    sortante = ancienne;
+    // Lire une mesure fixe l'opacité 0 avant de passer à 1 : sans elle, le navigateur saute le fondu.
+    void toile.offsetWidth;
+    toile.style.opacity = "1";
+    setTimeout(() => {
+      if (sortante === ancienne) {
+        ancienne.toile.remove();
+        sortante = null;
       }
-  const o1 = temps * 0.7 + vx * 3;
-  const o2 = temps * 1.8 + vx * 8;
-  for (let x = 0; x < W; x++) {
-    const u = x + Math.round(o1);
-    const h1 = Math.round(H * 0.8 - Math.sin(u * 0.045) * 6 - Math.sin(u * 0.11 + 1) * 3);
-    g.fillStyle = c.loin;
-    g.fillRect(x, h1, 1, H - h1);
-    const s = ((u % 13) + 13) % 13;
-    const grand = (((Math.floor(u / 13) * 7) % 5) + 5) % 5 > 1;
-    if (grand && s < 7) {
-      const m = 3 - Math.abs(3 - s);
-      g.fillStyle = c.sapin;
-      g.fillRect(x, h1 - 1 - m * 2, 1, m * 2 + 2);
-    }
-  }
-  for (let x = 0; x < W; x++) {
-    const u = x + Math.round(o2);
-    const h2 = Math.round(H * 0.91 - Math.sin(u * 0.03 + 2) * 7 - Math.sin(u * 0.09) * 2);
-    g.fillStyle = c.pres;
-    g.fillRect(x, h2, 1, H - h2);
-    g.fillStyle = c.crete;
-    g.fillRect(x, h2, 1, 1);
-  }
-  for (const p of grains) {
-    if (p.k > 5 && sombre) continue;
-    const pres = p.k < 2;
-    p.y += (sombre ? -0.45 : 1) * p.v * (pres ? 1.6 : 1) * dt;
-    if (p.y < -2) p.y = H + 1;
-    if (p.y > H + 2) p.y = -1;
-    const x = Math.round(p.x + Math.sin(temps * 0.5 + p.ph) * 3 - vx * (pres ? 6 : 2));
-    const y = Math.round(p.y);
-    g.fillStyle = sombre ? (p.k === 0 ? c.g2 : p.k === 2 ? c.g3 : "#ffd84a") : p.k === 0 ? c.g2 : p.k === 1 ? c.g3 : c.g1;
-    g.fillRect(x, y, 1, 1);
-    if (pres && Math.sin(temps * 0.7 + p.ph) > -0.3) {
-      g.fillRect(x - 1, y, 3, 1);
-      g.fillRect(x, y - 1, 1, 3);
-    }
+    }, 3500);
+  } finally {
+    if (enCours === id) enCours = null;
   }
 }
 
-if (toile) {
-  dessinerLesCollines(0);
+// Le tour suivant arrive au quart d'heure ; un onglet revenu au premier plan rattrape le tour qu'il a manqué.
+function planifier(): void {
+  const { finMs } = fondDuMoment(Date.now());
+  setTimeout(
+    () => {
+      void passerAuFond(fondDuMoment(Date.now()).id);
+      planifier();
+    },
+    Math.max(1000, finMs - Date.now() + 50),
+  );
+}
+
+if (fond && premiereToile) {
+  void passerAuFond(fondDuMoment(Date.now()).id);
+  planifier();
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) void passerAuFond(fondDuMoment(Date.now()).id);
+  });
+  // Trente images par seconde suffisent à ces mouvements lents ; le temps, lui, avance à chaque image de l'écran.
   let avant = performance.now();
-  let cumul = 0;
+  let dernier = 0;
   const boucle = (t: number): void => {
-    const dt = Math.min(0.1, (t - avant) / 1000);
+    const dt = Math.min(100, t - avant);
     avant = t;
-    cumul += dt;
-    if (cumul >= 0.1) {
-      if (!fige()) dessinerLesCollines(cumul);
-      cumul = 0;
+    if (!fige() && actuelle) {
+      tempsAnime += dt;
+      const k = Math.min(1, dt * 0.0036);
+      vx += (mx - vx) * k;
+      vy += (my - vy) * k;
+      if (t - dernier >= 32) {
+        dernier = t;
+        if (sortante) dessiner(sortante);
+        dessiner(actuelle);
+      }
     }
     requestAnimationFrame(boucle);
   };
   requestAnimationFrame(boucle);
-  addEventListener("resize", () => dessinerLesCollines(0));
-  // Le thème change : les collines changent de couleurs, même immobiles.
-  new MutationObserver(() => dessinerLesCollines(0)).observe(racine, { attributes: true, attributeFilter: ["data-mode"] });
+  // Une autre taille d'écran ou un autre thème : le paysage refait ses calques, même immobile.
+  const remonter = (): void => {
+    if (actuelle) monter(actuelle);
+    if (sortante) monter(sortante);
+  };
+  let attente = 0;
+  addEventListener("resize", () => {
+    clearTimeout(attente);
+    attente = window.setTimeout(() => {
+      if (tailleVoulue() !== posee) remonter();
+    }, 150);
+  });
+  new MutationObserver(remonter).observe(racine, { attributes: true, attributeFilter: ["data-mode"] });
 }

@@ -37,14 +37,11 @@ export interface CarteDuJoueur {
 }
 
 const SANS_CARTE: CarteDuJoueur = { tenue: null, banniere: null, finition: null, cadre: null, familier: null };
-/** L'annonce de la bannière du joueur au fond du jeu (src/scripts/jeu.ts). */
-const BANNIERE_DU_FOND = "jeu:banniere";
 
 /**
  * La carte du joueur : relue à l'ouverture, chaque fois que `relire` change (le retour sur « Ma carte », après un achat),
  * quand il enregistre sa tenue ou choisit une bannière. Chaque fonction du serveur est lue à part : une en panne n'empêche
- * pas les autres. La bannière est aussi annoncée au fond du jeu.
- */
+ * pas les autres. */
 export function useCarteDuJoueur(actif: boolean, relire: number): CarteDuJoueur | null {
   const [carte, setCarte] = useState<CarteDuJoueur | null>(null);
   const [fois, setFois] = useState(0);
@@ -64,7 +61,6 @@ export function useCarteDuJoueur(actif: boolean, relire: number): CarteDuJoueur 
     ]).then(([tenue, banniere, finition, cadre, familier]) => {
       if (!vivant) return;
       setCarte({ ...SANS_CARTE, tenue, banniere, finition, cadre: (cadre as CadreDeCarte | null) ?? null, familier });
-      window.dispatchEvent(new CustomEvent(BANNIERE_DU_FOND, { detail: { url: banniere ? `${basePath()}/bannieres/${banniere}.png` : null } }));
     });
     return () => {
       vivant = false;

@@ -345,7 +345,7 @@
 :root[data-ecran="jeu"] body {
   min-height: 100dvh;
 }
-/* Le fond : la bannière du joueur, qui respire et suit la souris ; sans bannière, des collines vivantes dessinées en cases. */
+/* Le fond : huit paysages animés en cases qui tournent toutes les 15 minutes (src/scripts/jeu.ts) ; le suivant arrive en fondu. */
 .jeu-fond {
   position: fixed;
   inset: 0;
@@ -353,57 +353,27 @@
   overflow: hidden;
   pointer-events: none;
 }
-.jeu-fond-banniere {
-  position: absolute;
-  inset: -3%;
-  background: var(--jeu-banniere, none) center / cover no-repeat;
-  image-rendering: pixelated;
-  transform: translate(calc(var(--jeu-mx, 0) * -1%), calc(var(--jeu-my, 0) * -0.6%)) scale(1.02);
-  transition: transform 0.6s ease-out;
-  animation: jeu-respire 16s ease-in-out infinite alternate;
-}
-@keyframes jeu-respire {
-  from {
-    scale: 1;
-  }
-  to {
-    scale: 1.035;
-  }
-}
 .jeu-fond-vivant {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   image-rendering: pixelated;
-}
-/* Le voile : la page se lit par-dessus la bannière, dans les deux thèmes. */
-.jeu-fond-voile {
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--color-navy) 42%, transparent);
-}
-:root[data-mode="sombre"] .jeu-fond-voile {
-  background: color-mix(in srgb, var(--color-navy) 55%, transparent);
-}
-.jeu-fond[data-banniere="non"] .jeu-fond-banniere,
-.jeu-fond[data-banniere="non"] .jeu-fond-voile {
-  display: none;
-}
-.jeu-fond[data-banniere="oui"] .jeu-fond-vivant {
-  display: none;
-}
-:root.fx-off .jeu-fond-banniere {
-  animation: none;
-  transition: none;
-  transform: scale(1.02);
+  transition: opacity 3s ease-in-out;
 }
 @media (prefers-reduced-motion: reduce) {
-  .jeu-fond-banniere {
-    animation: none;
+  .jeu-fond-vivant {
     transition: none;
-    transform: scale(1.02);
   }
+}
+/* Une attente posée à même le paysage (« Lecture de votre compte… ») : une bande de la couleur de la page dessous, pour
+   qu'elle se lise sur le ciel le plus clair comme sur la nuit. */
+:root[data-ecran="jeu"] #contenu p.text-muted[role="status"] {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: calc(1 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  background: color-mix(in srgb, var(--color-navy) 90%, transparent);
 }
 
 /* La barre du jeu : logo, ressources (pass et statères), son, musique, pause, thème, retour au site. */
@@ -954,13 +924,6 @@
   display: block;
   image-rendering: pixelated;
   filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
-}
-/* Le voile : la page se lit mieux par-dessus la bannière. */
-.jeu-fond-voile {
-  background: color-mix(in srgb, var(--color-navy) 55%, transparent);
-}
-:root[data-mode="sombre"] .jeu-fond-voile {
-  background: color-mix(in srgb, var(--color-navy) 66%, transparent);
 }
 /* Le menu d'ordinateur : plus d'air entre les boutons, plus de marge à gauche. */
 @media (min-width: 64rem) {

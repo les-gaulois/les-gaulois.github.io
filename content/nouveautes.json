@@ -3,6 +3,17 @@
     "date": "2026-11-21",
     "kind": "ameliore",
     "rank": "minor",
+    "title": "Huit paysages derrière Mon Gaulois",
+    "body": "Le fond de l'écran change tous les quarts d'heure : camp de guerre, forêt, falaises, sommets, plaine, cité, mer de nuages et lac. De jour en thème clair, de nuit en thème sombre.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "ameliore",
+    "rank": "minor",
     "title": "Des prix plus bas à la boutique",
     "body": "Gaulois uniques de 6 000 à 15 000 statères, leur booster à 1 600. Bannières, finitions et cadres : deux fois le prix d'un objet de leur rareté, contre trois. Boosters bannières et familiers : 1 000.",
     "link": {

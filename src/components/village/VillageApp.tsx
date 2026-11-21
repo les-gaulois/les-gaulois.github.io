@@ -104,11 +104,6 @@ export default function VillageApp() {
   }, [surMaCarte]);
   const carte = useCarteDuJoueur(gauloisCree, retours);
 
-  // Sans compte connecté, le fond du jeu reste aux collines : aucune bannière à montrer.
-  useEffect(() => {
-    if (me !== null && !gauloisCree) window.dispatchEvent(new CustomEvent("jeu:banniere", { detail: { url: null } }));
-  }, [me, gauloisCree]);
-
   // Les boosters gagnés à la loterie qui restent à ouvrir : leur nombre, sur le bouton « Boosters ». Relu quand on quitte
   // cette partie, où ils s'ouvrent ; tant qu'elle est ouverte, l'étiquette ne paraît pas (son nombre y change à chaque
   // ouverture, et la partie le dit elle-même). De l'habillage : une panne n'écrit rien.
