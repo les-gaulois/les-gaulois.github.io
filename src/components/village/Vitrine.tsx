@@ -390,7 +390,7 @@ function GauloisEnGrand({ fiche, lib, inventaire, Fenetre, onFermer }: { fiche: 
 const COTE_DE_CASE = 80;
 
 /**
- * Une case de la fenêtre : la même que celles du vestiaire (cadre et fond de la rareté, losanges), sans être un bouton.
+ * Une case de la fenêtre : la même que celles du vestiaire (cadre et fond de la rareté, son icône), sans être un bouton.
  * Au-dessus du dessin, ce que c'est (« Tête », « Familier ») ; dessous, son nom et sa rareté.
  */
 function CaseEnGrand({ partie, nom, rarete, ou = null, onAller, children }: { partie: string; nom: string; rarete: Rarete | null; ou?: Provenance | null; onAller?: () => void; children: ComponentChildren }) {

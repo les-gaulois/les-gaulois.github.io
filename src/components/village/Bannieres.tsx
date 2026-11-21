@@ -14,6 +14,7 @@ import type { Familier } from "../../lib/village/familiers";
 import { Problem, Success, messageOf } from "../compte/common";
 import { Compte, Dialogue, PochetteGagneeIci, Refus, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
+import { IconeDeRarete } from "./IconeDeRarete";
 import { LivreDesBannieres } from "./LivreDesBannieres";
 
 /**
@@ -214,20 +215,18 @@ export function SceneDeLaBanniere({ lib, banniere, tenue, familier, class: class
   return <canvas ref={toile} width={BANNIERE_LARGEUR} height={BANNIERE_HAUTEUR} class={`pixels banniere-scene ${classe}`} role="img" aria-label={`Votre Gaulois devant la bannière « ${banniere.nom} »`} data-testid="banniere-scene" data-banniere={banniere.id} />;
 }
 
-/** Le repère de forme d'une rareté, de un à cinq losanges : le même que sur les cases. */
-function Losanges({ rang }: { rang: number }) {
+/** Le repère de forme d'une rareté, son icône (21 novembre 2026, à la place des losanges) : la même que sur les cases. */
+function RepereDeRarete({ rarete }: { rarete: string }) {
   return (
     <span class="filtre-rang" aria-hidden="true">
-      {Array.from({ length: rang }, (_, i) => (
-        <i key={i} />
-      ))}
+      <IconeDeRarete rarete={rarete} />
     </span>
   );
 }
 
 const Scene = SceneDeLaBanniere;
 
-/** La rareté d'une bannière hors d'une case : écrite et comptée en losanges, dans la couleur de la rareté. */
+/** La rareté d'une bannière hors d'une case : écrite, avec son icône, dans la couleur de la rareté. */
 export function RareteDeLaBanniere({ rarete }: { rarete: Rarete }) {
   return (
     <span class="banniere-rarete" data-rarete={rarete}>
@@ -533,7 +532,7 @@ export function SectionDesBannieres({
           </button>
           {ORDRE_RARETES.map((r) => (
             <button key={r} type="button" class="chip filtre" data-rarete={r} aria-pressed={rareteRetenue === r} disabled={comptes[r] === 0} onClick={() => setRarete(rareteRetenue === r ? null : r)} data-testid={`bannieres-rarete-${r}`}>
-              <Losanges rang={RARETES[r].rang} />
+              <RepereDeRarete rarete={r} />
               {RARETES[r].nom}
               <span class="filtre-nombre tnum">{comptes[r]}</span>
               <span class="sr-only"> {comptes[r] > 1 ? "bannières" : "bannière"}</span>

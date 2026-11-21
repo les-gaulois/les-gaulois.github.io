@@ -236,7 +236,7 @@ function Cadenas() {
 export type Vente = { possede: number } | { prix: number | null; revient?: string | null };
 
 /**
- * Une case : l'image de l'objet, son nom, sa rareté écrite et comptée en losanges (la couleur du cadre n'est jamais le seul
+ * Une case : l'image de l'objet, son nom, sa rareté écrite, avec son icône (la couleur du cadre n'est jamais le seul
  * repère). Une case de la boutique porte son prix : elle s'essaie sur le Gaulois, elle ne se porte qu'une fois achetée.
  * Une case achetée porte la marque « à vous ». `portee` et `essayee` se disent à part : pendant un essayage, l'objet
  * réellement porté garde sa coche. Un objet gravé à la forge porte sa petite plaque dorée dans un coin ; son texte est dans

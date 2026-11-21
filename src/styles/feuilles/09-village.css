@@ -75,7 +75,7 @@
   margin-bottom: 0.375rem;
 }
 /* La case d'un objet, comme au vestiaire : le cadre et le fond prennent la couleur de la rareté (jetons --rarete-…), qui
-   est aussi écrite et comptée en losanges, de un à cinq. */
+   est aussi écrite, avec son icône (des losanges, de un à cinq, jusqu'au 21 novembre 2026). */
 .marche-case {
   --rarete: var(--color-line-strong);
   --rarete-texte: var(--color-muted);
@@ -139,13 +139,7 @@
 }
 .marche-case-rang {
   display: flex;
-  gap: 0.25rem;
-}
-.marche-case-rang i {
-  width: 0.4375rem;
-  height: 0.4375rem;
-  rotate: 45deg;
-  background: var(--rarete-texte);
+  justify-content: center;
 }
 .marche-case-nombre {
   margin-top: 0.125rem;
@@ -533,7 +527,7 @@
   gap: 0.375rem;
   min-width: 0;
 }
-/* Un choix du filtre : les losanges du rang (le repère de forme des cases), le nom de la rareté, le nombre d'objets. Le
+/* Un choix du filtre : l'icône de la rareté (le repère de forme des cases), le nom de la rareté, le nombre d'objets. Le
    choix retenu est en blanc plein, comme tout choix retenu du site. */
 .filtre {
   --rarete-texte: var(--color-muted);
@@ -564,16 +558,9 @@
 }
 .filtre-rang {
   display: flex;
-  gap: 0.1875rem;
-}
-.filtre-rang i {
-  width: 0.375rem;
-  height: 0.375rem;
-  rotate: 45deg;
-  background: var(--rarete-texte);
-}
-.filtre[aria-pressed="true"] .filtre-rang i {
-  background: var(--color-navy);
+  align-items: center;
+  /* L'icône, plus haute que le mot, ne grossit pas le bouton. */
+  margin-block: -0.25rem;
 }
 .filtre-nombre {
   color: var(--ecriture);
@@ -608,7 +595,7 @@
 }
 
 /* Les cases : une petite case par objet, son image en pixels nets, son nom, sa rareté. Le cadre et le fond prennent la
-   couleur de la rareté (jetons --rarete-…) ; la rareté est aussi écrite et comptée en losanges, de un à cinq. */
+   couleur de la rareté (jetons --rarete-…) ; la rareté est aussi écrite, avec son icône (des losanges, de un à cinq, jusqu'au 21 novembre 2026). */
 .cases {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.25rem, 7.25rem));
@@ -705,13 +692,19 @@
 }
 .case-rang {
   display: flex;
-  gap: 0.25rem;
+  justify-content: center;
 }
-.case-rang i {
-  width: 0.4375rem;
-  height: 0.4375rem;
-  rotate: 45deg;
-  background: var(--rarete-texte);
+/* L'icône d'une rareté (21 novembre 2026, dessin de Claude Fable 5.2, src/lib/jeu/icones-de-rarete.ts) : elle remplace les
+   losanges qui comptaient la rareté, partout, dans le jeu comme à l'inscription de « Mon compte ». Onze cases, deux pixels
+   la case (une seule dans l'album des boosters) : toujours un nombre entier de pixels, jamais floue. La même image dans les
+   deux thèmes : son cerne d'encre la détache d'une case claire, ses lumières d'un fond sombre. */
+.rarete-icone {
+  display: block;
+  flex: none;
+  max-width: none;
+  image-rendering: pixelated;
+  user-select: none;
+  pointer-events: none;
 }
 /* Le cadenas d'une case de la boutique, dans son coin ; son image est un peu éteinte. */
 .case-cadenas {
@@ -1027,7 +1020,7 @@
 .pochette-prix {
   font-size: 1.125rem;
 }
-/* Une ligne par rareté : ses losanges, son nom, sa chance. La couleur est celle de la rareté, jamais le seul repère. */
+/* Une ligne par rareté : son icône, son nom, sa chance. La couleur est celle de la rareté, jamais le seul repère. */
 .pochette-chances {
   display: grid;
   max-width: 22rem;
@@ -1281,20 +1274,14 @@ main:has(.album) {
   max-height: 100%;
   object-fit: contain;
 }
-/* La rareté d'une case en petits losanges au pied, comme partout dans la boutique : la couleur n'est jamais le seul repère. */
+/* La rareté d'une case, son icône au pied (une case du dessin par pixel), comme partout dans la boutique : la couleur n'est
+   jamais le seul repère. */
 .album-case-rang {
   position: absolute;
-  bottom: 0.125rem;
+  bottom: 0.0625rem;
   left: 50%;
   display: flex;
-  gap: 0.125rem;
   translate: -50% 0;
-}
-.album-case-rang i {
-  width: 0.1875rem;
-  height: 0.1875rem;
-  rotate: 45deg;
-  background: var(--rarete-texte);
 }
 /* Ce que le compte a déjà : un point dans le coin, « à vous » à la loupe. */
 .album-case[data-possede]::after {
@@ -1570,7 +1557,7 @@ main:has(.album) {
 }
 /* La toile du moule de la forge (Moule.tsx) et la sortie de la fusion (Fusion.tsx) gardent les classes du tambour des
    pochettes (retiré le 21 novembre 2026) : une toile de 6 sur 5, toute la largeur de la fenêtre, qui sort d'un coup ; sous
-   elle, en texte, ce qui est sorti : le nom, puis la rareté écrite et comptée en losanges, dans sa couleur de texte. */
+   elle, en texte, ce qui est sorti : le nom, puis la rareté écrite, avec son icône, dans sa couleur de texte. */
 .tambour {
   display: block;
   width: 100%;
@@ -1653,7 +1640,7 @@ main:has(.album) {
   }
 }
 
-/* Le nom d'une case tient sur deux lignes : il en garde la place, pour que les losanges, la rareté et le prix soient à la
+/* Le nom d'une case tient sur deux lignes : il en garde la place, pour que l'icône, la rareté et le prix soient à la
    même hauteur d'une case à l'autre. Un nom d'une ligne se pose en bas, contre sa rareté. */
 .case-nom,
 .marche-case-nom {
@@ -2177,7 +2164,7 @@ main:has(.album) {
 /* Les écrans des bannières : l'onglet « Bannière » des rayons de « La boutique » (la vitrine, les filtres, les cases),
    la fenêtre d'achat, et « Ma bannière sur /gaulois » dans « Mon Gaulois ». Une bannière fait 124 cases sur 80 : elle
    est toujours agrandie d'un nombre entier de fois (--banniere-e pour la scène, --banniere-c pour les cases), sans flou.
-   Les couleurs sont celles des raretés du site (jetons --rarete-…) ; la rareté est aussi écrite et comptée en losanges. */
+   Les couleurs sont celles des raretés du site (jetons --rarete-…) ; la rareté est aussi écrite, avec son icône. */
 
 /* La section mesure sa propre largeur : dans la colonne de la boutique, la place dépend du Gaulois collé à côté et de
    son familier, pas seulement de l'écran. Elle est le rayon ouvert : le nom de l'onglet, juste au-dessus, lui sert de
@@ -2308,7 +2295,7 @@ main:has(.album) {
   color: var(--ecriture);
   text-wrap: balance;
 }
-/* La rareté hors d'une case : les losanges, puis son nom, sur une ligne. */
+/* La rareté hors d'une case : son icône, puis son nom, sur une ligne. */
 .banniere-rarete .case-rarete {
   grid-auto-flow: column;
   align-items: center;
@@ -2651,8 +2638,8 @@ main:has(.album) {
     grid-column: 3;
   }
 }
-/* Les remboursements de la pochette (16 novembre 2026) : la première ligne des chances, la pièce du village à la place des
-   losanges, jamais une couleur de rareté ; ce qui peut revenir est écrit dessous. */
+/* Les remboursements de la pochette (16 novembre 2026) : la première ligne des chances, la pièce du village à la place de
+   l'icône de rareté, jamais une couleur de rareté ; ce qui peut revenir est écrit dessous. */
 .bannieres-chance-rendu small {
   display: block;
   font-size: 0.8125rem;
@@ -2742,7 +2729,7 @@ main:has(.album) {
    vitrine des onze modèles par famille), les deux fenêtres (pochette, achat) et « Corps » dans « Mon Gaulois », qui
    reprend les cases du vestiaire. Un modèle fait 48 cases sur 64 : il est toujours agrandi d'un nombre entier de fois
    (--uniques-e), sans flou. Les couleurs sont celles des raretés du site (jetons --rarete-…) ; la rareté est aussi écrite
-   et comptée en losanges. */
+   avec son icône. */
 
 /* La section mesure sa propre largeur : dans la colonne de la boutique, la place dépend du Gaulois collé à côté. Elle
    est le rayon ouvert : le nom de l'onglet, juste au-dessus, lui sert de titre. */
@@ -3100,7 +3087,7 @@ main:has(.album) {
 
 /* Les remboursements de la pochette (16 novembre 2026) : 85 pochettes sur 100 rendent une part du prix. Ils se montrent
    par la pièce du village et jamais par une couleur de rareté : dans les chances, dans l'album, dans la fenêtre. */
-/* Dans les chances : la première ligne, la pièce à la place des losanges, et ce qui peut revenir écrit dessous. */
+/* Dans les chances : la première ligne, la pièce à la place de l'icône de rareté, et ce qui peut revenir écrit dessous. */
 .uniques-chance-rendu small {
   display: block;
   font-size: 0.8125rem;
@@ -4233,7 +4220,7 @@ main:has(.album) {
   animation: sentier-pas 2.8s ease-in-out infinite;
 }
 
-/* Les cases, comme à la boutique : la pochette à la couleur de la rareté, ses losanges, ce qu'il faut. */
+/* Les cases, comme à la boutique : la pochette à la couleur de la rareté, son icône, ce qu'il faut. */
 .sentier-case {
   grid-template-rows: 4.5rem auto;
   width: 100%;

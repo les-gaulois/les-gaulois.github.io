@@ -12,6 +12,7 @@ import { Problem, Success, messageOf } from "../compte/common";
 import { BANNIERE_CHOISIE } from "./Bannieres";
 import { Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Prix } from "./BoutiquePixels";
+import { IconeDeRarete } from "./IconeDeRarete";
 import { CarteAnimee } from "./CarteAnimee";
 import { LivreDesBannieres, type DessinDuLivre } from "./LivreDesBannieres";
 
@@ -211,9 +212,7 @@ export function SectionDesCadres({ tenue, familier = null, onSolde, onRefus }: {
         {RARETES_DES_CADRES.map((r) => (
           <button key={r} type="button" class="chip filtre" data-rarete={r} aria-pressed={rarete === r} onClick={() => setRarete(rarete === r ? null : r)}>
             <span class="filtre-rang" aria-hidden="true">
-              {Array.from({ length: RARETES[r].rang }, (_, i) => (
-                <i key={i} />
-              ))}
+              <IconeDeRarete rarete={r} />
             </span>
             {RARETES[r].nom}
             <span class="filtre-nombre tnum">{comptes[r]}</span>

@@ -21,8 +21,11 @@ import {
   visageDuRayon,
   type LeVestiaire,
   type OngletDuVestiaire,
+  type PartieDuCorps,
+  type PastilleDuCorps,
 } from "../compte/Vestiaire";
-import { Px } from "../jeu/Pixels";
+import type { NomDeGrandeIcone } from "../../lib/jeu/icones";
+import { Icone, Px } from "../jeu/Pixels";
 import { Pixels, peindre } from "./BoutiquePixels";
 import { ApercuGaulois } from "./Cases";
 import { useEssayage } from "./Essayage";
@@ -50,6 +53,28 @@ const A_DROITE: readonly OngletDuVestiaire[] = [RAYON_CORPS, "arme", FAMILIER, B
 const NOMS_ONGLETS: Readonly<Record<OngletDuVestiaire, string>> = { ...NOMS_RAYONS, [FAMILIER]: "Familier", [BANNIERE]: "Bannière" };
 /** La place, en pixels, du dessin dans un emplacement : il s'y agrandit d'un nombre entier de fois. */
 const PLACE_EMPLACEMENT = 44;
+
+/**
+ * Les parties du rayon du corps en icônes (21 novembre 2026, demande du pilote : « des icônes à la place des écritures dans
+ * "le corps" », dessins de Claude Fable 5.2). Le mot reste pour les lecteurs d'écran et dans la bulle du survol.
+ */
+const ICONES_DU_CORPS: Readonly<Record<PartieDuCorps, NomDeGrandeIcone>> = {
+  corps: "trait-corps",
+  peau: "trait-peau",
+  cheveux: "trait-cheveux",
+  barbe: "trait-barbe",
+  yeux: "trait-yeux",
+  bouche: "trait-bouche",
+  cicatrice: "trait-cicatrice",
+};
+
+/** Une partie du corps : un bouton du kit à icône seule, d'or quand elle est ouverte. */
+const PastilleEnIcone: PastilleDuCorps = ({ partie, nom, choisie, choisir }) => (
+  <button type="button" class={`jeu-btn ${choisie ? "" : "jeu-btn-bleu"} jeu-n9 vj-partie`} aria-pressed={choisie} title={nom} onClick={choisir} data-testid={`vestiaire-partie-${partie}`}>
+    <Icone nom={ICONES_DU_CORPS[partie]} />
+    <span class="sr-only">{nom}</span>
+  </button>
+);
 
 /** Ce que montre un emplacement : son dessin, la rareté de ce qu'il porte, et ce qu'il dit aux lecteurs d'écran. */
 interface VueDEmplacement {
@@ -223,7 +248,7 @@ export default function VestiaireDuJeu({ actif }: { actif: boolean }) {
         <PanneDeLInventaire v={v} />
         {/* Les cartes du rayon ouvert : on les attrape ici. */}
         <div ref={cartes} class="vj-cartes" {...essayage}>
-          {ouvert === RAYON_CORPS && <RayonDuCorps v={v} />}
+          {ouvert === RAYON_CORPS && <RayonDuCorps v={v} pastille={PastilleEnIcone} />}
           {ouvert === FAMILIER && <ChoixDuFamilier v={v} plie={false} />}
           {ouvert === BANNIERE && <ChoixDeLaBanniere v={v} actif={actif} />}
           {estUnRayon(ouvert) && ouvert !== RAYON_CORPS && <RayonDesObjets v={v} emplacement={ouvert} />}

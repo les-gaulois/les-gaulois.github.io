@@ -1116,8 +1116,11 @@
 .fj-rarete {
   gap: calc(3 * var(--jeu-p));
 }
-.fj-rarete > .bst-losanges,
-.fj-rarete > :first-child:not(.jeu-px) {
+/* L'icône de la rareté, sur la face du bouton : centrée sur la hauteur des lettres. */
+.fj-rarete > .bst-losanges {
+  margin-block: calc(-1 * var(--jeu-p)) 0;
+}
+.fj-rarete > :first-child:not(.jeu-px, .bst-losanges) {
   margin-top: calc(3 * var(--jeu-p));
 }
 .forge-jeu .fj-creuset {

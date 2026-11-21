@@ -675,3 +675,40 @@
     transition: none;
   }
 }
+
+/* ---------- Les parties du corps, en icônes (21 novembre 2026, dessin de Claude Fable 5.2) ---------- */
+
+/* Sept boutons du kit à icône seule, à la place des mots : la grande icône de la partie, debout sur le bouton, dépasse du
+   haut comme les icônes du menu. D'or, la partie ouverte. Sur une ligne quand la place le permet. */
+.vestiaire-jeu .vj-panneau .vestiaire-parties {
+  gap: calc(4 * var(--jeu-p)) calc(3 * var(--jeu-p));
+  /* La place de l'icône qui dépasse du premier rang. */
+  padding-top: calc(13 * var(--jeu-p));
+}
+.vj-partie {
+  width: calc(32 * var(--jeu-p));
+  min-width: 0;
+  padding: 0;
+}
+.vj-partie > .jeu-ic {
+  position: absolute;
+  left: 50%;
+  bottom: calc(4 * var(--jeu-p));
+  margin-left: calc(-12 * var(--jeu-p));
+  pointer-events: none;
+}
+/* La partie ouverte : son icône un cran plus haut, comme l'onglet ouvert du menu. */
+.vj-partie[aria-pressed="true"] > .jeu-ic {
+  bottom: calc(6 * var(--jeu-p));
+}
+/* Deux rangs sur téléphone : chaque rang a la place de ses icônes. */
+@media (max-width: 47.99rem) {
+  .vestiaire-jeu .vj-panneau .vestiaire-parties {
+    gap: calc(16 * var(--jeu-p)) calc(2 * var(--jeu-p));
+    justify-content: center;
+  }
+  /* Quatre de front dès 360 pixels. */
+  .vj-partie {
+    width: calc(26 * var(--jeu-p));
+  }
+}

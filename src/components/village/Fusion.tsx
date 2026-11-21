@@ -34,7 +34,7 @@ import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
 import { Ruban, SousTitre } from "./BoutiqueDuJeu";
 import { preparerLeSon, useSonDuJeu } from "./Carillon";
 import { imageEnCases } from "./ImageEnCases";
-import { BoutonDesBoosters, FenetreDuBooster, LosangesEnPixels, RareteEnPixels, RefusDuBooster, ResultatDuBooster } from "./KitDesBoosters";
+import { BoutonDesBoosters, FenetreDuBooster, RangEnIcone, RareteEnPixels, RefusDuBooster, ResultatDuBooster } from "./KitDesBoosters";
 import { Moule, type DessinDuMoule } from "./Moule";
 import { casesDuChaudron } from "./SentierDessins";
 
@@ -245,7 +245,7 @@ export function Fusion({ fusion, onForge, onRelire }: { fusion: FusionDeLaForge;
           const pressee = r === rarete;
           return (
             <button key={r} type="button" class={`jeu-btn ${pressee ? "" : "jeu-btn-bleu"} jeu-n9 fj-rarete`} data-rarete={r} aria-pressed={pressee} onClick={() => changerDeRarete(r)} data-testid={`fusion-rarete-${r}`}>
-              <LosangesEnPixels rang={RARETES[r].rang} couleur={pressee ? "encre" : "creme"} />
+              <RangEnIcone rang={RARETES[r].rang} rarete={r} />
               <Px t={`${RARETES[r].nom} ${libres[r]}`} couleur={pressee ? "encre" : "creme"} relief={pressee ? "plat" : "cerne"} dit={`${RARETES[r].nom}, ${libres[r]} à donner`} />
             </button>
           );

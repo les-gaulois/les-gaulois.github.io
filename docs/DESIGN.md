@@ -825,7 +825,7 @@ code source, mention d'OpenFront) et le lien de `/village/kit.css` dans `tete`. 
 | `src/lib/jeu/palette.ts` | La palette, une lettre par couleur, et les couleurs des pièces qui changent avec le thème |
 | `src/lib/jeu/ecriture.ts` | L'écriture en capitales de 5 cases sur 7, accents compris (`enCapitales`, `largeurDuTexte`, `ecrire`) |
 | `src/lib/jeu/pieces.ts` | Les cadres en neuf parts (panneau, écran, infobulle, tube), les pleins des barres, les boutons à trois états, les rubans, les étiquettes, le compteur |
-| `src/lib/jeu/icones.ts` | Les icônes : 24 cases en couleur (menu, chiffres), 16 cases en blanc (boutons de la barre) |
+| `src/lib/jeu/icones.ts` | Les icônes : 24 cases en couleur (menu, chiffres, parties du corps `trait-…`, rayons `rayon-…`, boutique et marché `action-…`), 16 cases en blanc (boutons de la barre) |
 | `src/lib/jeu/paliers-de-victoires.ts` | Les quatorze paliers de victoires et leurs insignes, voulus par le pilote ; `WIN_TIERS` (liste des membres, Discord), encore à 8 paliers, doit la reprendre |
 | `src/lib/jeu/logo.ts` | Le logo « Mon Gaulois » |
 | `src/lib/jeu/kit-css.ts` | À la construction : chaque image fixe du kit en PNG, dans les variables de `/village/kit.css` |
@@ -837,6 +837,7 @@ code source, mention d'OpenFront) et le lien de `/village/kit.css` dans `tete`. 
 | `src/components/jeu/RessourcesDuJeu.tsx` | Le palier du pass et la bourse, dans la barre |
 | `src/components/jeu/MaCarte.tsx` | « Ma carte » : la carte du joueur et ses chiffres de clan (`src/lib/jeu/chiffres-de-carte.ts`, `/village/chiffres.json`) |
 | `src/styles/feuilles/16-jeu.css` | La feuille du kit et du cadre de jeu |
+| `src/lib/jeu/icones-de-rarete.ts` | Les sept icônes de rareté (11 cases, une par rareté, du commun au divin, légendaire de saison compris), qui remplacent les losanges ; affichées par `IconeDeRarete.tsx`, sans la feuille du kit (« Des icônes plutôt que des mots », plus bas) |
 | `src/lib/jeu/vestiaire.ts` | Les pièces du vestiaire (dessin de Claude Fable 5.2) : cadre des cartes et des emplacements par rareté, trame, cadre de la bannière, socle, lueur, viseur, coche, éclat d'un essai, plateau ; variables `--jeu-v-…` de `/village/kit.css` |
 | `src/components/village/VestiaireDuJeu.tsx` | Le vestiaire du jeu : le Gaulois, ses huit emplacements, les cartes du rayon ouvert (« Le vestiaire du jeu », plus bas) |
 | `src/components/village/Essayage.tsx` | Le glisser du vestiaire : une carte lâchée sur le Gaulois vole vers son emplacement ; le geste, prise ou défilement, se décide dans `src/lib/jeu/geste.ts` |
@@ -900,6 +901,29 @@ corps, l'arme, le familier, la bannière), et les cartes du rayon ouvert, les ca
 - **Rien ne se perd** : tout le vestiaire d'avant (`useVestiaire` de `src/components/compte/Vestiaire.tsx`) sert aussi
   à l'inscription dans « Mon compte », qui garde la page d'avant, sans rien du jeu (le test des feuilles le vérifie). La
   bourse n'est plus dans le vestiaire du jeu : la barre du jeu la montre toujours.
+
+### Des icônes plutôt que des mots (21 novembre 2026)
+
+Demande du pilote, le soir du 21 novembre 2026 : « des icônes à la place des écritures dans "le corps" ; pareil dans la
+boutique il manque des icônes, et […] des icônes aussi pour commun, peu commun, épique, etc. au lieu de * ** *** **** ***** ».
+Dessins de Claude Fable 5.2.
+
+- **Les raretés** : une icône par rareté (commun, peu commun, épique, mystique, légendaire, légendaire de saison, divin),
+  dans sa couleur, qui monte en prestige de l'une à l'autre (`src/lib/jeu/icones-de-rarete.ts`, composant
+  `IconeDeRarete.tsx`). Elle remplace partout les losanges qui comptaient la rareté : la marque des cases (`MarqueDeRarete`,
+  donc vestiaire, boutique, marché, vitrine, forge, pass, boosters), les filtres de rareté, l'album des boosters, les chances
+  et la face des cartes de booster. Le nom de la rareté reste écrit là où il l'était, et dit aux lecteurs d'écran. L'image
+  est faite dans la page, sans la feuille du kit : la même sert à l'inscription de « Mon compte ».
+- **Le corps** : les sept parties du rayon du corps (corps, peau, cheveux, barbe, yeux, bouche, cicatrice) sont des
+  boutons du kit à icône seule (`trait-…` d'`icones.ts`) ; le mot reste pour les lecteurs d'écran et dans la bulle du survol.
+  Hors du jeu, à l'inscription, les pastilles écrites d'avant restent.
+- **La boutique** : chaque rayon a son icône au-dessus de son nom (`rayon-…`), le filtre « Tout » aussi, et les titres et
+  boutons du marché et de l'essayage portent la leur devant le mot (`action-…` : marché, essayage, vendre, demander,
+  acheter, revendre, porter, sélection de la semaine). Sur un bouton d'action, le mot reste : il dit ce que fait le bouton.
+  Sur un grand écran, l'icône du rayon prend la place de la vignette de ce que le Gaulois y porte, qui se posait au-dessus
+  de l'onglet : le Gaulois de l'essayage, à côté, le montre déjà (règle de `19-jeu-boutique.css`, à retirer pour la remettre).
+- **La fiche d'un booster** prend la mise en page du téléphone d'après sa propre place (requête de conteneur de
+  `17-jeu-boosters.css`) : sur un écran moyen, de 768 à 1 180 pixels, son prix sortait de la page.
 
 ### La vitrine, la loterie et la démo des visiteurs (21 novembre 2026)
 

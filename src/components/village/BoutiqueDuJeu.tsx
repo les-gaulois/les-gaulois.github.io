@@ -5,8 +5,10 @@ import { jusquAuChangement, resteAvantLeChangement } from "../../lib/village/bou
 import { nombre } from "../../lib/village/ecran-boutique";
 import type { ObjetDuMarche } from "../../lib/village/ecran-marche";
 import { echelleEntiere, type Filtre } from "../../lib/village/vestiaire-rayons";
-import { Etiquette, Px } from "../jeu/Pixels";
+import type { NomDeGrandeIcone } from "../../lib/jeu/icones";
+import { Etiquette, Icone, Px } from "../jeu/Pixels";
 import { Pixels } from "./BoutiquePixels";
+import { IconeDeRarete } from "./IconeDeRarete";
 import { CaseObjet } from "./MarcheCase";
 
 /**
@@ -16,11 +18,15 @@ import { CaseObjet } from "./MarcheCase";
  * texte pour les lecteurs d'écran ; les dessins seuls sont cachés.
  */
 
-/** Un titre de bloc, en ruban : le `<h…>` porte le texte, le ruban n'est qu'un dessin. */
-export function Ruban({ t, niveau = 4, bleu = false, id }: { t: string; niveau?: 3 | 4; bleu?: boolean; id?: string }) {
+/**
+ * Un titre de bloc, en ruban : le `<h…>` porte le texte, le ruban n'est qu'un dessin. `icone` : l'icône du kit posée devant
+ * (21 novembre 2026, demande du pilote : des images plutôt que du texte), décorative.
+ */
+export function Ruban({ t, niveau = 4, bleu = false, id, icone }: { t: string; niveau?: 3 | 4; bleu?: boolean; id?: string; icone?: NomDeGrandeIcone }) {
   const Balise = niveau === 3 ? "h3" : "h4";
   return (
     <Balise id={id} class="boutique-jeu-ruban">
+      {icone && <Icone nom={icone} classe="boutique-jeu-titre-ic" />}
       <span class={`jeu-ruban ${bleu ? "jeu-ruban-bleu" : ""} jeu-n9`}>
         <Px t={t} couleur="creme" relief="ombre" />
       </span>
@@ -28,10 +34,11 @@ export function Ruban({ t, niveau = 4, bleu = false, id }: { t: string; niveau?:
   );
 }
 
-/** Un sous-titre en pixels, dans la couleur douce du thème. */
-export function SousTitre({ t, id, children }: { t: string; id?: string; children?: ComponentChildren }) {
+/** Un sous-titre en pixels, dans la couleur douce du thème, et son icône du kit devant (décorative). */
+export function SousTitre({ t, id, icone, children }: { t: string; id?: string; icone?: NomDeGrandeIcone; children?: ComponentChildren }) {
   return (
     <h4 id={id} class="boutique-jeu-sous-titre">
+      {icone && <Icone nom={icone} classe="boutique-jeu-sous-titre-ic" />}
       <Px t={t} couleur="doux" plie />
       {children}
     </h4>
@@ -66,10 +73,13 @@ export function BoutonDuJeu({
   onClick,
   testid,
   classe = "",
+  icone,
   children,
 }: {
   t: string;
   bleu?: boolean;
+  /** L'icône du kit devant le mot (21 novembre 2026), décorative. */
+  icone?: NomDeGrandeIcone;
   dit?: string;
   disabled?: boolean;
   onClick: () => void;
@@ -78,7 +88,8 @@ export function BoutonDuJeu({
   children?: ComponentChildren;
 }) {
   return (
-    <button type="button" class={`jeu-btn ${bleu ? "jeu-btn-bleu" : ""} jeu-n9 ${classe}`} disabled={disabled} aria-label={dit} onClick={onClick} data-testid={testid}>
+    <button type="button" class={`jeu-btn ${bleu ? "jeu-btn-bleu" : ""} jeu-n9 ${icone ? "boutique-jeu-btn-avec-ic" : ""} ${classe}`} disabled={disabled} aria-label={dit} onClick={onClick} data-testid={testid}>
+      {icone && <Icone nom={icone} classe="boutique-jeu-btn-ic" />}
       <Px t={t} couleur={bleu ? "creme" : "encre"} relief={bleu ? "cerne" : "plat"} muet={Boolean(dit)} />
       {children}
     </button>
@@ -96,6 +107,7 @@ export function SelectionDeLaSemaine({ changeLe, maintenant, regle }: { changeLe
   return (
     <section class="boutique-jeu-selection jeu-panneau jeu-n9" aria-labelledby="boutique-selection-titre" data-testid="boutique-selection">
       <h3 id="boutique-selection-titre" class="boutique-jeu-selection-titre">
+        <Icone nom="action-selection" classe="boutique-jeu-sous-titre-ic" />
         <Px t="La sélection de la semaine" plie />
       </h3>
       <Etiquette t={reste.court} ton="rouge" dit={reste.dit} classe="boutique-jeu-reste" />
@@ -132,6 +144,7 @@ export function OngletsDesRayons<R extends string>({
   mention,
   nouveaux,
   barre,
+  icone,
   onChoisir,
 }: {
   rayons: readonly R[];
@@ -141,6 +154,8 @@ export function OngletsDesRayons<R extends string>({
   mention: (rayon: R) => string | null;
   nouveaux: ReadonlySet<string>;
   barre: RefObject<HTMLDivElement>;
+  /** L'icône du kit de chaque rayon (21 novembre 2026), décorative : son nom est écrit dessous. */
+  icone?: (rayon: R) => NomDeGrandeIcone | null;
   onChoisir: (rayon: R) => void;
 }) {
   const auClavier = (e: KeyboardEvent, index: number) => {
@@ -176,6 +191,7 @@ export function OngletsDesRayons<R extends string>({
               data-testid={`rayon-${id}`}
             >
               <span class="boutique-jeu-onglet-image">{image && <ImageDOnglet vignette={image} />}</span>
+              {icone?.(id) && <Icone nom={icone(id)!} classe="boutique-jeu-onglet-ic" />}
               <Px t={noms[id]} couleur={ouvert ? "encre" : "texte"} classe="boutique-jeu-onglet-nom" dit={noms[id]} />
               {mots && (
                 <span class="boutique-jeu-onglet-mention tnum">
@@ -196,19 +212,17 @@ export function OngletsDesRayons<R extends string>({
   );
 }
 
-/** Les losanges d'une rareté, de un à cinq : le repère de forme, la couleur n'est jamais seule. */
-function Losanges({ rang }: { rang: number }) {
+/** L'icône d'une rareté (21 novembre 2026, à la place des losanges) : le repère de forme, la couleur n'est jamais seule. */
+function RepereDeRarete({ rarete }: { rarete: string }) {
   return (
     <span class="boutique-jeu-losanges" aria-hidden="true">
-      {Array.from({ length: rang }, (_, i) => (
-        <i key={i} />
-      ))}
+      <IconeDeRarete rarete={rarete} />
     </span>
   );
 }
 
 /**
- * Un choix du filtre de rareté d'un rayon : ses losanges, son nom et le nombre d'objets qu'il montre, en pixels. Sans objet,
+ * Un choix du filtre de rareté d'un rayon : son icône, son nom et le nombre d'objets qu'il montre, en pixels. Sans objet,
  * il ne se choisit pas. D'or quand il est retenu, bleu sinon.
  */
 export function ChoixDeRarete({ filtre, nombre: n, choisi, onClick }: { filtre: Filtre; nombre: number; choisi: boolean; onClick: () => void }) {
@@ -216,7 +230,13 @@ export function ChoixDeRarete({ filtre, nombre: n, choisi, onClick }: { filtre: 
   const nom = rarete ? rarete.nom : "Tout";
   return (
     <button type="button" class={`jeu-btn ${choisi ? "" : "jeu-btn-bleu"} jeu-n9 boutique-jeu-filtre`} data-rarete={filtre} aria-pressed={choisi} disabled={n === 0} onClick={onClick} data-testid={`filtre-${filtre}`}>
-      {rarete && <Losanges rang={rarete.rang} />}
+      {filtre !== "tout" ? (
+        <RepereDeRarete rarete={filtre} />
+      ) : (
+        <span class="boutique-jeu-losanges" aria-hidden="true">
+          <Icone nom="rayon-tout" classe="boutique-jeu-tout-ic" />
+        </span>
+      )}
       <Px t={`${nom} ${n}`} couleur={choisi ? "encre" : "creme"} relief={choisi ? "plat" : "cerne"} dit={`${nom}, ${n} ${n > 1 ? "objets" : "objet"}`} />
     </button>
   );
@@ -251,7 +271,7 @@ export function Lot({
   prix: number;
   fin: string;
   essai?: { essayee: boolean; onEssai: () => void; testid?: string };
-  action?: { t: string; dit: string; bleu?: boolean; disabled: boolean; onClick: () => void; testid?: string };
+  action?: { t: string; dit: string; bleu?: boolean; disabled: boolean; onClick: () => void; testid?: string; icone?: NomDeGrandeIcone };
   testid: string;
 }) {
   const etiquette = ETIQUETTES[sorte];
@@ -270,16 +290,16 @@ export function Lot({
       <Etiquette t={etiquette.t} ton={etiquette.ton} dit={etiquette.dit} classe="boutique-jeu-lot-sorte" />
       <PrixDuJeu valeur={prix} classe="boutique-jeu-lot-prix" />
       {fin && <span class="boutique-jeu-lot-fin">{fin}</span>}
-      {action && <BoutonDuJeu t={action.t} bleu={action.bleu} dit={action.dit} disabled={action.disabled} onClick={action.onClick} testid={action.testid} classe="boutique-jeu-lot-bouton" />}
+      {action && <BoutonDuJeu t={action.t} bleu={action.bleu} dit={action.dit} disabled={action.disabled} onClick={action.onClick} testid={action.testid} icone={action.icone} classe="boutique-jeu-lot-bouton" />}
     </li>
   );
 }
 
 /** Une rangée de lots, sous son sous-titre ; rien quand elle est vide. */
-export function RangeeDeLots({ id, titre, compte, testid, children }: { id: string; titre: string; compte?: string; testid: string; children: ComponentChildren }) {
+export function RangeeDeLots({ id, titre, compte, testid, icone, children }: { id: string; titre: string; compte?: string; testid: string; icone?: NomDeGrandeIcone; children: ComponentChildren }) {
   return (
     <div class="boutique-jeu-rangee" data-testid={testid}>
-      <SousTitre t={titre} id={id}>
+      <SousTitre t={titre} id={id} icone={icone}>
         {compte && (
           <span class="boutique-jeu-compte tnum">
             <span class="sr-only">, </span>

@@ -69,7 +69,6 @@ import { SectionDesBannieres, useDecorDuGaulois } from "./Bannieres";
 import { Bourse } from "./Bourse";
 import { DialogueAchat, PochetteGagneeIci, type Issue } from "./BoutiqueDialogue";
 import { Pixels, Prix } from "./BoutiquePixels";
-import { Icone } from "../jeu/Pixels";
 import { ApercuGaulois, BarreDesRayons, Case, useSceneCollee } from "./Cases";
 import { useFamiliers } from "./Familiers";
 import { CaseObjet, Prix as PrixDuMarche } from "./MarcheCase";
@@ -87,24 +86,40 @@ import { DialogueAchatModele, DialogueModeles, EssaiDuModele, SectionDesModeles 
 import { pochetteDeRarete } from "./SentierDessins";
 import { CLE_DES_RAYONS_VUS, faireLePointDesRayons, noterLeRayonOuvert } from "../../lib/village/boutique-jeu";
 import { BoutonDuJeu, ChoixDeRarete, Lot, OngletsDesRayons, PrixDuJeu, RangeeDeLots, Ruban, SelectionDeLaSemaine, SousTitre } from "./BoutiqueDuJeu";
-import { Px } from "../jeu/Pixels";
+import type { NomDeGrandeIcone } from "../../lib/jeu/icones";
+import { Icone, Px } from "../jeu/Pixels";
+import { IconeDeRarete } from "./IconeDeRarete";
 
-/** Le repère de forme d'une rareté, de un à cinq losanges : le même que sur les cases. */
-function Losanges({ rang }: { rang: number }) {
+/** Le repère de forme d'une rareté, son icône (21 novembre 2026, à la place des losanges) : la même que sur les cases. */
+function RepereDeRarete({ rarete }: { rarete: string }) {
   return (
     <span class="filtre-rang" aria-hidden="true">
-      {Array.from({ length: rang }, (_, i) => (
-        <i key={i} />
-      ))}
+      <IconeDeRarete rarete={rarete} />
     </span>
   );
 }
 
+/**
+ * L'icône du kit de chaque rayon de la boutique (21 novembre 2026, demande du pilote : « dans la boutique il manque des
+ * icônes », dessins de Claude Fable 5.2), au-dessus de son nom.
+ */
+const ICONES_DES_RAYONS: Readonly<Partial<Record<string, NomDeGrandeIcone>>> = {
+  tete: "rayon-tete",
+  haut: "rayon-haut",
+  bas: "rayon-bas",
+  pieds: "rayon-pieds",
+  arme: "rayon-arme",
+  banniere: "rayon-banniere",
+  uniques: "rayon-uniques",
+  cartes: "rayon-cartes",
+  cadres: "rayon-cadres",
+};
+
 /** Un choix du filtre d'un rayon : son nom, et le nombre d'objets qu'il montre. Sans objet, il ne se choisit pas. */
-function ChoixDeFiltre({ filtre, nom, rang, nombre, choisi, onClick }: { filtre: Filtre; nom: string; rang: number; nombre: number; choisi: boolean; onClick: () => void }) {
+function ChoixDeFiltre({ filtre, nom, nombre, choisi, onClick }: { filtre: Filtre; nom: string; nombre: number; choisi: boolean; onClick: () => void }) {
   return (
     <button type="button" class="chip filtre" data-rarete={filtre} aria-pressed={choisi} disabled={nombre === 0} onClick={onClick} data-testid={`filtre-${filtre}`}>
-      {rang > 0 && <Losanges rang={rang} />}
+      {filtre !== "tout" && <RepereDeRarete rarete={filtre} />}
       {nom}
       <span class="filtre-nombre tnum">{nombre}</span>
       <span class="sr-only"> {nombre > 1 ? "objets" : "objet"}</span>
@@ -1077,6 +1092,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
     return (
       <div ref={racine} class="boutique-jeu" data-testid="boutique">
         <div class="boutique-jeu-titre" aria-hidden="true">
+          <Icone nom="boutique" classe="boutique-jeu-titre-ic" />
           <span class="jeu-ruban jeu-n9">
             <Px t="La boutique" couleur="creme" relief="ombre" muet />
           </span>
@@ -1099,17 +1115,18 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
 
         <section id={ANCRE_MARCHE} class="boutique-jeu-marche jeu-panneau jeu-n9" aria-labelledby="boutique-membres-titre" data-testid="marche" data-etat={etatMarche.kind}>
           <div class="boutique-jeu-marche-tete">
-            <Ruban t="Le marché" niveau={3} bleu id="boutique-membres-titre" />
+            <Ruban t="Le marché" niveau={3} bleu id="boutique-membres-titre" icone="action-marche" />
             {marcheLu && (
               <div class="boutique-jeu-marche-actions">
-                <BoutonDuJeu t="Vendre un objet" onClick={() => ouvrir({ kind: "vente" })} testid="marche-vendre" />
+                <BoutonDuJeu t="Vendre un objet" icone="action-vendre" onClick={() => ouvrir({ kind: "vente" })} testid="marche-vendre" />
                 {/* Demander un objet qu'on n'a pas : seulement si le serveur connaît les demandes. */}
-                {demandes !== null && pourLeMarche && <BoutonDuJeu t="Demander" bleu onClick={() => ouvrir({ kind: "choix-demande" })} testid="marche-demander" />}
+                {demandes !== null && pourLeMarche && <BoutonDuJeu t="Demander" bleu icone="action-demander" onClick={() => ouvrir({ kind: "choix-demande" })} testid="marche-demander" />}
                 {/* Rendre un objet au jeu contre des statères : seulement si le serveur connaît la revente. */}
                 {revente && (
                   <BoutonDuJeu
                     t="Revendre au jeu"
                     bleu
+                    icone="action-revendre"
                     onClick={() => {
                       ouvrir({ kind: "revente" });
                       void lireLaRevente();
@@ -1131,7 +1148,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
             </div>
           )}
           {marcheLu && miennes.length > 0 && (
-            <RangeeDeLots id="marche-vos-offres" titre="Vos offres" compte={`${fmtInt(miennes.length)} sur ${fmtInt(marcheLu.offresMax)}`} testid="marche-mes-offres">
+            <RangeeDeLots id="marche-vos-offres" titre="Vos offres" icone="action-vendre" compte={`${fmtInt(miennes.length)} sur ${fmtInt(marcheLu.offresMax)}`} testid="marche-mes-offres">
               {miennes.map((offre) => (
                 <Lot
                   key={offre.id}
@@ -1147,7 +1164,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
           )}
           {/* Les demandes d'achat (19 novembre 2026) : ce que d'autres membres cherchent et qu'on a, puis ses propres demandes. */}
           {marcheLu && aServir.length > 0 && (
-            <RangeeDeLots id="marche-a-servir-titre" titre="On cherche vos objets" compte={aServir.length > 1 ? `${fmtInt(aServir.length)} demandes` : "1 demande"} testid="marche-a-servir">
+            <RangeeDeLots id="marche-a-servir-titre" titre="On cherche vos objets" icone="action-demander" compte={aServir.length > 1 ? `${fmtInt(aServir.length)} demandes` : "1 demande"} testid="marche-a-servir">
               {aServir.map((demande) => (
                 <Lot
                   key={demande.id}
@@ -1155,14 +1172,14 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   sorte="a-servir"
                   prix={demande.prix}
                   fin={finDeLOffre(demande.expire_le, maintenant, "Demande finie")}
-                  action={{ t: "Vendre", dit: `Vendre « ${demande.nom} », ${fmtInt(demande.prix)} statères`, disabled: occupe, onClick: () => ouvrir({ kind: "servir", demande }), testid: "marche-servir" }}
+                  action={{ t: "Vendre", icone: "action-vendre", dit: `Vendre « ${demande.nom} », ${fmtInt(demande.prix)} statères`, disabled: occupe, onClick: () => ouvrir({ kind: "servir", demande }), testid: "marche-servir" }}
                   testid="marche-demande"
                 />
               ))}
             </RangeeDeLots>
           )}
           {marcheLu && mesDemandesAMoi.length > 0 && (
-            <RangeeDeLots id="marche-vos-demandes" titre="Vos demandes" compte={`${fmtInt(mesDemandesAMoi.length)} sur ${fmtInt(marcheLu.demandesMax)}, ${stateres(marcheLu.misDeCote)} mis de côté`} testid="marche-mes-demandes">
+            <RangeeDeLots id="marche-vos-demandes" titre="Vos demandes" icone="action-demander" compte={`${fmtInt(mesDemandesAMoi.length)} sur ${fmtInt(marcheLu.demandesMax)}, ${stateres(marcheLu.misDeCote)} mis de côté`} testid="marche-mes-demandes">
               {mesDemandesAMoi.map((demande) => (
                 <Lot
                   key={demande.id}
@@ -1180,7 +1197,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
 
         <div class="vestiaire boutique-page boutique-jeu-corps">
           <div ref={scene} class="vestiaire-scene boutique-jeu-essayage" data-familier={tailleDeLApercu(familiers.montre) ?? undefined}>
-            <Ruban t="Essayage" niveau={3} bleu />
+            <Ruban t="Essayage" niveau={3} bleu icone="action-essayage" />
             <ApercuGaulois tenue={modeleEnEssai ? tenueAvecModele(tenue, modeleEnEssai.id) : essai ? changerObjet(tenue, essai.emplacement, essai.objet) : tenue} familier={familiers.montre} decor={decor} />
             <div class="vestiaire-scene-actions">
               <div class="vestiaire-essai boutique-jeu-essai" role="status" data-testid="boutique-essai">
@@ -1194,8 +1211,8 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                       </span>
                     )}
                     <span class="vestiaire-essai-actions boutique-jeu-essai-actions">
-                      {essaiAchetable && prixEssai !== null && <BoutonDuJeu t="Acheter" dit={`Acheter « ${nomEssaye} » pour ${stateres(prixEssai)}`} onClick={acheterLEssai} testid="boutique-acheter" />}
-                      {peutDemander && objetEssayeAuMarche && <BoutonDuJeu t="Le demander" bleu={!retourEssai} dit="Le demander au marché" onClick={() => ouvrir({ kind: "demande", objet: objetEssayeAuMarche })} testid="boutique-demander" />}
+                      {essaiAchetable && prixEssai !== null && <BoutonDuJeu t="Acheter" icone="action-acheter" dit={`Acheter « ${nomEssaye} » pour ${stateres(prixEssai)}`} onClick={acheterLEssai} testid="boutique-acheter" />}
+                      {peutDemander && objetEssayeAuMarche && <BoutonDuJeu t="Le demander" icone="action-demander" bleu={!retourEssai} dit="Le demander au marché" onClick={() => ouvrir({ kind: "demande", objet: objetEssayeAuMarche })} testid="boutique-demander" />}
                       {/* « Retirer » est le mot des offres qu'on retire du marché : ici, on arrête un essai. */}
                       <BoutonDuJeu t="Arrêter" bleu dit="Arrêter l'essai" onClick={() => essayer(null)} testid="boutique-fin-essai" />
                     </span>
@@ -1222,7 +1239,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 <Problem message={probleme} />
                 {acquis && !pochetteOuverte && (
                   <p class="boutique-avis-suite">
-                    {!acquis.porte && <BoutonDuJeu t="Le porter" disabled={occupe} onClick={() => void porter(acquis)} testid="boutique-porter" />}
+                    {!acquis.porte && <BoutonDuJeu t="Le porter" icone="action-porter" disabled={occupe} onClick={() => void porter(acquis)} testid="boutique-porter" />}
                     <a href={`${village}#gaulois`} data-testid="boutique-vers-village">
                       Voir au vestiaire
                     </a>
@@ -1230,7 +1247,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 )}
                 {modeleRecu && !pochetteOuverte && (
                   <p class="boutique-avis-suite">
-                    {!modeleRecu.porte && <BoutonDuJeu t="Le porter" disabled={occupe} onClick={() => void porterLeModele(modeleRecu.id)} testid="uniques-porter-ici" />}
+                    {!modeleRecu.porte && <BoutonDuJeu t="Le porter" icone="action-porter" disabled={occupe} onClick={() => void porterLeModele(modeleRecu.id)} testid="uniques-porter-ici" />}
                     <a href={`${village}#gaulois`} data-testid="uniques-avis-village">
                       Voir au vestiaire
                     </a>
@@ -1248,6 +1265,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               rayon={rayonChoisi}
               barre={barre}
               nouveaux={rayonsNouveaux}
+              icone={(id) => ICONES_DES_RAYONS[id] ?? null}
               vignette={(id) => (estUnRayonDObjets(id) ? vignetteDeLObjet(id, tenue[id] ?? "", tenue) : id === RAYON_UNIQUES ? IMAGE_DU_RAYON_UNIQUES : id === RAYON_CARTES ? IMAGE_DU_RAYON_CARTES : id === RAYON_CADRES ? IMAGE_DU_RAYON_CADRES : IMAGE_DU_RAYON_BANNIERE)}
               // Les offres des membres d'abord, puis leurs demandes ; sinon la collection du rayon, ce qu'il possède sur ce qui existe.
               mention={(id) =>
@@ -1275,7 +1293,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 </div>
               )}
               {range && range.offres.length > 0 && (
-                <RangeeDeLots id="boutique-des-membres" titre="À vendre au marché" testid="marche-offres">
+                <RangeeDeLots id="boutique-des-membres" titre="À vendre au marché" icone="action-vendre" testid="marche-offres">
                   {range.offres.map((offre) => {
                     const essayee = essai?.source === "marche" && essai.offre === offre.id;
                     return (
@@ -1286,7 +1304,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                         prix={offre.prix}
                         fin={finDeLOffre(offre.expire_le, maintenant)}
                         essai={{ essayee, testid: "marche-offre-essai", onEssai: () => essayer(essayee ? null : { source: "marche", offre: offre.id, emplacement: offre.emplacement, objet: offre.objet }) }}
-                        action={{ t: "Acheter", dit: `Acheter « ${offre.nom} », ${fmtInt(offre.prix)} statères`, disabled: occupe, onClick: () => ouvrir({ kind: "offre", offre }) }}
+                        action={{ t: "Acheter", icone: "action-acheter", dit: `Acheter « ${offre.nom} », ${fmtInt(offre.prix)} statères`, disabled: occupe, onClick: () => ouvrir({ kind: "offre", offre }) }}
                         testid="marche-offre"
                       />
                     );
@@ -1294,7 +1312,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 </RangeeDeLots>
               )}
               {demandesDuRayon.length > 0 && (
-                <RangeeDeLots id="boutique-demandes" titre="Demandé au marché" testid="marche-demandes">
+                <RangeeDeLots id="boutique-demandes" titre="Demandé au marché" icone="action-demander" testid="marche-demandes">
                   {demandesDuRayon.map((demande) => (
                     <Lot
                       key={demande.id}
@@ -1310,7 +1328,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               )}
               {rayonObjets && enRayon.length > 0 && (
                 <div class="vestiaire-rayon">
-                  <SousTitre t={tournante ? "En rayon cette semaine" : "Boutique du clan"} id="boutique-du-clan" />
+                  <SousTitre t={tournante ? "En rayon cette semaine" : "Boutique du clan"} id="boutique-du-clan" icone={tournante ? "action-selection" : "boutique"} />
                   <div class="cases" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-du-clan`} data-testid="boutique-cases">
                     {enRayon.map(([id, objet]) => {
                       const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
@@ -1683,9 +1701,9 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
           <div ref={panneau} id="boutique-panneau" class="vestiaire-panneau" role={pochettes ? undefined : "tabpanel"} aria-labelledby={pochettes ? undefined : `boutique-rayon-${rayon}`} data-testid={`boutique-rayon-${rayon}`}>
             {rayonObjets && range && range.total > 0 && (
               <div class="vestiaire-filtre" role="group" aria-label="Montrer une rareté" data-testid="boutique-filtre">
-                <ChoixDeFiltre filtre={TOUT} nom="Tout" rang={0} nombre={range.total} choisi={range.retenu === TOUT} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, TOUT))} />
+                <ChoixDeFiltre filtre={TOUT} nom="Tout" nombre={range.total} choisi={range.retenu === TOUT} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, TOUT))} />
                 {ORDRE_RARETES.map((rarete) => (
-                  <ChoixDeFiltre key={rarete} filtre={rarete} nom={RARETES[rarete].nom} rang={RARETES[rarete].rang} nombre={range.comptes[rarete]} choisi={range.retenu === rarete} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, rarete))} />
+                  <ChoixDeFiltre key={rarete} filtre={rarete} nom={RARETES[rarete].nom} nombre={range.comptes[rarete]} choisi={range.retenu === rarete} onClick={() => setFiltres((f) => choisirFiltre(f, rayonObjets, rarete))} />
                 ))}
               </div>
             )}

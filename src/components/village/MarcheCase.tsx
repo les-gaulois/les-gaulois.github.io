@@ -5,6 +5,7 @@ import { nombre } from "../../lib/village/ecran-boutique";
 import { RARETES, vignetteDeLObjet } from "../../lib/gaulois";
 import type { ObjetDuMarche } from "../../lib/village/ecran-marche";
 import { Toile } from "./PlaceToile";
+import { IconeDeRarete } from "./IconeDeRarete";
 
 /** La pièce, en pixels nets : décorative, le mot « statères » est écrit ou dit à côté. */
 export function Piece({ taille = 16, echelle = 1 }: { taille?: TailleStatere; echelle?: number }) {
@@ -27,7 +28,7 @@ export function Prix({ valeur, class: classe = "" }: { valeur: number; class?: s
 const COTE_IMAGE = 80;
 
 /**
- * La case d'un objet, comme au vestiaire : son image en pixels nets, son nom, sa rareté écrite et comptée en losanges (la
+ * La case d'un objet, comme au vestiaire : son image en pixels nets, son nom, sa rareté écrite, avec son icône (la
  * couleur du cadre n'est jamais le seul repère). `quantite` : le nombre d'exemplaires, écrit à partir de deux. `mention` :
  * quelques mots de plus sous la rareté.
  */
@@ -41,9 +42,7 @@ export function CaseObjet({ objet, quantite, mention }: { objet: ObjetDuMarche; 
       <span class="marche-case-nom">{objet.nom}</span>
       <span class="marche-case-rarete">
         <span class="marche-case-rang" aria-hidden="true">
-          {Array.from({ length: rarete.rang }, (_, i) => (
-            <i key={i} />
-          ))}
+          <IconeDeRarete rarete={objet.rarete} />
         </span>
         {rarete.nom}
       </span>

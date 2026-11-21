@@ -19,7 +19,7 @@ import {
 } from "../../lib/village/pochette-stateres";
 import { Px } from "../jeu/Pixels";
 import type { Issue } from "./BoutiqueDialogue";
-import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, LosangesEnPixels, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RangEnIcone, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 import { casesDeLaPochette } from "./PochetteDessin";
 
@@ -179,7 +179,7 @@ export function DialogueStateres({ ma, solde, ouvrir, onFermer }: { ma: MaPochet
             nom={`+${nombre(tirage.lot.gain)} statères`}
             detail={
               <>
-                <LosangesEnPixels rang={tirage.lot.rang} couleur={rareteDuLot(tirage.lot.rang) as CouleurDEcriture} />
+                <RangEnIcone rang={tirage.lot.rang} />
                 <Px t={`Lot ${tirage.lot.rang} sur ${lots.length}`} couleur={rareteDuLot(tirage.lot.rang) as CouleurDEcriture} dit={`Lot ${tirage.lot.rang} sur ${lots.length}`} />
               </>
             }

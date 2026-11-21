@@ -45,7 +45,7 @@ function GauloisUnique({ tenue, modele }: { tenue: Tenue; modele: ModeleRange })
   return <Dessin dessin={dessin} nom={`Votre Gaulois en ${decrireLeModele(modele.id)}. ${modele.description}`} class="uniques-dessin-grand" />;
 }
 
-/** La rareté d'un modèle hors d'une case : écrite et comptée en losanges, dans la couleur de la rareté. */
+/** La rareté d'un modèle hors d'une case : écrite, avec son icône, dans la couleur de la rareté. */
 function RareteDuModele({ rarete }: { rarete: Rarete }) {
   return (
     <span class="uniques-rarete" data-rarete={rarete}>
@@ -240,8 +240,8 @@ export function EssaiDuModele({ modele, action, prix, raison, occupe, onAcheter,
         </span>
       )}
       <span class="vestiaire-essai-actions boutique-jeu-essai-actions">
-        {action === "acheter" && !raison && <BoutonDuJeu t="Acheter" dit={`Acheter « ${modele.nom} » pour ${stateres(prix)}`} onClick={onAcheter} testid="uniques-acheter" />}
-        {action === "porter" && <BoutonDuJeu t="Le porter" disabled={occupe} onClick={onPorter} testid="uniques-porter" />}
+        {action === "acheter" && !raison && <BoutonDuJeu t="Acheter" icone="action-acheter" dit={`Acheter « ${modele.nom} » pour ${stateres(prix)}`} onClick={onAcheter} testid="uniques-acheter" />}
+        {action === "porter" && <BoutonDuJeu t="Le porter" icone="action-porter" disabled={occupe} onClick={onPorter} testid="uniques-porter" />}
         <BoutonDuJeu t="Arrêter" bleu dit="Arrêter l'essai" onClick={onFin} testid="uniques-fin-essai" />
       </span>
     </>

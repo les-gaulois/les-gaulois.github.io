@@ -3,6 +3,17 @@
     "date": "2026-11-21",
     "kind": "ameliore",
     "rank": "minor",
+    "title": "Des icônes dans Mon Gaulois",
+    "body": "Chaque rareté a son icône, de la perle du commun au sceau du divin, à la place des losanges. Le corps du vestiaire se choisit en icônes, et la boutique en a pour ses rayons, titres et boutons.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "ameliore",
+    "rank": "minor",
     "title": "La loterie, plus jeu",
     "body": "Un compte à rebours jusqu'au mardi 21 h 30, un podium dessiné, vos billets en pile et votre part en disque, le booster du jour en vedette, et les gagnants du dernier tirage en cartes.",
     "link": {

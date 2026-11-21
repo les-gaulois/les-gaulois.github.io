@@ -3,6 +3,7 @@ import { casesDuStatere, type TailleStatere } from "../../../supabase/functions/
 import { RARETES_DES_OBJETS as RARETES, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { nombre } from "../../lib/village/ecran-boutique";
 import { PLAQUE } from "../../lib/village/plaque";
+import { IconeDeRarete } from "./IconeDeRarete";
 
 /** Des cases de couleur peintes telles quelles dans une toile, que la feuille de style agrandit sans flou. */
 export function peindre(toile: HTMLCanvasElement | null, largeur: number, hauteur: number, cases: readonly (string | null)[]): void {
@@ -52,14 +53,15 @@ export function Prix({ montant, class: classe = "" }: { montant: number; class?:
   );
 }
 
-/** La rareté, écrite et comptée en losanges, de un à cinq, six pour le divin : la couleur n'est jamais le seul repère. */
+/**
+ * La rareté, écrite, avec son icône (21 novembre 2026, à la place des losanges qui la comptaient, de un à cinq, six pour le
+ * divin) : la couleur n'est jamais le seul repère, l'icône monte en prestige d'une rareté à l'autre.
+ */
 export function MarqueDeRarete({ rarete }: { rarete: Rarete }) {
   return (
     <span class="case-rarete">
       <span class="case-rang" aria-hidden="true">
-        {Array.from({ length: RARETES[rarete].rang }, (_, i) => (
-          <i key={i} />
-        ))}
+        <IconeDeRarete rarete={rarete} />
       </span>
       {RARETES[rarete].nom}
     </span>

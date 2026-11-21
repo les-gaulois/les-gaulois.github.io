@@ -1,10 +1,10 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { RARETES_DES_OBJETS as RARETES } from "../../lib/gaulois";
 import { ALBUM_ETROIT, TOUS, casesDuGroupe, decrireLaCase, groupesDeLAlbum, placerLAlbum, premiereALaLoupe, type Album, type ElementDeLAlbum } from "../../lib/village/album-pochette";
 import { pourcent } from "../../lib/village/ecran-boutique";
 import { echelleDuDessin, type DessinEnCases } from "../../lib/village/ecran-familiers";
 import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
+import { IconeDeRarete } from "./IconeDeRarete";
 
 /**
  * L'album d'une pochette (16 novembre 2026, « l'album à loupe », choisi par le pilote parmi cinq modèles) : le dessin de
@@ -92,11 +92,9 @@ function Panneau({ album, id, entete, onFermer, onPlacer }: { album: Album; id: 
               <li key={element.id}>
                 <button type="button" class="album-case" data-rarete={element.rarete} data-possede={element.possede ? "" : undefined} data-actif={choisi?.id === element.id ? "" : undefined} aria-label={decrireLaCase(element)} onPointerEnter={() => setChoisi(element)} onFocus={() => setChoisi(element)} onClick={() => setChoisi(element)} data-testid="album-case" data-element={element.id}>
                   <DessinDeLAlbum dessin={element.dessin} place={PLACE_CASE} maximum={1} silhouette={element.silhouette} class="album-case-dessin" />
-                  {/* La rareté en losanges aussi : la couleur n'est jamais le seul repère. */}
+                  {/* La rareté en icône aussi : la couleur n'est jamais le seul repère. */}
                   <span class="album-case-rang" aria-hidden="true">
-                    {Array.from({ length: RARETES[element.rarete].rang }, (_, i) => (
-                      <i key={i} />
-                    ))}
+                    <IconeDeRarete rarete={element.rarete} echelle={1} />
                   </span>
                 </button>
               </li>

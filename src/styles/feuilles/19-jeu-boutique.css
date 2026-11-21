@@ -590,7 +590,7 @@ button.boutique-jeu-lot-case[aria-pressed="true"] {
   }
 }
 
-/* Les filtres de rareté : des boutons du jeu, d'or celui qui est retenu ; les losanges comptent la rareté. */
+/* Les filtres de rareté : des boutons du jeu, d'or celui qui est retenu ; l'icône de la rareté en est le repère de forme. */
 .boutique-jeu-filtres {
   display: flex;
   flex-wrap: wrap;
@@ -600,21 +600,22 @@ button.boutique-jeu-lot-case[aria-pressed="true"] {
 .boutique-jeu-filtre {
   gap: calc(3 * var(--jeu-p));
 }
+/* L'icône de la rareté, posée sur la face du bouton à gauche du mot : 22 pixels, centrée sur la hauteur des lettres. */
 .boutique-jeu-losanges {
   display: flex;
-  gap: var(--jeu-p);
-  margin-top: calc(3 * var(--jeu-p));
+  flex: none;
+  width: 24px;
+  height: 22px;
+  justify-content: center;
+  margin-top: calc(-1 * var(--jeu-p));
+  line-height: 0;
 }
-.boutique-jeu-losanges > i {
-  display: block;
-  width: calc(3 * var(--jeu-p));
-  height: calc(3 * var(--jeu-p));
-  background: #fff7dc;
-  /* Un losange de trois cases : une croix en pixels. */
-  clip-path: polygon(33.4% 0, 66.6% 0, 66.6% 33.4%, 100% 33.4%, 100% 66.6%, 66.6% 66.6%, 66.6% 100%, 33.4% 100%, 33.4% 66.6%, 0 66.6%, 0 33.4%, 33.4% 33.4%);
-}
-.boutique-jeu-filtre[aria-pressed="true"] .boutique-jeu-losanges > i {
-  background: #3a2400;
+/* « Tout » : les six pavés des raretés, à la taille des icônes de rareté (une case par pixel). */
+.boutique-jeu-tout-ic {
+  width: 24px;
+  height: 24px;
+  margin-top: -1px;
+  filter: none;
 }
 
 /* Les cases : claires dans les deux thèmes (les jetons du thème clair, posés sur la case), sans rien changer à leur dessin. */
@@ -883,5 +884,105 @@ button.boutique-jeu-lot-case[aria-pressed="true"] {
   }
   .boutique-jeu .boutique-jeu-corps {
     gap: calc(10 * var(--jeu-p));
+  }
+}
+
+/* ---------- Les icônes de la boutique et du marché (21 novembre 2026, dessin de Claude Fable 5.2) ---------- */
+
+/* Devant un ruban (« La boutique », « Le marché », « Essayage ») : la grande icône, à cheval sur le bout du ruban, sans
+   changer sa hauteur ni sa place. */
+.boutique-jeu-ruban {
+  display: inline-flex;
+  align-items: center;
+}
+.boutique-jeu-titre-ic {
+  position: relative;
+  z-index: 1;
+  margin: calc(-6 * var(--jeu-p)) calc(-5 * var(--jeu-p)) calc(-6 * var(--jeu-p)) 0;
+}
+.boutique-jeu-titre {
+  align-items: center;
+}
+
+/* Devant un sous-titre et le titre de la sélection : la même icône, qui ne grossit pas la ligne. */
+.boutique-jeu-sous-titre-ic {
+  margin-block: calc(-5 * var(--jeu-p));
+  margin-right: calc(-2 * var(--jeu-p));
+}
+.boutique-jeu-selection-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  min-width: 0;
+}
+
+/* Dans un bouton : l'icône à cheval sur son bord gauche, comme celles du menu ; le bouton garde sa hauteur, et ne
+   s'élargit que de la place de l'icône. */
+.jeu-btn.boutique-jeu-btn-avec-ic {
+  padding-left: calc(19 * var(--jeu-p));
+}
+.boutique-jeu-btn-ic {
+  position: absolute;
+  left: calc(-9 * var(--jeu-p));
+  top: calc(-9 * var(--jeu-p));
+  pointer-events: none;
+}
+/* Sous un lot, la case est étroite : l'icône à une case par pixel, toujours à cheval sur le bord, et le bouton garde sa
+   largeur. */
+.jeu-btn.boutique-jeu-lot-bouton.boutique-jeu-btn-avec-ic {
+  padding-left: calc(6 * var(--jeu-p));
+  padding-right: 0;
+}
+.boutique-jeu-lot-bouton > .boutique-jeu-btn-ic {
+  left: calc(-9 * var(--jeu-p));
+  top: calc(-3 * var(--jeu-p));
+  width: 24px;
+  height: 24px;
+}
+
+/* Sur un onglet de rayon : l'icône debout sur le nom, qu'elle recouvre de trois cases. */
+.boutique-jeu-onglet-ic {
+  position: relative;
+  z-index: 1;
+  margin-bottom: calc(-5 * var(--jeu-p));
+  transition: transform 0.2s steps(3);
+  pointer-events: none;
+}
+/* L'icône dit le rayon : la vignette de ce que le Gaulois y porte, qui se posait au-dessus sur un grand écran, lui laisse la
+   place (le Gaulois de l'essayage, à côté, montre déjà ce qu'il porte). */
+.boutique-jeu-onglet:has(.boutique-jeu-onglet-ic) .boutique-jeu-onglet-image {
+  display: none;
+}
+.boutique-jeu-onglet[aria-selected="true"] .boutique-jeu-onglet-ic {
+  transform: translateY(calc(-2 * var(--jeu-p)));
+}
+@media (hover: hover) {
+  .boutique-jeu-onglet:hover .boutique-jeu-onglet-ic {
+    transform: translateY(calc(-2 * var(--jeu-p)));
+  }
+}
+:root.fx-off .boutique-jeu .boutique-jeu-onglet-ic {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boutique-jeu .boutique-jeu-onglet-ic {
+    transition: none;
+  }
+}
+
+/* Des boutons à icône qui passent sur deux rangées (21 novembre 2026) : l'icône dépasse du haut de son bouton ; l'écart entre
+   les rangées lui laisse la place, pour qu'elle ne morde pas le bouton du dessus. */
+.boutique-jeu :is(.boutique-jeu-marche-actions, .boutique-jeu-essai-actions):has(.boutique-jeu-btn-avec-ic) {
+  row-gap: calc(11 * var(--jeu-p));
+}
+/* La pause et « réduire les animations » : l'icône de l'onglet ouvert ou survolé ne monte pas. */
+:root.fx-off .boutique-jeu :is(.boutique-jeu-onglet[aria-selected="true"], .boutique-jeu-onglet:hover) .boutique-jeu-onglet-ic {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boutique-jeu :is(.boutique-jeu-onglet[aria-selected="true"], .boutique-jeu-onglet:hover) .boutique-jeu-onglet-ic {
+    transform: none;
   }
 }

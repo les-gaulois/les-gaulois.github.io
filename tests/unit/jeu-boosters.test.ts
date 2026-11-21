@@ -68,7 +68,7 @@ describe("la carte", () => {
     expect(placeDeLImage(172, 124)).toEqual({ largeur: 43, hauteur: 31 });
   });
 
-  it("garde la vraie rareté du tirage : sa couleur, sa lumière et ses losanges, jamais une autre", () => {
+  it("garde la vraie rareté du tirage : sa couleur, sa lumière et son icône, jamais une autre", () => {
     for (const r of RARETES_DE_CARTE) {
       const c = carteDeRarete("Objet", r, IMAGE);
       expect(c.rarete).toBe(r);

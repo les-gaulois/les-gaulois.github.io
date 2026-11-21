@@ -1,4 +1,4 @@
-import type { ComponentChildren, JSX } from "preact";
+import { Fragment, type ComponentChildren, type JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { call } from "../../lib/compte/api";
 import {
@@ -203,7 +203,7 @@ function Objets(props: Choix & { emplacement: Emplacement }) {
 
 /** Les parties du rayon du corps, dans l'ordre de leurs pastilles : le corps (humain ou Gaulois unique), puis chaque trait. */
 const PARTIES_DU_CORPS = ["corps", "peau", "cheveux", "barbe", ...EMPLACEMENTS_VISAGE] as const;
-type PartieDuCorps = (typeof PARTIES_DU_CORPS)[number];
+export type PartieDuCorps = (typeof PARTIES_DU_CORPS)[number];
 /** Les clés de la tenue que règle le rayon du corps : un essai sur l'une d'elles se dit sur l'emplacement du corps, dans le jeu. */
 export const CLES_DU_CORPS = ["modele", "peau", "cheveux", "barbe", TEINTE_CHEVEUX, ...EMPLACEMENTS_VISAGE] as const;
 
@@ -518,19 +518,31 @@ export function avantLeGaulois(v: LeVestiaire): JSX.Element | null {
   return null;
 }
 
+/**
+ * La pastille d'une partie du corps, ce qui la choisit : par défaut, un bouton du site écrit ; dans le vestiaire du jeu, un
+ * bouton du kit à icône (21 novembre 2026, `VestiaireDuJeu.tsx`). `nom` : le nom de la partie, à dire.
+ */
+export type PastilleDuCorps = (p: { partie: PartieDuCorps; nom: string; choisie: boolean; choisir: () => void }) => JSX.Element;
+
 /** Le rayon du corps : une partie à la fois, sous ses pastilles. */
-export function RayonDuCorps({ v }: { v: LeVestiaire }) {
+export function RayonDuCorps({ v, pastille }: { v: LeVestiaire; pastille?: PastilleDuCorps }) {
   const { choix, partieOuverte, tenue, modeles } = v;
   return (
     <>
       {/* Une partie du corps à la fois (17 novembre 2026) : empilées, elles faisaient plus de quatre écrans, et le
           Gaulois sortait de la vue. Le corps ne se choisit que pour un Gaulois qui existe : rien pendant l'inscription. */}
       <div class="vestiaire-filtre vestiaire-parties" role="group" aria-label="Les parties du corps" data-testid="vestiaire-parties">
-        {PARTIES_DU_CORPS.filter((partie) => partie !== "corps" || v.existait).map((partie) => (
-          <button key={partie} type="button" class="chip filtre" aria-pressed={partie === partieOuverte} onClick={() => v.setPartieDuCorps(partie)} data-testid={`vestiaire-partie-${partie}`}>
-            {partie === "corps" ? "Corps" : NOMS_EMPLACEMENTS[partie]}
-          </button>
-        ))}
+        {PARTIES_DU_CORPS.filter((partie) => partie !== "corps" || v.existait).map((partie) => {
+          const nom = partie === "corps" ? "Corps" : NOMS_EMPLACEMENTS[partie];
+          const choisie = partie === partieOuverte;
+          const choisir = (): void => v.setPartieDuCorps(partie);
+          if (pastille) return <Fragment key={partie}>{pastille({ partie, nom, choisie, choisir })}</Fragment>;
+          return (
+            <button key={partie} type="button" class="chip filtre" aria-pressed={choisie} onClick={choisir} data-testid={`vestiaire-partie-${partie}`}>
+              {nom}
+            </button>
+          );
+        })}
       </div>
       {partieOuverte === "corps" && <MonCorps etat={modeles.etat} tenue={tenue} vignette={(id) => portrait(tenueAvecModele(tenue, id), 2)} onChange={v.changer} onRelire={() => void modeles.lire()} />}
       {partieOuverte === "peau" && <Peau {...choix} />}

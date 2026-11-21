@@ -79,7 +79,7 @@ export function DessinFamilier({ familier, place, maximum, class: classe = "" }:
   return <Pixels largeur={dessin.largeur} hauteur={dessin.hauteur} cases={dessin.cases} echelle={echelleDuDessin(dessin, place, maximum)} class={`familier-dessin ${classe}`} />;
 }
 
-/** La rareté d'un familier hors d'une case : écrite et comptée en losanges, dans la couleur de la rareté. */
+/** La rareté d'un familier hors d'une case : écrite, avec son icône, dans la couleur de la rareté. */
 export function RareteDuFamilier({ rarete }: { rarete: Rarete }) {
   return (
     <span class="familier-rarete" data-rarete={rarete}>

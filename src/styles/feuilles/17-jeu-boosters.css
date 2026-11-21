@@ -641,8 +641,13 @@
   align-items: center;
   gap: calc(3 * var(--jeu-p));
 }
-.bst-losanges > i {
-  margin: 0;
+/* L'icône d'une rareté à côté d'un mot en pixels : plus haute que lui (22 pixels pour 14), elle ne pousse pas la ligne. */
+.bst-losanges {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  margin-block: -4px;
+  line-height: 0;
 }
 .bst-rarete-px {
   display: inline-flex;
@@ -931,6 +936,40 @@
 .bst-apercu-modele {
   justify-self: center;
   max-width: 100%;
+}
+
+/* La fiche dans une colonne étroite (21 novembre 2026) : sur un écran moyen, de 768 à 1 180 pixels environ, le menu du jeu
+   et le Gaulois ne lui laissent qu'une colonne, et son prix sortait de la page. Elle prend alors la mise en page du
+   téléphone, d'après sa propre place et non celle de l'écran. */
+.bst-fiche {
+  container: bst-fiche / inline-size;
+}
+@container bst-fiche (max-width: 30rem) {
+  .bst-fiche-corps {
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 14px 16px;
+  }
+  .bst-fiche-corps > .album-declencheur,
+  .bst-fiche-corps > .bst-fiche-dessin {
+    grid-row: auto;
+  }
+  .bst-fiche-paquet {
+    width: 120px;
+    height: 176px;
+  }
+  .bst-unite {
+    display: none;
+  }
+  .bst-fiche-suite {
+    grid-column: 1 / -1;
+  }
+  .bst-chances li {
+    grid-template-columns: 62px minmax(0, 1fr) auto;
+  }
+  .bst-fiche-corps > .bst-fiche-action {
+    grid-column: 1 / -1;
+    margin-top: 0;
+  }
 }
 
 @media (max-width: 47.99rem) {

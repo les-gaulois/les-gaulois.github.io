@@ -44,7 +44,7 @@ import { MarqueDeRarete, Pixels, peindre } from "./BoutiquePixels";
 import { feterLObjet, useJoie } from "./Cases";
 import { ImageEnCases, imageEnCases } from "./ImageEnCases";
 import InsigneDeSaison from "./InsigneDeSaison";
-import { BoutonDesBoosters, FenetreDuBooster, LosangesEnPixels, RareteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { BoutonDesBoosters, FenetreDuBooster, RangEnIcone, RareteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 import { DESSINS_DES_MISSIONS, type DessinDuSentier } from "./SentierDessins";
 
@@ -752,7 +752,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
                 {raretes.map((r) => (
                   <li key={r} class="pj-puce jeu-bulle jeu-n9" data-rarete={r}>
                     <BoosterDuPalier rarete={r} classe="pj-booster-mini" />
-                    <LosangesEnPixels rang={RARETES_DES_OBJETS[r].rang} couleur={r} />
+                    <RangEnIcone rang={RARETES_DES_OBJETS[r].rang} rarete={r} />
                     <Px t={RARETES_DES_OBJETS[r].nom} couleur={r} dit={RARETES_DES_OBJETS[r].nom} />
                   </li>
                 ))}
@@ -816,7 +816,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
               detail={
                 rareteRecue === "saison" ? (
                   <span class="bst-rarete-px">
-                    <LosangesEnPixels rang={5} couleur="legendaire" />
+                    <RangEnIcone rang={5} rarete="saison" />
                     <Px t={RARETES_DES_OBJETS.saison.nom} couleur="legendaire" dit={RARETES_DES_OBJETS.saison.nom} />
                   </span>
                 ) : (

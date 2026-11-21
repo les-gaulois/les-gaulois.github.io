@@ -11,6 +11,7 @@ import { casesDuStatere } from "../../../supabase/functions/code-discord/statere
 import { PAL } from "./palette";
 import { Planche, R, grille, lireCouleur, rr, tresse } from "./planche";
 import { ecrire, enCapitales, largeurDuTexte, lignesDuTexte, nombreEcrit } from "./ecriture";
+import { COTE_DES_ICONES_DE_RARETE, iconeDeRarete, rareteDuRang } from "./icones-de-rarete";
 import { paquetDuBooster, type SorteDeBooster } from "./boosters-dessins";
 
 export type { SorteDeBooster } from "./boosters-dessins";
@@ -86,16 +87,17 @@ export function morceauxDuPaquet(p: Planche): { corps: Planche; bande: Planche[]
   return { corps, bande };
 }
 
-/** Les losanges d'un rang, côte à côte : le repère de forme des cases (la couleur n'est jamais le seul). */
-function losanges(g: Planche, x: number, y: number, rang: number, coul: string): void {
-  g.fillStyle = coul;
-  for (let j = 0; j < rang; j++) {
-    g.fillRect(x + j * 5, y + 1, 3, 1);
-    g.fillRect(x + j * 5 + 1, y, 1, 3);
-  }
+/** La ligne où l'icône de la rareté se pose sur une face, entre le nom et le mot du bas. */
+const LIGNE_DE_L_ICONE = 62;
+/**
+ * L'icône de la rareté d'un rang (1 : commun… 6 : divin), centrée sur la face : le repère de forme des cases, la couleur
+ * n'est jamais le seul. Elle remplace les losanges qui comptaient le rang (dessin de Claude Fable 5.2, 21 novembre 2026).
+ */
+function iconeDuRang(g: Planche, rang: number): void {
+  g.drawImage(iconeDeRarete(rareteDuRang(rang)), Math.round((CARTE_LARGEUR - COTE_DES_ICONES_DE_RARETE) / 2), LIGNE_DE_L_ICONE);
 }
 
-/** Ce qu'une face de carte montre. `rang` : le nombre de losanges (0 : aucun, une carte sans rareté). */
+/** Ce qu'une face de carte montre. `rang` : celui de l'icône de rareté, 1 à 6 (0 : aucune, une carte sans rareté). */
 export interface FaceDeCarte {
   nom: string;
   image: DessinEnCases | null;
@@ -176,7 +178,7 @@ function tas(rang: number): Planche {
 /**
  * La carte d'un lot de statères (le booster de statères ; dessin de Claude Fable 5.2) : ses six lots sont rangés de 1 à 6
  * comme les raretés, et en prennent les couleurs, la lumière et la fête ; sur la face, le tas de pièces du rang, « +350 »,
- * « STATÈRES », les losanges du rang, « LOT 3 SUR 6 ». Jamais un nom de rareté.
+ * « STATÈRES », l'icône de la rareté de même rang, « LOT 3 SUR 6 ». Jamais un nom de rareté.
  */
 export function carteDUnLot(rang: number, gain: number, lots = 6): CarteDeScene {
   const r = RARETES_DE_CARTE[Math.min(Math.max(Math.round(rang), 1), 6) - 1]!;
@@ -186,9 +188,9 @@ export function carteDUnLot(rang: number, gain: number, lots = 6): CarteDeScene 
   fondDeFace(g, tons);
   const t = tas(n);
   g.drawImage(t, Math.round(CARTE_LARGEUR / 2 - t.width), Math.round(22 - t.height), t.width * 2, t.height * 2);
-  auCentre(g, `+${nombreEcrit(gain)}`, 46, "#0a1230");
-  auCentre(g, "Statères", 55, "#0a1230");
-  losanges(g, Math.round(CARTE_LARGEUR / 2 - (n * 5 - 2) / 2), 69, n, tons[2]);
+  auCentre(g, `+${nombreEcrit(gain)}`, 45, "#0a1230");
+  auCentre(g, "Statères", 54, "#0a1230");
+  iconeDuRang(g, n);
   const mot = `Lot ${n} sur ${lots}`;
   auCentre(g, mot, 74, tons[3]);
   return { face: g, rarete: r, rang: n, nom: `+${nombreEcrit(gain)} statères`, mot, tons, lumiere: LUMIERES[r] };
@@ -197,8 +199,8 @@ export function carteDUnLot(rang: number, gain: number, lots = 6): CarteDeScene 
 const RETOUR = ["...k.......", "..kk.......", ".kkkkkkk...", "kkkkkkkkk..", ".kkkkkkkkk.", "..kk....kk.", "...k....kk.", "........kk.", ".......kkk.", "..kkkkkkk..", "..kkkkkk..."];
 /**
  * La carte de statères rendus (boosters des bannières et des Gaulois uniques ; dessin de Claude Fable 5.2) : la pièce et sa
- * flèche de retour, « +600 », « STATÈRES », « RENDUS », un pointillé à la place des losanges, « 40 % DU PRIX ». Ni
- * losange, ni nom de rareté : la lumière reste neutre et la fête est la plus sobre.
+ * flèche de retour, « +600 », « STATÈRES », « RENDUS », un pointillé à la place de l'icône de rareté, « 40 % DU PRIX ». Ni
+ * icône, ni nom de rareté : la lumière reste neutre et la fête est la plus sobre.
  */
 export function carteDUnRendu(rendu: number, pourcent: number): CarteDeScene {
   const tons = TONS_DU_RENDU;
@@ -240,9 +242,12 @@ export function faceDeCarte(f: FaceDeCarte): Planche {
     g.drawImage(plancheDuDessin(f.image), Math.round(W / 2 - place.largeur / 2), Math.round(21 - place.hauteur / 2), place.largeur, place.hauteur);
   }
   const ls = lignesDuTexte(enCapitales(f.nom), W - 8, 3);
-  const y0 = 42 + Math.floor((3 - ls.length) * 4.5);
-  ls.forEach((l, i) => g.drawImage(ecrire(l, "#0a1230"), Math.round(W / 2 - largeurDuTexte(l) / 2), y0 + i * 9));
-  if (f.rang > 0) losanges(g, Math.round(W / 2 - (f.rang * 5 - 2) / 2), 69, f.rang, bord);
+  // Sur une carte à rareté, le nom monte de deux cases pour laisser sa place à l'icône ; s'il tient sur trois lignes, elles
+  // se serrent en plus d'une case chacune.
+  const serre = f.rang > 0 && ls.length === 3;
+  const y0 = serre ? 38 : (f.rang > 0 ? 40 : 42) + Math.floor((3 - ls.length) * 4.5);
+  ls.forEach((l, i) => g.drawImage(ecrire(l, "#0a1230"), Math.round(W / 2 - largeurDuTexte(l) / 2), y0 + i * (serre ? 8 : 9)));
+  if (f.rang > 0) iconeDuRang(g, f.rang);
   const mot = enCapitales(f.mot);
   g.drawImage(ecrire(mot, encre), Math.round(W / 2 - largeurDuTexte(mot) / 2), f.rang > 0 ? 74 : 71);
   return g;

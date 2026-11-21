@@ -1,18 +1,19 @@
 import type { ComponentChildren } from "preact";
 import { useContext, useEffect, useRef } from "preact/hooks";
 import { NOMS_DES_RARETES, paquet, rareteDeCarte, type SorteDeBooster } from "../../lib/jeu/boosters";
-import { COULEURS_D_ECRITURE, urlDeLaPlanche, type CouleurDEcriture } from "../../lib/jeu/dans-la-page";
+import { urlDeLaPlanche, type CouleurDEcriture } from "../../lib/jeu/dans-la-page";
 import { nombreEcrit } from "../../lib/jeu/ecriture";
-import { Planche, R, grille } from "../../lib/jeu/planche";
+import { grille } from "../../lib/jeu/planche";
 import { stateres } from "../../lib/village/ecran-boutique";
 import { Etiquette, Px } from "../jeu/Pixels";
 import type { Album } from "../../lib/village/album-pochette";
 import { AlbumDePochette } from "./AlbumPochette";
+import { IconeDeRarete, rareteDuRang } from "./IconeDeRarete";
 import { PochetteGagneeIci } from "./BoutiqueDialogue";
 
 /**
  * Les pièces de « Les boosters » habillées du kit du jeu (21 novembre 2026, dessin et mise en page de Claude Fable 5.2) :
- * le paquet en image, la fiche du booster choisi, la fenêtre d'ouverture, son compte, ses boutons, les losanges et la
+ * le paquet en image, la fiche du booster choisi, la fenêtre d'ouverture, son compte, ses boutons, l'icône de la rareté et la
  * rareté en pixels. Tout ce qui s'y lit en pixels a son texte pour les lecteurs d'écran (`Px`, `dit`).
  */
 
@@ -34,31 +35,25 @@ export function StateresEnPixels({ n, couleur = "texte", relief = "plat", signe 
   );
 }
 
-/** Les losanges d'un rang, en cases (cinq de côté, une d'écart), dans la couleur d'une rareté ; décoratifs. */
-export function LosangesEnPixels({ rang, couleur }: { rang: number; couleur: CouleurDEcriture }) {
-  const c = COULEURS_D_ECRITURE[couleur];
-  const dessin = (coul: string): Planche => {
-    const p = new Planche(Math.max(1, rang * 6 - 1), 5);
-    for (let j = 0; j < rang; j++) [1, 3, 5, 3, 1].forEach((l, y) => R(p, j * 6 + (5 - l) / 2, y, l, 1, coul));
-    return p;
-  };
-  const clair = typeof c === "string" ? c : c.clair;
-  const sombre = typeof c === "string" ? c : c.sombre;
-  const url = (coul: string): string => urlDeLaPlanche(`losanges|${rang}|${coul}`, () => dessin(coul));
+/**
+ * L'icône d'une rareté (21 novembre 2026, à la place des losanges qui comptaient le rang), décorative : `rarete` la nomme,
+ * sinon `rang`, de 1 (commun) à 6 (divin), la donne (les lots de la pochette de statères n'ont qu'un rang).
+ */
+export function RangEnIcone({ rang, rarete }: { rang: number; rarete?: string }) {
   return (
-    <span class="jeu-px bst-losanges" aria-hidden="true">
-      <i style={`--i:${url(clair)};--i-sombre:${url(sombre)};--w:${Math.max(1, rang * 6 - 1)};--h:5`} />
+    <span class="bst-losanges" aria-hidden="true">
+      <IconeDeRarete rarete={rarete ?? rareteDuRang(rang)} />
     </span>
   );
 }
 
-/** Une rareté en pixels : ses losanges et son nom, dans sa couleur. */
+/** Une rareté en pixels : son icône et son nom, dans sa couleur. */
 export function RareteEnPixels({ rarete }: { rarete: string }) {
   const r = rareteDeCarte(rarete);
   const nom = NOMS_DES_RARETES[r];
   return (
     <span class="bst-rarete-px">
-      <LosangesEnPixels rang={["commun", "peu-commun", "epique", "mystique", "legendaire", "divin"].indexOf(r) + 1} couleur={r} />
+      <RangEnIcone rang={["commun", "peu-commun", "epique", "mystique", "legendaire", "divin"].indexOf(r) + 1} rarete={r} />
       <Px t={nom} couleur={r} dit={nom} />
     </span>
   );
@@ -322,7 +317,7 @@ export function FicheDuBooster({
                 <li key={i} data-kind={l.kind}>
                   {l.kind === "rarete" ? (
                     <>
-                      <LosangesEnPixels rang={["commun", "peu-commun", "epique", "mystique", "legendaire", "divin"].indexOf(rareteDeCarte(l.rarete)) + 1} couleur={rareteDeCarte(l.rarete)} />
+                      <RangEnIcone rang={0} rarete={rareteDeCarte(l.rarete)} />
                       <Px t={NOMS_DES_RARETES[rareteDeCarte(l.rarete)]} couleur={rareteDeCarte(l.rarete)} dit={NOMS_DES_RARETES[rareteDeCarte(l.rarete)]} />
                       {l.chance !== null ? <Px t={l.chance} dit={l.chance} /> : <Px t={l.touteA ?? "toutes à vous"} couleur="doux" dit={l.touteA ?? "toutes à vous"} />}
                     </>
@@ -337,7 +332,7 @@ export function FicheDuBooster({
                     </>
                   ) : (
                     <>
-                      <LosangesEnPixels rang={l.rang} couleur={rareteDeCarte(["commun", "peu-commun", "epique", "mystique", "legendaire", "divin"][l.rang - 1] ?? "commun")} />
+                      <RangEnIcone rang={l.rang} />
                       <Px t={`${nombreEcrit(l.gain)} statères`} dit={stateres(l.gain)} />
                       <Px t={l.chance} dit={l.chance} />
                     </>
