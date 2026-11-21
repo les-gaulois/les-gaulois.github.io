@@ -1,9 +1,9 @@
 /**
  * Les quatorze paliers de victoires sous le tag et leurs insignes (décision du pilote, 20 novembre 2026 : « 10, 25, 50, 100,
  * 200, 350, 500, 700, 900, 1000, 1500, 2000, 2500, 3000, chacun avec son insigne »). Un seul module pour la liste : l'écran
- * « Ma carte » s'en sert, et l'échelle du site (`WIN_TIERS` de `src/lib/paliers.ts`, liste des membres et annonces Discord),
- * encore à 8 paliers le 21 novembre 2026, doit la reprendre quand elle passe aux quatorze, sans la recopier
- * (tests/unit/jeu-kit.test.ts n'accepte que l'ancienne échelle ou celle-ci).
+ * « Ma carte » s'en sert, et l'échelle du site (`WIN_TIERS` de `src/lib/paliers.ts`, liste des membres et annonces Discord)
+ * la reprend telle quelle depuis le 21 novembre 2026, sans la recopier ; le serveur a la même (`internal.paliers_de_victoires`,
+ * comparée par tests/unit/regles-mon-gaulois.test.ts).
  *
  * Un palier compte des victoires sous le tag (`stats.team`) : il ne dit pas qui joue le mieux. Chaque insigne a sa matière,
  * sa forme et son emblème (fiche de projet « Mon Gaulois », table « Les quatorze paliers de victoires ») ; les dessins sont
