@@ -22,11 +22,11 @@ export const NOMS_SUR_L_ETAL: Readonly<Record<PochetteDeLEtal, string>> = {
 
 /** Le nom entier, pour un lecteur d'écran et pour le survol. */
 export const NOMS_ENTIERS: Readonly<Record<PochetteDeLEtal, string>> = {
-  surprise: "La pochette surprise",
-  stateres: "La pochette de statères",
-  familiers: "La pochette des familiers",
-  bannieres: "La pochette des bannières",
-  modeles: "La pochette des Gaulois uniques",
+  surprise: "Le booster surprise",
+  stateres: "Le booster de statères",
+  familiers: "Le booster des familiers",
+  bannieres: "Le booster des bannières",
+  modeles: "Le booster des Gaulois uniques",
 };
 
 /**

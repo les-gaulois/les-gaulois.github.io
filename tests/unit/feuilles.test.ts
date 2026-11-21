@@ -209,11 +209,12 @@ describe("les morceaux de la feuille de style", () => {
   });
 
   it("les attributs de <html> ne viennent que de Base.astro, selon la règle que le test applique", () => {
-    // Le test connaît, page par page, data-theme, data-ambiance, data-console et data-lettres (attributsHtmlDe) : il faut
-    // que Base.astro les pose toujours ainsi, et que personne d'autre ne les écrive.
+    // Le test connaît, page par page, data-theme, data-ecran, data-ambiance, data-console et data-lettres (attributsHtmlDe) :
+    // il faut que Base.astro les pose toujours ainsi, et que personne d'autre ne les écrive.
     const base = readFileSync(BASE, "utf8");
     for (const ligne of [
       "data-theme={theme}",
+      "data-ecran={cadre}",
       "data-ambiance={ambiance}",
       'data-console={ambiance === "console" ? "terminal" : undefined}',
       'data-lettres={lettresOnciale ? "onciale" : undefined}',
@@ -225,9 +226,9 @@ describe("les morceaux de la feuille de style", () => {
       .filter((f) => {
         const t = readFileSync(f, "utf8");
         return (
-          /\sdata-(theme|ambiance|lettres)=|\sdata-console=/.test(t) ||
-          /dataset\.(theme|ambiance|console|lettres)\s*=[^=]/.test(t) ||
-          /setAttribute\(\s*["']data-(theme|ambiance|console|lettres)["']/.test(t)
+          /\sdata-(theme|ecran|ambiance|lettres)=|\sdata-console=/.test(t) ||
+          /dataset\.(theme|ecran|ambiance|console|lettres)\s*=[^=]/.test(t) ||
+          /setAttribute\(\s*["']data-(theme|ecran|ambiance|console|lettres)["']/.test(t)
         );
       })
       .map(rel);

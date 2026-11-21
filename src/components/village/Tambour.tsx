@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { ORDRE_RARETES_DES_OBJETS as ORDRE_RARETES, RARETES_DES_OBJETS as RARETES, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { motionAllowed } from "../../lib/fx/motion";
 import { DUREE_DE_LA_FETE, DUREE_DU_TAMBOUR, positionDuTambour } from "../../lib/village/tambour";
+import { CLE_DU_SON, SON_CHANGE } from "../../lib/jeu/sons";
 
 /**
  * Le tambour des pochettes (choix du pilote, 15 novembre 2026 ; calculs dans `src/lib/village/tambour.ts`) : un cylindre de
@@ -31,7 +32,8 @@ export interface RangeeVue {
 
 // ---------- Le son ----------
 
-const CLE_SON = "gal-pochette-son";
+// Le réglage du son de toute la page, celui du jeu « Mon Gaulois » (src/lib/jeu/sons.ts) : une seule clé.
+const CLE_SON = CLE_DU_SON;
 let contexte: AudioContext | null = null;
 let maitre: GainNode | null = null;
 let dernierTic = 0;
@@ -63,8 +65,6 @@ export function preparerLeSon(): void {
   }
 }
 
-/** L'annonce d'un son coupé ou remis : chaque bouton du son relit le réglage. */
-const SON_CHANGE = "gal:son";
 
 /** Le son voulu sur cet appareil, et de quoi le couper ou le remettre. Un seul réglage : tous les boutons le suivent. */
 export function useSonDuTambour(): [boolean, () => void] {

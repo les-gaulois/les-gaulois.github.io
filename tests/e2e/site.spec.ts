@@ -807,7 +807,8 @@ test("l'accueil ouvre la Carte et « Mon Gaulois » : une vraie image, les chiff
 
   // « Votre Gaulois » : le Gaulois de départ déjà publié pour le compagnon, une phrase, ni chiffre ni pseudo.
   const village = page.getByTestId("home-village");
-  await expect(village.getByRole("link", { name: "Habiller mon Gaulois" })).toHaveAttribute("href", /\/village$/);
+  // Il mène au vestiaire : « Mon Gaulois » s'ouvre sinon sur « Ma carte » depuis le 21 novembre 2026.
+  await expect(village.getByRole("link", { name: "Habiller mon Gaulois" })).toHaveAttribute("href", /\/village#gaulois$/);
   expect(await village.innerText()).not.toMatch(/\d/);
   const gaulois = village.locator("img");
   // La même adresse versionnée que celle du compagnon : l'image n'est téléchargée qu'une fois.
@@ -976,6 +977,47 @@ test("« Mon Gaulois » sans serveur garde sa porte fermée, sans le monde du vi
   await expect(pause).toHaveAttribute("aria-pressed", "true");
 });
 
+// « Mon Gaulois » en écran de jeu (21 novembre 2026, maquette validée par le pilote) : plein écran, sans l'en-tête, le menu,
+// la rubrique ni le pied de page du site ; à leur place, la barre du jeu (logo dessiné, son, musique, pause, thème, retour au
+// site) et une ligne discrète en bas, qui garde les mentions légales, le code source et la mention d'OpenFront. Les images du
+// kit en pixels viennent de /village/kit.css, et les chiffres de « Ma carte » de /village/chiffres.json, sans aucun identifiant.
+test("« Mon Gaulois » s'ouvre en écran de jeu, avec sa barre, son kit en pixels et sa ligne du bas", async ({ page, request }) => {
+  await page.goto("/village");
+  await expect(page.locator("html")).toHaveAttribute("data-ecran", "jeu");
+  const barre = page.getByTestId("jeu-barre");
+  await expect(barre).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Mon Gaulois");
+  await expect(page.getByRole("navigation", { name: "Navigation principale" })).toHaveCount(0);
+  await expect(page.getByTestId("section-nav")).toHaveCount(0);
+  await expect(barre.getByRole("link", { name: "Retour au site" })).toHaveAttribute("href", "/");
+  for (const nom of ["Son", "Musique", "Mettre les animations en pause", "Thème sombre"]) await expect(barre.getByRole("button", { name: nom }), nom).toBeVisible();
+  // La musique est coupée au départ ; le son, lui, est actif.
+  await expect(barre.getByRole("button", { name: "Musique" })).toHaveAttribute("aria-pressed", "false");
+  await expect(barre.getByRole("button", { name: "Son" })).toHaveAttribute("aria-pressed", "true");
+  // Le thème se change depuis la barre du jeu, comme depuis l'en-tête du site.
+  await barre.getByRole("button", { name: "Thème sombre" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-mode", "sombre");
+  await barre.getByRole("button", { name: "Thème sombre" }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-mode", "sombre");
+  const pied = page.getByTestId("jeu-pied");
+  await expect(pied.getByRole("link", { name: "Mentions légales" })).toHaveAttribute("href", "/mentions-legales");
+  await expect(pied).toContainText("© OpenFront and Contributors");
+  // Le logo et les boutons sont des images du kit, chargées.
+  const logo = await page.locator(".jeu-logo").evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(logo).toMatch(/^url\("data:image\/png;base64,/);
+  const kit = await request.get((await page.locator('link[href*="/village/kit.css"]').getAttribute("href")) ?? "");
+  expect(kit.ok()).toBe(true);
+  expect(await kit.text()).toContain("--jeu-insigne-13:");
+  const chiffres = await request.get("/village/chiffres.json");
+  expect(chiffres.ok()).toBe(true);
+  const json = (await chiffres.json()) as { joueurs: Record<string, unknown> };
+  expect(typeof json.joueurs).toBe("object");
+  // Aucun identifiant public n'y est écrit.
+  const ids = (loadMembers()?.members ?? []).flatMap((m) => (m.publicId ? [m.publicId] : []));
+  const texte = JSON.stringify(json);
+  expect(ids.filter((id) => texte.includes(`"${id}"`))).toEqual([]);
+});
+
 // La vitrine des visiteurs (revue du 18 novembre 2026) : sous la porte, les Gaulois déjà créés, le plus de victoires d'abord,
 // chacun menant à sa fiche. Sans Gaulois relevé (un poste sans le cache de l'Action), rien.
 test("« Mon Gaulois » montre aux visiteurs les Gaulois déjà créés par les membres", async ({ page }) => {
@@ -1075,7 +1117,9 @@ test("/boutique et /village#marche mènent à l'onglet « La boutique » de « M
   await expect(page.getByTestId("auth-not-open")).toBeVisible();
   await expect(page.getByRole("tab")).toHaveCount(0);
   for (const id of ["boutique", "bourse", "pochette", "marche"]) await expect(page.getByTestId(id), id).toHaveCount(0);
-  await expect(page.getByTestId("section-nav").locator('a[aria-current="page"]')).toHaveText("Mon Gaulois");
+  // Un écran de jeu depuis le 21 novembre 2026 : la barre du jeu, pas la rubrique du site.
+  await expect(page.getByTestId("jeu-barre")).toBeVisible();
+  await expect(page.getByTestId("section-nav")).toHaveCount(0);
   // L'ancienne adresse du marché, sur /boutique ou sur /village, garde son ancre : la boutique y descend une fois ouverte.
   await page.goto("/boutique#marche");
   await expect(page).toHaveURL(/\/village\/?#marche$/);
@@ -1590,6 +1634,13 @@ test.describe("le plan du site", () => {
       for (const target of section.pages) {
         await page.goto(target.href);
         const tabs = page.getByTestId("section-nav");
+        // « Mon Gaulois » est un écran de jeu plein écran depuis le 21 novembre 2026 : ni rubrique ni en-tête du site, la barre
+        // du jeu à leur place, avec son retour au site. Les autres pages de sa rubrique gardent son onglet (vérifié ici).
+        if (target.href === "/village") {
+          await expect(tabs).toHaveCount(0);
+          await expect(page.getByTestId("jeu-retour")).toHaveAttribute("href", "/");
+          continue;
+        }
         if (section.pages.length === 1) {
           await expect(tabs).toHaveCount(0);
           continue;

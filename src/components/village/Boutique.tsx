@@ -807,7 +807,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
   if (rayon === RAYON_UNIQUES) partieDesUniques.current = "modeles";
   else if (rayon === RAYON_POCHETTES) partieDesUniques.current = "pochette";
 
-  if (etat.kind === "lecture") return <Loading label={pochettes ? "Lecture des pochettes…" : "Lecture de la boutique…"} />;
+  if (etat.kind === "lecture") return <Loading label={pochettes ? "Lecture des boosters…" : "Lecture de la boutique…"} />;
   if (etat.kind === "erreur") return <Problem message={etat.message} onRetry={() => void lire()} />;
 
   const village = `${basePath()}${ADRESSE_VILLAGE}`;

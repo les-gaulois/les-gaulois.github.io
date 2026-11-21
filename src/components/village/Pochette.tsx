@@ -31,7 +31,7 @@ export function Pochette({ boutique, solde, fermee, onOuvrir }: { boutique: MaBo
         </AlbumDePochette>
         <div class="pochette-nom">
           <h4 id="pochette-titre" class="nom-champ vestiaire-titre">
-            La pochette surprise
+            Le booster surprise
           </h4>
           <Prix montant={prix} class="pochette-prix" />
         </div>
@@ -57,7 +57,7 @@ export function Pochette({ boutique, solde, fermee, onOuvrir }: { boutique: MaBo
       ) : (
         <div>
           <button type="button" class="btn btn-secondary" onClick={onOuvrir} data-testid="pochette-ouvrir">
-            Ouvrir une pochette
+            Ouvrir un booster
           </button>
         </div>
       )}

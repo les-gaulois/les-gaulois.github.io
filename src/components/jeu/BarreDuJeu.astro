@@ -1,0 +1,54 @@
+---
+/**
+ * La barre du jeu (« Mon Gaulois » en plein écran, 21 novembre 2026, maquette validée par le pilote) : à la place de
+ * l'en-tête du site, sur les pages en cadre de jeu (`cadre="jeu"` de Base.astro). Le logo dessiné (titre de la page, il
+ * ramène à « Ma carte »), la place des ressources (le pass et les statères, posés par la page une fois le compte lu :
+ * `RessourcesDuJeu.tsx`), puis le son, la musique, la pause, le thème et le retour au site.
+ *
+ * La pause (`data-fx-toggle`, src/scripts/fx.ts) et le thème (`data-mode-toggle`, src/scripts/mode.ts) sont les boutons de
+ * tout le site, redessinés en cases : mêmes réglages, mêmes clés. Le son et la musique sont tenus par src/scripts/jeu.ts.
+ * Les boutons qui ont besoin d'un script restent cachés tant qu'il n'a pas tourné.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+{/* Le fond de l'écran : la bannière du joueur, ou des collines vivantes sans bannière (src/scripts/jeu.ts). */}
+<div class="jeu-fond" data-jeu-fond data-banniere="non" aria-hidden="true">
+  <canvas class="jeu-fond-vivant" width="1" height="1"></canvas>
+  <div class="jeu-fond-banniere"></div>
+  <div class="jeu-fond-voile"></div>
+</div>
+<header class="jeu-barre" data-testid="jeu-barre">
+  <h1 class="jeu-titre">
+    <a class="jeu-logo-lien" href="#ma-carte" title="Ma carte" data-jeu-logo>
+      <span class="sr-only">Mon Gaulois</span>
+      <i class="jeu-logo" aria-hidden="true"></i>
+    </a>
+  </h1>
+  <div class="jeu-ressources" id="jeu-ressources" data-testid="jeu-ressources"></div>
+  <div class="jeu-outils">
+    <button type="button" class="jeu-btn jeu-btn-bleu jeu-btn-ic jeu-n9" data-jeu-son aria-pressed="true" aria-label="Son" title="Couper le son" hidden>
+      <i class="jeu-pic" data-si="oui" style="--i:var(--jeu-pic-son)"></i>
+      <i class="jeu-pic" data-si="non" style="--i:var(--jeu-pic-muet)"></i>
+    </button>
+    <button type="button" class="jeu-btn jeu-btn-bleu jeu-btn-ic jeu-n9" data-jeu-musique aria-pressed="false" aria-label="Musique" title="Mettre la musique" hidden>
+      <i class="jeu-pic" data-si="oui" style="--i:var(--jeu-pic-musique)"></i>
+      <i class="jeu-pic" data-si="non" style="--i:var(--jeu-pic-silence)"></i>
+    </button>
+    <button type="button" class="jeu-btn jeu-btn-bleu jeu-btn-ic jeu-n9" data-fx-toggle aria-pressed="false" aria-label="Mettre les animations en pause" title="Mettre les animations en pause" hidden>
+      <i class="jeu-pic" data-si="pause" style="--i:var(--jeu-pic-pause)"></i>
+      <i class="jeu-pic" data-si="jouer" style="--i:var(--jeu-pic-jouer)"></i>
+    </button>
+    <button type="button" class="jeu-btn jeu-btn-bleu jeu-btn-ic jeu-n9" data-mode-toggle aria-pressed="false" aria-label="Thème sombre" title="Passer au thème sombre" hidden>
+      <i class="jeu-pic" data-si="lune" style="--i:var(--jeu-pic-lune)"></i>
+      <i class="jeu-pic" data-si="soleil" style="--i:var(--jeu-pic-soleil)"></i>
+    </button>
+    <a class="jeu-btn jeu-btn-bleu jeu-btn-ic jeu-n9" href={`${base}/`} aria-label="Retour au site" title="Retour au site" data-testid="jeu-retour">
+      <i class="jeu-pic" style="--i:var(--jeu-pic-retour)"></i>
+    </a>
+  </div>
+</header>
+
+<script>
+  import "../../scripts/jeu";
+</script>

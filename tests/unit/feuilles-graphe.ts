@@ -837,7 +837,7 @@ export type AttributsHtml = Record<string, string | undefined>;
 
 /**
  * Les attributs de <html> d'une page, d'après les propriétés écrites telles quelles sur sa balise <Base> et la règle de
- * Base.astro (voir le test qui la relit) : `theme` donne data-theme, `ambiance` data-ambiance et, en console, data-console ;
+ * Base.astro (voir le test qui la relit) : `theme` donne data-theme, `cadre` data-ecran, `ambiance` data-ambiance et, en console, data-console ;
  * data-lettres vaut « onciale » partout sauf au QG et à la Direction. Une propriété calculée (`theme={…}`) reste inconnue :
  * la page est alors jugée sur ses mots, comme pour tout autre attribut.
  */
@@ -860,6 +860,9 @@ export function attributsHtmlDe(route: string, page: string): AttributsHtml {
   };
   const theme = prop("theme");
   const ambiance = prop("ambiance");
+  // Le cadre de jeu (« Mon Gaulois », 21 novembre 2026) : `cadre` donne data-ecran.
+  const cadre = prop("cadre");
+  if (cadre !== null) html["data-ecran"] = cadre;
   if (theme !== null) html["data-theme"] = theme;
   if (ambiance !== null) {
     html["data-ambiance"] = ambiance;

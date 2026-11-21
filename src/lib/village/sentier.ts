@@ -204,7 +204,7 @@ export const NOMS_DES_MISSIONS: Readonly<Record<MissionDuSentier, string>> = {
   points_3: "Rapporter 3 points au clan dans la journée",
   equipe: "Rapporter des points au clan à trois Gaulois ou plus",
   vocal: "Passer dans un salon vocal du Discord du clan",
-  pochette: "Ouvrir une pochette",
+  pochette: "Ouvrir un booster",
 };
 
 /** Où en est une mission, en mots : « 1 sur 3 », « 1,78 sur 3 ». Rien pour une mission d'un seul coup. */
@@ -263,8 +263,8 @@ export function raisonEtalFerme(sentier: Pick<MonSentier, "peut_avancer" | "sold
 /** Les mots d'un refus du sentier. `manque` : les statères qui manquent, quand l'écran le sait. */
 export function messageDuRefusDuSentier(code: string, contexte: { manque?: number | null } = {}): string {
   if (code === "solde_insuffisant" || code === "deja_possede") return messageDuRefus(code, contexte);
-  if (code === "not_validated") return "Le sentier s'ouvre quand un officier a validé votre compte.";
-  if (code === "no_gaulois") return "Créez d'abord votre Gaulois : le sentier s'ouvre ensuite.";
+  if (code === "not_validated") return "Le pass s'ouvre quand un officier a validé votre compte.";
+  if (code === "no_gaulois") return "Créez d'abord votre Gaulois : le pass s'ouvre ensuite.";
   if (code === "mode_god") return "Le mode GOD est allumé : un palier ne se prend pas pendant l'essai, son objet repartirait avec lui.";
   return errorMessage(code);
 }

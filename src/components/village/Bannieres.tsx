@@ -271,7 +271,7 @@ function PochetteDesBannieres({ lib, mes, possedees, raison, onOuvrir }: { lib: 
       </AlbumDePochette>
       <div class="bannieres-pochette-nom">
         <h4 id="bannieres-pochette-titre" class="nom-champ bannieres-pochette-titre">
-          La pochette des bannières
+          Le booster des bannières
         </h4>
         <Prix montant={mes.pochette.prix} class="bannieres-pochette-prix" />
         <p class="bannieres-pochette-compte" data-testid="bannieres-pochette-compte">

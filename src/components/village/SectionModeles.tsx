@@ -198,7 +198,7 @@ export function SectionDesModeles({ partie = "modeles", etat, solde, pochetteGag
       </AlbumDePochette>
       <div class="uniques-pochette-nom">
         <h4 id="uniques-pochette-titre" class="nom-champ uniques-pochette-titre">
-          La pochette des Gaulois uniques
+          Le booster des Gaulois uniques
         </h4>
         <Prix montant={mes.pochette.prix} class="uniques-pochette-prix" />
         {reste > 0 && (

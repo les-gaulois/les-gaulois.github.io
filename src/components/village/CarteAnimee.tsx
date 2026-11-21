@@ -17,7 +17,7 @@ import { peindre } from "./BoutiquePixels";
  * Le familier du membre, s'il en montre un, est posé en bas à droite, devant le Gaulois (demande du pilote, 17 novembre
  * 2026 ; `src/lib/carte-familier-pose.ts`).
  */
-export function CarteAnimee({ finition, tenue, fond, classe, sonde = false, familier = null, cadre = null }: { finition: FinitionDuRayon | null; tenue: Tenue; fond: string | undefined; classe: string; sonde?: boolean; familier?: Familier | null; cadre?: CadreDeCarte | null }) {
+export function CarteAnimee({ finition, tenue, fond, classe, sonde = false, familier = null, cadre = null, nom = null }: { finition: FinitionDuRayon | null; tenue: Tenue; fond: string | undefined; classe: string; sonde?: boolean; familier?: Familier | null; cadre?: CadreDeCarte | null; /** Le pseudo sur la plaque du bas, comme sur le podium et la fiche (« Ma carte ») ; sans lui, pas de plaque. */ nom?: string | null }) {
   const racine = useRef<HTMLDivElement>(null);
   const gaulois = useRef<HTMLCanvasElement>(null);
   const cases = useMemo(() => casesDuGaulois(tenue), [tenue]);
@@ -46,6 +46,11 @@ export function CarteAnimee({ finition, tenue, fond, classe, sonde = false, fami
           <canvas class="podium-carte-fx podium-carte-fx-devant" data-toile="devant" width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} />
           {cadre && <canvas class="podium-carte-cadre" data-toile="cadre" width={LARGEUR_DU_CADRE} height={HAUTEUR_DU_CADRE} />}
           {pose && place && <canvas ref={compagnon} class="podium-carte-familier" width={pose.largeur} height={pose.hauteur} style={`--fw:${pose.largeur};--fh:${pose.hauteur};--fe:${place.echelle.toFixed(3)};--lever:${place.lever}`} />}
+          {nom && (
+            <span class="podium-carte-bas">
+              <span class="podium-carte-nom">{nom}</span>
+            </span>
+          )}
         </div>
       </div>
     </div>

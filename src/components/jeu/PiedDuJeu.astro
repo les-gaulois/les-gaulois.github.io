@@ -1,0 +1,23 @@
+---
+/**
+ * Le pied du jeu : une ligne discrète à la place du pied de page du site, sur les pages en cadre de jeu (Base.astro). Elle
+ * garde ce qui doit rester sur chaque page : les mentions légales (loi du 21 juin 2004, article 1-1), la confidentialité
+ * avec le serveur, le code source et la mention d'OpenFront (AGPL et conditions d'OpenFront, NOTICE.md), et que le site
+ * n'est pas officiel.
+ */
+import { clan, SITE_DISCLAIMER, SITE_LICENSE_NOTICE } from "../../../config/clan";
+import { AUTH_ENABLED } from "../../lib/compte/api";
+import GauloisCompagnon from "../GauloisCompagnon.astro";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<footer class="jeu-pied" data-testid="jeu-pied">
+  <ul>
+    <li><a href={`${base}/mentions-legales`}>Mentions légales</a></li>
+    {AUTH_ENABLED && <li><a href={`${base}/confidentialite`}>Confidentialité</a></li>}
+    <li><a href={clan.links.source} rel="noopener">Code source</a></li>
+  </ul>
+  <p>{SITE_DISCLAIMER} <span data-compagnon-mention>{SITE_LICENSE_NOTICE}</span></p>
+  <GauloisCompagnon />
+</footer>

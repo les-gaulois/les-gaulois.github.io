@@ -46,8 +46,17 @@ interface Props {
   /** L'image d'aperçu du lien, à la place de celle du site : un chemin qui commence par la base, et ce qu'elle montre. */
   image?: string;
   imageAlt?: string;
+  /**
+   * « Mon Gaulois » (/village), depuis le 21 novembre 2026 : un écran de jeu plein écran, sans l'en-tête, le menu, la
+   * rubrique ni le pied de page du site. À leur place, ce que la page pose dans les fentes « barre-jeu » (la barre du jeu et
+   * son fond, BarreDuJeu.astro) et « pied-jeu » (une ligne discrète en bas, PiedDuJeu.astro), et la feuille de son kit dans
+   * la fente « tete ». Voir « Le kit du jeu » dans docs/DESIGN.md. Les autres pages n'importent ainsi rien du jeu, ce que
+   * le test des feuilles (tests/unit/feuilles.test.ts) vérifie.
+   */
+  cadre?: "jeu";
 }
-const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, theme, ambiance, largeur, image, imageAlt } = Astro.props;
+const { title, description = `${clan.tagline} Classement, progression, membres et activité du clan.`, noindex = false, theme, ambiance, largeur, image, imageAlt, cadre } = Astro.props;
+const jeu = cadre === "jeu";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const fullTitle = title ? `${title} · [${clan.tag}] ${clan.name}` : `[${clan.tag}] ${clan.name} · Clan OpenFront`;
@@ -90,6 +99,7 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
   data-console={ambiance === "console" ? "terminal" : undefined}
   data-largeur={largeur}
   data-lettres={lettresOnciale ? "onciale" : undefined}
+  data-ecran={cadre}
 >
   <head>
     <meta charset="utf-8" />
@@ -174,6 +184,7 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
       )
     }
     {feuilles.map((href) => <link rel="stylesheet" href={href} />)}
+    <slot name="tete" />
   </head>
   <body class="flex min-h-dvh flex-col" data-nouveautes-marker={nouveautesMarker ?? undefined} data-route={Astro.routePattern}>
     <a
@@ -181,7 +192,11 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
       class="absolute left-2 top-[-4rem] z-50 rounded bg-white px-3 py-2 font-semibold text-navy focus:top-2"
       >Aller au contenu</a
     >
-    {/* La barre de commande : une vitre sombre, et l'horizon tricolore dessous (« Le poste de commandement », docs/DESIGN.md). */}
+    {/* En cadre de jeu (/village) : la barre du jeu et son fond, posés par la page, à la place de l'en-tête. */}
+    {jeu ? (
+      <slot name="barre-jeu" />
+    ) : (
+    /* La barre de commande : une vitre sombre, et l'horizon tricolore dessous (« Le poste de commandement », docs/DESIGN.md). */
     <header class="barre sticky top-0 z-40">
       <div class="wrap flex min-h-16 items-center justify-between gap-4">
         <a href={`${base}/`} class="flex items-center gap-3 font-display font-extrabold">
@@ -317,16 +332,20 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
         </div>
       </div>
     </header>
+    )}
 
     <main id="contenu" class="flex-1">
       {/* La vue joueur de l'encadrement : une bande en haut de chaque page pour ne pas l'oublier et en sortir. Hors de l'en-tête collant, qui garde sa hauteur. */}
       {AUTH_ENABLED && <PlayerViewBar client:idle />}
-      <SectionNav />
+      {!jeu && <SectionNav />}
       <slot />
       {/* Les appels des Gaulois au QG, sur toutes les pages : rien pour un visiteur sans session, le serveur ne répond qu'aux membres validés. */}
       {AUTH_ENABLED && <AppelsGaulois client:idle />}
     </main>
 
+    {jeu ? (
+    <slot name="pied-jeu" />
+    ) : (
     <footer class="mt-20 bg-night">
       <div class="wrap grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[3fr_3fr_2fr_3fr]">
         <div>
@@ -363,6 +382,7 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
       </div>
       <GauloisCompagnon />
     </footer>
+    )}
 
     <script>
       // Le site est statique : si la collecte s'arrête, seul le navigateur du

@@ -48,7 +48,7 @@ export function EtalDesPochettes({
   return (
     <div ref={etal} class="etal" data-decor={decor ? "" : undefined} data-testid="etal">
       <span class="etal-auvent" aria-hidden="true" />
-      <div class="etal-rang" role="group" aria-label="Choisir une pochette">
+      <div class="etal-rang" role="group" aria-label="Choisir un booster">
         {POCHETTES_DE_L_ETAL.map((id, i) => {
           const gagnee = motsDesGagnees(gagnees[id]);
           const montant = prix[id];

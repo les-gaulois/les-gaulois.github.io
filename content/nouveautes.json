@@ -1,5 +1,16 @@
 [
   {
+    "date": "2026-11-21",
+    "kind": "nouveau",
+    "rank": "minor",
+    "title": "Mon Gaulois en écran de jeu",
+    "body": "La page passe en plein écran : barre de jeu, menu en icônes et « Ma carte », votre carte avec vos chiffres de clan. Les pochettes s'appellent les boosters, le sentier le pass.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
     "date": "2026-11-19",
     "kind": "nouveau",
     "rank": "staff",

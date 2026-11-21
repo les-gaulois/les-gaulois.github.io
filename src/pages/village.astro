@@ -1,8 +1,10 @@
 ---
 import Base from "../layouts/Base.astro";
-import PageHeader from "../components/PageHeader.astro";
 import NotOpen from "../components/compte/NotOpen.astro";
 import VillageApp from "../components/village/VillageApp";
+import BarreDuJeu from "../components/jeu/BarreDuJeu.astro";
+import PiedDuJeu from "../components/jeu/PiedDuJeu.astro";
+import { feuilleDuKit } from "../lib/jeu/kit-css";
 import GauloisPortrait from "../components/GauloisPortrait.astro";
 import { AUTH_ENABLED } from "../lib/compte/api";
 import { loadMembers } from "../lib/data";
@@ -17,6 +19,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 // d'abord, et « Mon Gaulois » ne la montre qu'à qui n'est pas connecté (VillageApp.tsx).
 const vitrine = vitrinePublique(loadMembers()?.members ?? [], (id) => portraitDuGaulois(id) !== null);
 const releve = gauloisLusLe();
+// Les images du kit en pixels (src/lib/jeu/kit-css.ts), servies à part et gardées en cache : leur version est dans l'adresse.
+const kit = await feuilleDuKit();
 ---
 
 {/* Le Gaulois de chaque membre (13 novembre 2026, demande du pilote) : il l'habille en pixels, et son Gaulois paraît sur
@@ -28,27 +32,29 @@ const releve = gauloisLusLe();
     « La forge » et « La boutique » (la bourse, la pochette surprise, les rayons et le marché des membres). La boutique a
     eu sa page, /boutique, le matin du 15 novembre 2026 ; le pilote l'a voulue ici l'après-midi : /boutique renvoie à
     l'onglet, et /village#marche l'ouvre au marché. Tout vient du serveur : la page ne contient que la porte, et, dessous, la
-    vitrine des visiteurs, écrite au build (18 novembre 2026). */}
-<Base title="Mon Gaulois" description="Le Gaulois en pixels de chaque membre du clan GAL : il l'habille, grave ses parties à la forge et achète à la boutique avec les statères des points rapportés au clan, et le voit sur les images du clan sur Discord.">
-  <div class="wrap">
-    <PageHeader title="Mon Gaulois" />
-    <div class="mt-8">
-      {
-        AUTH_ENABLED ? (
-          <VillageApp client:only="preact" />
-        ) : (
-          <section aria-labelledby="vestiaire-titre">
-            <h2 id="vestiaire-titre" class="section-title-sm">Votre Gaulois</h2>
-            <div class="mt-8">
-              <NotOpen />
-            </div>
-          </section>
-        )
-      }
-    </div>
+    vitrine des visiteurs, écrite au build (18 novembre 2026). Depuis le 21 novembre 2026, c'est un écran de jeu plein écran
+    (cadre de jeu de Base.astro, maquette validée par le pilote) : la barre du jeu remplace l'en-tête du site, « Ma carte »
+    ouvre le jeu, et le menu du jeu mène aux autres parties (VillageApp.tsx). */}
+<Base cadre="jeu" title="Mon Gaulois" description="Le jeu des Gaulois du clan GAL : la carte de chaque membre et ses chiffres de clan, son Gaulois en pixels à habiller, le pass, la forge, la boutique, les boosters, la vitrine et la loterie, avec les statères des points rapportés au clan.">
+  <link slot="tete" rel="stylesheet" href={`${base}/village/kit.css?v=${kit.version}`} />
+  <BarreDuJeu slot="barre-jeu" />
+  <PiedDuJeu slot="pied-jeu" />
+  <div class="jeu-contenu">
+    {
+      AUTH_ENABLED ? (
+        <VillageApp client:only="preact" />
+      ) : (
+        <section class="jeu-ecran jeu-n9" aria-labelledby="vestiaire-titre">
+          <h2 id="vestiaire-titre" class="section-title-sm">Votre Gaulois</h2>
+          <div class="mt-8">
+            <NotOpen />
+          </div>
+        </section>
+      )
+    }
     {
       vitrine.length > 0 && (
-        <section class="mt-section" aria-labelledby="vitrine-publique-titre" data-vitrine-publique data-testid="vitrine-publique" hidden={AUTH_ENABLED}>
+        <section class="jeu-ecran jeu-n9 mt-8" aria-labelledby="vitrine-publique-titre" data-vitrine-publique data-testid="vitrine-publique" hidden={AUTH_ENABLED}>
           <h2 id="vitrine-publique-titre" class="section-title-sm">Les Gaulois du clan</h2>
           <p class="info-discrete tnum mt-2">
             {vitrine.length > 1 ? `${fmtInt(vitrine.length)} Gaulois déjà habillés par leur membre` : "1 Gaulois déjà habillé par son membre"}{releve && `, ${vitrine.length > 1 ? "relevés" : "relevé"} le ${fmtDayAndTime(releve)}`}.

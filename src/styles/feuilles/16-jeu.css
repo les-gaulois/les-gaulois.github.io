@@ -1,0 +1,1053 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- « Mon Gaulois » en écran de jeu (21 novembre 2026) ---------- */
+/* « Mon Gaulois » en écran de jeu (21 novembre 2026, maquette validée par le pilote : planche de Claude Fable 5.2) : le kit
+   en pixels et le cadre de jeu plein écran de /village. Voir « Le kit du jeu » dans docs/DESIGN.md.
+
+   - Les images du kit (cadres en neuf parts, boutons à trois états, rubans, icônes, insignes, logo) viennent de
+     /village/kit.css, faite à la construction (src/lib/jeu/kit-css.ts) : des variables --jeu-s-*, --jeu-i-*, --jeu-ic-*,
+     --jeu-pic-*, --jeu-insigne-*, --jeu-logo*. Les mots et nombres qui changent sont dessinés dans la page
+     (src/lib/jeu/dans-la-page.ts, composants de src/components/jeu/).
+   - Un point du kit, --jeu-p, vaut 2 pixels : des cases nettes, jamais d'échelle à virgule sur ordinateur.
+   - Jamais de dégradé ni de bordure de site pour dessiner une pièce : ce sont des images en cases (« pas des trucs Paint »).
+   - Les deux thèmes du site, « Neige Marine » et « Nuit Marine » : les pièces qui changent ont leur version sombre dans
+     /village/kit.css, et l'écriture en pixels a deux images (--i, --i-sombre).
+*/
+
+:root[data-ecran="jeu"] {
+  --jeu-p: 2px;
+  --jeu-ombre: rgb(10 18 48 / 0.28);
+  --jeu-or-focus: #8a5a00;
+  /* La hauteur de la barre du jeu et du menu du bas (téléphone) : la page leur laisse la place. */
+  --jeu-barre-h: calc(30 * var(--jeu-p));
+  --jeu-menu-bas-h: 0px;
+}
+:root[data-ecran="jeu"][data-mode="sombre"] {
+  --jeu-ombre: rgb(2 4 14 / 0.5);
+  --jeu-or-focus: #ffd84a;
+}
+
+/* ---------- Le kit : une pièce en neuf parts, étirée par ses bords droits seulement ---------- */
+
+.jeu-n9 {
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(var(--bt) * var(--jeu-p)) calc(var(--br) * var(--jeu-p)) calc(var(--bb) * var(--jeu-p)) calc(var(--bl) * var(--jeu-p));
+  border-image-source: var(--src);
+  border-image-slice: var(--bt) var(--br) var(--bb) var(--bl) fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+}
+.jeu-panneau {
+  --src: var(--jeu-s-panneau);
+  --bt: 12;
+  --br: 12;
+  --bb: 14;
+  --bl: 12;
+}
+.jeu-ecran-cadre {
+  --src: var(--jeu-s-ecran);
+  --bt: 12;
+  --br: 12;
+  --bb: 14;
+  --bl: 12;
+}
+.jeu-bulle {
+  --src: var(--jeu-s-bulle);
+  --bt: 4;
+  --br: 4;
+  --bb: 6;
+  --bl: 4;
+}
+
+/* L'écriture en pixels : chaque mot est une image, à l'échelle de sa pièce ; son texte est à côté, pour les lecteurs d'écran. */
+.jeu-px {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  vertical-align: top;
+  line-height: 0;
+}
+.jeu-px-plie {
+  flex-wrap: wrap;
+  gap: calc(5 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  max-width: 100%;
+}
+.jeu-px > i {
+  display: block;
+  flex: none;
+  width: calc(var(--w) * var(--jeu-p));
+  height: calc(var(--h) * var(--jeu-p));
+  margin-bottom: calc(-2 * var(--jeu-p));
+  background: var(--i) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+:root[data-mode="sombre"] .jeu-px > i {
+  background-image: var(--i-sombre);
+}
+.jeu-px-cerne > i {
+  margin: calc(-1 * var(--jeu-p));
+}
+
+/* Les icônes : 24 cases en couleur (--jeu-ic-*), 16 cases en blanc (--jeu-pic-*). */
+.jeu-ic,
+.jeu-pic {
+  display: block;
+  flex: none;
+  width: calc(24 * var(--jeu-p));
+  height: calc(24 * var(--jeu-p));
+  background: var(--i) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+.jeu-pic {
+  width: calc(16 * var(--jeu-p));
+  height: calc(16 * var(--jeu-p));
+  filter: none;
+}
+.jeu-insigne-eteint {
+  filter: brightness(0.45) saturate(0.25);
+}
+.jeu-etq,
+.jeu-compteur {
+  display: inline-block;
+  line-height: 0;
+  vertical-align: top;
+}
+.jeu-etq > i,
+.jeu-compteur > i {
+  display: block;
+  width: calc(var(--w) * var(--jeu-p));
+  height: calc(var(--h) * var(--jeu-p));
+  background: var(--i) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+
+/* Les rubans : une bande, deux queues fendues. */
+.jeu-ruban {
+  --src: var(--jeu-s-ruban);
+  --bt: 0;
+  --br: 10;
+  --bb: 0;
+  --bl: 10;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  height: calc(17 * var(--jeu-p));
+  padding: 0 calc(2 * var(--jeu-p));
+  white-space: nowrap;
+}
+.jeu-ruban-bleu {
+  --src: var(--jeu-s-ruban-bleu);
+}
+.jeu-ruban > .jeu-px {
+  margin-top: calc(3 * var(--jeu-p));
+}
+
+/* Les boutons : trois dessins (repos, survol, enfoncé), le texte descend avec la face. Or : l'action ; bleu : le reste. */
+.jeu-btn {
+  --src: var(--jeu-s-btn-or-repos);
+  --bt: 4;
+  --br: 5;
+  --bb: 8;
+  --bl: 5;
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  height: calc(20 * var(--jeu-p));
+  min-width: calc(20 * var(--jeu-p));
+  padding: 0 calc(3 * var(--jeu-p));
+  margin: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.09s steps(2);
+}
+.jeu-btn-bleu {
+  --src: var(--jeu-s-btn-bleu-repos);
+}
+.jeu-btn > * {
+  transition: transform 0.05s steps(1);
+}
+@media (hover: hover) {
+  .jeu-btn:hover {
+    --src: var(--jeu-s-btn-or-survol);
+    transform: translateY(calc(-1 * var(--jeu-p)));
+  }
+  .jeu-btn-bleu:hover {
+    --src: var(--jeu-s-btn-bleu-survol);
+  }
+}
+.jeu-btn:active {
+  --src: var(--jeu-s-btn-or-enfonce);
+  transform: none;
+}
+.jeu-btn-bleu:active {
+  --src: var(--jeu-s-btn-bleu-enfonce);
+}
+.jeu-btn:active > * {
+  transform: translateY(calc(2 * var(--jeu-p)));
+}
+.jeu-btn:focus-visible,
+.jeu-onglet:focus-visible,
+.jeu-logo-lien:focus-visible,
+.jeu-capsule-lien:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.jeu-btn:disabled {
+  filter: grayscale(1) brightness(0.75);
+  cursor: default;
+}
+.jeu-btn.jeu-rebond {
+  animation: jeu-rebond 0.34s steps(6) 1;
+}
+@keyframes jeu-rebond {
+  0% {
+    transform: scale(1.1, 0.86);
+  }
+  45% {
+    transform: scale(0.95, 1.08);
+  }
+  75% {
+    transform: scale(1.03, 0.98);
+  }
+  100% {
+    transform: none;
+  }
+}
+.jeu-btn > .jeu-px {
+  margin-top: calc(1 * var(--jeu-p));
+}
+/* Un bouton à icône seule : la petite icône blanche posée sur la face. */
+.jeu-btn-ic {
+  width: calc(20 * var(--jeu-p));
+  padding: 0;
+}
+.jeu-btn-ic .jeu-pic {
+  position: absolute;
+  left: calc(-3 * var(--jeu-p));
+  top: calc(-2 * var(--jeu-p));
+}
+
+/* Les barres : un tube sombre où le chiffre se lit en crème, un plein qui va de zéro à sa part, des crans. */
+.jeu-tube {
+  --src: var(--jeu-s-tube);
+  --bt: 3;
+  --br: 3;
+  --bb: 3;
+  --bl: 3;
+  position: relative;
+  height: calc(13 * var(--jeu-p));
+}
+.jeu-plein {
+  --bt: 3;
+  --br: 1;
+  --bb: 2;
+  --bl: 1;
+  --src: var(--jeu-s-plein-or);
+  position: absolute;
+  left: calc(-1 * var(--jeu-p));
+  top: calc(-1 * var(--jeu-p));
+  height: calc(9 * var(--jeu-p));
+  width: round(down, calc((100% + 2 * var(--jeu-p)) * var(--part, 0)), var(--jeu-p));
+  min-width: calc(2 * var(--jeu-p));
+  overflow: hidden;
+  transition: width 0.9s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.jeu-plein-bleu {
+  --src: var(--jeu-s-plein-bleu);
+}
+.jeu-plein-vert {
+  --src: var(--jeu-s-plein-vert);
+}
+.jeu-plein-violet {
+  --src: var(--jeu-s-plein-violet);
+}
+.jeu-plein-vide {
+  width: 0;
+  min-width: 0;
+  border: 0;
+}
+.jeu-crans {
+  position: absolute;
+  inset: calc(-1 * var(--jeu-p));
+  background: var(--jeu-i-crans) 0 0 / calc(10 * var(--jeu-p)) calc(9 * var(--jeu-p)) repeat-x;
+  image-rendering: pixelated;
+}
+.jeu-repere {
+  position: absolute;
+  top: calc(-2 * var(--jeu-p));
+  bottom: calc(-2 * var(--jeu-p));
+  width: var(--jeu-p);
+  left: calc(var(--x) * 100%);
+  background: #f6f1e3;
+}
+.jeu-tube > .jeu-px {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  justify-content: center;
+}
+.jeu-tube > .jeu-px-fin {
+  justify-content: flex-end;
+  right: calc(2 * var(--jeu-p));
+  left: auto;
+}
+
+/* Une capsule de la barre du jeu : un tube, une icône qui en dépasse, un chiffre. */
+.jeu-capsule {
+  --src: var(--jeu-s-tube);
+  --bt: 3;
+  --br: 3;
+  --bb: 3;
+  --bl: 3;
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  height: calc(13 * var(--jeu-p));
+  min-width: calc(44 * var(--jeu-p));
+  padding-left: calc(14 * var(--jeu-p));
+}
+.jeu-capsule > .jeu-ic,
+.jeu-capsule > .jeu-capsule-image {
+  position: absolute;
+  left: calc(-12 * var(--jeu-p));
+  top: calc(-9 * var(--jeu-p));
+  z-index: 1;
+}
+.jeu-capsule > .jeu-px {
+  position: relative;
+  z-index: 2;
+  margin-right: calc(1 * var(--jeu-p));
+}
+.jeu-capsule > .jeu-plein {
+  z-index: 0;
+}
+.jeu-capsule-lien {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0 0 0 calc(12 * var(--jeu-p));
+  font: inherit;
+}
+
+/* ---------- Le cadre de jeu : /village en plein écran, sans l'en-tête, le menu, la rubrique ni le pied du site ---------- */
+
+:root[data-ecran="jeu"] body {
+  min-height: 100dvh;
+}
+/* Le fond : la bannière du joueur, qui respire et suit la souris ; sans bannière, des collines vivantes dessinées en cases. */
+.jeu-fond {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.jeu-fond-banniere {
+  position: absolute;
+  inset: -3%;
+  background: var(--jeu-banniere, none) center / cover no-repeat;
+  image-rendering: pixelated;
+  transform: translate(calc(var(--jeu-mx, 0) * -1%), calc(var(--jeu-my, 0) * -0.6%)) scale(1.02);
+  transition: transform 0.6s ease-out;
+  animation: jeu-respire 16s ease-in-out infinite alternate;
+}
+@keyframes jeu-respire {
+  from {
+    scale: 1;
+  }
+  to {
+    scale: 1.035;
+  }
+}
+.jeu-fond-vivant {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+/* Le voile : la page se lit par-dessus la bannière, dans les deux thèmes. */
+.jeu-fond-voile {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-navy) 42%, transparent);
+}
+:root[data-mode="sombre"] .jeu-fond-voile {
+  background: color-mix(in srgb, var(--color-navy) 55%, transparent);
+}
+.jeu-fond[data-banniere="non"] .jeu-fond-banniere,
+.jeu-fond[data-banniere="non"] .jeu-fond-voile {
+  display: none;
+}
+.jeu-fond[data-banniere="oui"] .jeu-fond-vivant {
+  display: none;
+}
+:root.fx-off .jeu-fond-banniere {
+  animation: none;
+  transition: none;
+  transform: scale(1.02);
+}
+@media (prefers-reduced-motion: reduce) {
+  .jeu-fond-banniere {
+    animation: none;
+    transition: none;
+    transform: scale(1.02);
+  }
+}
+
+/* La barre du jeu : logo, ressources (pass et statères), son, musique, pause, thème, retour au site. */
+.jeu-barre {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--jeu-p));
+  min-height: var(--jeu-barre-h);
+  padding: calc(3 * var(--jeu-p)) max(16px, calc(10 * var(--jeu-p))) calc(2 * var(--jeu-p));
+  isolation: isolate;
+}
+.jeu-barre::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: calc(-14 * var(--jeu-p)) calc(-14 * var(--jeu-p)) 0;
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(12 * var(--jeu-p)) calc(12 * var(--jeu-p)) calc(14 * var(--jeu-p));
+  border-image: var(--jeu-s-panneau) 12 12 14 fill / calc(12 * var(--jeu-p)) calc(12 * var(--jeu-p)) calc(14 * var(--jeu-p)) stretch;
+  image-rendering: pixelated;
+}
+/* Le filet tricolore tout en haut, deux cases. */
+.jeu-barre::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(2 * var(--jeu-p));
+  background: linear-gradient(90deg, #2f6bff 0 33.33%, #f6f1e3 33.33% 66.66%, #e0263a 66.66%);
+}
+.jeu-titre {
+  margin: 0;
+  flex: none;
+  line-height: 0;
+}
+.jeu-logo-lien {
+  display: block;
+  line-height: 0;
+}
+.jeu-logo {
+  display: block;
+  width: calc(var(--jeu-logo-w) * var(--jeu-p));
+  height: calc(var(--jeu-logo-h) * var(--jeu-p));
+  background: var(--jeu-logo) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+.jeu-ressources {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(10 * var(--jeu-p)) calc(18 * var(--jeu-p));
+  min-width: 0;
+  margin-top: calc(4 * var(--jeu-p));
+}
+.jeu-outils {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: calc(4 * var(--jeu-p));
+}
+/* Le son, la musique et le thème : la feuille montre l'icône de l'état. */
+.jeu-btn [data-si] {
+  display: none;
+}
+.jeu-btn[aria-pressed="true"] [data-si="oui"],
+.jeu-btn[aria-pressed="false"] [data-si="non"],
+.jeu-btn:not([aria-pressed]) [data-si="non"] {
+  display: block;
+}
+:root:not([data-mode="sombre"]) [data-mode-toggle] [data-si="lune"],
+:root[data-mode="sombre"] [data-mode-toggle] [data-si="soleil"] {
+  display: block;
+}
+:root.fx-off [data-fx-toggle] [data-si="jouer"],
+:root:not(.fx-off) [data-fx-toggle] [data-si="pause"] {
+  display: block;
+}
+
+/* Le contenu du jeu, au-dessus du fond. */
+:root[data-ecran="jeu"] #contenu {
+  position: relative;
+  z-index: 1;
+  flex: 1 0 auto;
+  padding: calc(14 * var(--jeu-p)) max(16px, calc(12 * var(--jeu-p))) calc(20 * var(--jeu-p));
+}
+:root[data-ecran="jeu"] #contenu > * {
+  position: relative;
+}
+/* Un écran du jeu : un cadre en cases autour d'un fond de page, où les parties d'aujourd'hui gardent leur apparence. */
+.jeu-ecran {
+  --src: var(--jeu-s-ecran);
+  --bt: 12;
+  --br: 12;
+  --bb: 14;
+  --bl: 12;
+  padding: calc(4 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  min-width: 0;
+}
+@media (max-width: 47.99rem) {
+  .jeu-ecran {
+    --bt: 6;
+    --br: 6;
+    --bb: 8;
+    --bl: 6;
+    border-image-slice: 12 12 14 12 fill;
+    border-width: calc(6 * var(--jeu-p)) calc(6 * var(--jeu-p)) calc(8 * var(--jeu-p));
+    padding: calc(2 * var(--jeu-p)) calc(1 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  }
+}
+
+/* Le pied du jeu : une ligne discrète, mentions légales, confidentialité, code source et la mention d'OpenFront. */
+.jeu-pied {
+  position: relative;
+  z-index: 1;
+  margin-bottom: var(--jeu-menu-bas-h);
+  /* Aucune marge en bas du pied : le Gaulois compagnon n'y vient pas (src/scripts/compagnon.ts). */
+  padding: 10px max(16px, calc(12 * var(--jeu-p))) 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+  background: color-mix(in srgb, var(--color-navy) 88%, transparent);
+}
+.jeu-pied ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jeu-pied a {
+  color: var(--color-muted);
+}
+.jeu-pied p {
+  margin: 4px 0 0;
+  padding-bottom: 14px;
+}
+
+/* ---------- Le menu du jeu : les parties en grosses icônes, sur le côté sur ordinateur, en bas sur téléphone ---------- */
+
+.jeu-ecrans {
+  display: grid;
+  gap: calc(14 * var(--jeu-p));
+  align-items: start;
+}
+.jeu-menu {
+  display: flex;
+  gap: calc(6 * var(--jeu-p));
+}
+.jeu-onglet {
+  --src: var(--jeu-s-btn-bleu-repos);
+  --bt: 4;
+  --br: 5;
+  --bb: 8;
+  --bl: 5;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.jeu-onglet .jeu-ic {
+  position: absolute;
+  transition: transform 0.2s steps(3);
+}
+.jeu-onglet-nombre {
+  position: absolute;
+  z-index: 3;
+}
+.jeu-onglet .jeu-onglet-mot-ouvert {
+  display: none;
+}
+.jeu-onglet[aria-selected="true"] .jeu-onglet-mot-ouvert {
+  display: inline-flex;
+}
+.jeu-onglet[aria-selected="true"] .jeu-onglet-mot-ferme {
+  display: none;
+}
+
+/* Sur ordinateur : une colonne de boutons, à gauche, qui suit la page sous la barre. */
+@media (min-width: 64rem) {
+  .jeu-ecrans {
+    grid-template-columns: calc(112 * var(--jeu-p)) minmax(0, 1fr);
+  }
+  .jeu-menu {
+    position: sticky;
+    top: calc(var(--jeu-barre-h) + 16 * var(--jeu-p));
+    flex-direction: column;
+    gap: calc(8 * var(--jeu-p));
+    padding: calc(8 * var(--jeu-p)) 0 0 calc(12 * var(--jeu-p));
+  }
+  .jeu-onglet {
+    border-style: solid;
+    border-color: transparent;
+    border-width: calc(4 * var(--jeu-p)) calc(5 * var(--jeu-p)) calc(8 * var(--jeu-p));
+    border-image-source: var(--src);
+    border-image-slice: 4 5 8 fill;
+    image-rendering: pixelated;
+    width: calc(96 * var(--jeu-p));
+    height: calc(20 * var(--jeu-p));
+    transition: transform 0.09s steps(2);
+  }
+  .jeu-onglet .jeu-ic {
+    left: calc(-16 * var(--jeu-p));
+    top: calc(-10 * var(--jeu-p));
+  }
+  .jeu-onglet > .jeu-px {
+    margin: calc(1 * var(--jeu-p)) 0 0 calc(12 * var(--jeu-p));
+  }
+  .jeu-onglet-nombre {
+    right: calc(-9 * var(--jeu-p));
+    top: calc(-11 * var(--jeu-p));
+  }
+  @media (hover: hover) {
+    .jeu-onglet:hover {
+      --src: var(--jeu-s-btn-bleu-survol);
+      transform: translateY(calc(-1 * var(--jeu-p)));
+    }
+    .jeu-onglet:hover .jeu-ic {
+      transform: translateY(calc(-2 * var(--jeu-p))) rotate(-6deg);
+    }
+    .jeu-onglet[aria-selected="true"]:hover {
+      --src: var(--jeu-s-btn-or-survol);
+    }
+  }
+  .jeu-onglet:active {
+    --src: var(--jeu-s-btn-bleu-enfonce);
+    transform: none;
+  }
+  .jeu-onglet[aria-selected="true"] {
+    --src: var(--jeu-s-btn-or-repos);
+  }
+  .jeu-onglet[aria-selected="true"]:active {
+    --src: var(--jeu-s-btn-or-enfonce);
+  }
+}
+
+/* Sur téléphone et tablette : une rangée d'icônes, en bas de l'écran, sur un panneau. */
+@media (max-width: 63.99rem) {
+  :root[data-ecran="jeu"] {
+    --jeu-menu-bas-h: calc(34 * var(--jeu-p) + env(safe-area-inset-bottom, 0px));
+  }
+  .jeu-menu {
+    position: fixed;
+    z-index: 45;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    justify-content: space-around;
+    gap: 0;
+    padding: calc(5 * var(--jeu-p)) 4px calc(3 * var(--jeu-p) + env(safe-area-inset-bottom, 0px));
+    isolation: isolate;
+  }
+  .jeu-menu::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0 calc(-14 * var(--jeu-p)) calc(-14 * var(--jeu-p));
+    border-style: solid;
+    border-color: transparent;
+    border-width: calc(12 * var(--jeu-p)) calc(12 * var(--jeu-p)) calc(14 * var(--jeu-p));
+    border-image: var(--jeu-s-panneau) 12 12 14 fill / calc(12 * var(--jeu-p)) calc(12 * var(--jeu-p)) calc(14 * var(--jeu-p)) stretch;
+    image-rendering: pixelated;
+  }
+  .jeu-onglet {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    height: calc(26 * var(--jeu-p));
+    max-width: calc(34 * var(--jeu-p));
+  }
+  .jeu-onglet .jeu-ic {
+    position: relative;
+    width: clamp(30px, calc((100vw - 24px) / 8 - 6px), calc(24 * var(--jeu-p)));
+    height: clamp(30px, calc((100vw - 24px) / 8 - 6px), calc(24 * var(--jeu-p)));
+  }
+  .jeu-onglet > .jeu-px {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .jeu-onglet-nombre {
+    right: -2px;
+    top: calc(-5 * var(--jeu-p));
+  }
+  .jeu-onglet[aria-selected="true"] .jeu-ic,
+  .jeu-onglet:hover .jeu-ic {
+    transform: translateY(calc(-3 * var(--jeu-p)));
+  }
+  .jeu-onglet[aria-selected="true"]::after {
+    content: "";
+    position: absolute;
+    left: 25%;
+    right: 25%;
+    bottom: calc(-2 * var(--jeu-p));
+    height: calc(2 * var(--jeu-p));
+    background: #ffd84a;
+    box-shadow: 0 var(--jeu-p) 0 #9c6a0c;
+  }
+  .jeu-onglet:active .jeu-ic {
+    transform: translateY(var(--jeu-p)) scale(0.9);
+  }
+}
+
+/* ---------- « Ma carte » : la carte du joueur, et ses vrais chiffres de clan ---------- */
+
+.jeu-carte {
+  display: grid;
+  gap: calc(18 * var(--jeu-p)) calc(24 * var(--jeu-p));
+  justify-items: center;
+  align-items: start;
+  padding-top: calc(6 * var(--jeu-p));
+}
+@media (min-width: 56rem) {
+  .jeu-carte {
+    grid-template-columns: minmax(0, auto) minmax(0, calc(200 * var(--jeu-p)));
+    justify-content: center;
+  }
+}
+.jeu-carte-gauche {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(10 * var(--jeu-p));
+}
+.jeu-chiffres {
+  position: relative;
+  width: 100%;
+  max-width: calc(200 * var(--jeu-p));
+  padding: calc(14 * var(--jeu-p)) calc(6 * var(--jeu-p)) calc(4 * var(--jeu-p));
+}
+.jeu-chiffres > .jeu-ruban {
+  position: absolute;
+  left: 50%;
+  top: calc(-22 * var(--jeu-p));
+  translate: -50% 0;
+}
+.jeu-chiffres-note {
+  margin: calc(6 * var(--jeu-p)) 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+.jeu-stat {
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(24 * var(--jeu-p)) minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: calc(5 * var(--jeu-p));
+  row-gap: calc(3 * var(--jeu-p));
+  align-items: center;
+  margin-bottom: calc(10 * var(--jeu-p));
+}
+.jeu-stat:last-of-type {
+  margin-bottom: 0;
+}
+.jeu-stat > .jeu-ic {
+  grid-row: 1 / span 2;
+  transition: transform 0.2s steps(3);
+}
+.jeu-stat:hover > .jeu-ic {
+  transform: translateY(calc(-2 * var(--jeu-p))) scale(1.12);
+}
+.jeu-stat-nom {
+  grid-column: 2;
+}
+.jeu-stat-cote {
+  grid-column: 3;
+  justify-self: end;
+}
+.jeu-stat-corps {
+  grid-column: 2 / span 2;
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p));
+  min-width: 0;
+}
+.jeu-stat-corps > .jeu-tube {
+  flex: 1 1 auto;
+  min-width: calc(40 * var(--jeu-p));
+}
+.jeu-stat-dit {
+  grid-column: 2 / span 2;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.jeu-pions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(1 * var(--jeu-p));
+}
+.jeu-pions > i {
+  display: block;
+  width: calc(7 * var(--jeu-p));
+  height: calc(9 * var(--jeu-p));
+  background: var(--jeu-i-pion-eteint) 0 0 / 100% 100%;
+  image-rendering: pixelated;
+}
+.jeu-pions > i[data-allume] {
+  background-image: var(--jeu-i-pion-allume);
+}
+.jeu-carte-sans {
+  max-width: 34rem;
+  margin: 0;
+  text-align: center;
+  color: var(--ecriture);
+}
+
+/* ---------- Petites règles du cadre ---------- */
+
+/* .jeu-btn et .jeu-capsule posent leur affichage : un bouton caché le reste (comme .btn, docs/DESIGN.md). */
+.jeu-btn[hidden],
+.jeu-capsule[hidden] {
+  display: none;
+}
+.jeu-sans-menu {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.jeu-parties,
+.jeu-contenu {
+  min-width: 0;
+}
+.jeu-capsule-lien {
+  align-items: center;
+  gap: calc(8 * var(--jeu-p));
+}
+.jeu-capsule-palier {
+  margin-top: calc(2 * var(--jeu-p));
+}
+.jeu-capsule-bourse {
+  margin-left: calc(12 * var(--jeu-p));
+}
+/* Sur téléphone et petite tablette : deux rangées, le logo et les boutons, puis le pass et la bourse. */
+@media (max-width: 47.99rem) {
+  .jeu-capsule-palier {
+    display: none;
+  }
+  .jeu-barre {
+    flex-wrap: wrap;
+    gap: calc(4 * var(--jeu-p));
+  }
+  .jeu-ressources {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: space-between;
+    padding: 0 calc(2 * var(--jeu-p)) 0 calc(12 * var(--jeu-p));
+    margin-top: calc(6 * var(--jeu-p));
+  }
+  .jeu-ressources:empty {
+    display: none;
+  }
+  .jeu-outils {
+    margin-left: auto;
+    gap: calc(2 * var(--jeu-p));
+  }
+}
+/* À 360 pixels, le logo passe à une case par pixel : net, et la place reste aux boutons. */
+@media (max-width: 29.99rem) {
+  .jeu-titre {
+    --jeu-p: 1px;
+  }
+}
+/* Le menu du bas ne masque jamais la fin de la page. */
+:root[data-ecran="jeu"]:not(:has(.jeu-menu)) {
+  --jeu-menu-bas-h: 0px;
+}
+/* La carte du joueur, grande et nette : trois pixels et demi la case sur ordinateur, trois sur téléphone. */
+.jeu-carte-carte {
+  --px: 3px;
+  display: flex;
+  justify-content: center;
+}
+@media (min-width: 56rem) {
+  .jeu-carte-carte {
+    --px: 3.5px;
+  }
+}
+.jeu-carte-carte .podium-carte-case {
+  margin-top: 0;
+}
+.jeu-carte-cadree {
+  padding: calc(var(--px) * 12);
+}
+/* Le cadre en cases de la barre et du menu du bas dépasse de l'écran pour cacher ses bords : il est coupé à leur boîte,
+   sans jamais élargir la page. */
+.jeu-barre,
+.jeu-menu {
+  overflow: clip;
+}
+@media (min-width: 64rem) {
+  .jeu-menu {
+    overflow: visible;
+  }
+}
+/* Sur téléphone, une étiquette du menu du bas se pose au-dessus de son icône, sans couvrir ses voisines. */
+@media (max-width: 63.99rem) {
+  .jeu-onglet-nombre {
+    right: auto;
+    left: 50%;
+    translate: -50% 0;
+    top: calc(-7 * var(--jeu-p));
+  }
+}
+@media (max-width: 63.99rem) {
+  .jeu-onglet:last-child .jeu-onglet-nombre {
+    left: auto;
+    right: 0;
+    translate: none;
+  }
+}
+
+/* ---------- Retouches de la revue de Claude Fable 5.2 (21 novembre 2026) ---------- */
+
+/* La barre : son contenu reste au-dessus du filet gravé du bas ; les pastilles sur l'axe des boutons. */
+.jeu-barre {
+  padding-bottom: calc(7 * var(--jeu-p));
+}
+.jeu-ressources {
+  margin-top: 0;
+  gap: calc(10 * var(--jeu-p)) calc(14 * var(--jeu-p));
+}
+.jeu-capsule-lien {
+  gap: calc(16 * var(--jeu-p));
+}
+/* La jauge du pass part après son icône, pour se voir. */
+.jeu-capsule > .jeu-plein {
+  left: calc(11 * var(--jeu-p));
+  width: round(down, calc((100% - 10 * var(--jeu-p)) * var(--part, 0)), var(--jeu-p));
+}
+.jeu-capsule-image .piece {
+  display: block;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 var(--jeu-p) 0 var(--jeu-ombre));
+}
+/* Le voile : la page se lit mieux par-dessus la bannière. */
+.jeu-fond-voile {
+  background: color-mix(in srgb, var(--color-navy) 55%, transparent);
+}
+:root[data-mode="sombre"] .jeu-fond-voile {
+  background: color-mix(in srgb, var(--color-navy) 66%, transparent);
+}
+/* Le menu d'ordinateur : plus d'air entre les boutons, plus de marge à gauche. */
+@media (min-width: 64rem) {
+  .jeu-ecrans {
+    grid-template-columns: calc(124 * var(--jeu-p)) minmax(0, 1fr);
+  }
+  .jeu-menu {
+    gap: calc(12 * var(--jeu-p));
+    padding-left: calc(22 * var(--jeu-p));
+  }
+}
+/* Sur téléphone : la partie ouverte sur la plaque d'or du kit, les étiquettes dans la rangée, celles en mots cachées (la
+   loterie dit son tirage elle-même). */
+@media (max-width: 63.99rem) {
+  .jeu-menu {
+    padding-top: calc(8 * var(--jeu-p));
+  }
+  .jeu-onglet[aria-selected="true"] {
+    border-style: solid;
+    border-color: transparent;
+    border-width: calc(4 * var(--jeu-p)) calc(5 * var(--jeu-p)) calc(8 * var(--jeu-p));
+    border-image: var(--jeu-s-btn-or-repos) 4 5 8 fill / calc(4 * var(--jeu-p)) calc(5 * var(--jeu-p)) calc(8 * var(--jeu-p)) stretch;
+    image-rendering: pixelated;
+    align-items: center;
+  }
+  .jeu-onglet[aria-selected="true"]::after {
+    content: none;
+  }
+  .jeu-onglet[aria-selected="true"] .jeu-ic {
+    transform: none;
+    width: clamp(24px, calc((100vw - 24px) / 8 - 22px), calc(16 * var(--jeu-p)));
+    height: clamp(24px, calc((100vw - 24px) / 8 - 22px), calc(16 * var(--jeu-p)));
+  }
+  .jeu-onglet-nombre {
+    top: calc(-5 * var(--jeu-p));
+  }
+  /* Son image seule : les lecteurs d'écran gardent les jours avant le tirage. */
+  .jeu-onglet-mots > i {
+    display: none;
+  }
+}
+/* La carte du joueur, la pièce maîtresse : plus grande, et centrée avec son bouton. */
+.jeu-carte-carte {
+  --px: 4px;
+}
+@media (min-width: 56rem) {
+  .jeu-carte-carte {
+    --px: 5px;
+  }
+  .jeu-carte {
+    align-items: center;
+    min-height: calc(100dvh - var(--jeu-barre-h) - 70 * var(--jeu-p));
+  }
+}
+@media (max-width: 23.99rem) {
+  .jeu-carte-carte {
+    --px: 3.5px;
+  }
+}
+.jeu-carte-gauche {
+  gap: calc(12 * var(--jeu-p));
+}
+/* Le panneau des chiffres, plus étroit ; ses phrases en petit. */
+.jeu-chiffres {
+  max-width: calc(176 * var(--jeu-p));
+}
+@media (min-width: 56rem) {
+  .jeu-carte {
+    grid-template-columns: minmax(0, auto) minmax(0, calc(176 * var(--jeu-p)));
+  }
+}
+.jeu-stat-dit,
+.jeu-chiffres-note {
+  font-size: 0.75rem;
+}
+.jeu-stat-suivant {
+  flex: none;
+}
+/* Le pied du jeu : une ligne, sur le fond des panneaux. */
+.jeu-pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 24px;
+  font-size: 0.75rem;
+  background: color-mix(in srgb, var(--color-navy) 92%, transparent);
+}
+.jeu-pied p {
+  margin: 0;
+}

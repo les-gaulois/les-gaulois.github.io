@@ -123,7 +123,7 @@ export function PochetteStateres({ ma, solde, onOuvrir }: { ma: MaPochetteStater
         <DessinPochetteStateres echelle={3} class="pochette-dessin" />
         <div class="pochette-nom">
           <h4 id="pochette-stateres-titre" class="nom-champ vestiaire-titre">
-            La pochette de statères
+            Le booster de statères
           </h4>
           <Prix montant={ma.prix} class="pochette-prix" />
         </div>

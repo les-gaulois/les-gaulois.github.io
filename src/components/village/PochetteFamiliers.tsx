@@ -55,7 +55,7 @@ export function PochetteFamiliers({ mes, solde, onOuvrir }: { mes: MesFamiliers;
         </AlbumDePochette>
         <div class="familiers-nom">
           <h4 id="familiers-titre" class="nom-champ familiers-titre">
-            La pochette des familiers
+            Le booster des familiers
           </h4>
           <Prix montant={mes.pochette.prix} class="familiers-prix" />
           <p class="familiers-compte" data-testid="familiers-compte">
@@ -68,7 +68,7 @@ export function PochetteFamiliers({ mes, solde, onOuvrir }: { mes: MesFamiliers;
           ) : (
             <div>
               <button type="button" class="btn btn-primary" onClick={onOuvrir} data-testid="familiers-ouvrir">
-                Ouvrir une pochette
+                Ouvrir un booster
               </button>
             </div>
           )}

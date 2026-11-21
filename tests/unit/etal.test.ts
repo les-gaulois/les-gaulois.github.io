@@ -12,7 +12,8 @@ describe("l'étal des pochettes", () => {
       expect(NOMS_SUR_L_ETAL[id].length).toBeGreaterThan(0);
       // L'étiquette tient sous une pochette sur un téléphone de 360 px.
       expect(NOMS_SUR_L_ETAL[id].length).toBeLessThanOrEqual(9);
-      expect(NOMS_ENTIERS[id]).toMatch(/^La pochette /);
+      // « Les pochettes » s'appellent « Les boosters » à l'écran depuis le 21 novembre 2026 (fiche de projet « Mon Gaulois »).
+      expect(NOMS_ENTIERS[id]).toMatch(/^Le booster /);
     }
   });
 

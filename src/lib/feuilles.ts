@@ -50,6 +50,9 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   { fichier: "14-forge.css", pages: ["/compte", "/village", "/direction"] },
   // Le lecteur des films de parties, « Revoir une partie » (15 novembre 2026).
   { fichier: "15-revoir.css", pages: ["/revoir", "/utiles", "/direction"] },
+  // « Mon Gaulois » en écran de jeu (21 novembre 2026) : le kit en pixels (cadres, boutons, rubans, barres, icônes) et le
+  // cadre de jeu plein écran de /village (barre du jeu, menu, « Ma carte »). Ses images viennent de /village/kit.css.
+  { fichier: "16-jeu.css", pages: ["/village", "/direction"] },
 ];
 
 /** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */

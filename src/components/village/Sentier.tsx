@@ -492,8 +492,8 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
   }, [lib, portee]);
   const voile = useMemo(() => (decor ? teinteDuVoile(decor.cases) : null), [decor]);
 
-  if (s.etat.kind === "lecture") return <Loading label="Lecture du sentier…" />;
-  if (s.etat.kind === "panne") return <Problem message="Le sentier ne répond pas pour l'instant." onRetry={() => void s.lire()} />;
+  if (s.etat.kind === "lecture") return <Loading label="Lecture du pass…" />;
+  if (s.etat.kind === "panne") return <Problem message="Le pass ne répond pas pour l'instant." onRetry={() => void s.lire()} />;
   const sentier = s.etat.sentier;
   const saison = sentier.saison;
   const atteint = saison ? palierAtteint(sentier.pas, saison) : 0;
