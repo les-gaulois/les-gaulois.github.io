@@ -1,8 +1,10 @@
 /**
- * Les paliers franchis : un message sur Discord quand des membres avec pseudo passent 50, 100, 250, 500, 1 000, 2 500 ou 5 000
- * victoires en équipe sous le tag. Ce sont les paliers du site (`paliers.ts`), à partir de 50 depuis le 11 novembre 2026, à la
- * demande du pilote, pour que le salon vive : à ce seuil, un message part presque chaque jour, surtout pour les nouveaux.
- * Jusque-là, ils partaient à partir de 100 (relevés du 5 au 8 novembre 2026 : README). Le bilan de la semaine garde 100.
+ * Les paliers franchis : un message sur Discord quand des membres avec pseudo passent un palier de victoires en équipe sous le
+ * tag. Ce sont les paliers du site (`paliers.ts`), à partir de 50 depuis le 11 novembre 2026, à la demande du pilote, pour que
+ * le salon vive : à ce seuil, un message part presque chaque jour, surtout pour les nouveaux. Jusque-là, ils partaient à
+ * partir de 100 (relevés du 5 au 8 novembre 2026 : README). Le bilan de la semaine garde 100. Depuis le 21 novembre 2026, les
+ * paliers du site sont quatorze (`WIN_TIERS`) : le passage aux nouveaux paliers n'annonce jamais un palier qu'un membre avait
+ * déjà dépassé avant le changement (`passerAuxNouveauxPaliers`).
  *
  * - La liste des membres est relue environ une fois par jour. Chaque relecture est comparée à la précédente : un membre avec pseudo
  *   présent aux deux, qui a franchi un palier entre elles, est noté. Un nouveau membre ou un pseudo apparu n'a pas de point de départ :
@@ -18,7 +20,7 @@
 import { z } from "zod";
 import { MAP_SITE_DELAY_MS } from "./alerts";
 import { fmtDayAndTime, fmtInt } from "./format";
-import { WIN_TIERS } from "./paliers";
+import { ANCIENS_WIN_TIERS, WIN_TIERS } from "./paliers";
 import type { StoredMembers } from "./schemas";
 import { parisParts } from "./time";
 
@@ -44,6 +46,8 @@ export const MilestoneState = z.object({
   reading: z.object({ at: isoDate, tiers: z.record(z.string(), z.number().int().nonnegative()) }),
   /** Le premier palier annoncé quand ces paliers ont été notés. Absent : 100, avant le 11 novembre 2026. */
   tiersFrom: z.number().int().positive().optional(),
+  /** Les paliers du site quand ces paliers ont été notés : `NOUVEAUX_PALIERS`, les quatorze du 21 novembre 2026. Absent : ceux d'avant. */
+  tierSet: z.literal("2026-11-21").optional(),
   /** Les paliers notés et pas encore envoyés, franchis entre la relecture `since` et la relecture `until`. */
   pending: z
     .object({ since: isoDate, until: isoDate, players: z.array(z.object({ id: z.string(), tier: z.number().int().positive() })).min(1) })
@@ -88,6 +92,35 @@ export function rescaleTiers(state: MilestoneState, members: StoredMembers): Mil
   return { ...state, reading: { ...state.reading, tiers }, tiersFrom: FIRST_DISCORD_TIER };
 }
 
+/** La marque des quatorze paliers du 21 novembre 2026, dans l'état noté. */
+export const NOUVEAUX_PALIERS = "2026-11-21" as const;
+
+/** Les anciens paliers annoncés sur Discord, à partir de 50 : ceux que notait l'état avant le 21 novembre 2026. */
+const ANCIENS_DISCORD_TIERS: readonly number[] = ANCIENS_WIN_TIERS.filter((tier) => tier >= FIRST_DISCORD_TIER);
+
+/**
+ * Passe des anciens paliers aux quatorze du 21 novembre 2026, une seule fois. Un membre noté à l'ancien palier T avait, à la
+ * dernière relecture, au moins T victoires et moins que l'ancien palier suivant. On ne sait pas où il en était entre les
+ * deux : il part donc du nouveau palier de ses victoires d'aujourd'hui, sans dépasser ce qu'il pouvait avoir à la relecture
+ * (l'ancien palier suivant moins une victoire), et jamais moins bas que T. Ainsi, rien n'est annoncé pour un nouveau palier
+ * (25, 200, 350, 700, 900, 1 500, 2 000, 3 000) qu'il avait peut-être déjà dépassé avant le changement ; un passage d'un
+ * ancien palier depuis la relecture notée, qui est aussi un nouveau palier, est toujours annoncé. Les paliers notés et pas
+ * encore envoyés le restent : ils ont bien été franchis. Renvoie le même objet s'il n'y a rien à changer.
+ */
+export function passerAuxNouveauxPaliers(state: MilestoneState, members: StoredMembers): MilestoneState {
+  if (state.tierSet === NOUVEAUX_PALIERS) return state;
+  const wins = new Map(members.members.flatMap((m) => (m.publicId && m.team ? [[m.publicId, m.team.wins] as const] : [])));
+  const tiers = Object.fromEntries(
+    Object.entries(state.reading.tiers).map(([id, tier]) => {
+      const now = wins.get(id);
+      const suivant = ANCIENS_DISCORD_TIERS.find((t) => t > tier);
+      const auPlus = suivant === undefined ? Number.POSITIVE_INFINITY : suivant - 1;
+      return [id, Math.max(discordTier(tier), now === undefined ? 0 : discordTier(Math.min(now, auPlus)))];
+    }),
+  );
+  return { ...state, reading: { ...state.reading, tiers }, tierSet: NOUVEAUX_PALIERS };
+}
+
 /**
  * Oublie les membres qui ne sont plus dans `current` : partis, sans pseudo ou supprimés. La collecte l'appelle à chaque passage,
  * même sans lien Discord, comme pour les relevés du lundi : un identifiant ne doit rester nulle part. Renvoie le même objet s'il n'y a rien à changer.
@@ -105,8 +138,8 @@ export function forgetMilestoneMembers(state: MilestoneState, current: ReadonlyS
  */
 export function observeMembers(stored: MilestoneState | null, members: StoredMembers): MilestoneState {
   const current = namedTiers(members);
-  if (!stored) return { reading: { at: members.fetchedAt, tiers: current }, tiersFrom: FIRST_DISCORD_TIER, pending: null, lastSentOn: null };
-  const pruned = forgetMilestoneMembers(rescaleTiers(stored, members), new Set(Object.keys(current)));
+  if (!stored) return { reading: { at: members.fetchedAt, tiers: current }, tiersFrom: FIRST_DISCORD_TIER, tierSet: NOUVEAUX_PALIERS, pending: null, lastSentOn: null };
+  const pruned = forgetMilestoneMembers(passerAuxNouveauxPaliers(rescaleTiers(stored, members), members), new Set(Object.keys(current)));
   if (Date.parse(members.fetchedAt) <= Date.parse(stored.reading.at)) return pruned;
 
   const kept = pruned.reading.tiers;
@@ -121,7 +154,7 @@ export function observeMembers(stored: MilestoneState | null, members: StoredMem
   }
   const players = [...crossed].map(([id, tier]) => ({ id, tier }));
   const since = pruned.pending ? pruned.pending.since : stored.reading.at;
-  return { reading: { at: members.fetchedAt, tiers }, tiersFrom: FIRST_DISCORD_TIER, pending: players.length > 0 ? { since, until: members.fetchedAt, players } : null, lastSentOn: stored.lastSentOn };
+  return { reading: { at: members.fetchedAt, tiers }, tiersFrom: FIRST_DISCORD_TIER, tierSet: NOUVEAUX_PALIERS, pending: players.length > 0 ? { since, until: members.fetchedAt, players } : null, lastSentOn: stored.lastSentOn };
 }
 
 /**

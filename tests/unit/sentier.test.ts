@@ -90,7 +90,8 @@ describe("les règles du sentier, les mêmes que le serveur", () => {
   });
 
   it("la première saison et la rareté de chacun de ses trente paliers", () => {
-    expect(MIGRATION).toContain(`('${SAISON_1.id}', '${SAISON_1.nom}', date '${SAISON_1.debut}', date '${SAISON_1.fin}', ${SAISON_1.paliers}, ${SAISON_1.pas_par_palier})`);
+    // Écrite jusqu'au 31 décembre, ramenée à six semaines par la migration 20261121000300 (voir regles-mon-gaulois.test.ts).
+    expect(MIGRATION).toContain(`('${SAISON_1.id}', '${SAISON_1.nom}', date '${SAISON_1.debut}', date '2026-12-31', ${SAISON_1.paliers}, ${SAISON_1.pas_par_palier})`);
     const bloc = MIGRATION.slice(MIGRATION.indexOf("<paliers-saison-1>"), MIGRATION.indexOf("</paliers-saison-1>"));
     const paliers = [...bloc.matchAll(/\('saison-1', (\d+), '([a-z-]+)'\)/g)].map((m) => ({ palier: Number(m[1]), rarete: m[2] }));
     expect(paliers).toEqual(PALIERS_DE_LA_SAISON_1.map((rarete, i) => ({ palier: i + 1, rarete })));

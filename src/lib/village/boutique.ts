@@ -6,7 +6,7 @@
  * chances de la pochette et ce qu'elle vaut en moyenne. Les formules de la pochette sont celles de la mesure de l'économie
  * (`economie.ts`), appliquées aux chances réelles du tirage.
  */
-import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, ORDRE_RARETES_DES_OBJETS, RARETE_DIVINE, type Emplacement, type Objet, type Rarete, type RareteDObjet } from "../gaulois";
+import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, ORDRE_RARETES_DES_OBJETS, RARETE_DIVINE, aUnPrix, type Emplacement, type Objet, type Rarete, type RareteDObjet } from "../gaulois";
 import { chancesAvecLeDivin, type AchatReponse, type MaBoutique, type ObjetPossede, type PochetteReponse, type RefObjet } from "./contrat";
 import { objetsParRarete, valeurMoyennePochette } from "./economie";
 
@@ -44,7 +44,7 @@ export function objetPayant(emplacement: unknown, objet: unknown, catalogue: Cat
 /** Le prix d'un objet à la boutique : celui de sa rareté, tel que le serveur l'a donné ; `null` pour un objet qui ne s'achète pas. */
 export function prixDeLObjet(emplacement: Emplacement, objet: string, prix: Valeurs, catalogue: Catalogue = OBJETS): number | null {
   const trouve = objetPayant(emplacement, objet, catalogue);
-  return trouve && trouve.rarete !== RARETE_DIVINE ? prix[trouve.rarete] : null;
+  return trouve && aUnPrix(trouve.rarete) ? prix[trouve.rarete] : null;
 }
 
 /** Les statères qui manquent pour payer `prix` avec `solde` : 0 quand le solde suffit. */
@@ -66,6 +66,8 @@ export function objetsDeLaPochette(rarete: RareteDObjet, catalogue: Catalogue = 
         .map(([objet]) => ({ emplacement: emplacement as Emplacement, objet })),
     );
   }
+  // Le légendaire de saison ne sort d'aucune pochette : il ne se gagne qu'au dernier palier du pass.
+  if (!aUnPrix(rarete)) return [];
   return objetsParRarete(catalogue)[rarete].map(({ emplacement, objet }) => ({ emplacement: emplacement as Emplacement, objet }));
 }
 
@@ -88,7 +90,9 @@ export function chanceDeLObjet(emplacement: Emplacement, objet: string, chances:
   const trouve = objetPayant(emplacement, objet, catalogue);
   const effectives = chancesEffectives(chances, catalogue);
   if (!trouve || !effectives) return 0;
-  return effectives[trouve.rarete] / objetsDeLaPochette(trouve.rarete, catalogue).length;
+  // Un objet qu'aucune pochette ne donne (le légendaire de saison) : aucune chance.
+  const n = objetsDeLaPochette(trouve.rarete, catalogue).length;
+  return n > 0 ? effectives[trouve.rarete] / n : 0;
 }
 
 /**

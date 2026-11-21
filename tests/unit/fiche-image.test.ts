@@ -18,7 +18,7 @@ const LISTED = "2026-11-08T08:53:00.000Z";
 
 describe("ficheFacts", () => {
   it("reprend la place et les chiffres de la liste des membres, et le palier", () => {
-    expect(ficheFacts(members, members[0]!)).toEqual({ id: "a", username: "Alpha", rank: 3, ranked: 4, wins: 738, losses: 619, games: 1357, rate: (738 / 1357) * 100, tier: 500, nextTier: { wins: 1000, missing: 262 }, niveau: null, serie: null, record: null });
+    expect(ficheFacts(members, members[0]!)).toEqual({ id: "a", username: "Alpha", rank: 3, ranked: 4, wins: 738, losses: 619, games: 1357, rate: (738 / 1357) * 100, tier: 700, nextTier: { wins: 900, missing: 162 }, niveau: null, serie: null, record: null });
   });
   it("n'a rien à dire d'un anonyme ni d'un membre sans stats", () => {
     expect(ficheFacts(members, members[3]!)).toBeNull();
@@ -38,8 +38,8 @@ describe("ficheCard", () => {
     expect(words).toContain("738");
     expect(words).toContain("619");
     expect(words).toContain("54,4 %");
-    expect(words).toContain("500 victoires");
-    expect(words).toContain("Prochain palier : 1 000 victoires, encore 262.");
+    expect(words).toContain("700 victoires");
+    expect(words).toContain("Prochain palier : 900 victoires, encore 162.");
     expect(words).toContain("les-gaulois.github.io/membres");
     expect(words.some((w) => w.includes("Liste officielle du 8 nov. 2026"))).toBe(true);
   });
@@ -68,7 +68,7 @@ describe("ficheCard", () => {
 
 describe("ficheImageAlt", () => {
   it("décrit l'image en une phrase, avec la date de la liste", () => {
-    expect(plain(ficheImageAlt(ficheFacts(members, members[0]!)!, "GAL", LISTED))).toBe("Alpha, membre de [GAL] : 3e sur 4 membres aux victoires sous le tag. 738 victoires, 619 défaites, 54,4 %, palier des 500 victoires. Liste officielle du 8 nov. 2026.");
+    expect(plain(ficheImageAlt(ficheFacts(members, members[0]!)!, "GAL", LISTED))).toBe("Alpha, membre de [GAL] : 3e sur 4 membres aux victoires sous le tag. 738 victoires, 619 défaites, 54,4 %, palier des 700 victoires. Liste officielle du 8 nov. 2026.");
   });
   it("ne lit pas des zéros ni un tiret pour un membre sans partie", () => {
     const facts = { ...ficheFacts(members, members[0]!)!, games: 0, wins: 0, losses: 0, rate: null, tier: null, nextTier: null };
@@ -178,7 +178,7 @@ describe("la flamme de série et l'emblème de niveau sur la fiche", () => {
 
   it("le dit au lecteur d'écran, la série puis le compte, deux phrases à part", () => {
     expect(plain(ficheImageAlt({ ...base, niveau: NIVEAU, serie: serie(7) }, "GAL", LISTED))).toBe(
-      "Alpha, membre de [GAL] : 3e sur 4 membres aux victoires sous le tag. 738 victoires, 619 défaites, 54,4 %, palier des 500 victoires. Série en cours : 7 victoires d'affilée sous le tag, du 18 au 21 sept. 2026, sans défaite depuis. Compte OpenFront, tout le jeu : Prestige 1 · Niveau 62. Liste officielle du 8 nov. 2026.",
+      "Alpha, membre de [GAL] : 3e sur 4 membres aux victoires sous le tag. 738 victoires, 619 défaites, 54,4 %, palier des 700 victoires. Série en cours : 7 victoires d'affilée sous le tag, du 18 au 21 sept. 2026, sans défaite depuis. Compte OpenFront, tout le jeu : Prestige 1 · Niveau 62. Liste officielle du 8 nov. 2026.",
     );
     expect(plain(ficheImageAlt({ ...base, niveau: null, serie: serie(4) }, "GAL", LISTED))).not.toContain("Série");
   });

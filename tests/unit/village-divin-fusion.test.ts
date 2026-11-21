@@ -69,7 +69,8 @@ const DIVINS = EMPLACEMENTS_OBJETS.flatMap((emplacement) =>
 
 describe("le divin", () => {
   it("est la sixième rareté des objets, au-dessus du légendaire, sans être une rareté de la boutique", () => {
-    expect(ORDRE_RARETES_DES_OBJETS).toEqual([...ORDRE_RARETES, "divin"]);
+    // Le légendaire de saison (21 novembre 2026) s'est glissé entre le légendaire et le divin.
+    expect(ORDRE_RARETES_DES_OBJETS).toEqual([...ORDRE_RARETES, "saison", "divin"]);
     expect(RARETES_DES_OBJETS.divin).toEqual({ nom: "Divin", rang: 6 });
     expect(ORDRE_RARETES).not.toContain("divin");
     expect(Object.keys(PRIX_PAR_RARETE)).not.toContain("divin");
@@ -103,7 +104,7 @@ describe("le divin", () => {
     expect(ORDRE_RARETES_DES_OBJETS.reduce((s, r) => s + CHANCES_DU_TIRAGE[r], 0)).toBeCloseTo(100, 9);
     // Jamais plus que la part du commun, jamais moins que zéro.
     expect(chancesAvecLeDivin({ commun: 1, "peu-commun": 9, epique: 0, mystique: 0, legendaire: 90 })).toMatchObject({ commun: 0, divin: 1 });
-    expect(chancesAvecLeDivin(CHANCES_POCHETTE, -3)).toEqual({ ...CHANCES_POCHETTE, divin: 0 });
+    expect(chancesAvecLeDivin(CHANCES_POCHETTE, -3)).toEqual({ ...CHANCES_POCHETTE, saison: 0, divin: 0 });
     // Le serveur fait le même calcul.
     expect(fonction(SQL, "internal.village_chance_divine()")).toContain(`least(p.legendaire / ${LEGENDAIRES_POUR_UN_DIVIN}.0, p.commun)`);
     const tirage = fonction(SQL, "internal.village_chances_tirage()");
@@ -126,7 +127,7 @@ describe("le divin", () => {
     expect(chances?.divin).toBe(0.2);
     expect(chances?.commun).toBeCloseTo(49.8, 9);
     // Un serveur d'avant le divin n'en dit rien : zéro. Une chance illisible : pas de boutique.
-    expect(lireMaBoutique({ ...reponse, pochette: { prix: PRIX_POCHETTE, chances: CHANCES_POCHETTE } })?.pochette.chances).toEqual({ ...CHANCES_POCHETTE, divin: 0 });
+    expect(lireMaBoutique({ ...reponse, pochette: { prix: PRIX_POCHETTE, chances: CHANCES_POCHETTE } })?.pochette.chances).toEqual({ ...CHANCES_POCHETTE, saison: 0, divin: 0 });
     for (const divin of [-1, 101, "0.2", null, Number.NaN]) expect(lireMaBoutique({ ...reponse, pochette: { ...reponse.pochette, divin } }), String(divin)).toBeNull();
     const boutique = fonction(SQL, "public.get_ma_boutique()");
     expect(boutique).toContain("'chances', (select jsonb_object_agg(c.rarete, trim_scale(c.chance)) from internal.village_chances() c),");
@@ -153,7 +154,8 @@ describe("le divin", () => {
   });
 
   it("est connu du serveur : la rareté admise, et les objets du dessin", () => {
-    expect(SQL).toContain(`check (rarete in (${ORDRE_RARETES_DES_OBJETS.map((r) => `'${r}'`).join(", ")}));`);
+    // La migration du divin ne connaissait pas encore le légendaire de saison (20261121000300).
+    expect(SQL).toContain(`check (rarete in (${ORDRE_RARETES_DES_OBJETS.filter((r) => r !== "saison").map((r) => `'${r}'`).join(", ")}));`);
     const bloc = /-- <objets-divins>[^\n]*\ninsert into internal\.gaulois_objets \(emplacement, objet, rarete, gratuit\) values\n([\s\S]*?)\non conflict \(emplacement, objet\) do nothing;\n-- <\/objets-divins>/.exec(SQL)?.[1] ?? "";
     expect(bloc.split("\n")).toEqual(LOT_DIVIN.map((o, i) => `  ('${o.emplacement}', '${o.id}', 'divin', false)${i < LOT_DIVIN.length - 1 ? "," : ""}`));
     for (const o of LOT_DIVIN) expect(o.id).toMatch(/^[a-z][a-z-]{0,39}$/);

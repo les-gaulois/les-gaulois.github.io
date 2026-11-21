@@ -3,7 +3,7 @@
  * serveur (`get_marche`, `get_ma_boutique`, contrat dans `contrat.ts`). Le serveur décide de tout, achat, vente et prix ;
  * ici, seulement la lecture des réponses, les filtres, ce qui s'annonce avant de confirmer, et les mots des refus.
  */
-import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETE_DIVINE, RARETES, type Emplacement, type Rarete } from "../gaulois";
+import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, RARETES, aUnPrix, type Emplacement, type Rarete } from "../gaulois";
 import { ERROR_MESSAGES } from "../compte/errors";
 import { stateres } from "./ecran-boutique";
 import type { DemandeDuMarche, MaBoutique, Marche, ObjetPossede, OffreDuMarche, RefObjet, RefusMarche } from "./contrat";
@@ -33,7 +33,7 @@ const entier = (valeur: unknown): valeur is number => typeof valeur === "number"
 export function objetDuMarche(emplacement: unknown, objet: unknown): ObjetDuMarche | null {
   if (!estEmplacement(emplacement) || typeof objet !== "string") return null;
   const fiche = OBJETS[emplacement][objet];
-  if (!fiche || fiche.gratuit || !fiche.rarete || fiche.rarete === RARETE_DIVINE) return null;
+  if (!fiche || fiche.gratuit || !fiche.rarete || !aUnPrix(fiche.rarete)) return null;
   return { emplacement, objet, nom: fiche.nom, rarete: fiche.rarete };
 }
 

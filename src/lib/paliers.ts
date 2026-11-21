@@ -3,8 +3,14 @@ import type { StoredMember } from "./schemas";
 /**
  * Paliers de victoires d'équipe sous le tag, lues dans `stats.team`. Les seuils sont un choix du site : ils ne viennent pas du jeu.
  * Un palier compte des victoires, donc d'abord des parties jouées : il ne dit pas qui joue le mieux. Mesures : README.md.
+ * Quatorze paliers depuis le 21 novembre 2026, décision du pilote pour le jeu « Mon Gaulois » (chacun a son insigne, et son
+ * franchissement offre un booster surprise) ; avant : 10, 50, 100, 250, 500, 1 000, 2 500 et 5 000 (`ANCIENS_WIN_TIERS`).
+ * Les mêmes que `internal.paliers_de_victoires()` du serveur : un test compare.
  */
-export const WIN_TIERS = [10, 50, 100, 250, 500, 1000, 2500, 5000] as const;
+export const WIN_TIERS = [10, 25, 50, 100, 200, 350, 500, 700, 900, 1000, 1500, 2000, 2500, 3000] as const;
+
+/** Les paliers d'avant le 21 novembre 2026 : seul le passage des annonces de Discord aux nouveaux paliers s'en sert. */
+export const ANCIENS_WIN_TIERS = [10, 50, 100, 250, 500, 1000, 2500, 5000] as const;
 
 /** Le plus haut palier atteint. `null` : aucun pour l'instant. */
 export function tierOf(wins: number): number | null {

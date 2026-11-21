@@ -555,7 +555,8 @@
 .filtre[data-rarete="mystique"] {
   --rarete-texte: var(--rarete-mystique-texte);
 }
-.filtre[data-rarete="legendaire"] {
+.filtre[data-rarete="legendaire"],
+.filtre[data-rarete="saison"] {
   --rarete-texte: var(--rarete-legendaire-texte);
 }
 .filtre[data-rarete="divin"] {
@@ -658,7 +659,9 @@
   --rarete: var(--rarete-mystique);
   --rarete-texte: var(--rarete-mystique-texte);
 }
-.case[data-rarete="legendaire"] {
+.case[data-rarete="legendaire"],
+/* Le légendaire de saison (objet du dernier palier du pass) a les couleurs du légendaire. */
+.case[data-rarete="saison"] {
   --rarete: var(--rarete-legendaire);
   --rarete-texte: var(--rarete-legendaire-texte);
   --rarete-cadre: var(--rarete-legendaire-degrade);

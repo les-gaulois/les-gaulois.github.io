@@ -11,7 +11,7 @@
  * Le modèle de la pochette est celui du contrat : une rareté tirée selon les chances, puis un objet payant de cette rareté,
  * tous à chances égales ; un objet déjà possédé sort en double.
  */
-import { ORDRE_RARETES, RARETE_DIVINE, type Rarete, type RareteDObjet } from "../gaulois";
+import { ORDRE_RARETES, aUnPrix, type Rarete, type RareteDObjet } from "../gaulois";
 import { stateresDeVictoire } from "../stateres";
 import { parisParts } from "../time";
 
@@ -49,7 +49,8 @@ export function objetsPayants(catalogue: Catalogue): ObjetPayant[] {
   const liste: ObjetPayant[] = [];
   for (const [emplacement, objets] of Object.entries(catalogue)) {
     for (const [objet, o] of Object.entries(objets)) {
-      if (!o.gratuit && o.rarete !== null && o.rarete !== RARETE_DIVINE) liste.push({ cle: cleObjet(emplacement, objet), emplacement, objet, rarete: o.rarete });
+      // Ni le divin ni le légendaire de saison : ils n'ont pas de prix.
+      if (!o.gratuit && o.rarete !== null && aUnPrix(o.rarete)) liste.push({ cle: cleObjet(emplacement, objet), emplacement, objet, rarete: o.rarete });
     }
   }
   return liste;

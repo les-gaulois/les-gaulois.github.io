@@ -16,7 +16,7 @@ import type { RefObjet } from "./contrat";
 import { FAMILIERS, chancesPourMoi, type Familier } from "./familiers";
 
 /** Des chances par rareté : celles d'une pochette à cinq raretés, ou celles de la pochette surprise, divin compris. Une rareté absente vaut 0. */
-type Valeurs = Readonly<Record<Rarete, number>> & { readonly divin?: number };
+type Valeurs = Readonly<Record<Rarete, number>> & { readonly divin?: number; readonly saison?: number };
 const chanceDe = (chances: Valeurs, rarete: RareteDObjet): number => Math.max(0, chances[rarete] ?? 0);
 
 /** Une rangée du tambour : ce qu'elle montre, et sa rareté. */

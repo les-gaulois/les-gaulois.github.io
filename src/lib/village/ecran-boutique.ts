@@ -6,7 +6,7 @@
  * Une réponse illisible vaut « pas de réponse » (`null`), jamais zéro : l'écran garde alors le vestiaire seul.
  */
 import { errorMessage } from "../compte/errors";
-import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, ORDRE_RARETES_DES_OBJETS, RARETE_DIVINE, RARETES_DES_OBJETS, type Emplacement, type Objet, type Rarete, type RareteDObjet, type Tenue } from "../gaulois";
+import { EMPLACEMENTS_OBJETS, OBJETS, ORDRE_RARETES, ORDRE_RARETES_DES_OBJETS, RARETE_DE_SAISON, RARETE_DIVINE, RARETES_DES_OBJETS, aUnPrix, type Emplacement, type Objet, type Rarete, type RareteDObjet, type Tenue } from "../gaulois";
 import { parisParts } from "../time";
 import type { MesStateres } from "../stateres";
 import { chancesAvecLeDivin, type AchatReponse, type MaBoutique, type ObjetPossede, type PochetteReponse, type RefObjet } from "./contrat";
@@ -140,7 +140,7 @@ export function avecUnExemplaire(inventaire: readonly ObjetPossede[], ref: RefOb
 /** Le prix d'un objet à la boutique, d'après les prix reçus du serveur. `null` : il ne se vend pas, ou les prix manquent. */
 export function prixDeLObjet(prix: Readonly<Record<Rarete, number>> | null | undefined, emplacement: Emplacement, id: string): number | null {
   const ref = objetPayant(emplacement, id);
-  return ref && prix && ref.fiche.rarete !== RARETE_DIVINE ? (prix[ref.fiche.rarete] ?? null) : null;
+  return ref && prix && aUnPrix(ref.fiche.rarete) ? (prix[ref.fiche.rarete] ?? null) : null;
 }
 
 /** Les statères qui manquent pour payer : 0 quand le solde suffit. */
@@ -188,10 +188,10 @@ export const pourcent = (n: number): string => `${String(Math.round(n * 100) / 1
 
 /**
  * Les chances de la pochette, de la rareté la plus courante à la plus rare, avec le nom et le rang de chacune. Le divin
- * n'a sa ligne que s'il peut sortir.
+ * n'a sa ligne que s'il peut sortir ; le légendaire de saison, qui ne sort d'aucune pochette, n'en a pas.
  */
 export function chancesDeLaPochette(chances: Readonly<Record<RareteDObjet, number>>): { rarete: RareteDObjet; nom: string; rang: number; chance: number }[] {
-  return ORDRE_RARETES_DES_OBJETS.filter((rarete) => rarete !== RARETE_DIVINE || chances[rarete] > 0).map((rarete) => ({ rarete, nom: RARETES_DES_OBJETS[rarete].nom, rang: RARETES_DES_OBJETS[rarete].rang, chance: chances[rarete] }));
+  return ORDRE_RARETES_DES_OBJETS.filter((rarete) => rarete !== RARETE_DE_SAISON && (rarete !== RARETE_DIVINE || chances[rarete] > 0)).map((rarete) => ({ rarete, nom: RARETES_DES_OBJETS[rarete].nom, rang: RARETES_DES_OBJETS[rarete].rang, chance: chances[rarete] }));
 }
 
 const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];

@@ -65,7 +65,7 @@ describe("la lecture de la boutique", () => {
     expect(lue?.solde).toBe(640);
     expect(lue?.prix.legendaire).toBe(2500);
     // Un serveur d'avant le divin ne donne pas sa chance : zéro. Avec elle, elle est prise sur le commun.
-    expect(lue?.pochette).toEqual({ prix: 200, chances: { ...CHANCES_POCHETTE, divin: 0 } });
+    expect(lue?.pochette).toEqual({ prix: 200, chances: { ...CHANCES_POCHETTE, saison: 0, divin: 0 } });
     const avecDivin = lireBoutique(boutique({ pochette: { prix: 200, chances: CHANCES_POCHETTE, divin: 0.2 } }));
     expect(avecDivin?.pochette.chances.divin).toBe(0.2);
     expect(avecDivin?.pochette.chances.commun).toBeCloseTo(CHANCES_DU_TIRAGE.commun, 9);
@@ -208,7 +208,7 @@ describe("les mots de l'écran", () => {
 
   it("range les chances de la plus courante à la plus rare, telles que reçues", () => {
     // Sans chance de divin, sa ligne ne se montre pas.
-    const chances = chancesDeLaPochette({ ...CHANCES_POCHETTE, legendaire: 2, divin: 0 });
+    const chances = chancesDeLaPochette({ ...CHANCES_POCHETTE, legendaire: 2, saison: 0, divin: 0 });
     expect(chances.map((c) => c.nom)).toEqual(["Commun", "Peu commun", "Épique", "Mystique", "Légendaire"]);
     expect(chances.map((c) => c.rang)).toEqual([1, 2, 3, 4, 5]);
     const avecDivin = chancesDeLaPochette(CHANCES_DU_TIRAGE);

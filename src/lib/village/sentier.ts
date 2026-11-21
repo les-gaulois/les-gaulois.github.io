@@ -5,7 +5,7 @@
  * le serveur le fait (`contrat.ts`, « Le sentier des Gaulois » ; migration 20261116001100_sentier_des_gaulois).
  */
 import { errorMessage } from "../compte/errors";
-import { MISSIONS_DU_SENTIER, type DefiDuClan, type EtalDuJour, type MissionDuJour, type MissionDuSentier, type MonSentier, type PalierDuSentier, type PalierReponse, type RareteDePalier, type SaisonDuSentier } from "./contrat";
+import { MISSIONS_DU_SENTIER, type DefiDuClan, type EtalDuJour, type InsigneDuPass, type MissionDuJour, type MissionDuSentier, type MonSentier, type PalierDuSentier, type PalierReponse, type RareteDePalier, type SaisonDuSentier } from "./contrat";
 import { manque, messageDuRefus, objetPayant, points, stateres } from "./ecran-boutique";
 
 /** L'ancre de l'onglet dans « Mon Gaulois ». */
@@ -26,7 +26,11 @@ function lireSaison(valeur: unknown): SaisonDuSentier | null {
   if (!JOUR.test(debut) || !JOUR.test(fin) || !entier(paliers, 1) || !entier(pas_par_palier, 1)) return null;
   // Un serveur d'avant ces deux champs : la saison est en cours.
   const jusquAu = valeur["prendre_jusqu_au"];
-  return { id, nom, debut, fin, paliers, pas_par_palier, finie: valeur["finie"] === true, prendre_jusqu_au: typeof jusquAu === "string" && JOUR.test(jusquAu) ? jusquAu : null };
+  // L'objet de la saison (migration 20261121000300) : seulement s'il est au catalogue, de rareté « saison ».
+  const o = valeur["objet"];
+  const ref = estObjetJson(o) ? objetPayant(o["emplacement"], o["objet"]) : null;
+  const objet = ref && ref.fiche.rarete === "saison" ? { emplacement: ref.emplacement, objet: ref.objet } : null;
+  return { id, nom, debut, fin, paliers, pas_par_palier, finie: valeur["finie"] === true, prendre_jusqu_au: typeof jusquAu === "string" && JOUR.test(jusquAu) ? jusquAu : null, objet };
 }
 
 function lirePaliers(valeur: unknown): PalierDuSentier[] | null {
@@ -56,6 +60,16 @@ function lireMissions(valeur: unknown): MissionDuJour[] | null {
     missions.push({ code, fait: Math.min(ligne["fait"], ligne["cible"]), cible: ligne["cible"], gagnee: ligne["gagnee"] });
   }
   return missions;
+}
+
+/** Les insignes de saison lus ; un insigne illisible est ignoré. Sans eux (serveur d'avant) : aucun. */
+function lireInsignes(valeur: unknown): InsigneDuPass[] {
+  if (!Array.isArray(valeur)) return [];
+  return valeur.flatMap((ligne) =>
+    estObjetJson(ligne) && typeof ligne["saison"] === "string" && typeof ligne["nom"] === "string" && typeof ligne["obtenu_le"] === "string" && !Number.isNaN(Date.parse(ligne["obtenu_le"]))
+      ? [{ saison: ligne["saison"], nom: ligne["nom"], obtenu_le: ligne["obtenu_le"] }]
+      : [],
+  );
 }
 
 function lireDefi(valeur: unknown): DefiDuClan | null {
@@ -102,16 +116,22 @@ export function lireMonSentier(reponse: unknown): MonSentier | null {
     missions,
     defi: lireDefi(reponse["defi"]),
     etal: lireEtal(reponse["etal"]),
+    insignes: lireInsignes(reponse["insignes"]),
   };
 }
 
-/** `prendre_palier()` lue ; `null` si la réponse n'a pas la forme du contrat. La rareté montrée est celle du catalogue. */
+/**
+ * `prendre_palier()` lue ; `null` si la réponse n'a pas la forme du contrat. La rareté montrée est celle du catalogue : celle
+ * d'un palier, ou « saison » pour l'objet du dernier palier (migration 20261121000300), qui vient avec l'insigne de la saison.
+ */
 export function lirePalierPris(reponse: unknown): PalierReponse | null {
   if (!estObjetJson(reponse) || reponse["ok"] !== true || !entier(reponse["palier"], 1) || !estObjetJson(reponse["objet"])) return null;
   const ref = objetPayant(reponse["objet"]["emplacement"], reponse["objet"]["objet"]);
-  const r = ref ? rarete(ref.fiche.rarete) : null;
+  const r = ref ? (ref.fiche.rarete === "saison" ? "saison" : rarete(ref.fiche.rarete)) : null;
   if (!ref || !r) return null;
-  return { ok: true, palier: reponse["palier"], objet: { emplacement: ref.emplacement, objet: ref.objet, rarete: r, double: reponse["objet"]["double"] === true } };
+  const i = reponse["insigne"];
+  const insigne = estObjetJson(i) && typeof i["saison"] === "string" && typeof i["nom"] === "string" ? { saison: i["saison"], nom: i["nom"] } : null;
+  return { ok: true, palier: reponse["palier"], objet: { emplacement: ref.emplacement, objet: ref.objet, rarete: r, double: reponse["objet"]["double"] === true }, ...(i === undefined ? {} : { insigne }) };
 }
 
 /** Le dernier palier atteint : 0 avant le premier, jamais plus que le nombre de paliers. */

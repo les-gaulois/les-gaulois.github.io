@@ -137,12 +137,12 @@ describe("milestonePass", () => {
   });
   it("au premier passage, note les paliers du moment sans rien envoyer", async () => {
     const { deps, send } = setup({ stored: null });
-    expect(await milestonePass(deps)).toEqual({ state: { reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50, pending: null, lastSentOn: null }, failed: false });
+    expect(await milestonePass(deps)).toEqual({ state: { reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50, tierSet: "2026-11-21", pending: null, lastSentOn: null }, failed: false });
     expect(send).not.toHaveBeenCalled();
   });
   it("envoie les paliers franchis avec le pseudo du moment, puis note le jour", async () => {
     const { deps, send } = setup();
-    expect(await milestonePass(deps)).toEqual({ state: { reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50, pending: null, lastSentOn: "2026-11-09" }, failed: false });
+    expect(await milestonePass(deps)).toEqual({ state: { reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50, tierSet: "2026-11-21", pending: null, lastSentOn: "2026-11-09" }, failed: false });
     expect(send).toHaveBeenCalledWith([{ id: "a", username: "Alpha", tier: 100 }], { since: START.reading.at, until: later.fetchedAt, players: [{ id: "a", tier: 100 }] });
   });
   it("après un refus de Discord, garde les paliers en attente : le passage suivant réessaie", async () => {
@@ -165,12 +165,17 @@ describe("milestonePass", () => {
     expect(send).not.toHaveBeenCalled();
   });
   it("sans rien de nouveau, il n'y a rien à écrire", async () => {
-    const { deps } = setup({ stored: { ...START, reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50 } });
+    const { deps } = setup({ stored: { ...START, reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50, tierSet: "2026-11-21" } });
     expect(await milestonePass(deps)).toEqual({ state: null, failed: false });
+  });
+  it("un état noté avec les anciens paliers passe une fois aux quatorze du 21 novembre 2026, sans rien annoncer de plus", async () => {
+    const { deps, send } = setup({ stored: { ...START, reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50 } });
+    expect(await milestonePass(deps)).toEqual({ state: { ...START, reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50, tierSet: "2026-11-21" }, failed: false });
+    expect(send).not.toHaveBeenCalled();
   });
   it("un état noté à partir de 100 passe une fois à 50, sans rien annoncer de plus", async () => {
     const { deps, send } = setup({ stored: { ...START, reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } } } });
-    expect(await milestonePass(deps)).toEqual({ state: { ...START, reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50 }, failed: false });
+    expect(await milestonePass(deps)).toEqual({ state: { ...START, reading: { at: later.fetchedAt, tiers: { a: 100, b: 100 } }, tiersFrom: 50, tierSet: "2026-11-21" }, failed: false });
     expect(send).not.toHaveBeenCalled();
   });
   it("après le message du jour, une nouvelle relecture est notée et attend le lendemain", async () => {

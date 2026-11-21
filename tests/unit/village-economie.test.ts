@@ -93,8 +93,8 @@ describe("le catalogue", () => {
   });
 
   it("additionne le vrai catalogue objet par objet", () => {
-    // Un objet divin n'a pas de prix : la boutique ne le vend pas, il n'est pas dans le coût du catalogue.
-    const payants = Object.values(OBJETS).flatMap((objets) => Object.values(objets).flatMap((o) => (!o.gratuit && o.rarete !== null && o.rarete !== "divin" ? [o.rarete] : [])));
+    // Un objet divin ou de saison n'a pas de prix : la boutique ne le vend pas, il n'est pas dans le coût du catalogue.
+    const payants = Object.values(OBJETS).flatMap((objets) => Object.values(objets).flatMap((o) => (!o.gratuit && o.rarete !== null && o.rarete !== "divin" && o.rarete !== "saison" ? [o.rarete] : [])));
     const cout = coutDuCatalogue(OBJETS, PRIX_PAR_RARETE);
     expect(cout.nombre).toBe(payants.length);
     expect(cout.cout).toBe(payants.reduce((n, rarete) => n + PRIX_PAR_RARETE[rarete], 0));

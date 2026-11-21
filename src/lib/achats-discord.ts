@@ -218,7 +218,7 @@ export function vignetteDeLAchat(achat: Pick<AchatDuVillage, "emplacement" | "ob
 }
 
 /** La rareté en mots, accordée à « rareté » : « rareté commune ». */
-const RARETE_ACCORDEE: Readonly<Record<Rarete, string>> = { commun: "commune", "peu-commun": "peu commune", epique: "épique", mystique: "mystique", legendaire: "légendaire", divin: "divine" };
+const RARETE_ACCORDEE: Readonly<Record<Rarete, string>> = { commun: "commune", "peu-commun": "peu commune", epique: "épique", mystique: "mystique", legendaire: "légendaire", saison: "légendaire de saison", divin: "divine" };
 
 /** D'où vient l'objet, dans une phrase, et en court, sur l'image. */
 export const ORIGINES: Readonly<Record<NatureDAchat, { phrase: string; court: string }>> = {

@@ -26,7 +26,8 @@ import { SIGNES_PERMIS, normaliserPourLesMots } from "../../src/lib/village/vie-
  * dix coupes de cheveux et dix barbes gratuites.
  */
 const AU_CHOIX: readonly string[] = ["cheveux", "barbe", ...EMPLACEMENTS_VISAGE];
-const BOUTIQUE = GARDE_ROBE.filter((o) => !AU_CHOIX.includes(o.emplacement) && o.rarete !== "divin");
+// Ni le divin ni l'objet de la saison du pass (21 novembre 2026) : ils ne sont pas de la boutique.
+const BOUTIQUE = GARDE_ROBE.filter((o) => !AU_CHOIX.includes(o.emplacement) && o.rarete !== "divin" && o.rarete !== "saison");
 const VISAGE = GARDE_ROBE.filter((o) => (EMPLACEMENTS_VISAGE as readonly string[]).includes(o.emplacement));
 const POILS_DU_LOT = GARDE_ROBE.filter((o) => o.emplacement === "cheveux" || o.emplacement === "barbe");
 const estDuVisage = (emplacement: Emplacement) => (EMPLACEMENTS_VISAGE as readonly string[]).includes(emplacement);

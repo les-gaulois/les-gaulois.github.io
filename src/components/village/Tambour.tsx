@@ -178,6 +178,8 @@ const REPLI: Record<Rarete, string> = {
   epique: "#9b4dff",
   mystique: "#ff2e4a",
   legendaire: "#f2b632",
+  // Le légendaire de saison ne sort d'aucune pochette : sa couleur est celle du légendaire, pour le type.
+  saison: "#f2b632",
   divin: "#19d3c5",
 };
 export function couleursDuSite(el: Element): Record<Rarete, string> {

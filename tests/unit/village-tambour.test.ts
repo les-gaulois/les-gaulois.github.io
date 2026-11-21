@@ -110,7 +110,7 @@ describe("bandeDeLaPochette", () => {
         total++;
       });
     }
-    const attendues = chancesEffectives({ ...CHANCES_POCHETTE, divin: 0 })!;
+    const attendues = chancesEffectives({ ...CHANCES_POCHETTE, saison: 0, divin: 0 })!;
     for (const rarete of ORDRE_RARETES) expect(Math.abs((vues[rarete] * 100) / total - attendues[rarete])).toBeLessThan(1);
   });
 });

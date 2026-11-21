@@ -3,7 +3,13 @@ import { fetchRoster, hashPublicId, refreshRoster, type RosterDeps, type RpcResu
 
 const NOW = new Date("2026-11-06T12:00:00.000Z");
 
-const member = (publicId: string, username: string | null, role = "member") => ({ publicId, username, role, joinedAt: "2026-05-03T00:00:00.000Z" });
+const member = (publicId: string, username: string | null, role = "member", wins?: number) => ({
+  publicId,
+  username,
+  role,
+  joinedAt: "2026-05-03T00:00:00.000Z",
+  ...(wins === undefined ? {} : { stats: { team: { wins, losses: 3 } } }),
+});
 const pages = (members: ReturnType<typeof member>[], total = members.length): typeof fetch =>
   (async (url: string | URL | Request) => {
     const page = Number(new URL(String(url)).searchParams.get("page"));
@@ -78,6 +84,31 @@ describe("la liste des membres", () => {
     const { deps, calls } = makeDeps({}, { roster_read_at: old });
     await refreshRoster(deps);
     expect(calls.some((c) => c.fn === "sync_clan_roster")).toBe(true);
+  });
+
+  it("donne au serveur les victoires sous le tag de chaque membre qui a des stats, sous la seule empreinte", async () => {
+    const { deps, calls } = makeDeps({ fetch: pages([member("PUB-1", "Astra", "member", 137), member("PUB-2", null, "member", 12), member("PUB-3", "SansStats")]) });
+    await refreshRoster(deps);
+    const paliers = calls.find((c) => c.fn === "noter_paliers_victoires")!;
+    expect(paliers.args).toEqual({
+      p_entries: [
+        { hash: hashPublicId("PUB-1"), victoires: 137 },
+        { hash: hashPublicId("PUB-2"), victoires: 12 },
+      ],
+    });
+    expect(JSON.stringify(paliers.args)).not.toContain("PUB-");
+    // La liste elle-même ne change pas : ni victoires ni stats n'y entrent.
+    expect(JSON.stringify(calls.find((c) => c.fn === "sync_clan_roster")!.args)).not.toContain("victoires");
+  });
+
+  it("un refus ou une absence de la fonction des paliers ne retient pas la liste, déjà relue", async () => {
+    const logs: string[] = [];
+    const { deps } = makeDeps({
+      rpc: async (fn) => (fn === "noter_paliers_victoires" ? { ok: false, error: "function not found" } : { ok: true }),
+      log: (line) => logs.push(line),
+    });
+    await expect(refreshRoster(deps)).resolves.toBeUndefined();
+    expect(logs.some((line) => line.startsWith("::warning::Paliers de victoires"))).toBe(true);
   });
 
   it("signale un refus du serveur", async () => {

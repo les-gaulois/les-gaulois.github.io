@@ -75,6 +75,7 @@ export const COULEURS_RARETE: Readonly<Record<Rarete, { bord: string; texte: str
   epique: { bord: "#9B4DFF", texte: "#DCBCFF" },
   mystique: { bord: "#FF2E4A", texte: "#FFB5BD" },
   legendaire: { bord: "#F2B632", texte: "#FFDD80" },
+  saison: { bord: "#F2B632", texte: "#FFDD80" },
   divin: { bord: "#19D3C5", texte: "#C4FFF7" },
 };
 

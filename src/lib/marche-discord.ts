@@ -21,7 +21,7 @@
  */
 import { z } from "zod";
 import { imageMessage, postWithImage, textMessage } from "./discord-post";
-import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, type Emplacement, type RareteDObjet } from "./gaulois";
+import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, aUnPrix, type Emplacement, type RareteDObjet } from "./gaulois";
 import { escapeDiscord, type RenderedImage } from "./gazette-discord";
 import { parseNoted, siteLink } from "./salon-discord";
 import { dateLongue, heureEnMots, nomAffiche, nomDiscord } from "./achats-discord";
@@ -80,7 +80,7 @@ export interface AnnonceDuMarche {
   emplacement: Emplacement;
   objet: string;
   nomObjet: string;
-  rarete: Exclude<RareteDObjet, "divin">;
+  rarete: Exclude<RareteDObjet, "divin" | "saison">;
   prix: number;
   /** Le prix de l'objet à la boutique ; `null` : le serveur ne l'a pas dit. */
   prixBoutique: number | null;
@@ -105,7 +105,7 @@ export interface ImageDuMarche {
 const placeDe = (emplacement: Emplacement): string => NOMS_EMPLACEMENTS[emplacement].toLocaleLowerCase("fr");
 
 /** La rareté en mots, accordée à « rareté » : « rareté commune ». */
-const RARETE_ACCORDEE: Readonly<Record<Exclude<RareteDObjet, "divin">, string>> = { commun: "commune", "peu-commun": "peu commune", epique: "épique", mystique: "mystique", legendaire: "légendaire" };
+const RARETE_ACCORDEE: Readonly<Record<Exclude<RareteDObjet, "divin" | "saison">, string>> = { commun: "commune", "peu-commun": "peu commune", epique: "épique", mystique: "mystique", legendaire: "légendaire" };
 
 /** « 2 objets », « 1 objet ». */
 const objets = (n: number) => (n >= 2 ? `${n} objets` : "1 objet");
@@ -225,7 +225,7 @@ export function lireReponseDuMarche(data: unknown): Extract<LectureDuMarche, { e
     const emplacement = (EMPLACEMENTS_OBJETS as readonly string[]).find((e) => e === ligne.data.emplacement) as Emplacement | undefined;
     const fiche = emplacement ? OBJETS[emplacement]?.[ligne.data.objet] : undefined;
     const nom = nomPropre(ligne.data.nom);
-    if (!emplacement || !fiche || fiche.gratuit || !fiche.rarete || fiche.rarete === "divin" || !nom) return void inconnus++;
+    if (!emplacement || !fiche || fiche.gratuit || !fiche.rarete || !aUnPrix(fiche.rarete) || !nom) return void inconnus++;
     annonces.push({
       sorte,
       id: ligne.data.id,

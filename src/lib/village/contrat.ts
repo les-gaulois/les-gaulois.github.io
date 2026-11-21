@@ -51,7 +51,8 @@ export const LEGENDAIRES_POUR_UN_DIVIN = 10;
 /** Les chances du tirage, divin compris, d'après les cinq chances réglées : 100 en tout. `divin` : la chance donnée par le serveur. */
 export function chancesAvecLeDivin(chances: Readonly<Record<Rarete, number>>, divin: number = chances.legendaire / LEGENDAIRES_POUR_UN_DIVIN): Record<RareteDObjet, number> {
   const part = Math.min(Math.max(divin, 0), chances.commun);
-  return { ...chances, commun: chances.commun - part, divin: part };
+  // Le légendaire de saison ne sort jamais d'une pochette.
+  return { ...chances, commun: chances.commun - part, saison: 0, divin: part };
 }
 
 /** Les chances de départ du tirage : 49,8 ; 30 ; 13 ; 5 ; 2 ; et 0,2 pour le divin. */
@@ -788,7 +789,7 @@ export interface PochetteStateresReponse {
  */
 export type RefusPochetteStateres = "not_validated" | "no_gaulois" | "prix_change" | "plafond_du_jour" | "solde_insuffisant";
 
-/* ---------- Le sentier des Gaulois (16 novembre 2026, migration 20261116001100) ---------- */
+/* ---------- Le sentier des Gaulois, « Le pass » à l'écran (16 novembre 2026, migration 20261116001100 ; saisons de six semaines, objet et insigne de saison : 20261121000300) ---------- */
 
 /** Les raretés qu'un palier du sentier peut donner : celles qui ont un prix à la boutique. */
 export type RareteDePalier = "commun" | "peu-commun" | "epique" | "mystique" | "legendaire";
@@ -803,8 +804,19 @@ export const REMISE_DE_L_ETAL = 30;
 export const MISSIONS_DU_SENTIER = ["partie", "vocal", "pochette", "parties_3", "victoire", "points_3", "equipe"] as const;
 export type MissionDuSentier = (typeof MISSIONS_DU_SENTIER)[number];
 
-/** La première saison : du 17 novembre au 31 décembre 2026, 30 paliers de 30 pas. La même que le serveur. */
-export const SAISON_1 = { id: "saison-1", nom: "Saison 1", debut: "2026-11-17", fin: "2026-12-31", paliers: 30, pas_par_palier: 30 } as const;
+/**
+ * La première saison : six semaines, du 17 novembre au 28 décembre 2026 (décision du pilote du 21 novembre 2026 ; elle
+ * devait finir le 31 décembre), 30 paliers de 30 pas, et son objet, donné au dernier palier. La même que le serveur.
+ */
+export const SAISON_1 = {
+  id: "saison-1",
+  nom: "Saison 1",
+  debut: "2026-11-17",
+  fin: "2026-12-28",
+  paliers: 30,
+  pas_par_palier: 30,
+  objet: { emplacement: "tete", objet: "couronne-solstice" },
+} as const;
 
 /** La rareté de l'objet de chaque palier de la saison 1, du palier 1 au palier 30. Les mêmes que le serveur. */
 export const PALIERS_DE_LA_SAISON_1: readonly RareteDePalier[] = [
@@ -851,6 +863,18 @@ export interface SaisonDuSentier {
   /** La saison est passée : plus de missions, mais ses paliers atteints se prennent encore jusqu'à `prendre_jusqu_au` compris. */
   finie: boolean;
   prendre_jusqu_au: string | null;
+  /**
+   * L'objet de la saison (rareté « légendaire de saison »), donné au dernier palier au lieu d'un légendaire tiré au hasard,
+   * et qu'on n'obtient que là ; null pour une saison sans objet. Absent tant que la migration 20261121000300 n'est pas installée.
+   */
+  objet?: RefObjet | null;
+}
+
+/** Un insigne de saison : la saison dont le membre a pris le dernier palier, et quand. Son dessin : `insignes-de-saison.ts`. */
+export interface InsigneDuPass {
+  saison: string;
+  nom: string;
+  obtenu_le: string;
 }
 
 /** Un palier : la rareté de son objet, et l'objet reçu une fois pris. */
@@ -903,13 +927,20 @@ export interface MonSentier {
   missions: MissionDuJour[];
   defi: DefiDuClan | null;
   etal: EtalDuJour | null;
+  /** Les insignes de saison du compte, le plus récent d'abord. Absent tant que la migration 20261121000300 n'est pas installée. */
+  insignes?: InsigneDuPass[];
 }
 
-/** `prendre_palier(p_palier)` : l'objet reçu ; `double` : le compte l'avait déjà. */
+/**
+ * `prendre_palier(p_palier)` : l'objet reçu ; `double` : le compte l'avait déjà. Au dernier palier d'une saison qui a son
+ * objet, c'est cet objet, de rareté « saison », et `insigne` dit l'insigne de la saison ; sinon `insigne` est null (absent
+ * avant la migration 20261121000300).
+ */
 export interface PalierReponse {
   ok: true;
   palier: number;
-  objet: RefObjet & { rarete: RareteDePalier; double: boolean };
+  objet: RefObjet & { rarete: RareteDePalier | "saison"; double: boolean };
+  insigne?: { saison: string; nom: string } | null;
 }
 
 /**
@@ -939,16 +970,23 @@ export const LOTS_LOTERIE: readonly LotDeLoterie[] = [
   { rang: 3, gain: 750, pochettes: { surprise: 0, familiers: 0, bannieres: 1, modeles: 0, stateres: 5 } },
 ];
 
-/** Le prix d'un billet acheté, en statères : ce que rapporte un point (internal.loterie_prix_billet). */
+/** Le prix d'un billet acheté, en statères : ce que rapportait un point (internal.loterie_prix_billet). Plus aucun billet ne s'achète depuis le 21 novembre 2026. */
 export const PRIX_BILLET_LOTERIE = 30;
 /** Le mardi du premier tirage (internal.loterie_premier_tirage). */
 export const PREMIER_TIRAGE_LOTERIE = "2026-11-17";
+/** Le premier tirage des boosters de loterie (internal.loterie_premier_booster) : celui du mardi 24 novembre 2026. */
+export const PREMIER_TIRAGE_DES_BOOSTERS = "2026-11-24";
+/** Le ticket d'or : il sort une fois sur `sur` d'un booster de loterie et vaut `billets` billets (internal.loterie_or_sur, internal.loterie_or_billets). */
+export const TICKET_D_OR = { sur: 10, billets: 5 } as const;
 
 /**
- * La part d'un Gaulois dans un tirage : ses billets gagnés (un par point rapporté au clan dans la semaine) et achetés.
- * Dans un tirage fait, `rang` dit sa marche du podium et `billet` le billet tiré, compté dans les siens à partir de zéro,
- * les billets gagnés d'abord ; sinon les deux sont null. `banniere` : la bannière qu'il montre sur /gaulois, ou null (et
- * null tant que la migration 20261116001600 n'est pas installée). Jamais un identifiant.
+ * La part d'un Gaulois dans un tirage : ses billets gagnés et achetés. Depuis le tirage du 24 novembre 2026, les billets
+ * gagnés sont ceux de ses boosters de loterie ouverts (les billets de points de chaque jour joué, plus 5 par ticket d'or) ;
+ * avant, un par point rapporté au clan dans la semaine. Plus aucun billet ne s'achète : `achetes` ne vaut plus que pour les
+ * billets payés avant (tirage du 24 novembre 2026 compris). `tickets_or` : les tickets d'or de la part, dont les billets
+ * sont déjà dans `gratuits` (absent avant la migration 20261121000200). Dans un tirage fait, `rang` dit sa marche du podium
+ * et `billet` le billet tiré, compté dans les siens à partir de zéro, les billets gagnés d'abord ; sinon les deux sont null.
+ * `banniere` : la bannière qu'il montre sur /gaulois, ou null. Jamais un identifiant.
  */
 export interface PartDeLoterie {
   nom: string;
@@ -957,15 +995,30 @@ export interface PartDeLoterie {
   moi: boolean;
   gratuits: number;
   achetes: number;
+  tickets_or?: number;
   rang: 1 | 2 | 3 | null;
   billet: number | null;
 }
 
 /**
+ * Un booster de loterie : un par jour (à Paris) où le compte a joué au moins une partie du clan, pour le tirage du mardi
+ * qui suit. Fermé, il ne dit rien de ce qu'il contient : `billets` et `ticket_or` sont null. Ouvert : `billets`, les billets
+ * des points rapportés au clan ce jour-là (au moins un s'il y en a, 0 un jour sans points), et `ticket_or`, s'il contient
+ * un ticket d'or (5 billets de plus). Un booster fermé au tirage est ouvert par le serveur.
+ */
+export interface BoosterDeLoterie {
+  jour: string;
+  ouvert: boolean;
+  billets: number | null;
+  ticket_or: boolean | null;
+}
+
+/**
  * `get_loterie()`, pour un compte validé ou de l'équipe gauloise. `tirage` : le mardi du tirage à venir (AAAA-MM-JJ, à
  * Paris) ; `heure` : son instant ; `close` : sa semaine est finie, les billets gagnés ne bougent plus. `peut_acheter` :
- * compte validé avec un Gaulois créé. `solde` et `bons` (les pochettes gagnées qui restent à ouvrir) sont ceux de
- * l'appelant seul. `dernier` : le dernier tirage fait, ou null.
+ * toujours false depuis la migration 20261121000200, qui ajoute `achat_ferme`, `boosters` (ceux de l'appelant pour le tirage
+ * à venir) et `or` (le ticket d'or). `solde` et `bons` (les pochettes gagnées qui restent à ouvrir) sont ceux de l'appelant
+ * seul. `dernier` : le dernier tirage fait, ou null.
  */
 export interface MaLoterie {
   ok: true;
@@ -976,10 +1029,43 @@ export interface MaLoterie {
   lots: LotDeLoterie[];
   parts: PartDeLoterie[];
   peut_acheter: boolean;
+  achat_ferme?: boolean;
   solde: number;
   bons: Partial<Record<PochetteGagnee, number>>;
+  boosters?: BoosterDeLoterie[];
+  or?: { sur: number; billets: number };
   dernier: { tirage: string; tire_le: string; parts: PartDeLoterie[] } | null;
   releve: string | null;
+}
+
+/**
+ * `ouvrir_booster_loterie(p_jour)` : le booster ouvert (celui du jour donné, ou sans jour le plus ancien encore fermé de la
+ * semaine du tirage à venir). `billets` : ceux des points du jour ; `billets_or` : 5 avec un ticket d'or, 0 sinon ; `total`
+ * leur somme ; `restants` : les boosters de la semaine encore fermés.
+ */
+export interface BoosterOuvert {
+  ok: true;
+  jour: string;
+  tirage: string;
+  billets: number;
+  ticket_or: boolean;
+  billets_or: number;
+  total: number;
+  restants: number;
+}
+
+/** Les refus de l'ouverture d'un booster de loterie, en plus de ceux de tout compte. Un refus n'ouvre rien. */
+export type RefusBoosterDeLoterie = "not_validated" | "no_gaulois" | "aucun_booster" | "deja_ouvert";
+
+/**
+ * `get_pochettes_gagnees()` : les pochettes gagnées à la loterie ou offertes par un palier de victoires, qui restent à
+ * ouvrir (`bons`), et les paliers de victoires qui ont offert un booster surprise au compte, du plus haut au plus bas
+ * (`paliers`, absent avant la migration 20261121000100).
+ */
+export interface MesPochettesGagnees {
+  ok: true;
+  bons: Partial<Record<PochetteGagnee, number>>;
+  paliers?: number[];
 }
 
 /** `acheter_billets_loterie(p_nombre, p_prix_vu)` : le solde après l'achat, les billets gagnés et achetés du compte. */
@@ -994,6 +1080,6 @@ export interface AchatDeBillets {
  * Les refus de l'achat de billets, en plus de ceux de tout compte : `invalid_request`, `mode_god` (pendant un essai du
  * mode GOD), `tirage_fait`, `prix_change`, `aucun_billet` (aucun point rapporté dans la semaine du tirage),
  * `plafond_billets` (jamais plus de billets achetés que de billets gagnés), `solde_insuffisant`, `not_validated`,
- * `no_gaulois`. Un refus ne débite rien.
+ * `no_gaulois` ; depuis la migration 20261121000200, toujours `achat_ferme`. Un refus ne débite rien.
  */
-export type RefusLoterie = "invalid_request" | "mode_god" | "tirage_fait" | "prix_change" | "aucun_billet" | "plafond_billets" | "solde_insuffisant" | "not_validated" | "no_gaulois";
+export type RefusLoterie = "invalid_request" | "mode_god" | "tirage_fait" | "prix_change" | "aucun_billet" | "plafond_billets" | "solde_insuffisant" | "not_validated" | "no_gaulois" | "achat_ferme";

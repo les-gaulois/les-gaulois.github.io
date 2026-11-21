@@ -63,7 +63,7 @@ describe("la pochette surprise dans l'album", () => {
   });
 
   it("suit les chances que le serveur envoie, pas celles de départ", () => {
-    const reglees: Record<Rarete, number> = { commun: 39.5, "peu-commun": 30, epique: 15, mystique: 10, legendaire: 5, divin: 0.5 };
+    const reglees: Record<Rarete, number> = { commun: 39.5, "peu-commun": 30, epique: 15, mystique: 10, legendaire: 5, saison: 0, divin: 0.5 };
     const autre = albumDeLaPochetteSurprise(reglees, []);
     const legendaires = autre.elements.filter((e) => e.rarete === "legendaire");
     expect(somme(legendaires)).toBeCloseTo(5, 8);

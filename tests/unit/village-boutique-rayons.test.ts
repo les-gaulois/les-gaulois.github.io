@@ -27,7 +27,7 @@ import { MESSAGES_DU_MARCHE, raisonDeLOffre, type OffreLisible } from "../../src
 // empêche d'acheter ce qu'on essaie. Les objets viennent du vrai catalogue : rien n'est inventé ici.
 
 /** Les objets payants d'un emplacement, dans l'ordre du catalogue. */
-const payants = (emplacement: Emplacement) => Object.entries(OBJETS[emplacement]).filter(([, objet]) => !objet.gratuit && objet.rarete && objet.rarete !== "divin");
+const payants = (emplacement: Emplacement) => Object.entries(OBJETS[emplacement]).filter(([, objet]) => !objet.gratuit && objet.rarete && objet.rarete !== "divin" && objet.rarete !== "saison");
 /** Le premier objet payant d'une rareté, dans un emplacement. */
 function objetDe(emplacement: Emplacement, rarete: Rarete): string {
   const trouve = payants(emplacement).find(([, objet]) => objet.rarete === rarete);

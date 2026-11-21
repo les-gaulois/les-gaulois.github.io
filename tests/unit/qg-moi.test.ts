@@ -226,7 +226,7 @@ describe("les chiffres de l'accueil", () => {
     expect(etat.chiffres.place).toMatchObject({ rank: 1, ranked: 6, next: null, missing: null, lead: 20 });
     expect(etat.chiffres.place.behind?.username).toBe("Bravo");
     expect(etat.chiffres.nextShare).toBeNull();
-    expect(etat.chiffres.tier).toEqual({ wins: 250, missing: 150, from: 100 });
+    expect(etat.chiffres.tier).toEqual({ wins: 200, missing: 100, from: 100 });
   });
 
   it("garde le membre sans partie pour dire son pseudo, sans place ni réussite", () => {

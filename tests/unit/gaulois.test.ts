@@ -42,6 +42,7 @@ const GARDE_ROBE_SQL = readFileSync("supabase/migrations/20261114000200_village_
 const COUPES_SQL = readFileSync("supabase/migrations/20261115000600_village_coupes_et_couleurs.sql", "utf8");
 // Les quinze objets divins (16 novembre 2026).
 const DIVIN_SQL = readFileSync("supabase/migrations/20261116000300_divin_et_fusion.sql", "utf8");
+const SAISON_SQL = readFileSync("supabase/migrations/20261121000300_pass_saison_objet_et_insigne.sql", "utf8");
 
 /** Un tirage reproductible, pour que les tenues au hasard soient les mêmes à chaque passage. */
 function hasardFixe(graine: number): () => number {
@@ -286,7 +287,7 @@ describe("une tenue", () => {
 
 describe("le serveur", () => {
   it("connaît exactement les objets du dessin, avec leur rareté et s'ils sont gratuits (migration du vestiaire)", () => {
-    const lignes = [...`${MIGRATION}\n${GARDE_ROBE_SQL}\n${COUPES_SQL}\n${DIVIN_SQL}`.matchAll(/^ {2}\('([a-z]+)', '([a-z-]+)', ('[a-z-]+'|null), (true|false)\)/gm)].map(([, emplacement, objet, rarete, gratuit]) => `${emplacement}/${objet}/${rarete?.replaceAll("'", "")}/${gratuit}`);
+    const lignes = [...`${MIGRATION}\n${GARDE_ROBE_SQL}\n${COUPES_SQL}\n${DIVIN_SQL}\n${SAISON_SQL}`.matchAll(/^ {2}\('([a-z]+)', '([a-z-]+)', ('[a-z-]+'|null), (true|false)\)/gm)].map(([, emplacement, objet, rarete, gratuit]) => `${emplacement}/${objet}/${rarete?.replaceAll("'", "")}/${gratuit}`);
     const attendues = EMPLACEMENTS.flatMap((emplacement) => Object.entries(OBJETS[emplacement]).map(([id, objet]) => `${emplacement}/${id}/${objet.rarete ?? "null"}/${objet.gratuit}`));
     expect(lignes.sort()).toEqual(attendues.sort());
   });

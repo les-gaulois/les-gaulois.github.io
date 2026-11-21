@@ -11,7 +11,7 @@
  */
 import { errorMessage } from "../compte/errors";
 import { addDays } from "../time";
-import { POCHETTES_GAGNEES, type AchatDeBillets, type LotDeLoterie, type MaLoterie, type PartDeLoterie, type PochetteGagnee } from "./contrat";
+import { POCHETTES_GAGNEES, type AchatDeBillets, type BoosterDeLoterie, type BoosterOuvert, type LotDeLoterie, type MaLoterie, type PartDeLoterie, type PochetteGagnee } from "./contrat";
 import { stateres } from "./ecran-boutique";
 
 const estObjetJson = (valeur: unknown): valeur is Record<string, unknown> => valeur !== null && typeof valeur === "object" && !Array.isArray(valeur);
@@ -70,7 +70,10 @@ export function lireParts(valeur: unknown, fait: boolean): PartDeLoterie[] | nul
       billet = b;
     }
     const banniere = typeof ligne["banniere"] === "string" && ligne["banniere"] !== "" ? ligne["banniere"] : null;
-    parts.push({ nom, tenue: tenue ?? null, banniere, moi, gratuits, achetes, rang, billet });
+    // Les tickets d'or de la part (migration 20261121000200), dont les billets sont déjà dans `gratuits`.
+    const tickets = ligne["tickets_or"];
+    if (tickets !== undefined && (!entier(tickets, 0) || tickets * 5 > gratuits)) return null;
+    parts.push({ nom, tenue: tenue ?? null, banniere, moi, gratuits, achetes, ...(tickets === undefined ? {} : { tickets_or: tickets }), rang, billet });
   }
   if (parts.filter((part) => part.moi).length > 1) return null;
   // Jamais deux gagnants sur la même marche. Une marche peut manquer : moins de trois parts, ou un compte effacé depuis.
@@ -117,6 +120,57 @@ export function lirePochettesGagnees(reponse: unknown): Partial<Record<PochetteG
   return estObjetJson(reponse) && reponse["ok"] === true ? lireBons(reponse["bons"]) : null;
 }
 
+/**
+ * Les paliers de victoires qui ont offert un booster surprise au compte, du plus haut au plus bas, lus dans la réponse de
+ * `get_pochettes_gagnees()` (migration 20261121000100). `[]` sans eux, ou d'un serveur d'avant.
+ */
+export function lirePaliersOfferts(reponse: unknown): number[] {
+  if (!estObjetJson(reponse) || reponse["ok"] !== true || !Array.isArray(reponse["paliers"])) return [];
+  const paliers = reponse["paliers"];
+  return paliers.length <= 14 && paliers.every((p) => entier(p, 10)) ? (paliers as number[]) : [];
+}
+
+/**
+ * Les boosters de loterie du compte tels que le serveur les donne : un jour par booster, sans doublon, au plus sept ; un
+ * booster fermé ne dit rien de ce qu'il contient. Absents (serveur d'avant la migration 20261121000200) : `[]`.
+ */
+export function lireBoostersDeLoterie(valeur: unknown): BoosterDeLoterie[] | null {
+  if (valeur === undefined) return [];
+  if (!Array.isArray(valeur) || valeur.length > 7) return null;
+  const boosters: BoosterDeLoterie[] = [];
+  for (const ligne of valeur) {
+    if (!estObjetJson(ligne)) return null;
+    const { jour, ouvert, billets: n, ticket_or } = ligne;
+    if (!estJour(jour) || typeof ouvert !== "boolean") return null;
+    if (ouvert ? !entier(n, 0) || typeof ticket_or !== "boolean" : n !== null || ticket_or !== null) return null;
+    boosters.push({ jour, ouvert, billets: ouvert ? (n as number) : null, ticket_or: ouvert ? (ticket_or as boolean) : null });
+  }
+  if (new Set(boosters.map((b) => b.jour)).size !== boosters.length) return null;
+  return boosters;
+}
+
+/** `ouvrir_booster_loterie()` lue ; `null` si la réponse n'a pas la forme du contrat. */
+export function lireBoosterOuvert(reponse: unknown): BoosterOuvert | null {
+  if (!estObjetJson(reponse) || reponse["ok"] !== true) return null;
+  const { jour, tirage, billets: n, ticket_or, billets_or, total, restants } = reponse;
+  if (!estJour(jour) || !estJour(tirage) || !entier(n, 0) || typeof ticket_or !== "boolean" || !entier(billets_or, 0) || !entier(total, 0) || !entier(restants, 0)) return null;
+  if (billets_or !== (ticket_or ? 5 : 0) || total !== n + billets_or || restants > 6) return null;
+  return { ok: true, jour, tirage, billets: n, ticket_or, billets_or, total, restants };
+}
+
+/** La loterie après l'ouverture d'un booster : le booster ouvert, à la place du fermé. La part se relit au serveur. */
+export function apresLOuverture(ma: MaLoterie, ouvert: BoosterOuvert): MaLoterie {
+  return { ...ma, boosters: (ma.boosters ?? []).map((b) => (b.jour === ouvert.jour ? { jour: b.jour, ouvert: true, billets: ouvert.billets, ticket_or: ouvert.ticket_or } : b)) };
+}
+
+/** Le message d'un refus de l'ouverture d'un booster de loterie. */
+export function messageDuRefusDuBooster(code: string): string {
+  if (code === "aucun_booster") return "Aucun booster de loterie fermé pour ce tirage : il en vient un par jour joué avec le clan.";
+  if (code === "deja_ouvert") return "Ce booster est déjà ouvert.";
+  if (code === "not_validated") return "Les boosters de loterie s'ouvrent quand un officier a validé votre compte.";
+  return errorMessage(code);
+}
+
 /** `get_loterie()` lue ; `null` si la réponse n'a pas la forme du contrat. */
 export function lireLoterie(reponse: unknown): MaLoterie | null {
   if (!estObjetJson(reponse) || reponse["ok"] !== true) return null;
@@ -124,7 +178,12 @@ export function lireLoterie(reponse: unknown): MaLoterie | null {
   const lots = lireLotsDeLoterie(reponse["lots"]);
   const parts = lireParts(reponse["parts"], false);
   const bons = lireBons(reponse["bons"]);
-  if (!estJour(tirage) || !estInstant(heure) || typeof close !== "boolean" || !entier(prix, 1) || typeof peut_acheter !== "boolean" || !entier(solde, 0) || !lots || !parts || !bons) return null;
+  const boosters = lireBoostersDeLoterie(reponse["boosters"]);
+  if (!estJour(tirage) || !estInstant(heure) || typeof close !== "boolean" || !entier(prix, 1) || typeof peut_acheter !== "boolean" || !entier(solde, 0) || !lots || !parts || !bons || !boosters) return null;
+  // Depuis la migration 20261121000200 : plus d'achat, les boosters du compte et le ticket d'or.
+  const achatFerme = reponse["achat_ferme"] === true;
+  const o = reponse["or"];
+  const or = estObjetJson(o) && entier(o["sur"], 2) && entier(o["billets"], 1) ? { sur: o["sur"], billets: o["billets"] } : undefined;
   let dernier: MaLoterie["dernier"] = null;
   const d = reponse["dernier"];
   if (d !== null && d !== undefined) {
@@ -133,7 +192,23 @@ export function lireLoterie(reponse: unknown): MaLoterie | null {
     if (!faites) return null;
     dernier = { tirage: d["tirage"], tire_le: d["tire_le"], parts: faites };
   }
-  return { ok: true, tirage, heure, close, prix, lots, parts, peut_acheter, solde, bons, dernier, releve: estInstant(releve) ? releve : null };
+  return {
+    ok: true,
+    tirage,
+    heure,
+    close,
+    prix,
+    lots,
+    parts,
+    peut_acheter: peut_acheter && !achatFerme,
+    ...(achatFerme ? { achat_ferme: true } : {}),
+    solde,
+    bons,
+    boosters,
+    ...(or ? { or } : {}),
+    dernier,
+    releve: estInstant(releve) ? releve : null,
+  };
 }
 
 /** `acheter_billets_loterie()` lue ; `null` si la réponse n'a pas la forme du contrat. */

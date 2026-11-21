@@ -296,7 +296,7 @@ export function DialogueRevente({ revente, occupe, probleme, initial = null, onR
         <div class="marche-choix" role="group" aria-label="Les objets qui se revendent">
           {revente.objets.map((objet) => {
             const fiche = OBJETS[objet.emplacement][objet.objet];
-            const rarete = fiche?.rarete as Exclude<RareteDObjet, "divin"> | null | undefined;
+            const rarete = fiche?.rarete as Exclude<RareteDObjet, "divin" | "saison"> | null | undefined;
             if (!fiche || !rarete) return null;
             return (
               <button key={`${objet.emplacement}-${objet.objet}`} type="button" class="marche-choix-case" aria-pressed={choisi === objet} onClick={() => setChoix(objet)} data-testid="revente-objet">

@@ -67,8 +67,8 @@ describe("le rangement d'un rayon", () => {
   it("ne perd ni ne double aucun objet du vrai catalogue", () => {
     for (const emplacement of EMPLACEMENTS_OBJETS) {
       const rangement = rangerLeRayon(OBJETS[emplacement], () => 0);
-      // Un objet divin que le membre n'a pas n'est dans aucun tas : il ne s'achète pas.
-      const divins = Object.entries(OBJETS[emplacement]).filter(([, o]) => o.rarete === "divin").map(([id]) => id);
+      // Un objet divin ou de saison que le membre n'a pas n'est dans aucun tas : il ne s'achète pas.
+      const divins = Object.entries(OBJETS[emplacement]).filter(([, o]) => o.rarete === "divin" || o.rarete === "saison").map(([id]) => id);
       expect(divins.length).toBeGreaterThan(0);
       expect([...ids(rangement.aMoi), ...ids(rangement.boutique), ...divins].sort()).toEqual(Object.keys(OBJETS[emplacement]).sort());
       const tousAMoi = rangerLeRayon(OBJETS[emplacement], () => 1);
@@ -83,8 +83,8 @@ describe("le filtre de la boutique", () => {
   const boutique = rangerLeRayon(RAYON, () => 0).boutique;
 
   it("compte les objets de chaque rareté, zéro compris", () => {
-    expect(compterParRarete(boutique)).toEqual({ commun: 2, "peu-commun": 0, epique: 1, mystique: 0, legendaire: 1, divin: 0 });
-    expect(compterParRarete([])).toEqual({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 0, divin: 0 });
+    expect(compterParRarete(boutique)).toEqual({ commun: 2, "peu-commun": 0, epique: 1, mystique: 0, legendaire: 1, saison: 0, divin: 0 });
+    expect(compterParRarete([])).toEqual({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 0, saison: 0, divin: 0 });
   });
 
   it("donne des comptes dont la somme est le nombre d'objets de la boutique, pour chaque rayon du catalogue", () => {

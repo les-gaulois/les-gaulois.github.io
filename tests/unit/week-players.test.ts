@@ -89,9 +89,9 @@ describe("weekActive", () => {
 
 describe("weekMilestones", () => {
   it("note le plus haut palier franchi entre deux relevés, du plus haut au plus bas", () => {
-    expect(weekMilestones({ a: 95, b: 240, c: 480, d: 99 }, { a: 101, b: 260, c: 1004, d: 99 })).toEqual([
+    expect(weekMilestones({ a: 95, b: 240, c: 480, d: 99 }, { a: 101, b: 360, c: 1004, d: 99 })).toEqual([
       { id: "c", tier: 1000 },
-      { id: "b", tier: 250 },
+      { id: "b", tier: 350 },
       { id: "a", tier: 100 },
     ]);
   });

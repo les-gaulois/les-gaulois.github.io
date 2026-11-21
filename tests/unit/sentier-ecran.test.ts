@@ -121,15 +121,15 @@ describe("la rangée montrée quand la piste est repliée", () => {
 });
 
 describe("les jours de la saison et le calendrier", () => {
-  it("la saison 1 compte 45 jours, du 17 novembre au 31 décembre", () => {
-    expect(joursDeLaSaison(SAISON_1, "2026-11-17")).toEqual({ total: 45, rang: 1 });
-    expect(joursDeLaSaison(SAISON_1, "2026-11-20")).toEqual({ total: 45, rang: 4 });
-    expect(joursDeLaSaison(SAISON_1, "2026-12-31")).toEqual({ total: 45, rang: 45 });
+  it("la saison 1 compte six semaines, 42 jours, du 17 novembre au 28 décembre", () => {
+    expect(joursDeLaSaison(SAISON_1, "2026-11-17")).toEqual({ total: 42, rang: 1 });
+    expect(joursDeLaSaison(SAISON_1, "2026-11-20")).toEqual({ total: 42, rang: 4 });
+    expect(joursDeLaSaison(SAISON_1, "2026-12-28")).toEqual({ total: 42, rang: 42 });
   });
 
   it("rien hors de la saison ni pour une date illisible", () => {
     expect(joursDeLaSaison(SAISON_1, "2026-11-16")).toBeNull();
-    expect(joursDeLaSaison(SAISON_1, "2027-01-01")).toBeNull();
+    expect(joursDeLaSaison(SAISON_1, "2026-12-29")).toBeNull();
     expect(joursDeLaSaison(SAISON_1, "demain")).toBeNull();
   });
 

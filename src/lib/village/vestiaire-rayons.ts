@@ -15,7 +15,7 @@ import {
   NOMS_EMPLACEMENTS,
   OBJETS,
   ORDRE_RARETES_DES_OBJETS,
-  RARETE_DIVINE,
+  aUnPrix,
   type Catalogue,
   type Objet,
   type RareteDObjet,
@@ -58,7 +58,8 @@ export function rangerLeRayon(objets: Readonly<Record<string, Objet>>, possede: 
   for (const entree of Object.entries(objets)) {
     const [id, objet] = entree;
     if (objet.gratuit || possede(id) > 0) rangement.aMoi.push(entree);
-    else if (objet.rarete !== RARETE_DIVINE) rangement.boutique.push(entree);
+    // Ni le divin ni le légendaire de saison ne se vendent : ils ne paraissent que chez qui les a.
+    else if (objet.rarete && aUnPrix(objet.rarete)) rangement.boutique.push(entree);
   }
   return rangement;
 }

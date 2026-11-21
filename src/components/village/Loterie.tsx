@@ -5,14 +5,13 @@ import { ServerError, call } from "../../lib/compte/api";
 import { motionAllowed } from "../../lib/fx/motion";
 import { CLE_MODELE, GAULOIS_HAUTEUR, GAULOIS_LARGEUR, TENUE_DE_DEPART, casesDuGaulois, lireTenue } from "../../lib/gaulois";
 import { addDays } from "../../lib/time";
-import { POCHETTES_GAGNEES, PREMIER_TIRAGE_LOTERIE, type LotDeLoterie, type MaLoterie, type PartDeLoterie, type PochetteGagnee } from "../../lib/village/contrat";
-import { instant, manque, nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
+import { POCHETTES_GAGNEES, PREMIER_TIRAGE_LOTERIE, TICKET_D_OR, type BoosterOuvert, type LotDeLoterie, type MaLoterie, type PartDeLoterie, type PochetteGagnee } from "../../lib/village/contrat";
+import { instant, nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
 import {
   NOMS_DES_RANGS,
   RANGS,
   abscisseDuBillet,
-  achatPossible,
-  apresLAchat,
+  apresLOuverture,
   bonsEnMots,
   bustesDeLaJauge,
   dispositionDeLaJauge,
@@ -21,11 +20,11 @@ import {
   gagnants,
   jourCourt,
   jourEnMots,
-  lireAchatDeBillets,
+  lireBoosterOuvert,
   lireLoterie,
   lisse,
   maPart,
-  messageDuRefusDeLoterie,
+  messageDuRefusDuBooster,
   ordreDeLaJauge,
   partEnPourcent,
   pochettesDuLot,
@@ -627,6 +626,9 @@ type Etat = { kind: "attente" } | { kind: "lecture" } | { kind: "erreur"; messag
 
 /** Toutes les parts d'un tirage, en tableau : ce que la ligne dessine, en chiffres. */
 function TableDesParts({ parts, fait }: { parts: readonly PartDeLoterie[]; fait: boolean }) {
+  // Les tickets d'or (depuis le tirage du 24 novembre 2026) et les billets achetés (avant) : leur colonne seulement s'il y en a.
+  const avecOr = parts.some((part) => (part.tickets_or ?? 0) > 0);
+  const avecAchat = parts.some((part) => part.achetes > 0);
   return (
     <details class="fold">
       <summary>Toutes les parts</summary>
@@ -637,7 +639,8 @@ function TableDesParts({ parts, fait }: { parts: readonly PartDeLoterie[]; fait:
             <tr>
               <th scope="col">Gaulois</th>
               <th scope="col">Billets gagnés</th>
-              <th scope="col">Billets achetés</th>
+              {avecOr && <th scope="col">Tickets d'or</th>}
+              {avecAchat && <th scope="col">Billets achetés</th>}
               <th scope="col">Part</th>
               {fait && <th scope="col">Podium</th>}
             </tr>
@@ -650,7 +653,8 @@ function TableDesParts({ parts, fait }: { parts: readonly PartDeLoterie[]; fait:
                   {part.moi ? " (vous)" : ""}
                 </th>
                 <td>{nombre(part.gratuits)}</td>
-                <td>{nombre(part.achetes)}</td>
+                {avecOr && <td>{nombre(part.tickets_or ?? 0)}</td>}
+                {avecAchat && <td>{nombre(part.achetes)}</td>}
                 <td>{pourcent(partEnPourcent(part, parts))}</td>
                 {fait && <td>{part.rang === null ? "" : NOMS_DES_RANGS[part.rang]}</td>}
               </tr>
@@ -663,103 +667,99 @@ function TableDesParts({ parts, fait }: { parts: readonly PartDeLoterie[]; fait:
 }
 
 /**
- * Le guichet : vos billets en trois chiffres d'un côté, l'achat de l'autre, séparés par une perforation. L'achat se fait
- * en deux pressions : rien ne part à la première.
+ * Mes boosters de loterie (décision du pilote, 20 novembre 2026, à la place du guichet : plus aucun billet ne s'achète) :
+ * vos billets en trois chiffres, puis un booster par jour joué avec le clan cette semaine, à ouvrir d'un bouton. Le
+ * serveur tire le ticket d'or (`ouvrir_booster_loterie`) ; l'écran montre ce qu'il répond, puis relit la loterie. Un
+ * habillage minimal : le nouvel écran de jeu le reprendra.
  */
-function Guichet({ ma, onAchete }: { ma: MaLoterie; onAchete: (apres: MaLoterie) => void }) {
+function MesBoosters({ ma, onOuvert }: { ma: MaLoterie; onOuvert: (apres: MaLoterie) => void }) {
   const moi = maPart(ma.parts);
   const total = totalDesBillets(ma.parts);
-  const { max, raison } = achatPossible(ma);
-  const [voulu, setVoulu] = useState(1);
-  const [etape, setEtape] = useState<"choix" | "confirme" | "envoi">("choix");
+  const boosters = ma.boosters ?? [];
+  const fermes = boosters.filter((b) => !b.ouvert);
+  const [enCours, setEnCours] = useState<string | null>(null);
+  const [dernier, setDernier] = useState<BoosterOuvert | null>(null);
   const [refus, setRefus] = useState<string | null>(null);
-  const n = Math.max(1, Math.min(max, voulu));
+  const or = ma.or ?? TICKET_D_OR;
 
-  const acheter = async () => {
-    setEtape("envoi");
+  const ouvrir = async (jour: string) => {
+    setEnCours(jour);
     setRefus(null);
     try {
-      const achat = lireAchatDeBillets(await call<unknown>("acheter_billets_loterie", { p_nombre: n, p_prix_vu: ma.prix }));
-      if (achat) onAchete(apresLAchat(ma, achat));
-      else setRefus(ILLISIBLE);
+      const ouvert = lireBoosterOuvert(await call<unknown>("ouvrir_booster_loterie", { p_jour: jour }));
+      if (ouvert) {
+        setDernier(ouvert);
+        onOuvert(apresLOuverture(ma, ouvert));
+      } else setRefus(ILLISIBLE);
     } catch (e) {
-      const code = e instanceof ServerError ? e.code : "network";
-      setRefus(messageDuRefusDeLoterie(code, { manque: manque(ma.solde, n * ma.prix) }));
+      setRefus(messageDuRefusDuBooster(e instanceof ServerError ? e.code : "network"));
     }
-    setEtape("choix");
-    setVoulu(1);
+    setEnCours(null);
   };
 
   return (
-    <section class="loterie-guichet" aria-labelledby="loterie-guichet-titre" data-testid="loterie-guichet">
-      <h3 id="loterie-guichet-titre" class="sr-only">
-        Vos billets
+    <section class="loterie-guichet" aria-labelledby="loterie-boosters-titre" data-testid="loterie-boosters">
+      <h3 id="loterie-boosters-titre" class="sr-only">
+        Vos boosters de loterie
       </h3>
       <dl class="loterie-chiffres" data-testid="loterie-mes-billets">
         <div>
           <dd class="tnum">{nombre(moi?.gratuits ?? 0)}</dd>
-          <dt>billets gagnés</dt>
+          <dt>billets de vos boosters ouverts</dt>
         </div>
         <div>
-          <dd class="tnum">{nombre(moi?.achetes ?? 0)}</dd>
-          <dt>billets achetés</dt>
+          <dd class="tnum">{nombre(moi?.tickets_or ?? 0)}</dd>
+          <dt>tickets d'or</dt>
         </div>
         <div>
           {/* Le signe « pour cent » s'écrit dans la police du texte : l'onciale des titres ne le dessine pas bien. */}
           <dd class="tnum">
             {String(moi ? Math.round(partEnPourcent(moi, ma.parts) * 10) / 10 : 0).replace(".", ",")}
-            <span class="loterie-pourcent">{" %"}</span>
+            <span class="loterie-pourcent">{" %"}</span>
           </dd>
-          <dt>des {nombre(total)} billets du tirage</dt>
+          <dt>des {nombre(total)} billets ouverts</dt>
         </div>
       </dl>
       <div class="loterie-perfo" aria-hidden="true" />
-      <div class="loterie-achat" data-testid="loterie-achat">
-        {raison ? (
-          <>
-            {/* Le bouton reste en vue, éteint : sans lui, on cherche où s'achètent les billets. */}
-            <button type="button" class="btn btn-secondary" disabled data-testid="loterie-acheter-eteint">
-              Acheter un billet, {stateres(ma.prix)}
-            </button>
-            <p class="pochette-note" data-testid="loterie-raison">
-              {raison}
-            </p>
-          </>
+      <div class="loterie-achat" data-testid="loterie-ouvrir">
+        {boosters.length === 0 ? (
+          <p class="pochette-note" data-testid="loterie-sans-booster">
+            Un booster de loterie arrive chaque jour où vous jouez avec le clan : autant de billets que de points rapportés ce jour-là, et une fois sur {nombre(or.sur)} un ticket d'or qui vaut {nombre(or.billets)} billets de plus.
+          </p>
         ) : (
-          <>
-            <p class="pochette-note">
-              {stateres(ma.prix)} le billet, {nombre(max)} au plus.
-            </p>
-            <div class="loterie-achat-ligne">
-              <div class="loterie-pas" role="group" aria-label="Nombre de billets à acheter">
-                <button type="button" disabled={etape !== "choix" || n <= 1} onClick={() => setVoulu(n - 1)} aria-label="Un billet de moins" data-testid="loterie-moins">
-                  −
-                </button>
-                <output class="tnum" aria-live="polite" data-testid="loterie-nombre">
-                  {nombre(n)}
-                </output>
-                <button type="button" disabled={etape !== "choix" || n >= max} onClick={() => setVoulu(n + 1)} aria-label="Un billet de plus" data-testid="loterie-plus">
-                  +
-                </button>
-              </div>
-              {etape === "choix" ? (
-                <button type="button" class="btn btn-secondary" onClick={() => setEtape("confirme")} data-testid="loterie-acheter">
-                  Acheter {n > 1 ? `${nombre(n)} billets` : "un billet"}, {stateres(n * ma.prix)}
-                </button>
-              ) : (
-                <>
-                  <button type="button" class="btn btn-primary" disabled={etape === "envoi"} onClick={() => void acheter()} data-testid="loterie-confirmer">
-                    {etape === "envoi" ? "Achat…" : `Confirmer : ${stateres(n * ma.prix)}`}
+          <ul class="loterie-boosters grid gap-2" aria-label="Vos boosters de loterie de la semaine">
+            {boosters.map((b) => (
+              <li key={b.jour} class="flex flex-wrap items-center gap-2" data-ouvert={b.ouvert ? "oui" : "non"} data-testid="loterie-booster">
+                <span>{majuscule(jourEnMots(b.jour))}</span>{" "}
+                {b.ouvert ? (
+                  <span class="pochette-note">
+                    {b.billets === 1 ? "1 billet" : `${nombre(b.billets ?? 0)} billets`}
+                    {b.ticket_or ? `, et un ticket d'or : ${nombre(or.billets)} billets de plus` : ""}
+                  </span>
+                ) : (
+                  <button type="button" class="btn btn-primary" disabled={enCours !== null} onClick={() => void ouvrir(b.jour)} data-testid="loterie-ouvrir-booster">
+                    {enCours === b.jour ? "Ouverture…" : "Ouvrir"}
                   </button>
-                  <button type="button" class="btn btn-ghost" disabled={etape === "envoi"} onClick={() => setEtape("choix")}>
-                    Annuler
-                  </button>
-                </>
-              )}
-            </div>
-            <Problem message={refus} />
-          </>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
+        <div aria-live="polite">
+          {dernier && (
+            <p class="pochette-raison" data-testid="loterie-booster-ouvert">
+              {dernier.ticket_or
+                ? `Un ticket d'or ! ${dernier.billets === 1 ? "1 billet" : `${nombre(dernier.billets)} billets`} et ${nombre(dernier.billets_or)} de plus : ${nombre(dernier.total)} billets.`
+                : `${dernier.billets === 1 ? "1 billet" : `${nombre(dernier.billets)} billets`}.`}
+            </p>
+          )}
+        </div>
+        {fermes.length > 0 && (
+          <p class="pochette-note">
+            Un booster pas ouvert compte quand même : le serveur l'ouvre juste avant le tirage.
+          </p>
+        )}
+        <Problem message={refus} />
       </div>
     </section>
   );
@@ -913,7 +913,7 @@ export default function LoterieDuMardi({ actif }: { actif: boolean }) {
 
       {gagnees.length > 0 && (
         <p class="loterie-gagnees" data-testid="loterie-gagnees">
-          Vos pochettes gagnées, à ouvrir sans rien payer : {gagnees.join(", ")}. <a href="#pochettes">Les ouvrir</a>
+          Vos pochettes gagnées ou offertes, à ouvrir sans rien payer : {gagnees.join(", ")}. <a href="#pochettes">Les ouvrir</a>
         </p>
       )}
 
@@ -928,7 +928,14 @@ export default function LoterieDuMardi({ actif }: { actif: boolean }) {
           Les lots et les parts du prochain tirage
         </h3>
         <SceneDeLoterie parts={loterie.parts} lots={loterie.lots} />
-        <Guichet ma={loterie} onAchete={(apres) => setEtat({ kind: "prete", ma: apres })} />
+        <MesBoosters
+          ma={loterie}
+          onOuvert={(apres) => {
+            setEtat({ kind: "prete", ma: apres });
+            // La part de chacun se relit au serveur, sans effacer l'écran.
+            void lire(true);
+          }}
+        />
         {loterie.parts.length > 0 && <TableDesParts parts={loterie.parts} fait={false} />}
       </section>
 
@@ -939,9 +946,7 @@ export default function LoterieDuMardi({ actif }: { actif: boolean }) {
         <summary>Les règles et les lots</summary>
         <div class="loterie-regles mt-3">
           <p>
-            Un billet par point rapporté au clan du {jourCourt(semaine.debut)} au {jourCourt(semaine.fin)}
-            {loterie.close ? " : la semaine est finie, seuls les billets achetés peuvent encore s'ajouter" : ""}. On peut en acheter autant qu'on en a gagné, {stateres(loterie.prix)} le billet. L'or est tiré d'abord, puis l'argent
-            et le bronze ; un gagnant ne regagne pas.
+            Un booster de loterie par jour joué avec le clan, du {jourCourt(semaine.debut)} au {jourCourt(semaine.fin)} : autant de billets que de points rapportés au clan ce jour-là (au moins un dès qu'une partie en rapporte), et une fois sur {nombre((loterie.or ?? TICKET_D_OR).sur)} un ticket d'or qui vaut {nombre((loterie.or ?? TICKET_D_OR).billets)} billets de plus. Un booster pas ouvert compte quand même : le serveur l'ouvre juste avant le tirage. Plus aucun billet ne s'achète. L'or est tiré d'abord, puis l'argent et le bronze ; un gagnant ne regagne pas.
           </p>
           <ol class="loterie-lots" aria-label="Les lots du podium" data-testid="loterie-lots">
             {RANGS.map((rang) => {

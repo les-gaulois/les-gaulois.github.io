@@ -21,12 +21,13 @@ import { CHANCES_POCHETTE, PRIX_PAR_RARETE, PRIX_POCHETTE, type MaBoutique } fro
 const MIGRATION = readFileSync("supabase/migrations/20261113001900_village_boutique.sql", "utf8").replace(/\r\n/g, "\n");
 
 /** Les chances réglées, sans divin : celles d'un serveur d'avant le divin, ou d'une pochette qui n'en donne pas. */
-const SANS_DIVIN = { ...CHANCES_POCHETTE, divin: 0 };
+const SANS_DIVIN = { ...CHANCES_POCHETTE, saison: 0, divin: 0 };
 
 /** Tous les objets payants du catalogue, divins compris, « emplacement/objet ». */
 const PAYANTS = EMPLACEMENTS_OBJETS.flatMap((emplacement) =>
   Object.entries(OBJETS[emplacement])
-    .filter(([, objet]) => !objet.gratuit)
+    // Le légendaire de saison ne sort d'aucune pochette : seul le dernier palier du pass le donne.
+    .filter(([, objet]) => !objet.gratuit && objet.rarete !== "saison")
     .map(([id]) => `${emplacement}/${id}`),
 );
 
@@ -133,7 +134,11 @@ describe("le serveur de la boutique", () => {
 
 describe("le catalogue de la boutique", () => {
   it("a au moins un objet payant dans chaque rareté : la pochette peut tout donner, aux chances affichées", () => {
-    for (const rarete of ORDRE_RARETES_DES_OBJETS) expect(objetsDeLaPochette(rarete).length, rarete).toBeGreaterThan(0);
+    for (const rarete of ORDRE_RARETES_DES_OBJETS) {
+      if (rarete === "saison") expect(objetsDeLaPochette(rarete)).toEqual([]);
+      else expect(objetsDeLaPochette(rarete).length, rarete).toBeGreaterThan(0);
+    }
+    expect(chanceDeLObjet("tete", "couronne-solstice", SANS_DIVIN)).toBe(0);
     expect(chancesEffectives(SANS_DIVIN)).toEqual(SANS_DIVIN);
   });
 
@@ -154,8 +159,8 @@ describe("le prix d'un objet", () => {
     for (const cle of PAYANTS) {
       const [emplacement, objet] = cle.split("/") as ["tete", string];
       const rarete = OBJETS[emplacement][objet]!.rarete!;
-      // Un objet divin n'a pas de prix : il ne s'achète pas.
-      expect(prixDeLObjet(emplacement, objet, PRIX_PAR_RARETE), cle).toBe(rarete === "divin" ? null : PRIX_PAR_RARETE[rarete]);
+      // Un objet divin ou de saison n'a pas de prix : il ne s'achète pas.
+      expect(prixDeLObjet(emplacement, objet, PRIX_PAR_RARETE), cle).toBe(rarete === "divin" || rarete === "saison" ? null : PRIX_PAR_RARETE[rarete]);
     }
   });
 
@@ -203,17 +208,17 @@ describe("les chances de la pochette", () => {
     expect(effectives?.legendaire).toBe(0);
     expect(effectives?.commun).toBeCloseTo((CHANCES_POCHETTE.commun * 100) / (100 - CHANCES_POCHETTE.legendaire), 12);
     expect(ORDRE_RARETES.reduce((s, r) => s + (effectives?.[r] ?? 0), 0)).toBeCloseTo(100, 9);
-    expect(chancesEffectives({ commun: 0, "peu-commun": 100, epique: 0, mystique: 0, legendaire: 0, divin: 0 })).toEqual({ commun: 0, "peu-commun": 100, epique: 0, mystique: 0, legendaire: 0, divin: 0 });
-    expect(chancesEffectives({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 100, divin: 0 }, sansLegendaire)).toBeNull();
+    expect(chancesEffectives({ commun: 0, "peu-commun": 100, epique: 0, mystique: 0, legendaire: 0, saison: 0, divin: 0 })).toEqual({ commun: 0, "peu-commun": 100, epique: 0, mystique: 0, legendaire: 0, saison: 0, divin: 0 });
+    expect(chancesEffectives({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 100, saison: 0, divin: 0 }, sansLegendaire)).toBeNull();
   });
 
   it("valent en moyenne 290 statères au prix de la boutique, pour une pochette à 200", () => {
     // 50 % de 100, 30 % de 250, 13 % de 500, 5 % de 1 000, 2 % de 2 500.
     expect(valeurMoyenneDeLaPochette(SANS_DIVIN, PRIX_PAR_RARETE)).toBeCloseTo(290, 9);
-    expect(valeurMoyenneDeLaPochette({ commun: 100, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 0, divin: 0 }, PRIX_PAR_RARETE)).toBeCloseTo(100, 9);
+    expect(valeurMoyenneDeLaPochette({ commun: 100, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 0, saison: 0, divin: 0 }, PRIX_PAR_RARETE)).toBeCloseTo(100, 9);
     // Sans légendaire payant, l'autre moitié des chances revient au commun.
-    expect(valeurMoyenneDeLaPochette({ commun: 50, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 50, divin: 0 }, PRIX_PAR_RARETE, sansPayantDe("legendaire"))).toBeCloseTo(100, 9);
-    expect(valeurMoyenneDeLaPochette({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 100, divin: 0 }, PRIX_PAR_RARETE, sansPayantDe("legendaire"))).toBeNull();
+    expect(valeurMoyenneDeLaPochette({ commun: 50, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 50, saison: 0, divin: 0 }, PRIX_PAR_RARETE, sansPayantDe("legendaire"))).toBeCloseTo(100, 9);
+    expect(valeurMoyenneDeLaPochette({ commun: 0, "peu-commun": 0, epique: 0, mystique: 0, legendaire: 100, saison: 0, divin: 0 }, PRIX_PAR_RARETE, sansPayantDe("legendaire"))).toBeNull();
   });
 });
 

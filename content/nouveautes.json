@@ -3,6 +3,39 @@
     "date": "2026-11-21",
     "kind": "nouveau",
     "rank": "minor",
+    "title": "Le pass : six semaines, et la Couronne du solstice au bout",
+    "body": "La saison 1 du pass finit le lundi 28 décembre. Au 30e palier : la « Couronne du solstice », qu'on n'obtient que là, et l'insigne de la saison.",
+    "link": {
+      "href": "/village#sentier",
+      "label": "Le pass"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "nouveau",
+    "rank": "minor",
+    "title": "La loterie : un booster par jour joué",
+    "body": "Un booster de loterie par jour joué avec le clan : un billet par point rapporté ce jour-là, et une fois sur 10 un ticket d'or de 5 billets en plus. Les billets ne s'achètent plus.",
+    "link": {
+      "href": "/village#loterie",
+      "label": "La loterie"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "nouveau",
+    "rank": "minor",
+    "title": "Quatorze paliers de victoires, et un booster à chacun",
+    "body": "Les paliers vont de 10 à 3 000 victoires. Chaque palier franchi désormais offre un booster surprise dans « Mon Gaulois » ; ceux déjà dépassés avant ce changement ne donnent rien.",
+    "link": {
+      "href": "/membres#paliers",
+      "label": "Les paliers"
+    }
+  },
+  {
+    "date": "2026-11-21",
+    "kind": "nouveau",
+    "rank": "minor",
     "title": "Mon Gaulois en écran de jeu",
     "body": "La page passe en plein écran : barre de jeu, menu en icônes et « Ma carte », votre carte avec vos chiffres de clan. Les pochettes s'appellent les boosters, le sentier le pass.",
     "link": {

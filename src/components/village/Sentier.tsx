@@ -35,6 +35,7 @@ import { AlbumDePochette } from "./AlbumPochette";
 import { useBannieres } from "./Bannieres";
 import { CaseMontree, Dialogue, DialogueAchat, ObjetRecu, type Issue } from "./BoutiqueDialogue";
 import { useJoie } from "./Cases";
+import InsigneDeSaison from "./InsigneDeSaison";
 import { preparerLeSonSiVoulu } from "./Tambour";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
 import { sansCadre } from "../../lib/village/decor-banniere";
@@ -361,6 +362,7 @@ function Palier({
   gaulois,
   occupe,
   inventaire,
+  objetDeSaison,
   onPrendre,
 }: {
   palier: PalierDuSentier;
@@ -376,9 +378,13 @@ function Palier({
   gaulois: DessinDuSentier | null;
   occupe: boolean;
   inventaire: readonly ObjetPossede[] | null;
+  /** Pour le dernier palier d'une saison qui a son objet : cet objet, qu'on n'obtient que là (21 novembre 2026). */
+  objetDeSaison: RefObjet | null;
   onPrendre: () => void;
 }) {
   const etat = etatDuPalier(palier, atteint);
+  const deSaison = objetDeSaison ? objetPayant(objetDeSaison.emplacement, objetDeSaison.objet) : null;
+  const vignetteDeSaison = deSaison ? vignetteDeLObjet(deSaison.emplacement, deSaison.objet) : null;
   const pris = palier.pris ? objetPayant(palier.pris.emplacement, palier.pris.objet) : null;
   const vignette = pris ? vignetteDeLObjet(pris.emplacement, pris.objet) : null;
   const echelle = vignette ? Math.max(1, Math.min(2, Math.floor(64 / Math.max(vignette.largeur, vignette.hauteur)))) : 1;
@@ -397,7 +403,7 @@ function Palier({
           <Moi gaulois={gaulois} />
         </span>
       )}
-      <div class="case sentier-case" data-rarete={palier.rarete} title={etat === "pris" && pris ? pris.fiche.nom : undefined}>
+      <div class="case sentier-case" data-rarete={deSaison ? "saison" : palier.rarete} title={etat === "pris" && pris ? pris.fiche.nom : deSaison ? `${deSaison.fiche.nom}, l'objet de la saison` : undefined}>
         {etat === "pris" ? (
           <>
             <span class="case-image">{vignette && <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelle} class="case-dessin" />}</span>
@@ -408,9 +414,17 @@ function Palier({
         ) : (
           <>
             <span class="case-image">
-              <AlbumDePochette lireAlbum={lireAlbum} nombre={nombreDObjets(palier.rarete)} nom={`Voir ce que peut donner le palier ${palier.palier}, un objet ${nomDeRarete}`} testid={`palier-${palier.palier}`}>
-                <Dessin dessin={pochetteDeRarete(palier.rarete)} echelle={2} class="sentier-sac" />
-              </AlbumDePochette>
+              {deSaison && vignetteDeSaison ? (
+                // L'objet de la saison se montre tel quel : il n'y a rien d'autre à tirer.
+                <>
+                  <Pixels largeur={vignetteDeSaison.largeur} hauteur={vignetteDeSaison.hauteur} cases={vignetteDeSaison.cases} echelle={Math.max(1, Math.min(2, Math.floor(64 / Math.max(vignetteDeSaison.largeur, vignetteDeSaison.hauteur))))} class="case-dessin" />
+                  <span class="sr-only">{deSaison.fiche.nom}, l'objet de la saison, et son insigne</span>
+                </>
+              ) : (
+                <AlbumDePochette lireAlbum={lireAlbum} nombre={nombreDObjets(palier.rarete)} nom={`Voir ce que peut donner le palier ${palier.palier}, un objet ${nomDeRarete}`} testid={`palier-${palier.palier}`}>
+                  <Dessin dessin={pochetteDeRarete(palier.rarete)} echelle={2} class="sentier-sac" />
+                </AlbumDePochette>
+              )}
             </span>
             <MarqueDeRarete rarete={palier.rarete} />
             {etat === "a-prendre" ? (
@@ -540,6 +554,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
   };
 
   const recu = fenetre?.kind === "palier" ? objetPayant(fenetre.recu.objet.emplacement, fenetre.recu.objet.objet) : null;
+  const objetDeLaSaison = saison?.objet ? objetPayant(saison.objet.emplacement, saison.objet.objet) : null;
   const etal = sentier.etal ? objetPayant(sentier.etal.emplacement, sentier.etal.objet) : null;
 
   return (
@@ -595,6 +610,18 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
                   jusqu'au {jourEnMots(saison.fin)}, encore {joursRestants(sentier.jour, saison.fin)} {joursRestants(sentier.jour, saison.fin) > 1 ? "jours" : "jour"}
                 </p>
               )}
+              {sentier.insignes?.some((i) => i.saison === saison.id) ? (
+                <p class="sentier-note inline-flex items-center gap-2" data-testid="sentier-insigne">
+                  <InsigneDeSaison saison={saison.id} />
+                  Insigne de la {saison.nom.toLowerCase()} obtenu
+                </p>
+              ) : (
+                objetDeLaSaison && (
+                  <p class="sentier-note" data-testid="sentier-objet-de-saison">
+                    Au palier {saison.paliers} : « {objetDeLaSaison.fiche.nom} », qu'on n'obtient que là, et l'insigne de la saison.
+                  </p>
+                )
+              )}
               {!sentier.peut_avancer && (
                 <p class="pochette-raison" data-testid="sentier-raison">
                   {messageDuRefusDuSentier("not_validated")}
@@ -622,6 +649,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
                 gaulois={gaulois}
                 occupe={occupe || !sentier.peut_avancer}
                 inventaire={inventaire}
+                objetDeSaison={palier.palier === saison.paliers ? (saison.objet ?? null) : null}
                 onPrendre={() => void prendre(palier.palier)}
               />
             ))}
@@ -682,6 +710,12 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
       {fenetre?.kind === "palier" && recu && (
         <Dialogue titre={`Palier ${fenetre.recu.palier} : ${recu.fiche.nom}`} etape="fait" occupe={false} onFermer={() => setFenetre(null)} testid="dialogue-palier">
           <ObjetRecu objet={recu.fiche} rarete={recu.fiche.rarete} vignette={vignetteDeLObjet(recu.emplacement, recu.objet)} palier />
+          {fenetre.recu.insigne && (
+            <p class="boutique-dialogue-texte inline-flex items-center gap-2" data-testid="palier-insigne">
+              <InsigneDeSaison saison={fenetre.recu.insigne.saison} />
+              Et l'insigne de la {fenetre.recu.insigne.nom.toLowerCase()}, sur votre carte.
+            </p>
+          )}
           {fenetre.recu.objet.double && <p class="boutique-dialogue-texte">Un double : vous l'aviez déjà. Il se fond à la forge ou se vend au marché.</p>}
           <div class="boutique-dialogue-actions">
             <button type="button" class="btn btn-primary" onClick={() => void porter(fenetre.recu.objet)} data-testid="palier-porter">

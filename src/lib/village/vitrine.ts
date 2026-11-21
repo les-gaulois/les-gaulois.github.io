@@ -1,4 +1,4 @@
-import { RARETE_DIVINE, CLE_MODELE, EMPLACEMENTS, EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, POILS, RARETES_DES_OBJETS as RARETES, TEINTE_CHEVEUX, TENUE_DE_DEPART, lireTenue, modeleDuGaulois, objetPorte, type RareteDObjet as Rarete, type Tenue } from "../gaulois";
+import { RARETE_DE_SAISON, RARETE_DIVINE, CLE_MODELE, EMPLACEMENTS, EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, POILS, RARETES_DES_OBJETS as RARETES, TEINTE_CHEVEUX, TENUE_DE_DEPART, lireTenue, modeleDuGaulois, objetPorte, type RareteDObjet as Rarete, type Tenue } from "../gaulois";
 import type { GauloisDeLaPlace } from "./contrat";
 import type { PochetteDeLEtal } from "./etal";
 
@@ -104,8 +104,9 @@ export type Provenance = { kind: "a-moi" } | { kind: "gratuit" } | { kind: "lien
 
 /**
  * D'où vient un objet de la garde-robe (17 novembre 2026, « où trouver cet objet ») : un objet gratuit est à tout le
- * monde ; un objet payant qu'on possède est « à vous » ; un objet divin ne sort que de la pochette surprise ; tout autre
- * s'achète à la boutique, dans le rayon de son emplacement. Des règles du jeu déjà écrites ailleurs, rien de plus.
+ * monde ; un objet payant qu'on possède est « à vous » ; un objet divin ne sort que de la pochette surprise ; un objet de
+ * saison ne se gagne qu'au dernier palier du pass (21 novembre 2026) ; tout autre s'achète à la boutique, dans le rayon de
+ * son emplacement. Des règles du jeu déjà écrites ailleurs, rien de plus.
  */
 export function provenanceDeLObjet(emplacement: (typeof EMPLACEMENTS_OBJETS)[number], id: string, possede: boolean): Provenance | null {
   const objet = OBJETS[emplacement][id];
@@ -113,6 +114,7 @@ export function provenanceDeLObjet(emplacement: (typeof EMPLACEMENTS_OBJETS)[num
   if (objet.gratuit) return { kind: "gratuit" };
   if (possede) return { kind: "a-moi" };
   if (objet.rarete === RARETE_DIVINE) return { kind: "lien", mots: "Pochette surprise", ancre: "pochettes", pochette: "surprise" };
+  if (objet.rarete === RARETE_DE_SAISON) return { kind: "lien", mots: "Dernier palier du pass", ancre: "sentier" };
   return { kind: "lien", mots: "À la boutique", ancre: "boutique", rayon: emplacement };
 }
 

@@ -14,6 +14,7 @@ import {
   observeMembers,
   othersWords,
   parseMilestoneState,
+  passerAuxNouveauxPaliers,
   periodWords,
   rescaleTiers,
 } from "../../src/lib/paliers-franchis";
@@ -38,13 +39,13 @@ const plain = (text: string) => text.replace(NUMBER_SPACES, " ");
 const before = list(FIRST, [member("a", "Alpha", 95), member("b", "Beta", 240), member("c", "Gamma", 990), member(null, null, 99), member("d", "Delta", 12)]);
 
 describe("les paliers annoncés", () => {
-  it("sur Discord, sont ceux du site à partir de 50 victoires depuis le 11 novembre 2026", () => {
-    expect(DISCORD_TIERS).toEqual([50, 100, 250, 500, 1000, 2500, 5000]);
-    expect([0, 49, 50, 99, 100, 249, 250, 5001].map(discordTier)).toEqual([0, 0, 50, 50, 100, 100, 250, 5000]);
+  it("sur Discord, sont ceux du site à partir de 50 victoires depuis le 11 novembre 2026, les quatorze depuis le 21", () => {
+    expect(DISCORD_TIERS).toEqual([50, 100, 200, 350, 500, 700, 900, 1000, 1500, 2000, 2500, 3000]);
+    expect([0, 49, 50, 99, 100, 249, 250, 5001].map(discordTier)).toEqual([0, 0, 50, 50, 100, 200, 200, 3000]);
   });
   it("dans le bilan de la semaine, restent ceux du site à partir de 100 victoires", () => {
-    expect(ANNOUNCED_TIERS).toEqual([100, 250, 500, 1000, 2500, 5000]);
-    expect([0, 99, 100, 249, 250, 999, 1000, 5001].map(announcedTier)).toEqual([0, 0, 100, 100, 250, 500, 1000, 5000]);
+    expect(ANNOUNCED_TIERS).toEqual([100, 200, 350, 500, 700, 900, 1000, 1500, 2000, 2500, 3000]);
+    expect([0, 99, 100, 249, 250, 999, 1000, 5001].map(announcedTier)).toEqual([0, 0, 100, 200, 200, 900, 1000, 3000]);
   });
   it("ne suivent que les membres avec pseudo, identifiant et stats : jamais un anonyme", () => {
     expect(namedTiers(list(FIRST, [member("a", "Alpha", 150), member(null, null, 300), member("x", null, 300), member("s", "SansStats", null)]))).toEqual({ a: 100 });
@@ -53,14 +54,14 @@ describe("les paliers annoncés", () => {
 
 describe("observeMembers", () => {
   it("au premier passage, note les paliers du moment sans rien mettre en attente", () => {
-    expect(observeMembers(null, before)).toEqual({ reading: { at: FIRST, tiers: { a: 50, b: 100, c: 500, d: 0 } }, tiersFrom: 50, pending: null, lastSentOn: null });
+    expect(observeMembers(null, before)).toEqual({ reading: { at: FIRST, tiers: { a: 50, b: 200, c: 900, d: 0 } }, tiersFrom: 50, tierSet: "2026-11-21", pending: null, lastSentOn: null });
   });
   it("à la relecture suivante, note chaque membre présent aux deux qui a franchi un palier, avec le plus haut franchi", () => {
     const start = observeMembers(null, before);
     const after = list(SECOND, [member("a", "Alpha", 101), member("b", "Beta", 520), member("c", "Gamma", 995), member(null, null, 130), member("d", "Delta", 60)]);
     const next = observeMembers(start, after);
     expect(next.pending).toEqual({ since: FIRST, until: SECOND, players: [{ id: "a", tier: 100 }, { id: "b", tier: 500 }, { id: "d", tier: 50 }] });
-    expect(next.reading).toEqual({ at: SECOND, tiers: { a: 100, b: 500, c: 500, d: 50 } });
+    expect(next.reading).toEqual({ at: SECOND, tiers: { a: 100, b: 500, c: 900, d: 50 } });
     expect(MilestoneState.safeParse(next).success).toBe(true);
   });
   it("un état noté à partir de 100 passe à 50 sans annoncer un palier de 50 passé on ne sait quand", () => {
@@ -68,8 +69,9 @@ describe("observeMembers", () => {
     const old: MilestoneState = { reading: { at: FIRST, tiers: { a: 0, b: 100, e: 0, f: 0, g: 0 } }, pending: null, lastSentOn: null };
     const after = list(SECOND, [member("a", "Alpha", 97), member("b", "Beta", 260), member("e", "Epsilon", 55), member("f", "Phi", 130), member("g", "Gamma", 40)]);
     const next = observeMembers(old, after);
-    expect(next.pending).toEqual({ since: FIRST, until: SECOND, players: [{ id: "b", tier: 250 }, { id: "f", tier: 100 }] });
-    expect(next.reading.tiers).toEqual({ a: 50, b: 250, e: 50, f: 100, g: 0 });
+    // Beta a passé l'ancien palier de 250, qui n'en est plus un ; 200 était peut-être déjà passé : rien n'est annoncé pour lui.
+    expect(next.pending).toEqual({ since: FIRST, until: SECOND, players: [{ id: "f", tier: 100 }] });
+    expect(next.reading.tiers).toEqual({ a: 50, b: 200, e: 50, f: 100, g: 0 });
     expect(next.tiersFrom).toBe(50);
     // Ensuite, un passage à 50 s'annonce comme les autres.
     const third = observeMembers({ ...next, pending: null }, list("2026-11-09T18:00:00.000Z", [member("g", "Gamma", 52)]));
@@ -79,16 +81,44 @@ describe("observeMembers", () => {
     const old: MilestoneState = { reading: { at: FIRST, tiers: { a: 0, b: 100 } }, pending: null, lastSentOn: null };
     const same = list(FIRST, [member("a", "Alpha", 95), member("b", "Beta", 240)]);
     const rescaled = observeMembers(old, same);
-    expect(rescaled).toEqual({ ...old, reading: { at: FIRST, tiers: { a: 50, b: 100 } }, tiersFrom: 50 });
+    expect(rescaled).toEqual({ ...old, reading: { at: FIRST, tiers: { a: 50, b: 200 } }, tiersFrom: 50, tierSet: "2026-11-21" });
     expect(rescaleTiers(rescaled, same)).toBe(rescaled);
+    expect(passerAuxNouveauxPaliers(rescaled, same)).toBe(rescaled);
     expect(observeMembers(rescaled, same)).toBe(rescaled);
+  });
+  it("le passage aux quatorze paliers n'annonce aucun nouveau palier qu'un membre avait peut-être déjà dépassé", () => {
+    // Noté avec les anciens paliers (50, 100, 250, 500, 1 000, 2 500, 5 000), avant le 21 novembre 2026.
+    const old: MilestoneState = { reading: { at: FIRST, tiers: { a: 100, b: 250, c: 1000, d: 0, e: 50, f: 100 } }, tiersFrom: 50, pending: null, lastSentOn: null };
+    const after = list(SECOND, [
+      member("a", "Alpha", 510),
+      member("b", "Beta", 360),
+      member("c", "Gamma", 1974),
+      member("d", "Delta", 60),
+      member("e", "Epsilon", 105),
+      member("f", "Phi", 230),
+    ]);
+    const next = observeMembers(old, after);
+    // Alpha avait moins de 250 victoires à la relecture : 500 est bien franchi depuis. Delta et Epsilon de même pour 50 et 100.
+    // Beta (350), Gamma (1 500) et Phi (200) avaient peut-être déjà ces nouveaux paliers : rien n'est annoncé pour eux.
+    expect(next.pending).toEqual({ since: FIRST, until: SECOND, players: [{ id: "a", tier: 500 }, { id: "d", tier: 50 }, { id: "e", tier: 100 }] });
+    expect(next.reading.tiers).toEqual({ a: 500, b: 350, c: 1500, d: 50, e: 100, f: 200 });
+    expect(next.tierSet).toBe("2026-11-21");
+    // Ensuite, un nouveau palier s'annonce comme les autres.
+    const third = observeMembers({ ...next, pending: null }, list("2026-11-22T18:00:00.000Z", [member("b", "Beta", 501), member("c", "Gamma", 2001)]));
+    expect(third.pending?.players).toEqual([{ id: "b", tier: 500 }, { id: "c", tier: 2000 }]);
+  });
+  it("un palier noté et pas encore envoyé avant le changement reste à envoyer : il a bien été franchi", () => {
+    const old: MilestoneState = { reading: { at: SECOND, tiers: { a: 250 } }, tiersFrom: 50, pending: { since: FIRST, until: SECOND, players: [{ id: "a", tier: 250 }] }, lastSentOn: null };
+    const next = passerAuxNouveauxPaliers(old, list(SECOND, [member("a", "Alpha", 260)]));
+    expect(next.pending).toEqual(old.pending);
+    expect(next.reading.tiers).toEqual({ a: 200 });
   });
   it("un nouveau membre, ou un pseudo apparu, n'a pas de point de départ : rien n'est noté pour lui", () => {
     const start = observeMembers(null, before);
     const after = list(SECOND, [...before.members, member("n", "Nouveau", 300), member("p", "PseudoNeuf", 1200)]);
     const next = observeMembers(start, after);
     expect(next.pending).toBeNull();
-    expect(next.reading.tiers).toMatchObject({ n: 250, p: 1000 });
+    expect(next.reading.tiers).toMatchObject({ n: 200, p: 1000 });
   });
   it("sans nouvelle relecture, ne change rien", () => {
     const start = observeMembers(null, before);
@@ -108,14 +138,14 @@ describe("observeMembers", () => {
     const start = observeMembers(null, before);
     const first = observeMembers(start, list(SECOND, [member("a", "Alpha", 101), member("b", "Beta", 240), member("c", "Gamma", 990)]));
     const third = "2026-11-09T18:00:00.000Z";
-    const next = observeMembers(first, list(third, [member("a", "Alpha", 260), member("b", "Beta", 251), member("c", "Gamma", 990)]));
-    expect(next.pending).toEqual({ since: FIRST, until: third, players: [{ id: "a", tier: 250 }, { id: "b", tier: 250 }] });
+    const next = observeMembers(first, list(third, [member("a", "Alpha", 260), member("b", "Beta", 360), member("c", "Gamma", 990)]));
+    expect(next.pending).toEqual({ since: FIRST, until: third, players: [{ id: "a", tier: 200 }, { id: "b", tier: 350 }] });
   });
   it("ne note pas deux fois un palier, même si le chiffre recule puis remonte", () => {
-    const start = observeMembers(null, list(FIRST, [member("a", "Alpha", 260)]));
-    const down = observeMembers(start, list(SECOND, [member("a", "Alpha", 240)]));
-    expect(down.reading.tiers).toEqual({ a: 250 });
-    expect(observeMembers(down, list("2026-11-09T18:00:00.000Z", [member("a", "Alpha", 262)])).pending).toBeNull();
+    const start = observeMembers(null, list(FIRST, [member("a", "Alpha", 210)]));
+    const down = observeMembers(start, list(SECOND, [member("a", "Alpha", 190)]));
+    expect(down.reading.tiers).toEqual({ a: 200 });
+    expect(observeMembers(down, list("2026-11-09T18:00:00.000Z", [member("a", "Alpha", 212)])).pending).toBeNull();
   });
   it("une liste plus ancienne que la dernière relecture ne compte pas comme une relecture", () => {
     const start = observeMembers(null, list(SECOND, [member("a", "Alpha", 95)]));

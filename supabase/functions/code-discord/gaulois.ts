@@ -161,14 +161,26 @@ export type Rarete = keyof typeof RARETES;
 export const ORDRE_RARETES = Object.keys(RARETES) as readonly Rarete[];
 
 /**
- * Les raretés des objets : celles de la boutique, puis « Divin » (16 novembre 2026), dix fois plus rare que le légendaire.
- * Un objet divin n'a pas de prix : il ne sort que de la pochette surprise, ne se vend pas au marché et la forge n'en
- * fabrique pas. Les familiers, les bannières et les Gaulois uniques gardent les cinq raretés de `RARETES`.
+ * Les raretés des objets : celles de la boutique, puis « Légendaire de saison » (21 novembre 2026) et « Divin » (16 novembre
+ * 2026), dix fois plus rare que le légendaire. Un objet divin n'a pas de prix : il ne sort que de la pochette surprise, ne se
+ * vend pas au marché et la forge n'en fabrique pas. Les familiers, les bannières et les Gaulois uniques gardent les cinq
+ * raretés de `RARETES`.
  */
 export const RARETE_DIVINE = "divin";
-export const RARETES_DES_OBJETS = { ...RARETES, [RARETE_DIVINE]: { nom: "Divin", rang: 6 } } as const;
+/**
+ * « Légendaire de saison » (21 novembre 2026, décision du pilote pour le pass) : l'objet dessiné pour une saison du pass,
+ * donné à son dernier palier et nulle part ailleurs. Comme le divin, il n'a pas de prix : il ne s'achète pas, ne se vend pas
+ * au marché, ne se revend pas au jeu, ne sort d'aucune pochette et la forge ne le fond pas ni n'en fabrique. Son rang est
+ * celui du légendaire : il en a l'éclat.
+ */
+export const RARETE_DE_SAISON = "saison";
+export const RARETES_DES_OBJETS = { ...RARETES, [RARETE_DE_SAISON]: { nom: "Légendaire de saison", rang: 5 }, [RARETE_DIVINE]: { nom: "Divin", rang: 6 } } as const;
 export type RareteDObjet = keyof typeof RARETES_DES_OBJETS;
 export const ORDRE_RARETES_DES_OBJETS = Object.keys(RARETES_DES_OBJETS) as readonly RareteDObjet[];
+/** Les raretés d'objets sans prix : ni boutique, ni étal, ni marché, ni revente, ni forge. */
+export const RARETES_SANS_PRIX: readonly RareteDObjet[] = [RARETE_DE_SAISON, RARETE_DIVINE];
+/** Cette rareté a-t-elle un prix à la boutique ? Vrai pour les cinq de `RARETES`, faux pour la saison et le divin. */
+export const aUnPrix = (rarete: RareteDObjet): rarete is Rarete => !RARETES_SANS_PRIX.includes(rarete);
 
 // Les dessins : ces grilles font foi. L'atelier `scripts/atelier-gaulois/` les montre, les remplace et en tire des
 // planches de contrôle (objets seuls et portés, aux tailles réelles). La lumière vient d'en haut à gauche. Un haut

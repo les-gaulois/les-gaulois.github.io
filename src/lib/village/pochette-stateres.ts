@@ -8,7 +8,10 @@
  * serveur donne, et l'écran l'écrit tel quel, sans l'arrondir en sa faveur.
  */
 import { casesDuStatere } from "../../../supabase/functions/code-discord/statere";
-import { ORDRE_RARETES_DES_OBJETS, type RareteDObjet } from "../gaulois";
+import { ORDRE_RARETES_DES_OBJETS, RARETE_DE_SAISON, type RareteDObjet } from "../gaulois";
+
+/** Les couleurs des lots, du commun au divin : les raretés des pochettes, sans le légendaire de saison, qui n'en sort pas. */
+const RARETES_DES_LOTS: readonly RareteDObjet[] = ORDRE_RARETES_DES_OBJETS.filter((rarete) => rarete !== RARETE_DE_SAISON);
 import { errorMessage } from "../compte/errors";
 import type { LotDeStateres, MaPochetteStateres, PochetteStateresReponse } from "./contrat";
 import { manque, messageDuRefus, stateres } from "./ecran-boutique";
@@ -21,7 +24,7 @@ const entier = (valeur: unknown, min: number): valeur is number => typeof valeur
 export const ANCRE_POCHETTE_STATERES = "pochette-stateres";
 
 /** Le plus de lots qu'une pochette peut avoir : un par couleur de rareté, du commun au divin. */
-export const LOTS_AU_PLUS = ORDRE_RARETES_DES_OBJETS.length;
+export const LOTS_AU_PLUS = RARETES_DES_LOTS.length;
 
 /**
  * Les lots tels que le serveur les donne, rangés par rang : de 1 à six lots, des rangs 1, 2, 3… sans trou, des chances
@@ -75,7 +78,7 @@ export function chanceDeGagner(lots: readonly LotDeStateres[], prix: number): nu
 
 /** La couleur d'un lot : celle de la rareté de même rang, du commun (1) au divin (6). */
 export function rareteDuLot(rang: number): RareteDObjet {
-  return ORDRE_RARETES_DES_OBJETS[Math.min(Math.max(rang, 1), LOTS_AU_PLUS) - 1] ?? "commun";
+  return RARETES_DES_LOTS[Math.min(Math.max(rang, 1), LOTS_AU_PLUS) - 1] ?? "commun";
 }
 
 /** Les pochettes qu'il reste à ouvrir aujourd'hui. */
