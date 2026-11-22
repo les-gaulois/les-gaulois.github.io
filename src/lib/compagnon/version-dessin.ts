@@ -1,8 +1,7 @@
 // L'empreinte du dessin du Gaulois de départ, calculée à la construction du site seulement : elle change dès que change le
 // dessin du Gaulois (son catalogue, garde-robe comprise), les poses du village, le dessin du compagnon ou sa prison. Les
 // images peintes à la construction (`src/pages/compagnon/[planche].png.ts`) se demandent à l'adresse `?v=<empreinte>` :
-// le compagnon (`GauloisCompagnon.astro`) et la porte du village de l'accueil (`AccueilVillage.astro`) lisent la même,
-// pour que le navigateur ne télécharge l'image qu'une fois et ne garde jamais un ancien dessin.
+// le compagnon (`GauloisCompagnon.astro`) la lit, pour que le navigateur ne garde jamais un ancien dessin.
 // Rien de ces fichiers n'est écrit dans la page : seuls leurs textes sont lus, pour l'empreinte.
 import { createHash } from "node:crypto";
 

@@ -6,7 +6,7 @@ import { accueilFacts, accueilImageAlt, accueilRanking } from "../../src/lib/acc
 import { GazetteFonts } from "../../src/lib/gazette-image";
 import { gauloisDuSite, portraitDuGaulois } from "../../src/lib/gaulois-site";
 import { vitrinePublique } from "../../src/lib/village/vitrine-publique";
-import { legendeDuPodium } from "../../src/lib/cartes-podium";
+import { cartesDuPodium, legendeDuPodium } from "../../src/lib/cartes-podium";
 import { worldTerritory } from "../../src/lib/carte-monde";
 import { loadClanMapFilm, loadTerritoryReadings, loadGames, loadHistory, loadMemberGames, loadMemberResults, loadMembers, loadMemberWeeks, loadMeta, loadNouveautes, loadCompagnonsDeFlamme, loadRecordsPersonnels, loadRivals, loadSeriesEnCours, loadSessions } from "../../src/lib/data";
 import { datesDeLaSerie, datesDuRecord, flammeAllumee, phraseDesCompagnons, serieEnMots } from "../../src/lib/serie-en-cours";
@@ -16,8 +16,7 @@ import { neighbours, withOfficialRanks } from "../../src/lib/stats";
 import { firstRival, tagsInRace } from "../../src/lib/compare";
 import { rivalSeries } from "../../src/lib/rivals";
 import { faceOffs } from "../../src/lib/games";
-import { editionLead, GAZETTE_RECENT_EDITIONS, gazetteEditions, playersPeriod, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
-import { bestGameOf, bestGameSentence, yesterdayOf } from "../../src/lib/belle-partie";
+import { GAZETTE_RECENT_EDITIONS, gazetteEditions, playersPeriod, rankWords, standingDetails, territoryDetails, weekLabel } from "../../src/lib/gazette";
 import { GROWTH_REFERENCE_CAPACITY, gainVersusPeak } from "../../src/lib/growth";
 import { chantier, orBateau, orTrain, partageAttaque } from "../../src/lib/guide-clan";
 import { clanJournal, JOURNAL_FIRST_ROWS, journalChoices, journalCount, NO_FILTER, replayUrl } from "../../src/lib/journal";
@@ -35,8 +34,6 @@ import { nextTier, tierOf, tierRows } from "../../src/lib/paliers";
 import { LETTRINE_TITRE, largeurTexte } from "../../src/lib/police/largeur";
 import { CHOOSE_NAME_URL } from "../../src/lib/pseudo-openfront";
 import { SITE_URL, ficheImageUrl, ficheUrl, parseCommandes, parseFiches } from "../../supabase/functions/code-discord/index";
-import { currentMilestonesPeriod, homeMilestones, recentRecordLines, recentTerritoryRecord } from "../../src/lib/vie-du-clan";
-import { milestonesSinceMonday } from "../../src/lib/week-players";
 
 const PAGES = ["/", "/gazette", "/parties", "/revoir", "/nouveautes", "/classement", "/rivaux", "/progression", "/records", "/utiles", "/membres", "/liste", "/village", "/qg", "/carte", "/activite", "/debuter", "/rejoindre", "/mentions-legales"];
 const lb = JSON.parse(readFileSync("data/leaderboard.json", "utf8"));
@@ -304,8 +301,9 @@ test("l'onciale de cases écrit les titres des pages ouvertes à tous, pas ceux 
   expect({ titre: publique.titre, chiffre: publique.chiffre, pied: publique.pied }).toEqual({ titre: "GAL Onciale Cases", chiffre: "GAL Onciale Cases", pied: "JetBrains Mono Variable" });
   expect(publique.chargees).toContain("GAL Onciale Cases");
   expect(polices.some((p) => p.endsWith("/onciale-cases.woff2"))).toBe(true);
-  // Les petits titres de l'accueil, dans les mêmes lettres taillées, sans cases.
-  await page.goto("/");
+  // Les petits titres, dans les mêmes lettres taillées, sans cases. L'accueil n'en a plus depuis le retrait de « Les Gaulois de
+  // la semaine » (22 novembre 2026) : ceux de la gazette, dont ce bloc était le résumé.
+  await page.goto("/gazette");
   await page.waitForLoadState("networkidle");
   expect(await page.evaluate(() => getComputedStyle(document.querySelector("main h3")!).fontFamily)).toMatch(/^"GAL Onciale",/);
   polices.length = 0;
@@ -603,11 +601,9 @@ test("un rang de podium ou un tag de clan tient sur une ligne et dans sa colonne
   };
   // Combien de rangs et de lignes chaque page doit montrer, d'après les mêmes calculs qu'elle : rien ne passe à vide.
   const podiums = playerPodiums(loadMemberResults(), loadSessions(), loadMembers(), loadMeta().sessions.coveredUntil);
-  const derniere = gazetteEditions({ sessions: loadSessions(), history: loadHistory(), territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members: loadMembers(), archiveStart: clan.archiveStart, completeThrough: loadMeta().sessions.completeThrough })[0];
   const voisins = neighbours(withOfficialRanks(lb.clans as LeaderboardEntry[]), clan.tag);
   const attendus = {
     records: podiums.since === null ? 0 : podiums.streaks.length + podiums.days.length,
-    accueil: derniere?.players ? derniere.players.length + (derniere.active?.length ?? 0) : 0,
     rivaux: voisins ? 1 + (voisins.above ? 1 : 0) + (voisins.below ? 1 : 0) : 0,
   };
   const tags: string[] = lb.clans.map((c: { clanTag: string }) => `[${c.clanTag}]`);
@@ -618,12 +614,6 @@ test("un rang de podium ou un tag de clan tient sur une ligne et dans sa colonne
     const records = await mesurer('[data-testid="podium-row"] > :first-child');
     expect(records, `/records à ${width} px`).toHaveLength(attendus.records);
     tenir(records, `/records à ${width} px`);
-    await ouvrir("/");
-    const accueil = await mesurer(':is([data-testid="home-podium-player"], [data-testid="home-active-player"]) > :first-child');
-    // Avec les cartes du podium en haut, le bloc de la semaine ne recopie pas le plus de victoires.
-    const enCartes = (await page.getByTestId("hero-podium").count()) > 0;
-    expect(accueil, `accueil à ${width} px`).toHaveLength(attendus.accueil - (enCartes ? (derniere?.players?.length ?? 0) : 0));
-    tenir(accueil, `accueil à ${width} px`);
     await ouvrir("/rivaux");
     const lignes = page.locator('[data-testid="score-lanes"] li');
     await expect(lignes, `/rivaux à ${width} px`).toHaveCount(attendus.rivaux);
@@ -660,10 +650,9 @@ test("parcours principal", async ({ page }, testInfo) => {
   // Accueil : les cartes affichent les valeurs collectées.
   await page.goto("/");
   await expect(page.getByRole("link", { name: "Aller sur le Discord" })).toHaveAttribute("href", "https://discord.gg/cjUc42T7Y2");
-  // L'accueil parle d'abord aux membres : l'appel à rejoindre le clan n'est qu'en bas de page.
-  // (Le menu et le pied de page gardent leur rubrique « Rejoindre » : seul le contenu de l'accueil compte ici.)
+  // L'accueil parle d'abord aux membres : rejoindre le clan a sa rubrique dans le menu et le pied de page, depuis le
+  // 22 novembre 2026 plus de bloc dans l'accueil.
   await expect(page.locator("main").getByRole("link", { name: /^Rejoindre/ })).toHaveCount(0);
-  await expect(page.locator("main section").last()).toContainText("Rejoignez les Gaulois");
   await expect(page.getByRole("link", { name: "Jouer à OpenFront" }).first()).toBeVisible();
   const cards = page.getByTestId("stat-card");
   await expect(cards).toHaveCount(5);
@@ -753,7 +742,6 @@ test("parcours principal", async ({ page }, testInfo) => {
 
 test("l'accueil n'affiche que des données collectées", async ({ page }) => {
   await page.goto("/");
-  expect(digits(await page.getByTestId("home-members").textContent())).toBe(String(members.total));
   // Sans annonce ni événement, le bloc n'existe pas : un visiteur n'a rien à y lire.
   const news = [...JSON.parse(readFileSync("content/announcements.json", "utf8")), ...JSON.parse(readFileSync("content/events.json", "utf8"))];
   if (news.length === 0) await expect(page.getByTestId("news-board")).toHaveCount(0);
@@ -772,7 +760,8 @@ test("l'accueil n'affiche que des données collectées", async ({ page }) => {
   }
   if (me && (above || below)) await expect(ranking.getByTestId("home-rivals")).toHaveAttribute("href", /\/rivaux$/);
   await expect(ranking.getByRole("link", { name: "Voir le classement complet" })).toHaveAttribute("href", /\/classement$/);
-  await expect(page.getByRole("link", { name: "Lire le guide du clan" })).toHaveAttribute("href", /\/debuter$/);
+  // Retirés le 22 novembre 2026, à la demande du pilote : les portes de la Carte et du village, la semaine et l'appel à rejoindre.
+  for (const id of ["home-week", "home-map", "home-village", "home-join"]) await expect(page.getByTestId(id)).toHaveCount(0);
 });
 
 test("l'accueil donne d'abord le classement, et remonte Ma place pour qui a dit « C'est moi »", async ({ page }) => {
@@ -782,10 +771,6 @@ test("l'accueil donne d'abord le classement, et remonte Ma place pour qui a dit 
   const visitor = await titles();
   expect(at(visitor, "Le clan au classement officiel")).toBeGreaterThanOrEqual(0);
   expect(at(visitor, "Le clan au classement officiel")).toBeLessThan(at(visitor, "Ma place dans le clan"));
-  if (at(visitor, "Les Gaulois de la semaine") >= 0) {
-    expect(at(visitor, "Le clan au classement officiel")).toBeLessThan(at(visitor, "Les Gaulois de la semaine"));
-    expect(at(visitor, "Les Gaulois de la semaine")).toBeLessThan(at(visitor, "Ma place dans le clan"));
-  }
 
   const named = members.members.find((m: { username: string | null; publicId: string | null; team: unknown }) => m.username && m.publicId && m.team);
   await page.evaluate((id) => localStorage.setItem("gal-moi", id), named.publicId);
@@ -798,49 +783,6 @@ test("l'accueil donne d'abord le classement, et remonte Ma place pour qui a dit 
   const row = (await page.getByTestId("home-me-row").boundingBox())!;
   const ranking = (await page.locator("#classement-clan").boundingBox())!;
   expect(row.y + row.height).toBeLessThanOrEqual(ranking.y);
-});
-
-test("l'accueil ouvre la Carte et « Mon Gaulois » : une vraie image, les chiffres du relevé, un bouton", async ({ page, request }) => {
-  await page.goto("/");
-  const titles = await page.locator("main h2").allTextContents();
-  const at = (text: string) => titles.findIndex((t) => t.includes(text));
-
-  // « Votre Gaulois » : le Gaulois de départ déjà publié pour le compagnon, une phrase, ni chiffre ni pseudo.
-  const village = page.getByTestId("home-village");
-  // Il mène au vestiaire : « Mon Gaulois » s'ouvre sinon sur « Ma carte » depuis le 21 novembre 2026.
-  await expect(village.getByRole("link", { name: "Habiller mon Gaulois" })).toHaveAttribute("href", /\/village#gaulois$/);
-  expect(await village.innerText()).not.toMatch(/\d/);
-  const gaulois = village.locator("img");
-  // La même adresse versionnée que celle du compagnon : l'image n'est téléchargée qu'une fois.
-  await expect(gaulois).toHaveAttribute("src", /\/compagnon\/depart-gaulois\.png\?v=[0-9a-f]{12}$/);
-  await expect(gaulois).toHaveCSS("image-rendering", "pixelated");
-  await expect.poll(() => gaulois.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(192);
-  // Les blocs validés gardent leur ordre : les deux portes viennent après la semaine, avant « Ma place ».
-  expect(at("Votre Gaulois")).toBeGreaterThan(at("Le clan au classement officiel"));
-  expect(at("Votre Gaulois")).toBeGreaterThan(at("Les Gaulois de la semaine"));
-  expect(at("Votre Gaulois")).toBeLessThan(at("Ma place dans le clan"));
-
-  // La Carte : sans carte collectée, pas de bloc ; sinon l'image de la carte finale, sa mention et les chiffres du film.
-  const film = loadClanMapFilm();
-  const map = page.getByTestId("home-map");
-  if (!film) {
-    await expect(map).toHaveCount(0);
-    return;
-  }
-  await expect(map.getByRole("link", { name: "Ouvrir la carte" })).toHaveAttribute("href", /\/carte$/);
-  expect(at("La carte des clans")).toBeLessThan(at("Votre Gaulois"));
-  expect(at("La carte des clans")).toBeGreaterThan(at("Les Gaulois de la semaine"));
-  const still = map.locator("img");
-  await expect(still).toHaveAttribute("src", /\/generated\/carte\/finale-800\.webp\?v=[0-9a-f]{12}$/);
-  await expect(still).toHaveAttribute("loading", "lazy");
-  // Les dimensions écrites sont celles du fichier : la page ne saute pas quand l'image arrive.
-  await expect(still).toHaveAttribute("width", "800");
-  await expect(still).toHaveAttribute("height", String(Math.round((800 * film.rows) / film.cols)));
-  expect((await request.get((await still.getAttribute("src"))!)).ok()).toBe(true);
-  await expect(map.getByRole("link", { name: /© OpenFront and Contributors/ })).toHaveAttribute("href", /\/mentions-legales#credits$/);
-  const summary = film.galSummary;
-  if (summary && summary.rank !== null) await expect(map.getByTestId("home-map-line")).toHaveText(`GAL : ${fmtRank(summary.rank)} avec ${fmtInt(summary.pixels)} pixels.`);
-  else await expect(map.getByTestId("home-map-line")).toHaveCount(0);
 });
 
 test("un lien vers l'accueil montre le rang du clan et le podium de la semaine, dessinés à la construction", async ({ page, request }) => {
@@ -2532,119 +2474,25 @@ test("la gazette montre la semaine en cours, datée et comparée au même moment
   await expect(block.getByTestId("gazette-now-lead")).toContainText("Jusqu'au");
 });
 
-test("l'accueil donne la belle partie d'hier, calculée et jamais choisie à la main", async ({ page }) => {
+test("les cartes du podium de l'accueil reprennent la dernière gazette, sans rien inventer", async ({ page }) => {
   const meta = loadMeta();
-  const { rows } = clanJournal({ sessions: loadSessions(), games: loadGames(), coveredUntil: meta.sessions.coveredUntil, tag: clan.tag, officialTags: lb.clans.map((c: { clanTag: string }) => c.clanTag) });
-  const best = meta.sessions.coveredUntil ? bestGameOf(rows, yesterdayOf(meta.sessions.coveredUntil)) : null;
+  const latest = gazetteEditions({ sessions: loadSessions(), history: loadHistory(), territory: loadTerritoryReadings(), weekTops: loadMemberWeeks().tops, members: loadMembers(), archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0];
   await page.goto("/");
-  const block = page.getByTestId("home-best-game");
-  if (!best) {
-    await expect(block).toHaveCount(0);
+  // Les cartes paraissent dès qu'un joueur du podium a son Gaulois relevé (src/lib/cartes-podium.ts) ; sinon, le guerrier reste.
+  if (cartesDuPodium(latest?.players, portraitDuGaulois, () => null) === null) {
+    await expect(page.getByTestId("hero-podium")).toHaveCount(0);
     return;
   }
-  await expect(block).toHaveText(`La belle partie d'hier. ${bestGameSentence(best)}`);
-  // Elle est dans le fil du clan. Le nom de carte vient de la traduction du jeu : son crédit accompagne ce bloc-là.
-  if (best.map !== null) await expect(page.getByTestId("home-feed").getByTestId("map-names-credit")).toBeVisible();
-});
-
-test("l'accueil nomme les Gaulois de la semaine d'après la dernière gazette, sans rien inventer", async ({ page }) => {
-  const meta = loadMeta();
-  const sessions = loadSessions();
-  const list = loadMembers();
-  const weeks = loadMemberWeeks();
-  const latest = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: weeks.tops, members: list, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0];
-  await page.goto("/");
-  const block = page.getByTestId("home-week");
-  if (!latest) {
-    await expect(block).toHaveCount(0);
-    return;
+  if (!latest?.players) throw new Error("des cartes sans podium");
+  // Mêmes joueurs, mêmes victoires, même lien vers la fiche, même période que le podium de la gazette.
+  await expect(page.getByTestId("hero-card")).toHaveCount(latest.players.length);
+  for (const player of latest.players) {
+    const carte = page.locator(`[data-testid="hero-card"][href="/membres/${encodeURIComponent(player.id)}"]`);
+    await expect(carte).toHaveCount(1);
+    await expect(carte).toContainText(player.username);
+    await expect(carte).toContainText(fmtCount(player.wins, "victoire"));
   }
-  await expect(block.getByTestId("home-week-lead")).toHaveText(editionLead(latest, clan.tag, { standing: false }));
-  await expect(block.getByRole("link", { name: "Lire la gazette" })).toHaveAttribute("href", "/gazette");
-
-  // Le podium est celui de la gazette : mêmes joueurs, mêmes victoires. Sa réserve se lit dans la gazette.
-  // Quand les cartes du haut le montrent, le bloc ne le recopie pas (revue du 18 novembre 2026) : un seul podium par page.
-  const podium = block.getByTestId("home-podium");
-  const enCartes = (await page.getByTestId("hero-podium").count()) > 0;
-  if (latest.players && enCartes) {
-    await expect(block.getByTestId("home-podium-player")).toHaveCount(0);
-    // Les cartes disent alors ce que disait le bloc : mêmes joueurs, mêmes victoires, même lien vers la fiche, même période.
-    await expect(page.getByTestId("hero-card")).toHaveCount(latest.players.length);
-    for (const player of latest.players) {
-      const carte = page.locator(`[data-testid="hero-card"][href="/membres/${encodeURIComponent(player.id)}"]`);
-      await expect(carte).toHaveCount(1);
-      await expect(carte).toContainText(player.username);
-      await expect(carte).toContainText(fmtCount(player.wins, "victoire"));
-    }
-    await expect(page.getByTestId("hero-podium-legende")).toHaveText(legendeDuPodium(playersPeriod(latest), weekLabel(latest)));
-  } else if (latest.players) {
-    const rows = podium.getByTestId("home-podium-player");
-    await expect(rows).toHaveCount(latest.players.length);
-    for (const [i, player] of latest.players.entries()) {
-      await expect(rows.nth(i).getByRole("link")).toHaveText(player.username);
-      await expect(rows.nth(i).getByRole("link")).toHaveAttribute("href", `/membres/${encodeURIComponent(player.id)}`);
-      await expect(rows.nth(i)).toContainText(fmtCount(player.wins, "victoire"));
-    }
-  } else {
-    await expect(podium).toHaveCount(0);
-  }
-  // Les plus actifs : seulement si la semaine a relevé les parties. Sinon, rien, et surtout pas un zéro.
-  const active = block.getByTestId("home-active-player");
-  await expect(active).toHaveCount(latest.players ? (latest.active?.length ?? 0) : 0);
-  for (const [i, player] of (latest.players ? (latest.active ?? []) : []).entries()) await expect(active.nth(i)).toContainText(fmtCount(player.games, "partie"));
-
-  // Les paliers : ceux de la semaine en cours s'il y en a, sinon ceux de la gazette. Sans palier franchi, la ligne n'existe pas.
-  const crossed = homeMilestones(milestonesSinceMonday(weeks.reading, list), latest.milestones);
-  const milestones = block.getByTestId("home-feed-milestones");
-  if (crossed) {
-    // La semaine en cours est datée par ses deux relevés ; celle de la gazette porte la période de son podium.
-    const period = playersPeriod(latest);
-    await expect(milestones).toContainText(crossed.when === "current" ? currentMilestonesPeriod(crossed.since, crossed.until) : period && period !== "de la semaine" ? period : `la semaine ${weekLabel(latest)}`);
-    await expect(milestones.getByRole("link")).toHaveCount(crossed.groups.reduce((n, group) => n + group.players.length, 0));
-    for (const group of crossed.groups) await expect(milestones).toContainText(fmtCount(group.tier, "victoire"));
-  } else {
-    await expect(milestones).toHaveCount(0);
-  }
-
-  // Les records du clan : ceux que la page Records signale, et eux seuls, avec le lien vers cette page.
-  const lines = recentRecordLines(clanRecords(sessions), meta.sessions.coveredUntil);
-  const records = block.getByTestId("home-feed-records");
-  if (lines.length > 0) {
-    for (const line of lines) await expect(records).toContainText(line.slice(1));
-    expect(await records.textContent()).not.toMatch(/\.\./);
-    await expect(block.getByRole("link", { name: "Voir les records" })).toHaveAttribute("href", "/records");
-  } else {
-    await expect(records).toHaveCount(0);
-    await expect(block.getByRole("link", { name: "Voir les records" })).toHaveCount(0);
-  }
-  // Le plus grand territoire est un chiffre de la carte des clans : sa propre ligne, qui renvoie à la page Carte.
-  const film = loadClanMapFilm();
-  const territory = recentTerritoryRecord(film?.galSummary?.peak ?? null, film?.fetchedAt ?? null);
-  const peak = block.getByTestId("home-feed-territory");
-  if (territory) {
-    await expect(peak).toContainText(territory);
-    await expect(peak).not.toContainText("Record du clan");
-    await expect(peak.getByRole("link", { name: "carte des clans" })).toHaveAttribute("href", "/carte");
-    expect(await peak.textContent()).not.toMatch(/\.\./);
-  } else {
-    await expect(peak).toHaveCount(0);
-  }
-
-  // Les arrivées : le nombre de la gazette, jamais un zéro écrit.
-  const arrivals = block.getByTestId("home-feed-arrivals");
-  if (latest.arrivals && latest.arrivals.count > 0) {
-    expect(digits((await arrivals.locator("strong").textContent())?.split("arrivée")[0] ?? "")).toBe(String(latest.arrivals.count));
-    // Le périmètre du chiffre reste écrit : seuls ceux encore dans le clan sont comptés.
-    await expect(arrivals).toContainText("encore dans le clan");
-    const first = latest.arrivals.named[0];
-    if (first) {
-      await expect(arrivals).toContainText(first.username);
-      // Le pseudo d'un arrivant mène à sa fiche, comme partout sur le site (remarque reçue le 12 novembre 2026).
-      if (first.id) await expect(arrivals.getByRole("link", { name: first.username, exact: true }).first()).toHaveAttribute("href", `/membres/${encodeURIComponent(first.id)}`);
-    }
-  } else {
-    await expect(arrivals).toHaveCount(0);
-  }
+  await expect(page.getByTestId("hero-podium-legende")).toHaveText(legendeDuPodium(playersPeriod(latest), weekLabel(latest)));
 });
 
 test("la gazette donne les plus actifs et les paliers franchis quand la semaine les a relevés, et rien sinon", async ({ page }) => {
@@ -2776,14 +2624,8 @@ test("la gazette donne le bilan de la dernière semaine complète, et n'invente 
     await expect(arrivals).toContainText("Pas de données");
   }
 
-  // On y arrive par le menu, l'accueil et le pied de page.
+  // On y arrive par le menu et le pied de page.
   await expect(page.locator("footer").getByRole("link", { name: "La gazette", exact: true })).toHaveAttribute("href", /\/gazette$/);
-  await page.goto("/");
-  // Le résumé de la gazette sur l'accueil est le bloc « Les Gaulois de la semaine ».
-  const home = page.getByTestId("home-week");
-  await expect(home).toContainText(editionLead(latest, clan.tag, { standing: false }));
-  await home.getByRole("link", { name: "Lire la gazette" }).click();
-  await expect(page).toHaveURL(/gazette/);
 });
 
 test("le Gaulois d'un membre ne paraît qu'à côté de qui a créé le sien, jamais inventé", async ({ page }) => {

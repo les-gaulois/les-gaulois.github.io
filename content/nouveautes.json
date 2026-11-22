@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-11-22",
+    "kind": "retire",
+    "rank": "minor",
+    "title": "Un accueil plus court",
+    "body": "L'accueil ne montre plus la carte des clans, « Votre Gaulois », « Les Gaulois de la semaine » ni l'appel à rejoindre. La carte, la gazette et Rejoindre gardent leur page dans le menu."
+  },
+  {
+    "date": "2026-11-22",
     "kind": "ameliore",
     "rank": "minor",
     "title": "La carte en grand à la sortie des boosters",

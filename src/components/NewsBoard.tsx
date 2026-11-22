@@ -52,7 +52,7 @@ export default function NewsBoard({ announcements, events, now, live = false }: 
   // Ce que les lecteurs d'écran entendent après une réponse : la zone existe déjà, seul son texte change.
   const [said, setSaid] = useState("");
 
-  // La première lecture est partagée avec le Gaulois de la semaine, plus bas sur l'accueil : un seul appel au serveur.
+  // La première lecture passe par fetchLiveNewsOnce : un seul appel au serveur, même si un autre bloc la demande aussi.
   const reload = async () => {
     const data = await fetchLiveNewsOnce();
     if (data) setNews(data);

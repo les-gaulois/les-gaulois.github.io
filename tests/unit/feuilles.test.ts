@@ -45,8 +45,6 @@ const PAS_DES_CLASSES: PasUneClasse[] = [
     mots: ["cases", "pixels"],
     raison: "la police « cases » et l'unité « pixels » de l'image de la gazette, dessinée à la construction pour Discord",
   },
-  { fichier: "src/pages/index.astro", mots: ["carte"], raison: "le dossier de l'image de la carte, public/generated/carte" },
-  { fichier: "src/components/AccueilCarte.astro", mots: ["carte"], raison: "le dossier de l'image de la carte, public/generated/carte" },
   { fichier: "src/lib/alliance/capture.ts", mots: ["pixels"], raison: "l'unité écrite sur l'image capturée de la carte de l'alliance" },
   { fichier: "src/lib/alliance/textes.ts", mots: ["pixels"], raison: "un libellé de la carte de l'alliance, écrit comme texte" },
   { fichier: "src/components/compte/QgApp.tsx", mots: ["outils"], raison: "ce que le QG relit après une action (« qg », « outils » ou « tout »)" },

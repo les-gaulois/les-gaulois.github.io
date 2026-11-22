@@ -3,10 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import Base from "../layouts/Base.astro";
-import AccueilCarte from "../components/AccueilCarte.astro";
-import AccueilVillage from "../components/AccueilVillage.astro";
 import CartesPodium from "../components/CartesPodium.astro";
-import ClanWeek from "../components/ClanWeek.astro";
 import DataStatus from "../components/DataStatus.astro";
 import Invite from "../components/Invite.astro";
 import GuerrierRelief from "../components/GuerrierRelief.astro";
@@ -17,9 +14,8 @@ import { AUTH_ENABLED } from "../lib/compte/api";
 import { clan } from "../../config/clan";
 import { ACCUEIL_IMAGE, accueilFacts, accueilImageAlt, accueilRanking } from "../lib/accueil-image";
 import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib/bannieres-joueurs";
-import { bestGameOf, bestGameSentence, yesterdayOf } from "../lib/belle-partie";
 import { brandFile } from "../lib/brand";
-import { loadAnnouncements, loadClanMapFilm, loadEvents, loadGames, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
+import { loadAnnouncements, loadEvents, loadHistory, loadLeaderboard, loadMembers, loadMemberWeeks, loadMeta, loadSessions, loadTerritoryReadings } from "../lib/data";
 import { fmtDateTime, fmtInt, fmtPct, fmtRank, fmtScore } from "../lib/format";
 import { MAX_AGE_HOURS } from "../lib/freshness";
 import { gazetteEditions, playersPeriod, weekLabel } from "../lib/gazette";
@@ -27,12 +23,8 @@ import { cartesDuPodium, legendeDuPodium } from "../lib/cartes-podium";
 import { FAMILIERS_MEMBRES_FILE, familiersDuCache } from "../lib/familiers-joueurs";
 import { FINITIONS_MEMBRES_FILE, finitionsDuCache } from "../lib/finitions-joueurs";
 import { portraitDuGaulois } from "../lib/gaulois-site";
-import { clanJournal } from "../lib/journal";
 import { ME_KEY } from "../lib/moi";
-import { clanRecords } from "../lib/results";
 import { findClan, neighbours, winRate, withOfficialRanks } from "../lib/stats";
-import { recentRecordLines, recentTerritoryRecord } from "../lib/vie-du-clan";
-import { milestonesSinceMonday } from "../lib/week-players";
 import { loadVisitSnapshot } from "../lib/visite-snapshot";
 import { logoMatriceDepuisImage } from "../lib/logo-matrice-image";
 
@@ -47,7 +39,6 @@ const me = findClan(clans, clan.tag);
 const near = neighbours(clans, clan.tag);
 const rate = me ? winRate(me.wins, me.games) : null;
 const hasLogo = brandFile("vertical") !== null;
-const hasBanner = brandFile("banner") !== null;
 const announcements = loadAnnouncements();
 const now = new Date();
 const events = loadEvents().filter((e) => e.start >= now.toISOString());
@@ -61,15 +52,11 @@ const cards = [
 ];
 
 // Chaque bloc résume une page et y renvoie : uniquement des données collectées. La carte, les dernières parties
-// et les créneaux ont chacun leur page : l'accueil ne les recopie plus depuis le 12 novembre 2026.
-// Depuis le 14 novembre 2026, la Carte et le village y ont chacun une porte : une image, une ligne, un bouton.
+// et les créneaux ont chacun leur page : l'accueil ne les recopie plus depuis le 12 novembre 2026. Le 22 novembre 2026,
+// à la demande du pilote, l'accueil perd aussi les portes de la Carte et du village, « Les Gaulois de la semaine »
+// et l'appel à rejoindre ; il a demandé dans le même message des maquettes pour y mettre en valeur le jeu des Gaulois.
 const sessions = loadSessions();
-const games = loadGames();
 const members = loadMembers();
-const film = loadClanMapFilm();
-const onMap = film?.galSummary ?? null;
-// L'image de la carte finale, dessinée avant les pages (scripts/generate-clanmap.ts) : sans elle, pas de bloc Carte.
-const mapStill = film !== null && existsSync(join("public", "generated", "carte", "finale-800.webp"));
 const memberWeeks = loadMemberWeeks();
 const gazette = gazetteEditions({ sessions, history: loadHistory(), territory: loadTerritoryReadings(), weekTops: memberWeeks.tops, members, archiveStart: clan.archiveStart, completeThrough: meta.sessions.completeThrough })[0] ?? null;
 // Le grand visuel de l'accueil : les cartes du podium de la semaine, quand au moins un de ses joueurs a créé son Gaulois
@@ -79,14 +66,6 @@ const finitionsDuPodium = finitionsDuCache(FINITIONS_MEMBRES_FILE, (gazette?.pla
 const familiersDuPodium = familiersDuCache(FAMILIERS_MEMBRES_FILE, (gazette?.players ?? []).map((p) => p.id));
 const cartesPodium = cartesDuPodium(gazette?.players, portraitDuGaulois, (id) => fondsDuPodium[id]?.image ?? null, (id) => finitionsDuPodium.get(id) ?? null, (id) => familiersDuPodium.get(id) ?? null);
 const legendeCartes = gazette ? legendeDuPodium(playersPeriod(gazette), weekLabel(gazette)) : "";
-// Le fil du clan : les paliers franchis depuis le relevé du lundi, et les records des sept derniers jours. Règles dans src/lib/vie-du-clan.ts.
-const currentMilestones = milestonesSinceMonday(memberWeeks.reading, members);
-const recordLines = recentRecordLines(clanRecords(sessions), meta.sessions.coveredUntil);
-const territoryRecord = recentTerritoryRecord(onMap?.peak ?? null, film?.fetchedAt ?? null);
-
-// La belle partie d'hier : le plus de Gaulois ensemble la veille de la collecte, règle dans src/lib/belle-partie.ts.
-const { rows: journal } = clanJournal({ sessions, games, coveredUntil: meta.sessions.coveredUntil, tag: clan.tag, officialTags: clans.map((c) => c.clanTag) });
-const bestYesterday = meta.sessions.coveredUntil ? bestGameOf(journal, yesterdayOf(meta.sessions.coveredUntil)) : null;
 
 // Le même relevé que sur la page Carte, où il fait reprendre le film.
 const snapshot = loadVisitSnapshot();
@@ -109,7 +88,7 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
         <Invite path="/" />
         <h1 class="text-[2.6rem] sm:text-6xl md:text-5xl lg:text-6xl xl:text-7xl">{clan.tagline}</h1>
         {clan.description && <p class="mt-5 max-w-md text-lg text-muted">{clan.description}</p>}
-        {/* Deux gestes qui servent d'abord aux membres : retrouver le clan sur Discord et lancer une partie. L'appel à rejoindre le clan est en bas de page. */}
+        {/* Deux gestes qui servent d'abord aux membres : retrouver le clan sur Discord et lancer une partie. Rejoindre le clan a sa page, dans le menu. */}
         <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <a href={clan.links.discord} class="btn btn-lg btn-primary" rel="noopener">Aller sur le Discord</a>
           {/* À côté du bouton principal, le second bouton est en contour : plein, en marine, il pesait autant que lui. */}
@@ -209,16 +188,6 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
       </div>
     </section>
 
-    {/* Ce que les membres viennent de faire : le résumé de la dernière gazette, et ce qui s'est passé depuis. */}
-    {gazette && <ClanWeek edition={gazette} currentMilestones={currentMilestones} records={recordLines} territoryRecord={territoryRecord} bestGame={bestYesterday ? bestGameSentence(bestYesterday) : null} creditMaps={(bestYesterday?.map ?? null) !== null} live={AUTH_ENABLED} podiumEnCartes={cartesPodium !== null} />}
-
-    {/* Les deux pages à voir : la Carte, avec sa vraie image du dernier relevé, et le village. Sans carte collectée, le village reste seul.
-        Les deux vont ensemble : empilées sur téléphone, elles gardent la gouttière de la rangée, pour ne pas allonger la page de plus d'un écran. */}
-    <div class:list={["grid gap-6", mapStill && "lg:grid-cols-2"]} data-testid="home-discover">
-      {mapStill && film && <AccueilCarte film={film} />}
-      <AccueilVillage />
-    </div>
-
     {/* Ce qui est à chacun : sa place dans le clan, et la porte de la face privée. */}
     <div class:list={["grid gap-x-6 gap-y-section", AUTH_ENABLED && "lg:grid-cols-2"]} id="rangee-moi" data-testid="home-me-row">
       {/*
@@ -258,35 +227,5 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
         )
       }
     </div>
-
-    {/* L'appel à rejoindre ferme la page en couleur (indigo, depuis le 14 novembre 2026) : sur la page blanche, tout le bas de
-        l'accueil était en blocs pâles. */}
-    <section class="stage stage-indigo reveal grid items-center gap-8 md:grid-cols-2" aria-labelledby="join-title" data-testid="home-join">
-      <div>
-        <h2 id="join-title" class="section-title section-title-sm">Rejoignez les Gaulois</h2>
-        <p class="mt-4 max-w-md text-lg text-muted">
-          {clan.join.inviteOnly ? "Demandez une invitation dans le jeu, puis venez sur Discord." : "Rejoignez le clan dans le jeu, puis venez sur Discord."}
-          {members && <span data-testid="home-members"> {fmtInt(members.total)} membres.</span>}
-        </p>
-        <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-          <a href={`${base}/rejoindre`} class="btn btn-lg btn-secondary">Voir les étapes</a>
-          <a href={`${base}/debuter`} class="btn btn-lg btn-ghost">Lire le guide du clan</a>
-        </div>
-      </div>
-      {
-        hasBanner && (
-          <img
-            src={`${base}/generated/banner-1600.webp`}
-            srcset={`${base}/generated/banner-800.webp 800w, ${base}/generated/banner-1600.webp 1600w`}
-            sizes="(min-width: 768px) 45vw, calc(100vw - 5rem)"
-            width="1672"
-            height="941"
-            loading="lazy"
-            alt="Bannière du clan GAL, Les Gaulois."
-            class="h-auto w-full rounded-2xl"
-          />
-        )
-      }
-    </section>
   </div>
 </Base>
