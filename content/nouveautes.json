@@ -2,6 +2,17 @@
   {
     "date": "2026-11-23",
     "kind": "nouveau",
+    "rank": "minor",
+    "title": "L'insigne de saison sous votre carte",
+    "body": "Le dernier palier du pass pris, l'insigne de la saison paraît sous votre carte, sur « Ma carte », à côté de vos autres insignes.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-23",
+    "kind": "nouveau",
     "rank": "top",
     "title": "Le tableau des duellistes",
     "body": "Dans le duel, le tableau de la semaine et de la saison : ta note dit si tu fais mieux que prévu. Le premier de la semaine reçoit un insigne ; la cagnotte des salles va aux trois premiers de la saison.",

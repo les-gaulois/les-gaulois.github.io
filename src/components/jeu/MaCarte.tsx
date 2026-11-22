@@ -13,6 +13,9 @@ import type { CadreDeCarte } from "../../lib/fx/cadres-carte";
 import { Loading, Problem } from "../compte/common";
 import { BANNIERE_CHOISIE } from "../village/Bannieres";
 import { CarteAnimee } from "../village/CarteAnimee";
+import InsigneDeSaison from "../village/InsigneDeSaison";
+import { InsignesDuDuelDuMembre } from "../village/duel-tableau/InsigneDuDuel";
+import type { InsigneDuPass } from "../../lib/village/contrat";
 import { Compteur, Icone, Insigne, Px } from "./Pixels";
 
 /**
@@ -214,7 +217,21 @@ function MesChiffres({ c, points, utiliteLe }: { c: ChiffresDeCarte; points: Ret
   );
 }
 
-export default function MaCarte({ carte, pseudo, nom, versLeVestiaire }: { carte: CarteDuJoueur | null; pseudo: string | null | undefined; /** Le nom sur la plaque de la carte. */ nom: string | null; versLeVestiaire: () => void }) {
+export default function MaCarte({
+  carte,
+  pseudo,
+  nom,
+  insignesDeSaison = [],
+  versLeVestiaire,
+}: {
+  carte: CarteDuJoueur | null;
+  pseudo: string | null | undefined;
+  /** Le nom sur la plaque de la carte. */
+  nom: string | null;
+  /** Les insignes des saisons du pass dont le membre a pris le dernier palier (`get_mon_sentier`), le plus récent d'abord. */
+  insignesDeSaison?: readonly InsigneDuPass[];
+  versLeVestiaire: () => void;
+}) {
   const { lu, points, relire } = useChiffres(pseudo);
   const fond = carte?.banniere ? `--banniere:url("${basePath()}/bannieres/${carte.banniere}.png")` : undefined;
   const releve = lu !== "lecture" && lu.kind === "lus" ? lu.liste : null;
@@ -226,9 +243,20 @@ export default function MaCarte({ carte, pseudo, nom, versLeVestiaire }: { carte
         ) : carte.tenue ? (
           <CarteAnimee tenue={carte.tenue} fond={fond} finition={carte.finition} cadre={carte.cadre} familier={carte.familier} classe={`jeu-carte-carte ${carte.cadre ? "jeu-carte-cadree" : ""}`} nom={nom} />
         ) : null}
-        <button type="button" class="jeu-btn jeu-n9" onClick={versLeVestiaire} data-testid="ma-carte-habiller">
-          <Px t="Habiller" couleur="encre" dit="Habiller mon Gaulois" />
-        </button>
+        {/* Les insignes gagnés, sous la carte (22-23 novembre 2026) : celui de chaque saison du pass finie jusqu'au dernier
+            palier, et celui du duelliste de la semaine (`InsignesDuDuelDuMembre`, lu au serveur). Chacun ne paraît qu'une
+            fois gagné, avec son nom pour les lecteurs d'écran ; sans aucun, la plaque ne paraît pas. */}
+        <div class="jeu-carte-pied">
+          <div class="jeu-carte-insignes jeu-bulle jeu-n9" data-testid="ma-carte-insignes">
+            {insignesDeSaison.map((i) => (
+              <InsigneDeSaison key={i.saison} saison={i.saison} echelle={2} />
+            ))}
+            <InsignesDuDuelDuMembre echelle={2} />
+          </div>
+          <button type="button" class="jeu-btn jeu-n9" onClick={versLeVestiaire} data-testid="ma-carte-habiller">
+            <Px t="Habiller" couleur="encre" dit="Habiller mon Gaulois" />
+          </button>
+        </div>
       </div>
       <section class="jeu-chiffres jeu-panneau jeu-n9" aria-labelledby="ma-carte-chiffres" data-testid="ma-carte-chiffres">
         <h3 id="ma-carte-chiffres" class="jeu-ruban jeu-n9">

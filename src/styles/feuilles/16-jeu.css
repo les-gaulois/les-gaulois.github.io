@@ -1004,6 +1004,28 @@
 .jeu-stat-suivant {
   flex: none;
 }
+/* Les insignes gagnés sous la carte (saison du pass, duelliste de la semaine), sur le cartouche crème du kit, qui se lit
+   devant tous les paysages : l'encre y est la même dans les deux thèmes. Sans insigne, pas de cartouche. */
+.jeu-carte-insignes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: calc(4 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  padding: calc(1 * var(--jeu-p)) calc(3 * var(--jeu-p)) 0;
+  color: #231503;
+}
+.jeu-carte-insignes:empty {
+  display: none;
+}
+/* Le cartouche et le bouton « Habiller » sur une même ligne sous la carte : la carte garde toute la hauteur. */
+.jeu-carte-pied {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: calc(6 * var(--jeu-p)) calc(10 * var(--jeu-p));
+}
 /* La carte un peu plus grosse sur les grands écrans (demande du pilote, 21 novembre 2026 : « avoir la carte un peu plus
    grosse sur ma carte ») : un pixel entier de plus par case à chaque palier d'écran, jamais une échelle à virgule, et
    seulement quand la hauteur de la fenêtre la laisse tenir. Le panneau des chiffres grandit avec elle, à trois pixels la case

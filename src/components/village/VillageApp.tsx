@@ -216,7 +216,15 @@ export default function VillageApp() {
         {!aCreer && (
           <Partie prefix={PREFIXE} id={ANCRE_MA_CARTE} active={active} slide={slide}>
             <h2 class="sr-only">Ma carte</h2>
-            {surMaCarte && <MaCarte carte={carte} pseudo={me.openfront_username} nom={me.openfront_username ?? me.name ?? null} versLeVestiaire={() => select("gaulois")} />}
+            {surMaCarte && (
+              <MaCarte
+                carte={carte}
+                pseudo={me.openfront_username}
+                nom={me.openfront_username ?? me.name ?? null}
+                insignesDeSaison={sentier.etat.kind === "pret" ? (sentier.etat.sentier.insignes ?? []) : []}
+                versLeVestiaire={() => select("gaulois")}
+              />
+            )}
           </Partie>
         )}
         {!aCreer && acces.kind === "ouvert" && (
