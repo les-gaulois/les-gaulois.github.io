@@ -272,6 +272,18 @@ export const ERROR_MESSAGES: Record<string, string> = {
   match_fini: "Ce match est déjà fini.",
   deja_pose: "Votre carte est déjà posée : on attend l'autre Gaulois.",
 
+  // Le casino des Gaulois (contrat : `REFUS_DU_CASINO` de src/lib/village/contrat-casino.ts, migration
+  // 20261123000100_casino_des_gaulois). `rate_limited`, `not_validated`, `no_gaulois`, `mode_god` et `solde_insuffisant`
+  // sont plus haut.
+  casino_ferme: "Le casino est fermé pour l'instant.",
+  pari_invalide: "Ce pari n'est pas valable : des jetons de 10, 20, 50, 100 ou 200 statères. Rechargez la page.",
+  mise_trop_haute: "200 statères au plus de mise de départ.",
+  casino_plafond: "Cette mise dépasse ce qu'il vous reste à miser aujourd'hui : 2 000 statères par jour, tous jeux compris.",
+  main_en_cours: "Une main du vingt-et-un vous attend : finissez-la d'abord.",
+  pas_de_main: "Cette main du vingt-et-un est déjà finie. Rechargez la page.",
+  main_changee: "Cette main a déjà avancé. Rechargez la page.",
+  coup_refuse: "Ce coup n'est pas permis maintenant.",
+
   // La vie du village : les bulles et l'état vocal (migration 20261113002300_village_vie).
   invalid_plafond: "Indiquez un plafond de 0 à 100 dollars, au centime près.",
   invalid_releve: "Le relevé de la vie du village est mal formé : rien n'a été noté.",
