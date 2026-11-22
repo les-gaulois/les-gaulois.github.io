@@ -12,7 +12,6 @@ import {
   lotSelon,
   messageDuRefusDesStateres,
   raisonPochetteStateresFermee,
-  rareteDuLot,
   resteAujourdhui,
   retourMoyen,
 } from "../../src/lib/village/pochette-stateres";
@@ -123,10 +122,6 @@ describe("ce que l'écran en déduit", () => {
     expect(messageDuRefusDesStateres("plafond_du_jour")).toContain("demain");
     expect(messageDuRefusDesStateres("solde_insuffisant", { manque: 40 })).toContain("40");
     expect(messageDuRefusDesStateres("prix_change")).toBe(errorMessage("prix_change"));
-  });
-
-  it("donne à chaque lot la couleur d'une rareté, du commun au divin", () => {
-    expect([1, 2, 3, 4, 5, 6].map(rareteDuLot)).toEqual(["commun", "peu-commun", "epique", "mystique", "legendaire", "divin"]);
   });
 });
 

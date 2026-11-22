@@ -94,6 +94,9 @@ export function accentDuDessin(dessin: DessinEnCases | null): string {
   return meilleure;
 }
 
+/** La couleur que prend la scène d'une chose : celle de la table, sinon celle de son dessin (comme `imageSurFond`). */
+export const accentDeLaChose = (cle: string, dessin: DessinEnCases | null): string => ACCENTS[cle] ?? accentDuDessin(dessin);
+
 /** Une taille de fond ramenée entre la plus petite et la plus grande qu'une scène sait dessiner. */
 export function tailleBornee(largeur: number, hauteur: number): { largeur: number; hauteur: number } {
   return {

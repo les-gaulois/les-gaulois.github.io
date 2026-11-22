@@ -53,6 +53,7 @@ export function OuvertureDuBooster({
   onRevelee,
   autre,
   carteFinale,
+  rayon,
   children,
 }: {
   sorte: SorteDeBooster;
@@ -64,10 +65,12 @@ export function OuvertureDuBooster({
   /**
    * La carte de la chose reçue, en grand, avec toute sa description (22 novembre 2026, demande du pilote : « je préfère
    * qu'on voie la carte en gros avec toute la description contenue dans la carte », « avec le design fait pour ») : une fois
-   * la carte retournée et sa fête passée, elle prend la place de la scène. Sans elle (statères, bannières, billets), la
-   * scène reste, comme avant.
+   * la carte retournée et sa fête passée, elle prend la place de la scène. Sans elle (le booster de loterie, qui donne des
+   * billets), la scène reste, comme avant.
    */
   carteFinale?: ComponentChildren;
+  /** La couleur des rayons derrière la grande carte (« r, v, b ») ; sinon celle de la rareté de la carte. */
+  rayon?: string;
   children: ComponentChildren;
 }) {
   const nomDuPaquet = autre?.nom ?? NOMS_DES_BOOSTERS[sorte];
@@ -135,7 +138,7 @@ export function OuvertureDuBooster({
   return (
     <div class="bst-ouverture" data-revelee={revelee ? "" : undefined}>
       {avecCarte && fini && (
-        <div ref={finale} class="bst-cadre bst-finale" data-rarete={carte.rarete} data-pause={pause ? "" : undefined}>
+        <div ref={finale} class="bst-cadre bst-finale" data-rarete={carte.rarete} data-pause={pause ? "" : undefined} style={rayon ? { "--bst-rayon": rayon } : undefined}>
           <span class="bst-finale-rayons" aria-hidden="true" />
           {carteFinale}
           {/* La pause de la fenêtre reste à portée : la page derrière est inerte. */}

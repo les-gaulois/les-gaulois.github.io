@@ -11,7 +11,8 @@ import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import type { PoseDeLaChose } from "../../lib/village/fonds-objets";
 import { MarqueDeRarete, PetitePlaque, Prix, peindre } from "./BoutiquePixels";
 import { CocheDeCarte, HabitDeCarte, RangDuDuel, RefletDeCarte, suivreLePointeur, variablesDeLaCarte, useBulleDesEffets } from "./CarteDObjet";
-import { styleDeCarte } from "../../lib/jeu/cartes-d-objets";
+import { faconDeLaCarte, styleDeCarte } from "../../lib/jeu/cartes-d-objets";
+import { PetiteDeborde, PetitePleine } from "./CartesRares";
 import { DessinSurFond } from "./DessinSurFond";
 import { useEffetsDeLaChose } from "./effets-des-cartes";
 
@@ -242,8 +243,8 @@ function Cadenas() {
 export type Vente = { possede: number } | { prix: number | null; revient?: string | null };
 
 /**
- * Une case : l'image de l'objet, son nom, sa rareté écrite, avec son icône (la couleur du cadre n'est jamais le seul
- * repère). Une case de la boutique porte son prix : elle s'essaie sur le Gaulois, elle ne se porte qu'une fois achetée.
+ * Une case : l'image de l'objet, son nom, sa rareté écrite avec son icône (en pleine image, son icône seule à l'écran et
+ * son nom pour les lecteurs d'écran ; la couleur du cadre n'est jamais le seul repère). Une case de la boutique porte son prix : elle s'essaie sur le Gaulois, elle ne se porte qu'une fois achetée.
  * Une case achetée porte la marque « à vous ». `portee` et `essayee` se disent à part : pendant un essayage, l'objet
  * réellement porté garde sa coche. Un objet gravé à la forge porte sa petite plaque dorée dans un coin ; son texte est dans
  * le nom de la case et se lit au survol.
@@ -329,10 +330,29 @@ export function Case({
       )}
     </>
   );
+  // Le prix de la case (ou son retour, ou le cadenas) : sous la carte, dans le bandeau du bas d'une carte rare.
+  const prixDeLaCase = aVendre && (
+    <>
+      <span class="sr-only">, à la boutique, </span>
+      {aVendre.revient ? (
+        <span class="case-revient" data-testid="case-revient">
+          {aVendre.revient}
+        </span>
+      ) : aVendre.prix === null ? (
+        <Cadenas />
+      ) : (
+        <Prix montant={aVendre.prix} class="case-prix" />
+      )}
+      <span class="sr-only">, à essayer</span>
+    </>
+  );
+  const facon = carte ? faconDeLaCarte(objet.rarete) : "simple";
+  const rare = facon !== "simple";
+  const CorpsRare = facon === "pleine" ? PetitePleine : PetiteDeborde;
   return (
     <button
       type="button"
-      class={carte ? "case case-carte co-carte" : "case"}
+      class={carte ? `case case-carte co-carte${rare ? ` co-${facon}` : ""}` : "case"}
       data-carte={style ?? undefined}
       style={carte ? variablesDeLaCarte(objet.rarete) : undefined}
       data-rarete={objet.rarete ?? "aucune"}
@@ -353,35 +373,42 @@ export function Case({
       onFocus={bulle.onFocus}
       onBlur={bulle.onBlur}
     >
-      {carte && <HabitDeCarte rarete={objet.rarete} />}
-      {carte && <span class="case-nom co-nom">{objet.nom}</span>}
-      <span class="case-image" data-fond={vignette && fond && !visage ? "" : undefined}>
-        {vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} fond={fond} rarete={objet.rarete} pose={pose} /> : <span class="case-rien" aria-hidden="true" />}
-        {carte && <RefletDeCarte rarete={objet.rarete} />}
-        {carte && marquesDuHaut}
-        {carte && marquesDuBas}
-        {carte && portee && <CocheDeCarte />}
-      </span>
-      {!carte && <span class="case-nom">{objet.nom}</span>}
-      {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
-      {effets?.duel && <RangDuDuel duel={effets.duel} />}
-      {!carte && marquesDuHaut}
-      {aVendre && (
+      {rare && vignette && fond ? (
+        <CorpsRare
+          nom={objet.nom}
+          rarete={objet.rarete ?? "commun"}
+          cle={fond}
+          dessin={vignette}
+          effets={effets}
+          marques={
+            <>
+              {marquesDuHaut}
+              {marquesDuBas}
+              {portee && <CocheDeCarte />}
+            </>
+          }
+          pied={prixDeLaCase}
+          pose={pose}
+        />
+      ) : (
         <>
-          <span class="sr-only">, à la boutique, </span>
-          {aVendre.revient ? (
-            <span class="case-revient" data-testid="case-revient">
-              {aVendre.revient}
-            </span>
-          ) : aVendre.prix === null ? (
-            <Cadenas />
-          ) : (
-            <Prix montant={aVendre.prix} class="case-prix" />
-          )}
-          <span class="sr-only">, à essayer</span>
+          {carte && <HabitDeCarte rarete={objet.rarete} />}
+          {carte && <span class="case-nom co-nom">{objet.nom}</span>}
+          <span class="case-image" data-fond={vignette && fond && !visage ? "" : undefined}>
+            {vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} fond={fond} rarete={objet.rarete} pose={pose} /> : <span class="case-rien" aria-hidden="true" />}
+            {carte && <RefletDeCarte rarete={objet.rarete} />}
+            {carte && marquesDuHaut}
+            {carte && marquesDuBas}
+            {carte && portee && <CocheDeCarte />}
+          </span>
+          {!carte && <span class="case-nom">{objet.nom}</span>}
+          {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
+          {effets?.duel && <RangDuDuel duel={effets.duel} />}
+          {!carte && marquesDuHaut}
+          {prixDeLaCase}
+          {!carte && marquesDuBas}
         </>
       )}
-      {!carte && marquesDuBas}
     </button>
   );
 }

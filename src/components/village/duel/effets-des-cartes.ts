@@ -14,6 +14,10 @@ import { MOTEUR } from "./moteur-du-site";
 const urlDuRole = (role: keyof typeof ROLES): string => urlDeLaPlanche(`duel-role|${role}`, () => tuileDeRole(role));
 const urlDuMot = (mot: string, unique: boolean): string => urlDeLaPlanche(`duel-mot|${mot}|${unique}`, () => iconeDeMot(mot, unique));
 
+/** Le numéro de chaque carte : sa place dans le catalogue du duel. */
+const ORDRE = Object.keys(MOTEUR.catalogue);
+const NUMEROS = new Map(ORDRE.map((id, i) => [id, i + 1]));
+
 const DEJA = new Map<string, EffetsDeCarte | null>();
 
 /**
@@ -53,6 +57,8 @@ function calculer(cle: string): EffetsDeCarte | null {
         repos: carte.repos,
         icones: dessin.mots.slice(0, 3).map(({ mot, unique }) => ({ url: urlDuMot(mot, unique), nom: MOTEUR.mots[mot]?.nom ?? mot })),
         unique: carte.unique,
+        numero: NUMEROS.get(b) ?? 0,
+        total: ORDRE.length,
       },
       lignes,
     };

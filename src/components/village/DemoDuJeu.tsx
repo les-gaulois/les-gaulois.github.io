@@ -5,9 +5,9 @@ import { cleDeLObjet } from "../../lib/village/fonds-objets";
 import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import { tirageDEssai } from "../../lib/village/demo-booster";
 import { Px } from "../jeu/Pixels";
-import { CaseMontree } from "./BoutiqueDialogue";
 import { BoutonDesBoosters, FenetreDuBooster, PaquetEnImage } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
+import { CarteDeSortie } from "./CarteDeSortie";
 
 /**
  * La démonstration de « Mon Gaulois » pour les visiteurs qui ne sont pas connectés (21 novembre 2026, choix du pilote dans
@@ -102,12 +102,11 @@ export default function DemoDuJeu({ rejoindre, connexion }: { rejoindre: string;
             revelee={revelee}
             onRevelee={() => setRevelee(true)}
             carteFinale={
-              <CaseMontree
+              <CarteDeSortie
                 objet={OBJETS[essai.emplacement][essai.objet] ?? { nom: essai.nom, dessin: null, couleurs: {}, rarete: essai.rarete, gratuit: false }}
                 rarete={essai.rarete}
                 vignette={vignetteDeLObjet(essai.emplacement, essai.objet)}
                 fond={cleDeLObjet(essai.emplacement, essai.objet)}
-                grande
                 testid="demo-tirage"
               />
             }

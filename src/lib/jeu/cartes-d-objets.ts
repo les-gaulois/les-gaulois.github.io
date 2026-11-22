@@ -15,6 +15,7 @@
  * Sans navigateur : chaque dessin est une `Planche`, que l'écran change en image (`urlDeLaPlanche`). Une case du dessin vaut
  * toujours un nombre entier de pixels à l'écran (`--co-p`).
  */
+import { NOMS_EMPLACEMENTS, type Emplacement } from "../gaulois";
 import { Planche, R, grille } from "./planche";
 
 export type StyleDeCarte = "lisse" | "entre" | "pixel";
@@ -23,6 +24,17 @@ export type StyleDeCarte = "lisse" | "entre" | "pixel";
 export const RARETES_EN_PIXELS = ["mystique", "legendaire", "saison", "divin"] as const;
 export type RareteEnPixels = (typeof RARETES_EN_PIXELS)[number];
 export const estEnPixels = (r: unknown): r is RareteEnPixels => typeof r === "string" && (RARETES_EN_PIXELS as readonly string[]).includes(r);
+
+/**
+ * La mise en page d'une carte (22 novembre 2026, choix du pilote) : « pleine » (la scène sur toute la carte, des bandeaux
+ * fins) pour le légendaire, le légendaire de saison et le divin ; « deborde » (l'objet sort par le haut, le nom devant) pour
+ * le mystique ; « simple » (la fenêtre d'image au milieu) pour les autres.
+ */
+export type FaconDeCarte = "simple" | "deborde" | "pleine";
+export function faconDeLaCarte(rarete: string | null | undefined): FaconDeCarte {
+  if (rarete === "mystique") return "deborde";
+  return rarete === "legendaire" || rarete === "saison" || rarete === "divin" ? "pleine" : "simple";
+}
 
 /** La façon de faire la carte d'une rareté ; sans rareté (un objet gratuit, « de base ») : lisse. */
 export function styleDeCarte(rarete: string | null | undefined): StyleDeCarte {
@@ -240,6 +252,204 @@ export const COTE_DU_COIN_EPIQUE = 11;
 export function coinEpique(): Planche {
   return grille(COIN_EPIQUE, { k: "#3d0f8a", L: "#dcc6ff", m: "#9b4dff", w: "#ffffff", G: "#ffd84a", g: "#d9a21b" });
 }
+
+/* ---------- La pleine image (légendaire, saison, divin) et le débordement (mystique), 22 novembre 2026 ---------- */
+/* Choix du pilote sur les modèles de Claude Fable 5.2 : « pour les mystiques Par le haut, le nom devant ; et divin et
+   légendaire Les bandeaux fins », en grand à la sortie des boosters comme en petit dans les cases (« B et 1 »). */
+
+/** L'épaisseur du liseré de la pleine image, en cases : encre, couleur, encre. */
+export const BANDE_DU_LISERE = 3;
+
+/**
+ * Le liseré d'une carte pleine image, en neuf parts pour `border-image` : trois cases (encre, couleur, encre) le long des
+ * bords, un coin à gemme de `COIN_DU_CADRE` cases à chaque angle. La couleur alterne la lumière et le milieu de la rareté ;
+ * le divin y fait passer son prisme.
+ */
+export function lisereEnNeufParts(r: RareteEnPixels): Planche {
+  const C = COIN_DU_CADRE;
+  const P = PERIODE_DU_CADRE[r];
+  const W = 2 * C + P;
+  const g = new Planche(W, W);
+  const k = TONS_DES_CADRES[r];
+  for (let y = 0; y < W; y++)
+    for (let x = 0; x < W; x++) {
+      if ((x < C || x >= C + P) && (y < C || y >= C + P)) continue;
+      const horizontal = x >= C && x < C + P;
+      const d = horizontal ? Math.min(y, W - 1 - y) : Math.min(x, W - 1 - x);
+      if (d > BANDE_DU_LISERE - 1) continue;
+      const t = horizontal ? x - C : y - C;
+      R(g, x, y, 1, 1, d === 1 ? caseDeLaBande(r, r === "divin" ? 2 : t % 2 ? 1 : 2, t) : k.encre);
+    }
+  bossage(g, r, 0, 0, 1, 1);
+  bossage(g, r, W - 1, 0, -1, 1);
+  bossage(g, r, 0, W - 1, 1, -1);
+  bossage(g, r, W - 1, W - 1, -1, -1);
+  return g;
+}
+
+/** Le joyau posé au milieu d'un bord du liseré (divin, saison) : six cases sur trois, couché, ou debout (`vertical`). */
+export function joyauDuLisere(r: RareteEnPixels, vertical = false): Planche {
+  const k = TONS_DES_CADRES[r];
+  const rangee = [k.encre, k.gemme, k.gemmeClaire, k.gemme, k.gemme, k.encre];
+  const g = new Planche(vertical ? 3 : 6, vertical ? 6 : 3);
+  for (let a = 0; a < 6; a++)
+    for (let b = 0; b < 3; b++) {
+      const coul = b === 1 ? rangee[a]! : k.encre;
+      R(g, vertical ? b : a, vertical ? a : b, 1, 1, coul);
+    }
+  return g;
+}
+
+/** Une image en cases (une couleur par case, `null` pour vide). */
+export interface ImageEnCases {
+  largeur: number;
+  hauteur: number;
+  cases: readonly (string | null)[];
+}
+
+const BAYER_4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5] as const;
+
+/**
+ * Une scène posée dans une carte de `W` sur `H` cases, décalée de (`ox`, `oy`), jamais déformée : ce qui dépasse à gauche ou
+ * à droite reprend sa colonne du bord ; en haut et en bas, sa première ou sa dernière rangée, fondue en trame vers la
+ * couleur moyenne de cette rangée (le ciel, le sol). Dessin de Claude Fable 5.2 pour la pleine image.
+ */
+export function prolongerLaScene(img: ImageEnCases, W: number, H: number, ox: number, oy: number): ImageEnCases {
+  const hex = (c: string | null): [number, number, number] => (c && /^#[0-9a-f]{6}/i.test(c) ? [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)] : [255, 255, 255]);
+  const enHex = (v: readonly number[]): string => "#" + v.map((n) => Math.round(n).toString(16).padStart(2, "0")).join("");
+  const moyenne = (y: number): string => {
+    const m = [0, 0, 0];
+    for (let i = 0; i < img.largeur; i++) {
+      const c = hex(img.cases[y * img.largeur + i] ?? null);
+      for (let k = 0; k < 3; k++) m[k]! += c[k]!;
+    }
+    return enHex(m.map((v) => v / img.largeur));
+  };
+  const haut = moyenne(0);
+  const bas = moyenne(img.hauteur - 1);
+  const cases: (string | null)[] = [];
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const sx = Math.min(img.largeur - 1, Math.max(0, x - ox));
+      const sy = y - oy;
+      const seuil = (BAYER_4[(y & 3) * 4 + (x & 3)]! + 0.5) / 16;
+      let c: string | null;
+      if (sy < 0) c = Math.min(1, -sy / 12) > seuil ? haut : (img.cases[sx] ?? haut);
+      else if (sy >= img.hauteur) c = Math.min(1, (sy - img.hauteur + 1) / 12) > seuil ? bas : (img.cases[(img.hauteur - 1) * img.largeur + sx] ?? bas);
+      else c = img.cases[sy * img.largeur + sx] ?? null;
+      cases.push(c);
+    }
+  return { largeur: W, hauteur: H, cases };
+}
+
+/**
+ * La plus grande échelle, parmi `echelles` (dans l'ordre), où une chose de `l` sur `h` cases tient dans `maxL` sur `maxH`
+ * cases ; 1 sinon. Une case de la chose vaut alors `echelle` cases de la carte (un nombre entier de pixels à l'écran).
+ */
+export function echelleDeLaChose(l: number, h: number, maxL: number, maxH: number, echelles: readonly number[] = [3, 2, 1.5, 1]): number {
+  for (const e of echelles) if (l * e <= maxL && h * e <= maxH) return e;
+  return 1;
+}
+
+/** Le mot de l'emplacement d'une chose, d'après sa clé de fond (`objet/<emplacement>/<id>`, `familier/…`, `modele/…`). */
+export function motDeLaChose(cle: string): string {
+  const [sorte, e] = cle.split("/");
+  if (sorte === "objet" && e && Object.hasOwn(NOMS_EMPLACEMENTS, e)) return NOMS_EMPLACEMENTS[e as Emplacement];
+  if (sorte === "familier") return "Familier";
+  if (sorte === "modele") return "Gaulois unique";
+  return "";
+}
+
+/**
+ * Où poser la chose dans sa carte : au milieu (un objet), les pieds au sol un peu au-dessus du bas (un familier, un Gaulois
+ * unique en entier), ou contre le bas (un buste, coupé à la poitrine). Les mots de `PoseDeLaChose` des fonds d'objets.
+ */
+export type PoseDansLaCarte = "centre" | "sol" | "bas";
+
+/** La chose posée : `e` pixels la case de la chose, sa place et sa taille en pixels, depuis le haut et la gauche de sa place. */
+export interface PlaceDeLaChose {
+  e: number;
+  gauche: number;
+  haut: number;
+  largeur: number;
+  hauteur: number;
+}
+
+/** Les pixels d'une case de la chose : l'échelle choisie, arrondie vers le bas, pour que la chose tienne toujours. */
+const pixelsDeLaCase = (p: number, s: number): number => Math.max(1, Math.floor(p * s));
+
+/** La marge sous les pieds, en cases : 8 % de la hauteur, une case au moins, comme `imageSurFond`. */
+export const margeDuSol = (hauteur: number): number => Math.max(1, Math.round(hauteur * 0.08));
+
+/**
+ * La chose dans la zone de la pleine image, entre ses deux bandeaux (`zl` sur `zh` pixels, à `p` pixels la case) : la plus
+ * grande échelle où elle tient, deux cases d'air de chaque côté ; au milieu de la zone, au sol, ou contre le bandeau du bas.
+ */
+export function placerDansLaZone(chose: Pick<ImageEnCases, "largeur" | "hauteur">, zl: number, zh: number, p: number, pose: PoseDansLaCarte, echelles: readonly number[]): PlaceDeLaChose {
+  const hi = Math.floor(zh / p);
+  const marge = pose === "sol" ? margeDuSol(hi) : 0;
+  const s = echelleDeLaChose(chose.largeur, chose.hauteur, Math.floor(zl / p) - 4, hi - (pose === "centre" ? 2 : 1 + marge), echelles);
+  const e = pixelsDeLaCase(p, s);
+  const largeur = chose.largeur * e;
+  const hauteur = chose.hauteur * e;
+  const haut = pose === "centre" ? Math.round((zh - hauteur) / 2) : Math.max(0, zh - marge * p - hauteur);
+  return { e, gauche: Math.round((zl - largeur) / 2), haut, largeur, hauteur };
+}
+
+/**
+ * La chose qui déborde de sa fenêtre par le haut (le mystique, « Par le haut, le nom devant », d'après la maquette de Claude
+ * Fable 5.2) : la plus grande échelle où elle tient, le pied dans la fenêtre, le haut dehors. `li`, `hi` : la largeur et la
+ * hauteur de la fenêtre, en cases ; `yi` : sa place depuis le haut de la carte ; `dessus` : combien la chose peut sortir de
+ * la carte. Un objet a trois cases d'air sous lui ; un familier pose ses pieds au sol de la scène, un buste sa coupe sur le
+ * bord du bas. Places en pixels, depuis le haut et la gauche de la fenêtre.
+ */
+export function placerQuiDeborde(chose: Pick<ImageEnCases, "largeur" | "hauteur">, li: number, hi: number, yi: number, p: number, dessus: number, pose: PoseDansLaCarte, echelles: readonly number[]): PlaceDeLaChose {
+  const pied = yi + hi - (pose === "bas" ? 0 : pose === "sol" ? margeDuSol(hi) : 3);
+  const s = echelleDeLaChose(chose.largeur, chose.hauteur, li - 2, pied + dessus, echelles);
+  const e = pixelsDeLaCase(p, s);
+  const l = (chose.largeur * e) / p;
+  const h = (chose.hauteur * e) / p;
+  const hautDansLaCarte = pose === "centre" ? Math.max(-dessus, Math.min(pied - h, yi - h * (h > hi * 0.6 ? 0.2 : 0.3))) : Math.max(-dessus, pied - h);
+  return { e, gauche: Math.round(((li - l) / 2) * p), haut: Math.round((hautDansLaCarte - yi) * p), largeur: chose.largeur * e, hauteur: chose.hauteur * e };
+}
+
+/**
+ * La place de la chose dans sa scène, en cases, et la rangée de son sol, pour que la scène garde cette place calme et pose son
+ * sol sous elle, comme sur la face des boosters. `dx`, `dy` : où la place de la chose commence dans la scène, en pixels ; `W`
+ * et `H` : la taille de la scène, en cases. Ce qui sort de la scène est rogné.
+ */
+export function zoneDansLaScene(place: PlaceDeLaChose, dx: number, dy: number, p: number, W: number, H: number, pose: PoseDansLaCarte): { zone: { x: number; y: number; largeur: number; hauteur: number }; sol: number } {
+  const x0 = Math.round((dx + place.gauche) / p);
+  const y0 = Math.round((dy + place.haut) / p);
+  const x1 = Math.round((dx + place.gauche + place.largeur) / p);
+  const y1 = Math.round((dy + place.haut + place.hauteur) / p);
+  const x = Math.max(0, Math.min(W - 1, x0));
+  const y = Math.max(0, Math.min(H - 1, y0));
+  const zone = { x, y, largeur: Math.max(1, Math.min(W, x1) - x), hauteur: Math.max(1, Math.min(H, y1) - y) };
+  return { zone, sol: Math.max(0, Math.min(H - 1, y1 + (pose === "centre" ? 1 : 0))) };
+}
+
+/** La grande carte de la sortie des boosters, en cases. */
+export const CARTE_DE_SORTIE = { largeur: 70, hauteur: 116 } as const;
+
+/**
+ * Ce qui entoure la grande carte dans la fenêtre du booster (le haut de la fenêtre, les marges du ciel, la bourse, les
+ * boutons), en pixels, mesuré à l'écran : la carte prend le reste de la hauteur.
+ */
+export const AUTOUR_DE_LA_SORTIE = 300;
+
+/**
+ * Les pixels d'une case d'une grande carte de `cases` cases de haut (la carte de sortie, la carte des statères), pour
+ * qu'elle tienne dans l'écran avec la bourse et les boutons : quatre, trois sur un petit écran (360 pixels de large au
+ * plus) ou un écran bas, deux sur un écran très bas.
+ */
+export function caseQuiTient(largeur: number, hauteur: number, cases: number): 2 | 3 | 4 {
+  const p = largeur <= 360 ? 3 : 4;
+  if (p === 4 && cases * 4 + AUTOUR_DE_LA_SORTIE <= hauteur) return 4;
+  return cases * 3 + AUTOUR_DE_LA_SORTIE <= hauteur ? 3 : 2;
+}
+/** La case de la grande carte de sortie (116 cases de haut). */
+export const caseDeLaSortie = (largeur: number, hauteur: number): 2 | 3 | 4 => caseQuiTient(largeur, hauteur, CARTE_DE_SORTIE.hauteur);
 
 /** Copie une case d'une planche sur une autre, si elle est pleine. */
 function copier(src: Planche, sx: number, sy: number, g: Planche, x: number, y: number): void {

@@ -48,6 +48,7 @@ import { ImageEnCases, imageEnCases } from "./ImageEnCases";
 import InsigneDeSaison from "./InsigneDeSaison";
 import { BoutonDesBoosters, FenetreDuBooster, RangEnIcone } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
+import { CarteDeSortie } from "./CarteDeSortie";
 import { DESSINS_DES_MISSIONS, type DessinDuSentier } from "./SentierDessins";
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
@@ -816,12 +817,11 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
             revelee={ouverture.revele}
             onRevelee={() => setOuverture((o) => (o ? { ...o, revele: true } : o))}
             carteFinale={
-              <CaseMontree
+              <CarteDeSortie
                 objet={recu.fiche}
                 rarete={rareteRecue}
                 vignette={vignetteDeLObjet(ouverture.recu.objet.emplacement, ouverture.recu.objet.objet)}
                 fond={fondDeLObjet(ouverture.recu.objet.emplacement, ouverture.recu.objet.objet)}
-                grande
                 testid="palier-recu"
               />
             }

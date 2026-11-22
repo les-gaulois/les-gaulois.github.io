@@ -1,6 +1,27 @@
 [
   {
     "date": "2026-11-22",
+    "kind": "ameliore",
+    "title": "Des cartes en or pour les statères",
+    "body": "Un booster de statères finit sur une carte en or, de « Quelques pièces » au « Trésor », selon le lot. Les statères rendus par un booster ont aussi leur carte, avec la part du prix.",
+    "link": {
+      "href": "/village#pochettes",
+      "label": "Les boosters"
+    }
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "ameliore",
+    "rank": "minor",
+    "title": "Les cartes rares en pleine image",
+    "body": "La scène d'un objet, d'un familier ou d'un Gaulois unique légendaire ou divin couvre toute sa carte, entre deux bandeaux fins ; un mystique sort de son cadre par le haut.",
+    "link": {
+      "href": "/village#gaulois",
+      "label": "Le vestiaire"
+    }
+  },
+  {
+    "date": "2026-11-22",
     "kind": "retire",
     "rank": "minor",
     "title": "Un accueil plus court",

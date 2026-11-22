@@ -10,11 +10,14 @@ import { MODELES, apercuDuModele, decrireLeModele, etatDuModele, idsDesModeles, 
 import { Problem } from "../compte/common";
 import { Px } from "../jeu/Pixels";
 import { BoutonDuJeu, PrixDuJeu } from "./BoutiqueDuJeu";
-import { CaseMontree, Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
+import { Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Prix, peindre } from "./BoutiquePixels";
-import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels } from "./KitDesBoosters";
 import type { EtatDesModeles } from "./Modeles";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
+import { CarteDeStateres } from "./CarteDeStateres";
+import { LOTS_DESSINES } from "../../lib/jeu/cartes-de-stateres";
+import { CarteDeSortie } from "./CarteDeSortie";
 
 /**
  * Les Gaulois uniques sur « La boutique » (15 novembre 2026, demande du pilote : « mets-les en pochette dédiée et en
@@ -358,15 +361,16 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
   return (
     <FenetreDuBooster titre={ouverte && revele && rendu ? "Statères rendus" : ouverte && revele && recu ? "Nouveau Gaulois unique" : refus ? "Le booster reste fermé" : "Booster des Gaulois uniques"} etape={ouverte ? "ouvre" : "confirmer"} occupe={etape === "envoi" || etape === "ouvre"} scene={ouverte} onFermer={onFermer} testid="dialogue-modeles">
       {ouverte && tirage && carte && rendu ? (
-        <OuvertureDuBooster sorte="modeles" carte={carte} revelee={revele} onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}>
-          {/* Un remboursement : ce qui revient, en statères et en part du prix, puis la bourse. Sans rareté. */}
-          <ResultatDuBooster
-            nom={`+${nombre(rendu.rendu)} ${rendu.rendu > 1 ? "statères rendus" : "statère rendu"}`}
-            detail={<Px t={`${pourcent(rendu.pourcent)} du prix`} couleur="doux" dit={`${pourcent(rendu.pourcent)} du prix du booster`} />}
-            testid="uniques-rendu"
-          >
-            <span hidden data-pourcent={rendu.pourcent} />
-          </ResultatDuBooster>
+        <OuvertureDuBooster
+          sorte="modeles"
+          carte={carte}
+          revelee={revele}
+          onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
+          carteFinale={<CarteDeStateres rang={0} gain={rendu.rendu} pourcent={rendu.pourcent} testid="uniques-rendu" />}
+          rayon={LOTS_DESSINES[0].rayon}
+        >
+          {/* Un remboursement : la carte dit ce qui revient et la part du prix ; dessous, la bourse. */}
+          <span hidden data-pourcent={rendu.pourcent} />
           <div data-testid="uniques-rendu-solde">
             <ResteEnPixels solde={tirage.solde} />
           </div>
@@ -381,14 +385,13 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
           revelee={revele}
           onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
           carteFinale={
-            <CaseMontree
+            <CarteDeSortie
               objet={{ nom: recu.nom, dessin: null, couleurs: {}, rarete: recu.rarete, gratuit: false }}
               rarete={recu.rarete}
               vignette={apercuRecu}
               fond={cleDuModele(recu.id)}
               pose="bas"
               sous={`Votre Gaulois en ${decrireLeModele(recu.id)}. ${recu.description}`}
-              grande
               testid="uniques-tirage"
             />
           }

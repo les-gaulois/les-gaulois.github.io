@@ -7,10 +7,11 @@ import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import { albumDeLaPochetteSurprise, nombreDansLaPochetteSurprise } from "../../lib/village/album-pochette";
 import type { MaBoutique, PochetteReponse } from "../../lib/village/contrat";
 import { chancesDeLaPochette, manque, pourcent, stateres } from "../../lib/village/ecran-boutique";
-import { CaseMontree, type Issue } from "./BoutiqueDialogue";
+import type { Issue } from "./BoutiqueDialogue";
 import { feterLObjet } from "./Cases";
 import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
+import { CarteDeSortie } from "./CarteDeSortie";
 
 /**
  * Le booster surprise, sous l'étal (fiche du kit, `FicheDuBooster`) : son paquet, qui ouvre l'album des objets qu'il peut
@@ -112,7 +113,7 @@ export function DialoguePochette({
           carte={carte}
           revelee={etape === "revele"}
           onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
-          carteFinale={<CaseMontree objet={objet} rarete={tire.rarete} vignette={vignetteDe(tire)} fond={cleDeLObjet(tire.emplacement, tire.objet)} grande testid="pochette-tirage" />}
+          carteFinale={<CarteDeSortie objet={objet} rarete={tire.rarete} vignette={vignetteDe(tire)} fond={cleDeLObjet(tire.emplacement, tire.objet)} testid="pochette-tirage" />}
         >
           {/* La carte dit tout (nom, rareté, effets) : dessous, la bourse et les boutons seulement. */}
           <span hidden data-objet={`${tire.emplacement}/${tire.objet}`} />

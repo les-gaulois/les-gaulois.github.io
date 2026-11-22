@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OBJETS, RARETES_DES_OBJETS } from "../../src/lib/gaulois";
+import { EMPLACEMENTS_OBJETS, NOMS_EMPLACEMENTS, OBJETS, RARETES_DES_OBJETS } from "../../src/lib/gaulois";
 import {
   BANDE_DU_CADRE,
   COIN_DU_CADRE,
@@ -9,14 +9,26 @@ import {
   RARETES_EN_PIXELS,
   TONS_DES_CARTES,
   cadreEnNeufParts,
+  caseDeLaSortie,
+  caseQuiTient,
   coinEpique,
   ecussonDeCarte,
+  echelleDeLaChose,
+  faconDeLaCarte,
   habillerUnePlanche,
+  joyauDuLisere,
+  lisereEnNeufParts,
+  motDeLaChose,
+  placerDansLaZone,
+  placerQuiDeborde,
+  prolongerLaScene,
+  zoneDansLaScene,
   motifDeFeuille,
   styleDeCarte,
   tonsDeLaCarte,
 } from "../../src/lib/jeu/cartes-d-objets";
 import { lireEffets } from "../../src/components/village/duel/effets-des-cartes";
+import { accorder } from "../../src/components/village/duel/moteur";
 import { CATALOGUE_DU_DUEL, carte as carteDuMoteur } from "../../supabase/functions/code-discord/duel/index";
 import { Planche, R } from "../../src/lib/jeu/planche";
 import { FAMILIERS } from "../../src/lib/village/familiers";
@@ -82,6 +94,105 @@ describe("les dessins des cartes en cases", () => {
     }
     const coin = coinEpique();
     expect([coin.width, coin.height]).toEqual([11, 11]);
+  });
+});
+
+describe("la pleine image et le débordement (choix du pilote du 22 novembre 2026)", () => {
+  it("légendaire, saison et divin en pleine image ; mystique qui déborde ; les autres simples", () => {
+    expect(["legendaire", "saison", "divin"].map(faconDeLaCarte)).toEqual(["pleine", "pleine", "pleine"]);
+    expect(faconDeLaCarte("mystique")).toBe("deborde");
+    for (const r of ["commun", "peu-commun", "epique", null, undefined]) expect(faconDeLaCarte(r)).toBe("simple");
+  });
+
+  it("le liseré : trois cases le long des bords, l'angle vide, le milieu vide ; le joyau a ses deux sens", () => {
+    for (const r of RARETES_EN_PIXELS) {
+      const l = lisereEnNeufParts(r);
+      const cote = 2 * COIN_DU_CADRE + PERIODE_DU_CADRE[r];
+      expect([l.width, l.height]).toEqual([cote, cote]);
+      expect(l.pleine(0, 0), r).toBe(false);
+      for (let d = 0; d < 3; d++) expect(l.pleine(COIN_DU_CADRE, d), `${r} ${d}`).toBe(true);
+      expect(l.pleine(COIN_DU_CADRE, 3), r).toBe(false);
+      const j = joyauDuLisere(r);
+      const v = joyauDuLisere(r, true);
+      expect([j.width, j.height, v.width, v.height]).toEqual([6, 3, 3, 6]);
+      expect(v.couleur(1, 2)).toEqual(j.couleur(2, 1));
+    }
+  });
+
+  it("la scène prolongée garde chaque case de la scène et ne laisse aucune case vide autour", () => {
+    const img = { largeur: 4, hauteur: 3, cases: ["#101010", "#202020", "#303030", "#404040", "#505050", "#606060", "#707070", "#808080", "#909090", "#a0a0a0", "#b0b0b0", "#c0c0c0"] };
+    const grande = prolongerLaScene(img, 6, 30, 1, 10);
+    expect([grande.largeur, grande.hauteur, grande.cases.length]).toEqual([6, 30, 180]);
+    // La scène est posée telle quelle, décalée d'une case et de dix rangées.
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 4; x++) expect(grande.cases[(y + 10) * 6 + x + 1]).toBe(img.cases[y * 4 + x]);
+    expect(grande.cases.every((c) => typeof c === "string")).toBe(true);
+  });
+
+  it("l'échelle de la chose : la plus grande qui tient", () => {
+    expect(echelleDeLaChose(10, 40, 64, 100)).toBe(2);
+    expect(echelleDeLaChose(10, 40, 64, 60)).toBe(1.5);
+    expect(echelleDeLaChose(40, 40, 30, 30)).toBe(1);
+    expect(echelleDeLaChose(12, 12, 40, 40)).toBe(3);
+  });
+
+  it("la chose dans la pleine image : au milieu, au sol, contre le bas, en pixels entiers", () => {
+    const chose = { largeur: 20, hauteur: 20 };
+    // Une zone de 128 sur 120 pixels, à 2 pixels la case : l'échelle 2, soit 4 pixels la case de la chose.
+    expect(placerDansLaZone(chose, 128, 120, 2, "centre", [2, 1.5, 1])).toEqual({ e: 4, gauche: 24, haut: 20, largeur: 80, hauteur: 80 });
+    // Au sol : 8 % de la hauteur sous les pieds (5 cases, 10 pixels).
+    expect(placerDansLaZone(chose, 128, 120, 2, "sol", [2, 1.5, 1]).haut).toBe(30);
+    // Un buste contre le bandeau du bas.
+    const buste = placerDansLaZone(chose, 128, 120, 2, "bas", [2, 1.5, 1]);
+    expect(buste.haut + buste.hauteur).toBe(120);
+    // L'échelle 1,5 à 3 pixels la case donne 4 pixels, jamais 5 : la chose tient toujours.
+    expect(placerDansLaZone({ largeur: 30, hauteur: 30 }, 150, 150, 3, "centre", [3, 2, 1.5, 1]).e).toBe(4);
+  });
+
+  it("la chose qui déborde : son haut hors de la fenêtre, jamais plus haut que permis ; un buste sur le bord du bas", () => {
+    const chose = { largeur: 20, hauteur: 30 };
+    // Une fenêtre de 60 sur 40 cases, à 10 cases du haut de la carte, à 2 pixels la case ; 4 cases permises au-dessus.
+    const objet = placerQuiDeborde(chose, 60, 40, 10, 2, 4, "centre", [2, 1.5, 1]);
+    expect(objet).toEqual({ e: 3, gauche: 30, haut: -18, largeur: 60, hauteur: 90 });
+    // Un objet garde trois cases d'air sous lui ; un familier pose ses pieds 8 % au-dessus du bas ; un buste, sur le bord.
+    expect(80 - (objet.haut + objet.hauteur)).toBeGreaterThanOrEqual(6);
+    const familier = placerQuiDeborde(chose, 60, 40, 10, 2, 4, "sol", [2, 1.5, 1]);
+    expect(80 - (familier.haut + familier.hauteur)).toBe(6);
+    const buste = placerQuiDeborde(chose, 60, 40, 10, 2, 4, "bas", [2, 1.5, 1]);
+    expect(buste.haut + buste.hauteur).toBe(80);
+    // Trop grande pour tenir : elle s'arrête à 4 cases au-dessus de la carte.
+    expect(placerQuiDeborde({ largeur: 10, hauteur: 80 }, 60, 40, 10, 2, 4, "centre", [2, 1.5, 1]).haut).toBe(-28);
+  });
+
+  it("la place de la chose dans sa scène, en cases, rognée à la scène, et son sol dessous", () => {
+    const place = { e: 4, gauche: 24, haut: 20, largeur: 80, hauteur: 80 };
+    expect(zoneDansLaScene(place, 6, 10, 2, 64, 80, "centre")).toEqual({ zone: { x: 15, y: 15, largeur: 40, hauteur: 40 }, sol: 56 });
+    expect(zoneDansLaScene(place, 6, 10, 2, 64, 80, "bas").sol).toBe(55);
+    expect(zoneDansLaScene({ e: 2, gauche: -20, haut: -30, largeur: 60, hauteur: 60 }, 0, 0, 2, 20, 20, "centre")).toEqual({ zone: { x: 0, y: 0, largeur: 20, hauteur: 15 }, sol: 16 });
+  });
+
+  it("la grande carte de sortie tient dans l'écran : quatre pixels la case, moins sur un écran petit ou bas", () => {
+    expect(caseDeLaSortie(1280, 900)).toBe(4);
+    expect(caseDeLaSortie(390, 844)).toBe(4);
+    expect(caseDeLaSortie(360, 900)).toBe(3);
+    expect(caseDeLaSortie(1280, 700)).toBe(3);
+    expect(caseDeLaSortie(1280, 600)).toBe(2);
+    // Une carte plus basse (celle des statères, 90 cases) garde ses quatre pixels sur un écran plus bas.
+    expect(caseQuiTient(1280, 700, 90)).toBe(4);
+    expect(caseQuiTient(1280, 600, 90)).toBe(3);
+  });
+
+  it("le mot de la chose, d'après sa clé", () => {
+    const e = EMPLACEMENTS_OBJETS[0]!;
+    expect(motDeLaChose(`objet/${e}/x`)).toBe(NOMS_EMPLACEMENTS[e]);
+    expect(motDeLaChose("familier/chat")).toBe("Familier");
+    expect(motDeLaChose("modele/dragon")).toBe("Gaulois unique");
+    expect(motDeLaChose("objet/nulle-part/x")).toBe("");
+  });
+
+  it("« 2 manche de plus » s'accorde, « 1 manche » non", () => {
+    expect(accorder("La carte posée en face se repose 2 manche de plus.")).toBe("La carte posée en face se repose 2 manches de plus.");
+    expect(accorder("La carte posée en face se repose 1 manche de plus.")).toBe("La carte posée en face se repose 1 manche de plus.");
+    expect(accorder("Se repose 1 manche au lieu de 2.")).toBe("Se repose 1 manche au lieu de 2.");
   });
 });
 

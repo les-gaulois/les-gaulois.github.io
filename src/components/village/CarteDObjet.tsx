@@ -1,16 +1,19 @@
 import { render, type JSX } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { motionAllowed } from "../../lib/fx/motion";
 import { urlDeLaPlanche } from "../../lib/jeu/dans-la-page";
 import {
-  TONS_DES_CADRES,
   cadreEnNeufParts,
+  caseQuiTient,
   coinEpique,
   ecussonDeCarte,
   estEnPixels,
   etoilesDuDivin,
+  joyauDuLisere,
+  lisereEnNeufParts,
   motifDeFeuille,
   styleDeCarte,
+  TONS_DES_CADRES,
   tonsDeLaCarte,
 } from "../../lib/jeu/cartes-d-objets";
 import type { Rarete } from "../../lib/gaulois";
@@ -38,6 +41,11 @@ export function variablesDeLaCarte(rarete: string | null | undefined): JSX.CSSPr
     v["--co-motif"] = urlDeLaPlanche(`carte-motif|${rarete}`, () => motifDeFeuille(rarete));
     v["--co-motif-n"] = rarete === "mystique" ? "8" : "16";
     if (rarete === "divin") v["--co-etoiles"] = urlDeLaPlanche("carte-etoiles", etoilesDuDivin);
+    if (rarete !== "mystique") v["--co-lisere"] = urlDeLaPlanche(`carte-lisere|${rarete}`, () => lisereEnNeufParts(rarete));
+    if (rarete === "divin" || rarete === "saison") {
+      v["--co-joyau"] = urlDeLaPlanche(`carte-joyau|${rarete}`, () => joyauDuLisere(rarete));
+      v["--co-joyau-debout"] = urlDeLaPlanche(`carte-joyau-debout|${rarete}`, () => joyauDuLisere(rarete, true));
+    }
   } else if (rarete === "epique") {
     v["--co-coin"] = urlDeLaPlanche("carte-coin-epique", coinEpique);
   }
@@ -67,6 +75,18 @@ export function HabitDeCarte({ rarete }: { rarete: string | null | undefined }) 
       )}
     </>
   );
+}
+
+/** Les pixels d'une case d'une grande carte de `cases` cases de haut, d'après la taille de l'écran, suivis quand elle change. */
+export function useCaseQuiTient(cases: number): number {
+  const lire = (): number => (typeof window === "undefined" ? 4 : caseQuiTient(window.innerWidth, window.innerHeight, cases));
+  const [p, setP] = useState(lire);
+  useEffect(() => {
+    const suivre = (): void => setP(lire());
+    window.addEventListener("resize", suivre);
+    return () => window.removeEventListener("resize", suivre);
+  }, [cases]);
+  return p;
 }
 
 /** La coche d'une carte portée, dans le coin de son image : la case d'avant la posait sur le nom. */
@@ -151,7 +171,7 @@ export function RangDuDuel({ duel }: { duel: CarteDuDuel }) {
  * La fiche des effets d'une carte, en phrases avec leurs icônes : le rôle, l'effet unique, chaque mot-clé, la panoplie ; puis
  * le repos et le numéro dans le recueil du duel.
  */
-export function FicheDesEffets({ effets }: { effets: EffetsDeCarte }) {
+export function FicheDesEffets({ effets, avecPied = true }: { effets: EffetsDeCarte; avecPied?: boolean }) {
   const duel = effets.duel;
   return (
     <span class="co-fiche" data-testid="carte-effets">
@@ -171,7 +191,7 @@ export function FicheDesEffets({ effets }: { effets: EffetsDeCarte }) {
             </span>
           </span>
         ))}
-      {duel && (
+      {duel && avecPied && (
         <span class="co-pied-fiche">
           Repos : {duel.repos} manche{duel.repos > 1 ? "s" : ""}
         </span>

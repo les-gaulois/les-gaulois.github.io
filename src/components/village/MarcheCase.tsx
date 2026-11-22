@@ -9,7 +9,8 @@ import { IconeDeRarete } from "./IconeDeRarete";
 import { DessinSurFond } from "./DessinSurFond";
 import { cleDeLObjet } from "../../lib/village/fonds-objets";
 import { HabitDeCarte, RangDuDuel, RefletDeCarte, suivreLePointeur, useBulleDesEffets, variablesDeLaCarte } from "./CarteDObjet";
-import { styleDeCarte } from "../../lib/jeu/cartes-d-objets";
+import { faconDeLaCarte, styleDeCarte } from "../../lib/jeu/cartes-d-objets";
+import { PetiteDeborde, PetitePleine } from "./CartesRares";
 import { useEffetsDeLaChose } from "./effets-des-cartes";
 
 /** La pièce, en pixels nets : décorative, le mot « statères » est écrit ou dit à côté. */
@@ -44,11 +45,14 @@ export function CaseObjet({ objet, quantite, mention }: { objet: ObjetDuMarche; 
   const effets = useEffetsDeLaChose(cle);
   const bulle = useBulleDesEffets(objet.nom, effets);
   const style = styleDeCarte(objet.rarete);
+  const facon = faconDeLaCarte(objet.rarete);
+  const rare = facon !== "simple";
+  const CorpsRare = facon === "pleine" ? PetitePleine : PetiteDeborde;
   const suivre = style !== "lisse" ? suivreLePointeur() : null;
   // Une carte, comme au vestiaire (22 novembre 2026) : le nom en haut, l'image, la rareté, et pour qui voit le duel son rang.
   return (
     <span
-      class="marche-case case-carte co-carte"
+      class={`marche-case case-carte co-carte${rare ? ` co-${facon}` : ""}`}
       data-carte={style}
       data-rarete={objet.rarete}
       style={variablesDeLaCarte(objet.rarete)}
@@ -59,23 +63,39 @@ export function CaseObjet({ objet, quantite, mention }: { objet: ObjetDuMarche; 
       }}
       onPointerEnter={bulle.onPointerEnter}
     >
-      <HabitDeCarte rarete={objet.rarete} />
-      <span class="marche-case-nom co-nom">{objet.nom}</span>
-      <span class="marche-case-image" data-fond={vignette ? "" : undefined}>
-        {vignette && <DessinSurFond dessin={vignette} fond={cle} rarete={objet.rarete} place={COTE_IMAGE} />}
-        <RefletDeCarte rarete={objet.rarete} />
-      </span>
-      <span class="marche-case-rarete">
-        <span class="marche-case-rang" aria-hidden="true">
-          <IconeDeRarete rarete={objet.rarete} />
-        </span>
-        {rarete.nom}
-      </span>
-      {effets?.duel && <RangDuDuel duel={effets.duel} />}
-      {quantite !== undefined && quantite > 1 && (
-        <span class="marche-case-nombre tnum">{fmtInt(quantite)} exemplaires</span>
+      {rare && vignette ? (
+        <CorpsRare
+          nom={objet.nom}
+          rarete={objet.rarete}
+          cle={cle}
+          dessin={vignette}
+          effets={effets}
+          pied={
+            <>
+              {quantite !== undefined && quantite > 1 && <span class="marche-case-nombre tnum">{fmtInt(quantite)} exemplaires</span>}
+              {mention && <span class="marche-case-nombre">{mention}</span>}
+            </>
+          }
+        />
+      ) : (
+        <>
+          <HabitDeCarte rarete={objet.rarete} />
+          <span class="marche-case-nom co-nom">{objet.nom}</span>
+          <span class="marche-case-image" data-fond={vignette ? "" : undefined}>
+            {vignette && <DessinSurFond dessin={vignette} fond={cle} rarete={objet.rarete} place={COTE_IMAGE} />}
+            <RefletDeCarte rarete={objet.rarete} />
+          </span>
+          <span class="marche-case-rarete">
+            <span class="marche-case-rang" aria-hidden="true">
+              <IconeDeRarete rarete={objet.rarete} />
+            </span>
+            {rarete.nom}
+          </span>
+          {effets?.duel && <RangDuDuel duel={effets.duel} />}
+          {quantite !== undefined && quantite > 1 && <span class="marche-case-nombre tnum">{fmtInt(quantite)} exemplaires</span>}
+          {mention && <span class="marche-case-nombre">{mention}</span>}
+        </>
       )}
-      {mention && <span class="marche-case-nombre">{mention}</span>}
     </span>
   );
 }

@@ -5,7 +5,8 @@ import { stateres } from "../../lib/village/ecran-boutique";
 import { MarqueDeRarete, Prix } from "./BoutiquePixels";
 import { carillonSiVoulu, preparerLeSonSiVoulu } from "./Carillon";
 import { FicheDesEffets, HabitDeCarte, RangDuDuel, RefletDeCarte, suivreLePointeur, useBulleDesEffets, variablesDeLaCarte } from "./CarteDObjet";
-import { styleDeCarte } from "../../lib/jeu/cartes-d-objets";
+import { faconDeLaCarte, styleDeCarte } from "../../lib/jeu/cartes-d-objets";
+import { PetiteDeborde, PetitePleine } from "./CartesRares";
 import { feterLObjet } from "./Cases";
 import { DessinSurFond } from "./DessinSurFond";
 import type { PoseDeLaChose } from "../../lib/village/fonds-objets";
@@ -85,9 +86,12 @@ export function CaseMontree({
   if (carte && vignette) {
     const style = styleDeCarte(rarete);
     const suivre = grande || style !== "lisse" ? suivreLePointeur(grande ? 12 : 0) : null;
+    const facon = faconDeLaCarte(rarete);
+    const rare = facon !== "simple";
+    const CorpsRare = facon === "pleine" ? PetitePleine : PetiteDeborde;
     return (
       <div
-        class={`case case-montree case-carte co-carte${grande ? " co-grande" : ""}`}
+        class={`case case-montree case-carte co-carte${grande ? " co-grande" : rare ? ` co-${facon}` : ""}`}
         data-carte={style}
         data-rarete={rarete}
         data-testid={testid}
@@ -100,16 +104,22 @@ export function CaseMontree({
         onPointerCancel={suivre?.onPointerCancel}
         onPointerEnter={bulle.onPointerEnter}
       >
-        <HabitDeCarte rarete={rarete} />
-        <span class="case-nom co-nom">{objet.nom}</span>
-        <span class="case-image" data-fond="">
-          <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} place={grande ? 168 : 80} maximum={grande ? 4 : 3} pose={pose} class="case-dessin" />
-          <RefletDeCarte rarete={rarete} />
-        </span>
-        <MarqueDeRarete rarete={rarete} />
-        {sous && <span class="co-sous">{sous}</span>}
-        {effets?.duel && <RangDuDuel duel={effets.duel} />}
-        {grande && effets && <FicheDesEffets effets={effets} />}
+        {rare && !grande ? (
+          <CorpsRare nom={objet.nom} rarete={rarete} cle={fond} dessin={vignette} effets={effets} pied={sous ? <span class="co-sous">{sous}</span> : null} pose={pose} />
+        ) : (
+          <>
+            <HabitDeCarte rarete={rarete} />
+            <span class="case-nom co-nom">{objet.nom}</span>
+            <span class="case-image" data-fond="">
+              <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} place={grande ? 168 : 80} maximum={grande ? 4 : 3} pose={pose} class="case-dessin" />
+              <RefletDeCarte rarete={rarete} />
+            </span>
+            <MarqueDeRarete rarete={rarete} />
+            {sous && <span class="co-sous">{sous}</span>}
+            {effets?.duel && <RangDuDuel duel={effets.duel} />}
+            {grande && effets && <FicheDesEffets effets={effets} />}
+          </>
+        )}
       </div>
     );
   }

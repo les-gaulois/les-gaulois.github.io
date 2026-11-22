@@ -4,12 +4,13 @@ import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import type { PochetteBannieresReponse } from "../../lib/village/contrat";
 import { idsDesBannieres } from "../../lib/village/ecran-bannieres";
 import { nombre, pourcent } from "../../lib/village/ecran-boutique";
-import { Px } from "../jeu/Pixels";
 import type { Banniere } from "../../lib/village/bannieres";
 import { plusTard, type ProprietesDeLaFicheDesBannieres, type ProprietesDuBoosterDesBannieres } from "./Bannieres";
 import { CarteDeBanniere } from "./CarteDObjet";
-import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RefusDuBooster, ResteEnPixels, ResultatDuBooster, type LigneDeChance } from "./KitDesBoosters";
+import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RefusDuBooster, ResteEnPixels, type LigneDeChance } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
+import { CarteDeStateres } from "./CarteDeStateres";
+import { LOTS_DESSINES } from "../../lib/jeu/cartes-de-stateres";
 
 /**
  * Ouvrir un booster des bannières : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis le joueur ouvre le
@@ -70,7 +71,8 @@ export function DialoguePochetteBannieres({ lib, prix, solde, ouvrir, montrer, d
           carte={carte}
           revelee={revelee}
           onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
-          carteFinale={recue ? <CarteDeLaBanniereRecue lib={lib} banniere={recue} /> : undefined}
+          carteFinale={recue ? <CarteDeLaBanniereRecue lib={lib} banniere={recue} /> : rendu ? <CarteDeStateres rang={0} gain={rendu.rendu} pourcent={rendu.pourcent} testid="bannieres-pochette-rendu-recu" /> : undefined}
+          rayon={!recue && rendu ? LOTS_DESSINES[0].rayon : undefined}
         >
           {recue ? (
             <>
@@ -86,11 +88,7 @@ export function DialoguePochetteBannieres({ lib, prix, solde, ouvrir, montrer, d
             </>
           ) : rendu ? (
             <>
-              <ResultatDuBooster
-                nom={`+${nombre(rendu.rendu)} ${rendu.rendu > 1 ? "statères rendus" : "statère rendu"}`}
-                detail={<Px t={`${pourcent(rendu.pourcent)} du prix`} couleur="doux" dit={`${pourcent(rendu.pourcent)} du prix du booster`} />}
-                testid="bannieres-pochette-rendu-recu"
-              />
+              {/* La carte dit ce qui est rendu et la part du prix : dessous, la bourse et le bouton. */}
               <ResteEnPixels solde={tirage.solde} />
               <p class="bst-mot">Pas de trésor cette fois.</p>
               <div class="bst-actions">

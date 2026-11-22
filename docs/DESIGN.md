@@ -1038,6 +1038,21 @@ des cartes « jolies mais pas en pixel art et non holographiques ». Ne pas chan
   coins en cases, un pointillé, un reflet doux qui suit le pointeur) ; « pixel » (mystique, légendaire, saison, divin : cadre
   en cases posé en neuf parts par `border-image`, bossages à gemme dans les coins, écussons en haut et en bas, feuille
   holographique masquée par le motif de la rareté, lumière qui passe sur le cadre, papier étoilé au divin).
+- **Trois mises en page** (`faconDeLaCarte`, choix du pilote du 22 novembre 2026 sur les modèles v2 de Claude Fable 5.2 :
+  « pour les mystiques Par le haut, le nom devant ; et divin et légendaire Les bandeaux fins », et « dans les cases je
+  préfère B et 1 ») : la **pleine image** pour le légendaire, le légendaire de saison et le divin (la scène de la chose sur
+  toute la carte, prolongée en trame au-delà de 88 cases, `prolongerLaScene` ; un liseré en cases à coins à gemme,
+  `lisereEnNeufParts`, des joyaux au milieu des bords du divin et du saison ; un bandeau fin en haut, nom et rareté, un en
+  bas, rang du duel ; la chose en grand entre les deux, `placerDansLaZone` ; en grand, la fiche des effets monte du bas au
+  survol d'une souris, ou par le bandeau du bas, qui en est le bouton, ou d'un appui sur la carte) ; le **débordement**
+  pour le mystique (la carte à fenêtre, mais la chose sort par le haut et passe sur le cadre, le nom devant elle, cerné de
+  clair, `placerQuiDeborde`) ; la carte **simple** pour les autres. La chose est posée comme sur son fond d'objet : un
+  objet au milieu, un familier au sol, un buste contre le bas ; sa scène, dans la couleur de la chose, garde sa place calme
+  et pose son sol sous elle (`zoneDansLaScene`, comme la face des boosters). Pièces dans `CartesRares.tsx` (petites
+  `PetitePleine`, `PetiteDeborde` ; grandes `GrandePleine`, `GrandeDeborde`) et `CarteDeSortie.tsx` (la carte de la
+  sortie des boosters, 70 cases de large, 116 de haut en pleine image, à 4 pixels la case, 3 ou 2 sur un écran petit ou
+  bas, `caseDeLaSortie`, pour que la bourse et les boutons restent dans l'écran). Le numéro au pied de la fiche
+  (« n° 56/273 ») est la place de la carte dans le catalogue du duel : il change quand le catalogue est refait.
 - **Les pièces** : `CarteDObjet.tsx` (habit, reflet, rang du duel, fiche des effets, bulle au survol), feuille
   `24-cartes.css` (classes `co-…`, racine `co-carte`, rien du jeu : « Mon compte » pose aussi ces cartes). Une case du
   dessin vaut toujours un nombre entier de pixels (`--co-p`, 2 sur une petite carte, 3 ou 4 en grand).
@@ -1050,6 +1065,20 @@ des cartes « jolies mais pas en pixel art et non holographiques ». Ne pas chan
 - **Claires dans les deux thèmes** (choix du pilote contre les cartes sombres) : la carte pose ses jetons du thème clair, son
   blanc passe par `--co-lumiere`. Le reflet suit le pointeur ; au repos, seule la grande carte en cases bouge, lentement ;
   tout s'arrête avec la pause et « réduire les animations ».
+- **Les cartes spéciales statères** (22 novembre 2026, maquette « Cartes des statères » de Claude Fable 5.2 ; le pilote
+  a laissé Claude choisir, « Choisis pour moi ») : tout dans l'or, une carte par lot du booster de statères, « Quelques
+  pièces », « La petite pile », « La bourse », « Le coffret », « Le grand coffre », « Le trésor », et la carte « Statères
+  rendus » à la fin d'un booster des bannières ou des Gaulois uniques qui rend une part de son prix. La richesse monte par
+  la forme, jamais par la seule couleur : plus de pièces dans la scène, la façon des cartes des cosmétiques (lisse aux
+  lots 1 et 2 et au rendu, entre-deux à la bourse, en cases du coffret au trésor, avec reflet, éclats et prisme), des pions
+  pleins pour le rang, un pion par lot de la liste du serveur (« Lot 3 sur 6 ») ; le rendu a sa jauge, un cran par dizaine
+  du prix rendue. Quatre pixels la case, trois ou deux sur un écran petit ou bas (`caseQuiTient`), pour que la bourse et
+  les boutons restent dans l'écran. La somme et la part,
+  écrites en grands chiffres de cases, sont celles de la réponse du serveur, et la carte se lit d'un seul nom pour les
+  lecteurs d'écran (« 640 statères rendus, 40 % du prix »). Dessins `src/lib/jeu/cartes-de-stateres.ts` (les pièces de
+  `statere.ts` du robot), carte `CarteDeStateres.tsx`, classes `cs-…` de `24-cartes.css` ; les rayons derrière elle
+  prennent la couleur du lot (`rayon` d'`OuvertureDuBooster`). Le booster de loterie n'en a pas : il donne des billets,
+  pas des statères.
 
 ### Le duel « Coup pour coup » (22 novembre 2026)
 

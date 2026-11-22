@@ -193,6 +193,9 @@ export function quoiDuRole(m: MoteurDuDuel, role: Role, f: number): string {
 /** Le nom d'un emplacement en phrase : « Arme », « Tête ». */
 export const nomDEmplacement = (e: EmplacementDeLaMain): string => NOMS_DES_EMPLACEMENTS[e].charAt(0) + NOMS_DES_EMPLACEMENTS[e].slice(1).toLowerCase();
 
+/** « 2 manche de plus » devient « 2 manches de plus » : un nombre plus grand que 1 met « manche » au pluriel. */
+export const accorder = (phrase: string): string => phrase.replace(/(^|[^\d])([2-9]|\d{2,}) manche(?!s)/g, "$1$2 manches");
+
 /** Une ligne de la fiche : une icône (son adresse d'image), un mot en gras, une phrase. */
 export interface LigneDeFiche {
   icone: { role: Role } | { mot: string; unique: boolean } | null;
@@ -217,7 +220,7 @@ export function ficheDe(m: MoteurDuDuel, carte: CarteDuMoteur, etat: EtatDeCarte
   for (const [mot, n] of carte.liste) {
     const def = m.mots[mot];
     if (!def) continue;
-    lignes.push({ icone: { mot, unique: !!def.unique }, gras: `${def.nom}${n ? ` ${n}` : ""}.`, texte: def.phrase.replace("{n}", String(n ?? 1)) });
+    lignes.push({ icone: { mot, unique: !!def.unique }, gras: `${def.nom}${n ? ` ${n}` : ""}.`, texte: accorder(def.phrase.replace("{n}", String(n ?? 1))) });
   }
   if (etat.essouffle) lignes.push({ icone: null, gras: "Pas assez d'énergie", texte: `: force ${m.P.FORCE_ESSOUFFLEE}, sans ses mots-clés.`, ton: "alerte" });
   if (etat.repos) lignes.push({ icone: null, gras: "Au repos", texte: `: revient dans ${etat.repos} manche${etat.repos > 1 ? "s" : ""}.`, ton: "alerte" });

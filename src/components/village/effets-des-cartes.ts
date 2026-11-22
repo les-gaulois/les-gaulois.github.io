@@ -29,6 +29,9 @@ export interface CarteDuDuel {
   /** Les icônes des mots-clés, trois au plus, dans l'ordre de la carte. */
   icones: readonly { url: string; nom: string }[];
   unique: string | null;
+  /** Le numéro de la carte dans le catalogue du duel (son ordre), et combien il y en a : le pied de la fiche en grand. */
+  numero: number;
+  total: number;
 }
 
 export interface EffetsDeCarte {

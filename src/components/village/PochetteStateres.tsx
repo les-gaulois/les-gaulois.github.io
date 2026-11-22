@@ -3,7 +3,6 @@ import { ServerError, call } from "../../lib/compte/api";
 import type { LotDeStateres, MaPochetteStateres, PochetteStateresReponse } from "../../lib/village/contrat";
 import { manque, nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
 import { carteDUnLot, type CarteDeScene } from "../../lib/jeu/boosters";
-import type { CouleurDEcriture } from "../../lib/jeu/dans-la-page";
 import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import {
   ANCRE_POCHETTE_STATERES,
@@ -13,14 +12,14 @@ import {
   lireOuvertureDeStateres,
   messageDuRefusDesStateres,
   raisonPochetteStateresFermee,
-  rareteDuLot,
   resteAujourdhui,
   retourMoyen,
 } from "../../lib/village/pochette-stateres";
-import { Px } from "../jeu/Pixels";
 import type { Issue } from "./BoutiqueDialogue";
-import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RangEnIcone, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
+import { CarteDeStateres } from "./CarteDeStateres";
+import { LOTS_DESSINES, rangDeStateres } from "../../lib/jeu/cartes-de-stateres";
 import { casesDeLaPochette } from "./PochetteDessin";
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
@@ -174,19 +173,17 @@ export function DialogueStateres({ ma, solde, ouvrir, onFermer }: { ma: MaPochet
   return (
     <FenetreDuBooster titre={titre} etape={ouverte ? `ouvre-${numero}` : "confirmer"} occupe={etape === "envoi" || etape === "ouvre"} scene={ouverte} onFermer={onFermer} testid="dialogue-stateres">
       {ouverte && tirage && carte ? (
-        <OuvertureDuBooster key={numero} sorte="stateres" carte={carte} revelee={revele} onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}>
-          <ResultatDuBooster
-            nom={`+${nombre(tirage.lot.gain)} statères`}
-            detail={
-              <>
-                <RangEnIcone rang={tirage.lot.rang} />
-                <Px t={`Lot ${tirage.lot.rang} sur ${lots.length}`} couleur={rareteDuLot(tirage.lot.rang) as CouleurDEcriture} dit={`Lot ${tirage.lot.rang} sur ${lots.length}`} />
-              </>
-            }
-            testid="pochette-stateres-tirage"
-          >
-            <span hidden data-rang={tirage.lot.rang} />
-          </ResultatDuBooster>
+        <OuvertureDuBooster
+          key={numero}
+          sorte="stateres"
+          carte={carte}
+          revelee={revele}
+          onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
+          carteFinale={<CarteDeStateres rang={tirage.lot.rang} gain={tirage.lot.gain} total={lots.length} testid="pochette-stateres-tirage" />}
+          rayon={LOTS_DESSINES[rangDeStateres(tirage.lot.rang)].rayon}
+        >
+          {/* La carte dit le lot et son montant : dessous, la bourse, la chance du lot et les boutons. */}
+          <span hidden data-rang={tirage.lot.rang} />
           <ResteEnPixels solde={tirage.solde} testid="pochette-stateres-reste" />
           <p class="bst-mot">
             {chanceDuLot !== undefined ? `Ce lot sort ${pourcent(chanceDuLot)} du temps. ` : ""}

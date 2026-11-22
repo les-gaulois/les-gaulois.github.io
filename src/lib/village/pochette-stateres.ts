@@ -75,11 +75,6 @@ export function chanceDeGagner(lots: readonly LotDeStateres[], prix: number): nu
   return lots.reduce((somme, lot) => somme + (lot.gain > prix ? Math.round(lot.chance * 1000) : 0), 0) / 1000;
 }
 
-/** La couleur d'un lot : celle de la rareté de même rang, du commun (1) au divin (6). */
-export function rareteDuLot(rang: number): RareteDObjet {
-  return RARETES_DES_LOTS[Math.min(Math.max(rang, 1), LOTS_AU_PLUS) - 1] ?? "commun";
-}
-
 /** Les pochettes qu'il reste à ouvrir aujourd'hui. */
 export const resteAujourdhui = (ma: Pick<MaPochetteStateres, "plafond" | "ouvertes">): number => Math.max(0, ma.plafond - ma.ouvertes);
 

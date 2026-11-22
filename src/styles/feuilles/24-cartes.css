@@ -124,7 +124,7 @@
    les coins de son image, en haut ce qu'on a, en bas ce qu'on fait ; jamais sur le nom, jamais l'une sur l'autre. */
 .co-carte.case-carte .case-image > :is(.case-marque, .case-essai, .case-nouveau, .co-coche, .plaque-coin) {
   position: absolute;
-  z-index: 2;
+  z-index: 5;
 }
 .co-carte.case-carte .case-image > .case-marque {
   top: 0.1875rem;
@@ -603,6 +603,830 @@
   to {
     --co-mx: 0.88;
     --co-my: 0.7;
+  }
+}
+
+/* ---------- La pleine image et le débordement (22 novembre 2026) ---------- */
+/* Choix du pilote sur les modèles de Claude Fable 5.2 : « pour les mystiques Par le haut, le nom devant ; et divin et
+   légendaire Les bandeaux fins », en petit dans les cases comme en grand à la sortie des boosters (CartesRares.tsx,
+   CarteDeSortie.tsx). Ne pas en changer la mise en page sans sa demande. */
+
+/* La pleine image : la scène sous toute la carte, le liseré en cases par-dessus, un bandeau fin en haut et en bas. */
+.co-carte.case-carte.co-pleine,
+.co-carte.co-pleine {
+  padding: calc(3 * var(--co-p));
+  gap: 0;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: 0 var(--co-p) calc(3 * var(--co-p)) rgb(10 18 48 / 0.2);
+}
+.co-pleine-fond {
+  position: absolute;
+  inset: calc(3 * var(--co-p));
+  z-index: 0;
+  overflow: hidden;
+  background: var(--co-haut);
+}
+:is(.co-pleine-fond, .co-fenetre-fond) > .co-scene {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  image-rendering: pixelated;
+}
+.co-lisere {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border: calc(3 * var(--co-p)) solid transparent;
+  border-image: var(--co-lisere) 6 / calc(6 * var(--co-p)) / 0 repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.co-carte.co-pleine > .co-feuille-cadre {
+  z-index: 5;
+  padding: calc(3 * var(--co-p));
+}
+.co-joyau {
+  position: absolute;
+  z-index: 5;
+  width: calc(6 * var(--co-p));
+  height: calc(3 * var(--co-p));
+  background: var(--co-joyau) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.co-joyau:is([data-bord="haut"], [data-bord="bas"]) {
+  left: calc(50% - 3 * var(--co-p));
+}
+.co-joyau[data-bord="haut"] {
+  top: 0;
+}
+.co-joyau[data-bord="bas"] {
+  bottom: 0;
+}
+.co-joyau:is([data-bord="gauche"], [data-bord="droite"]) {
+  top: calc(50% - 3 * var(--co-p));
+  width: calc(3 * var(--co-p));
+  height: calc(6 * var(--co-p));
+  background-image: var(--co-joyau-debout);
+}
+.co-joyau[data-bord="gauche"] {
+  left: 0;
+}
+.co-joyau[data-bord="droite"] {
+  right: 0;
+}
+.co-carte.co-pleine .co-bande {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: color-mix(in srgb, var(--co-lumiere) 88%, transparent);
+}
+/* Le texte des bandeaux commence après les coins du liseré (six cases). */
+.co-carte.co-pleine .co-bande[data-bord="haut"] {
+  padding: 0.25rem calc(3.5 * var(--co-p));
+  border-bottom: var(--co-p) solid var(--co-filet, #0a1230);
+}
+.co-carte.co-pleine .co-bande[data-bord="bas"] {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0.25rem calc(3.5 * var(--co-p));
+  border-top: var(--co-p) solid var(--co-filet, #0a1230);
+}
+.co-carte.co-pleine .co-bande .co-nom {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  font-size: 0.6875rem;
+  letter-spacing: -0.01em;
+  text-align: left;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.co-carte.co-pleine .co-bande .co-duel {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+.co-bande-mot {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--co-encre);
+}
+.co-carte.case-carte.co-pleine .case-image.co-zone,
+.co-carte.co-pleine .co-zone {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  flex: 1 0 auto;
+  place-items: center;
+  width: 100%;
+  height: auto;
+  min-height: 5.5rem;
+  overflow: visible;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+/* La chose est posée par l'écran (au milieu, au sol ou contre le bas), à une place qu'il mesure. */
+.co-zone > .co-chose {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+.co-chose canvas {
+  display: block;
+  image-rendering: pixelated;
+  filter: drop-shadow(var(--co-p) var(--co-p) 0 rgb(10 18 48 / 0.3));
+}
+
+/* Le débordement : la chose sort de sa fenêtre par le haut, passe sur le cadre ; le nom reste devant, cerné de clair. */
+.co-carte.case-carte.co-deborde .case-image.co-fenetre,
+.co-carte.co-deborde .co-fenetre {
+  overflow: visible;
+  background: none;
+}
+.co-fenetre-fond {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.co-fenetre > .co-chose {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+.co-carte .co-nom-devant {
+  position: relative;
+  z-index: 4;
+  text-shadow:
+    1.5px 0 var(--co-lumiere),
+    -1.5px 0 var(--co-lumiere),
+    0 1.5px var(--co-lumiere),
+    0 -1.5px var(--co-lumiere),
+    1.5px 1.5px var(--co-lumiere),
+    -1.5px 1.5px var(--co-lumiere),
+    1.5px -1.5px var(--co-lumiere),
+    -1.5px -1.5px var(--co-lumiere);
+}
+
+/* ---------- En grand, à la sortie des boosters ---------- */
+
+.co-sortie-socle {
+  display: grid;
+  place-items: center;
+}
+/* Ce qui sort de la carte par le haut a sa place au-dessus d'elle. */
+.co-sortie-socle.co-sortie-deborde {
+  padding-top: 24px;
+}
+.co-carte.co-sortie {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: calc(70 * var(--co-p));
+  max-width: 100%;
+  color: #0a1230;
+  text-align: left;
+  transform: perspective(56rem) rotateX(var(--co-rx, 0deg)) rotateY(var(--co-ry, 0deg));
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.co-carte.co-sortie[data-tenue] {
+  transition: transform 0.08s linear;
+}
+.co-carte.co-sortie[data-carte="pixel"]:not([data-tenue]) {
+  animation: co-balayage 11s ease-in-out infinite alternate;
+}
+/* 116 cases de haut : l'écran choisit la case (`caseDeLaSortie`) pour que la bourse et les boutons tiennent dessous. */
+.co-carte.co-sortie.co-pleine {
+  height: calc(116 * var(--co-p));
+}
+.co-carte.co-sortie.co-pleine[data-tiroir] {
+  cursor: pointer;
+}
+.co-carte.co-sortie.co-deborde {
+  gap: var(--co-p);
+  padding: calc(4 * var(--co-p)) calc(5 * var(--co-p)) calc(5 * var(--co-p));
+}
+.co-carte.co-sortie .co-nom,
+.co-carte.co-sortie.co-pleine .co-bande .co-nom {
+  min-height: 0;
+  font-size: max(0.875rem, calc(4.2 * var(--co-p)));
+  line-height: 1.05;
+}
+.co-carte.co-sortie .co-cout {
+  font-size: max(0.75rem, calc(3.2 * var(--co-p)));
+}
+.co-carte.co-sortie .co-bande[data-bord="haut"] {
+  min-height: calc(12 * var(--co-p));
+  gap: calc(1.5 * var(--co-p));
+  padding: calc(0.8 * var(--co-p)) calc(3.5 * var(--co-p));
+}
+.co-carte.co-sortie .co-bande[data-bord="bas"] {
+  flex-direction: row;
+  align-items: center;
+  min-height: calc(10 * var(--co-p));
+  gap: calc(1.5 * var(--co-p));
+  padding: 0 calc(3.5 * var(--co-p));
+}
+.co-carte.co-sortie .co-zone {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.co-carte.co-sortie .co-tuile {
+  --co-icone-e: 2px;
+}
+.co-titre {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(0.6 * var(--co-p));
+  min-width: 0;
+}
+.co-rar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: max(0.6875rem, calc(2.4 * var(--co-p)));
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--co-encre);
+}
+.co-force-grande {
+  display: flex;
+  flex: none;
+  align-items: baseline;
+  gap: 0.25rem;
+  color: var(--co-encre);
+}
+.co-force-grande small {
+  font-size: max(0.6875rem, calc(2.2 * var(--co-p)));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.co-force-grande b {
+  font-size: max(1.25rem, calc(7 * var(--co-p)));
+  font-weight: 800;
+  line-height: 0.9;
+  color: #0a1230;
+}
+.co-role {
+  flex: 1;
+  min-width: 0;
+  font-size: max(0.6875rem, calc(2.6 * var(--co-p)));
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.co-carte.co-sortie .co-mots {
+  grid-column: auto;
+}
+.co-tete-grande {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: calc(1.5 * var(--co-p));
+  min-height: calc(9 * var(--co-p));
+  padding: 0 var(--co-p);
+}
+.co-carte.co-sortie .co-fenetre {
+  position: relative;
+  flex: none;
+  height: calc(46 * var(--co-p));
+  border-radius: 0;
+  box-shadow: 0 0 0 var(--co-p) var(--co-filet, #0a1230);
+}
+.co-ligne-grande {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.5rem;
+  padding: 0 var(--co-p);
+  font-size: max(0.6875rem, calc(2.4 * var(--co-p)));
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--co-encre);
+}
+.co-ligne-grande .case-rarete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--co-encre);
+}
+.co-pied-grand {
+  padding: var(--co-p) var(--co-p) 0;
+}
+/* Le bandeau du bas d'une pleine image, quand il ouvre la fiche : un vrai bouton, à l'allure du bandeau. */
+.co-carte.co-pleine button.co-bande-bouton {
+  width: 100%;
+  margin: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.co-carte.co-pleine button.co-bande-bouton:focus-visible {
+  outline: 3px solid var(--ecriture);
+  outline-offset: -3px;
+}
+/* La description d'un Gaulois unique, dans le bandeau du bas, quand le duel n'en dit rien. */
+.co-bande-sous {
+  flex: 1;
+  font-size: max(0.6875rem, calc(2.6 * var(--co-p)));
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--co-encre);
+}
+/* La fiche de la pleine image : elle monte du bas au survol d'une souris, ou par son bouton, qui la garde ouverte. */
+.co-tiroir {
+  position: absolute;
+  right: calc(3 * var(--co-p));
+  bottom: calc(3 * var(--co-p));
+  left: calc(3 * var(--co-p));
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: var(--co-p);
+  max-height: calc(100% - 18 * var(--co-p));
+  padding: calc(1.5 * var(--co-p)) calc(2 * var(--co-p)) calc(2 * var(--co-p));
+  overflow: auto;
+  border-top: var(--co-p) solid var(--co-filet, #0a1230);
+  background: color-mix(in srgb, var(--co-lumiere) 96%, transparent);
+  transform: translateY(calc(100% + 3 * var(--co-p)));
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.co-carte.co-sortie.co-pleine[data-ouverte] .co-tiroir {
+  transform: none;
+}
+@media (hover: hover) {
+  .co-carte.co-sortie.co-pleine:hover .co-tiroir {
+    transform: none;
+  }
+}
+.co-tiroir:focus-visible {
+  outline: 3px solid var(--ecriture);
+  outline-offset: -3px;
+}
+.co-tiroir .co-fiche,
+.co-carte.co-pleine .co-tiroir .co-fiche {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+:root.fx-off .co-carte.co-sortie {
+  transform: none;
+  transition: none;
+  animation: none;
+}
+:root.fx-off .co-tiroir {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .co-carte.co-sortie {
+    transform: none;
+    transition: none;
+    animation: none;
+  }
+  .co-tiroir {
+    transition: none;
+  }
+}
+
+/* ---------- Les cartes spéciales statères (22 novembre 2026) ---------- */
+/* Dessins de Claude Fable 5.2 (CarteDeStateres.tsx, src/lib/jeu/cartes-de-stateres.ts), options choisies par Claude à la
+   demande du pilote : l'échelle tout en or, les noms des lots. Une case vaut --p pixels entiers ; la carte fait 76 cases de
+   large : 5 de marge, 66 d'image, 5 de marge. La richesse monte par la forme, jamais par la seule couleur. */
+.cs-socle {
+  display: grid;
+  place-items: center;
+}
+.cs-carte {
+  --p: 4px;
+  /* La demi-case des petits dessins (coin, pièce, pions), arrondie au pixel entier : une case reste nette. */
+  --p2: max(1px, round(down, calc(var(--p) / 2), 1px));
+  --cs-blanc: var(--sur-couleur);
+  --haut: #fbf8ef;
+  --bas: #f0e9d6;
+  --bord: #b99a5e;
+  --encre: #5b4416;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(76 * var(--p));
+  max-width: 100%;
+  padding: calc(5 * var(--p));
+  border-radius: calc(2.5 * var(--p));
+  color: #0a1230;
+  text-align: center;
+  transform: perspective(56rem) rotateX(var(--co-rx, 0deg)) rotateY(var(--co-ry, 0deg));
+  transition: transform 0.35s ease-out;
+}
+.cs-carte[data-tenue] {
+  transition: none;
+}
+.cs-carte[data-carte="pixel"] {
+  border-radius: 0;
+}
+.cs-carte[data-rang="0"] {
+  --haut: #f7f9fe;
+  --bas: #e3e9f7;
+  --bord: #7f8fbd;
+  --encre: #3d4770;
+}
+.cs-carte[data-rang="2"] {
+  --haut: #fffaf0;
+  --bas: #f8e9c2;
+  --bord: #d0a23a;
+}
+.cs-carte[data-rang="3"] {
+  --haut: #fff9e2;
+  --bas: #ffe7a4;
+  --bord: #d9a21b;
+  --encre: #6e4700;
+}
+.cs-carte[data-rang="4"] {
+  --haut: #fffbe8;
+  --bas: #ffe59a;
+  --bord: #d9a21b;
+  --encre: #6e4700;
+}
+.cs-carte[data-rang="5"] {
+  --haut: #fffbe6;
+  --bas: #ffdd80;
+  --bord: #f2b632;
+  --encre: #6e4700;
+}
+.cs-carte[data-rang="6"] {
+  --haut: #fffdf0;
+  --bas: #ffe9a0;
+  --bord: #f2b632;
+  --encre: #6e4700;
+}
+.cs-cadre {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(170deg, var(--haut), var(--bas));
+  box-shadow:
+    inset 0 0 0 2px var(--bord),
+    inset 0 0 0 4px color-mix(in srgb, var(--cs-blanc) 85%, transparent),
+    0 2px 6px rgb(10 18 48 / 0.18);
+  pointer-events: none;
+}
+.cs-carte[data-rang="2"] > .cs-cadre {
+  box-shadow:
+    inset 0 0 0 2px var(--bord),
+    inset 0 0 0 4px color-mix(in srgb, var(--cs-blanc) 85%, transparent),
+    inset 0 0 0 6px color-mix(in srgb, var(--bord) 55%, transparent),
+    0 2px 6px rgb(10 18 48 / 0.18);
+}
+/* Le rendu : un pointillé d'or, comme le bord d'un reçu. La bourse : un pointillé et quatre coins en cases. */
+.cs-carte[data-rang="0"] > .cs-cadre {
+  outline: 2px dashed #d9a21b;
+  outline-offset: -8px;
+}
+.cs-carte[data-carte="entre"] > .cs-cadre {
+  outline: 2px dotted color-mix(in srgb, var(--bord) 80%, transparent);
+  outline-offset: -8px;
+}
+.cs-coin {
+  position: absolute;
+  z-index: 1;
+  width: calc(11 * var(--p2));
+  height: calc(11 * var(--p2));
+  background: var(--coin) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.cs-coin[data-coin="hg"] {
+  top: 0;
+  left: 0;
+}
+.cs-coin[data-coin="hd"] {
+  top: 0;
+  right: 0;
+  transform: scaleX(-1);
+}
+.cs-coin[data-coin="bg"] {
+  bottom: 0;
+  left: 0;
+  transform: scaleY(-1);
+}
+.cs-coin[data-coin="bd"] {
+  right: 0;
+  bottom: 0;
+  transform: scale(-1, -1);
+}
+/* Les lots 4 à 6 : le cadre en cases, en neuf parts. */
+.cs-carte[data-carte="pixel"] > .cs-cadre {
+  border: calc(4 * var(--p)) solid transparent;
+  border-image: var(--cadre) 6 / calc(6 * var(--p)) / 0 repeat;
+  background: linear-gradient(170deg, var(--haut), var(--bas)) padding-box;
+  box-shadow: none;
+  filter: drop-shadow(0 var(--p) 0 rgb(10 18 48 / 0.22));
+  image-rendering: pixelated;
+}
+.cs-carte[data-rang="6"] > .cs-cadre {
+  background:
+    var(--etoiles) 0 0 / calc(24 * var(--p)) repeat padding-box,
+    linear-gradient(175deg, #fffdf0, #ffe9a0 60%, #ffd9c2) padding-box;
+}
+.cs-ecusson {
+  position: absolute;
+  left: 50%;
+  z-index: 0;
+  width: calc(var(--ecu-l, 20) * var(--p));
+  height: calc(4 * var(--p));
+  margin-left: calc(var(--ecu-l, 20) * var(--p) / -2);
+  background: var(--ecusson) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.cs-ecusson[data-bord="haut"] {
+  top: 0;
+}
+.cs-ecusson[data-bord="bas"] {
+  bottom: 0;
+  background-image: var(--ecusson-bas);
+}
+.cs-feuille-cadre {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: calc(4 * var(--p));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  background: linear-gradient(112deg, transparent 25%, var(--cs-blanc) 45%, #fffbe6 55%, transparent 75%);
+  background-size: 280% 100%;
+  background-position: calc(100% - var(--co-mx) * 100%) 0;
+  mix-blend-mode: overlay;
+  opacity: 0.9;
+  pointer-events: none;
+}
+.cs-carte[data-rang="6"] .cs-feuille-cadre {
+  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, var(--cs-blanc), #c4f9cb, #9cc2ff, var(--cs-blanc), #d8c9ff, #ff8a8f, #ffd84a, var(--cs-blanc), #c4f9cb, #9cc2ff);
+  background-size: 300% 300%;
+  background-position: calc(100% - var(--co-mx) * 100%) calc(100% - var(--co-my) * 100%);
+  opacity: 1;
+}
+.cs-nom {
+  width: 100%;
+  min-height: calc(8 * var(--p));
+  padding-bottom: calc(1.5 * var(--p));
+  font-size: calc(5.25 * var(--p));
+  font-weight: 800;
+  line-height: 1.15;
+  color: #0a1230;
+}
+.cs-scene {
+  position: relative;
+  flex: none;
+  width: calc(66 * var(--p));
+  height: calc(38 * var(--p));
+  overflow: hidden;
+  border-radius: calc(1.5 * var(--p));
+  box-shadow: 0 0 0 1px var(--bord);
+}
+.cs-carte[data-carte="pixel"] .cs-scene {
+  border-radius: 0;
+  box-shadow: 0 0 0 var(--p) var(--filet-cadre, #3a2606);
+}
+.cs-image,
+.cs-chiffres {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+.cs-somme {
+  position: relative;
+  margin-top: calc(3 * var(--p));
+  width: calc(var(--l) * var(--p));
+  height: calc(var(--h) * var(--p));
+}
+.cs-mot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(1.5 * var(--p));
+  margin-top: var(--p);
+  font-size: max(11px, calc(3.5 * var(--p)));
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #0a1230;
+}
+.cs-piece,
+.cs-pions,
+.cs-jauge,
+.cs-chiffres-part {
+  display: block;
+  flex: none;
+  background: 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+.cs-piece {
+  width: calc(12 * var(--p2));
+  height: calc(12 * var(--p2));
+}
+.cs-pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--p) calc(2 * var(--p));
+  width: 100%;
+  margin-top: calc(2.5 * var(--p));
+  padding-top: calc(2.5 * var(--p));
+  border-top: max(1px, calc(var(--p) / 2)) dashed color-mix(in srgb, var(--bord) 70%, transparent);
+  font-size: max(11px, calc(3 * var(--p)));
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--encre);
+}
+.cs-pions {
+  width: calc(var(--l, 40) * var(--p2));
+  height: calc(5 * var(--p2));
+}
+.cs-part {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--p));
+  width: 100%;
+}
+.cs-chiffres-part {
+  width: calc(var(--l) * (var(--p) - 1px));
+  height: calc(var(--h) * (var(--p) - 1px));
+}
+.cs-part > span {
+  font-size: max(11px, calc(3.5 * var(--p)));
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.1em;
+  text-align: left;
+  color: #0a1230;
+}
+.cs-jauge {
+  width: calc(49 * var(--p));
+  height: calc(5 * var(--p));
+  margin-top: calc(1.5 * var(--p));
+}
+/* Les reflets : rien au bas de l'échelle, une bande douce à la bourse, une feuille dès le coffret. */
+.cs-reflet,
+.cs-holo,
+.cs-lueur {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.cs-reflet {
+  background: linear-gradient(112deg, transparent 30%, color-mix(in srgb, var(--cs-blanc) 75%, transparent) 47%, rgb(255 236 170 / 0.55) 53%, transparent 70%);
+  background-size: 260% 100%;
+  background-position: calc(100% - var(--co-mx) * 100%) 0;
+  mix-blend-mode: soft-light;
+}
+.cs-holo[data-couche="a"] {
+  -webkit-mask-image: var(--motif);
+  mask-image: var(--motif);
+  -webkit-mask-size: calc(var(--motif-n) * var(--p));
+  mask-size: calc(var(--motif-n) * var(--p));
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  image-rendering: pixelated;
+}
+.cs-lueur {
+  background: radial-gradient(circle at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), color-mix(in srgb, var(--cs-blanc) 40%, transparent), transparent 45%);
+  mix-blend-mode: soft-light;
+}
+.cs-carte[data-rang="4"] .cs-holo[data-couche="a"] {
+  background: linear-gradient(115deg, var(--cs-blanc), #ffe9a0, var(--cs-blanc), #ffd84a, var(--cs-blanc), #ffe9a0, var(--cs-blanc));
+  background-size: 320% 320%;
+  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
+  mix-blend-mode: soft-light;
+  opacity: 0.7;
+}
+.cs-carte[data-rang="4"] .cs-holo[data-couche="b"] {
+  display: none;
+}
+.cs-carte[data-rang="5"] .cs-holo[data-couche="a"] {
+  background: radial-gradient(circle at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), var(--cs-blanc) 0%, #fff6c2 22%, rgb(255 216 74 / 0.55) 45%, rgb(255 216 74 / 0.12) 75%);
+  opacity: 0.55;
+}
+.cs-carte[data-rang="5"] .cs-holo[data-couche="b"] {
+  background: linear-gradient(112deg, transparent 22%, rgb(255 241 168 / 0.9) 40%, color-mix(in srgb, var(--cs-blanc) 95%, transparent) 50%, rgb(255 198 26 / 0.8) 60%, transparent 78%);
+  background-size: 280% 100%;
+  background-position: calc(100% - var(--co-mx) * 100%) 0;
+  mix-blend-mode: soft-light;
+  opacity: 0.4;
+}
+.cs-carte[data-rang="6"] .cs-holo[data-couche="a"] {
+  background: conic-gradient(from calc(var(--co-mx) * 180deg) at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f);
+  opacity: 0.42;
+}
+.cs-carte[data-rang="6"] .cs-holo[data-couche="b"] {
+  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff);
+  background-size: 300% 300%;
+  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
+  mix-blend-mode: soft-light;
+  opacity: 0.2;
+}
+.cs-prisme {
+  position: absolute;
+  inset: calc(4 * var(--p));
+  z-index: -1;
+  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, #c4f9cb, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #9cc2ff);
+  background-size: 300% 300%;
+  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
+  mix-blend-mode: soft-light;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.cs-somme-feuille {
+  position: absolute;
+  inset: 0;
+  -webkit-mask: var(--plein) 0 0 / 100% 100% no-repeat;
+  mask: var(--plein) 0 0 / 100% 100% no-repeat;
+  background: linear-gradient(112deg, #ff8a8f, var(--cs-blanc), #9cecff, var(--cs-blanc), #d8c9ff, var(--cs-blanc), #c4f9cb, var(--cs-blanc), #ff8a8f);
+  background-size: 300% 100%;
+  background-position: calc(var(--co-mx) * 100%) 0;
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+/* Les éclats : des étoiles de cases qui s'allument et s'éteignent lentement, sur les deux plus gros lots. */
+.cs-eclat {
+  position: absolute;
+  width: calc(5 * var(--p));
+  height: calc(5 * var(--p));
+  background: 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  opacity: 0;
+  animation: cs-eclat 7s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes cs-eclat {
+  0%,
+  55%,
+  100% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.95;
+  }
+}
+.bst-finale[data-pause] .cs-eclat {
+  animation-play-state: paused;
+}
+:root.fx-off .cs-eclat {
+  animation: none;
+  opacity: 0.8;
+}
+:root.fx-off .cs-carte {
+  transform: none;
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-eclat {
+    animation: none;
+    opacity: 0.8;
+  }
+  .cs-carte {
+    transform: none;
+    transition: none;
   }
 }
 
