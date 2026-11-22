@@ -1,0 +1,166 @@
+---
+/**
+ * « Du commun au divin », sur l'accueil (22 novembre 2026, maquette retenue par le pilote avec « Le booster sur la table »,
+ * posée juste au-dessus, `AccueilBooster.astro`). En descendant la page, un Gaulois de départ grandit en quatre étapes :
+ * créé gratuitement, payé en statères par les points rapportés au clan, habillé du commun au divin, montré partout. La scène
+ * reste en place pendant le défilement (`src/scripts/accueil-jeu.ts`) ; sans script, les quatre étapes et leurs quatre images
+ * se lisent à la suite.
+ *
+ * Rien n'est inventé : l'échelle montre les vrais Gaulois des membres, un par rareté portée (src/lib/accueil-jeu.ts) ; la
+ * bourse est un exemple de la règle (30 statères par point), et l'écran le dit ; l'image de la dernière étape est celle que
+ * /fiche montre sur Discord, dessinée à la construction (scripts/generate-fiches.ts).
+ */
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { bourseDExemple, echelleDesRaretes, RARETES_DE_L_ECHELLE, NOMS_DES_RARETES, STATERES_PAR_POINT, type GauloisMontre } from "../../lib/accueil-jeu";
+import { VERSION_DESSIN } from "../../lib/compagnon/version-dessin";
+import { fmtInt } from "../../lib/format";
+import { motAuBuild } from "../../lib/jeu/mots-au-build";
+
+interface Props {
+  gaulois: readonly GauloisMontre[];
+}
+const { gaulois } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const echelle = echelleDesRaretes(gaulois);
+const sommet = echelle.at(-1) ?? null;
+// L'image /fiche du membre le plus haut de l'échelle : seulement si la construction l'a bien dessinée.
+const ficheImage = sommet && existsSync(join("public", "generated", "fiches", `${sommet.gaulois.id}.png`)) ? `${base}/generated/fiches/${encodeURIComponent(sommet.gaulois.id)}.png` : null;
+const exemple = bourseDExemple(1);
+const depart = `${base}/compagnon/depart-gaulois.png?v=${VERSION_DESSIN}`;
+const etapes = [
+  { icone: "vestiaire", titre: "Crée ton Gaulois", texte: "Visage, coupe, barbe et couleurs sont gratuits : il a ta tête dès le premier jour." },
+  { icone: "points", titre: "Joue avec [GAL]", texte: `Chaque point rapporté au clan te donne ${STATERES_PAR_POINT} statères. Ils ne s'achètent pas.` },
+  { icone: "pochettes", titre: "Ouvre, essaie, porte", texte: "Boutique, boosters, forge et pass : du commun au divin." },
+  { icone: "ma-carte", titre: "Montre-le partout", texte: "Sur ta carte, à côté de ton pseudo, et sur Discord après chaque victoire." },
+];
+const [gratuit, creer] = await Promise.all([motAuBuild("Gratuit", "creme", "ombre"), motAuBuild("Créer mon Gaulois", "encre")]);
+---
+
+<section class="accueil-jeu accueil-parcours" aria-labelledby="accueil-parcours-titre" data-testid="home-parcours">
+  <div class="accueil-parcours-piste" data-parcours>
+    <div class="accueil-parcours-scene" data-etape="0">
+      <canvas class="accueil-paysage" data-accueil-paysage="p5-plaine" aria-hidden="true"></canvas>
+      <div class="wrap accueil-parcours-grille">
+        <div class="accueil-parcours-etapes jeu-panneau jeu-n9">
+          <h2 id="accueil-parcours-titre" class="section-title-sm">Du commun au divin</h2>
+          <ol class="accueil-parcours-liste">
+            {
+              etapes.map((e, i) => (
+                <li class:list={["accueil-parcours-etape", i === 0 && "actif"]} data-testid="home-parcours-etape">
+                  <button type="button" data-aller={i}>
+                    <i class="jeu-ic" style={`--i: var(--jeu-ic-${e.icone})`} aria-hidden="true" />
+                    <strong>{e.titre}</strong>
+                    <span class="accueil-parcours-texte">{e.texte}</span>
+                  </button>
+                </li>
+              ))
+            }
+          </ol>
+          <div class="jeu-tube jeu-n9 accueil-parcours-tube" aria-hidden="true"><span class="jeu-plein jeu-n9" data-parcours-plein></span></div>
+          <div class="accueil-appel">
+            <a class="jeu-btn jeu-n9" href={`${base}/village`} aria-label="Créer mon Gaulois" data-testid="home-parcours-creer">
+              <span class="jeu-px" aria-hidden="true"><i style={creer} /></span>
+            </a>
+          </div>
+        </div>
+        <div class="accueil-parcours-plateau">
+          {/* 1. Le Gaulois de départ, et les parties de son corps qu'on choisit sans payer. */}
+          <div class="accueil-calque" data-calque="0">
+            <div class="accueil-heros">
+              <div class="accueil-traits" aria-hidden="true">
+                {["trait-cheveux", "trait-barbe", "trait-yeux", "trait-peau", "trait-bouche"].map((t) => <i class="jeu-ic" style={`--i: var(--jeu-ic-${t})`} />)}
+              </div>
+              <span class="accueil-depart" role="img" aria-label="Le Gaulois de départ, en pixels" style={`--image: url("${depart}")`} />
+              <span class="accueil-ombre" aria-hidden="true" />
+              <span class="jeu-ruban jeu-n9 accueil-legende">
+                <span class="jeu-px">
+                  <i style={gratuit} aria-hidden="true" />
+                  <span class="sr-only">Gratuit</span>
+                </span>
+              </span>
+            </div>
+          </div>
+          {/* 2. Les statères : un exemple de la règle, pas le solde d'un membre. */}
+          <div class="accueil-calque" data-calque="1">
+            <div class="accueil-pieces" aria-hidden="true">{[0, 1, 2, 3, 4, 5, 6].map((i) => <i style={`--n:${i}`} />)}</div>
+            <div class="accueil-heros">
+              <span class="accueil-depart" aria-hidden="true" style={`--image: url("${depart}")`} />
+              <span class="accueil-ombre" aria-hidden="true" />
+              <p class="accueil-bourse jeu-bulle jeu-n9">
+                <i class="jeu-ic" style="--i: var(--jeu-ic-points)" aria-hidden="true" />
+                <span>
+                  <b class="tnum" data-parcours-stateres>{fmtInt(exemple.stateres)}</b>
+                  <span>statères pour <span class="tnum" data-parcours-points>{fmtInt(exemple.points)}</span> <span data-parcours-mot>points</span> rapportés au clan</span>
+                  <em>Un exemple de la règle</em>
+                </span>
+              </p>
+            </div>
+          </div>
+          {/* 3. Les vrais Gaulois des membres, un par rareté portée, du commun au divin. */}
+          <div class="accueil-calque accueil-calque-echelle" data-calque="2">
+            {
+              echelle.length > 0 && (
+                <div class="accueil-heros">
+                  <div class="accueil-echelle-gaulois">
+                    {echelle.map((m, i) => (
+                      <img
+                        class:list={["accueil-echelle-sprite", i === 0 && "actif"]}
+                        data-marche={i}
+                        src={`${base}${m.gaulois.portrait.image}`}
+                        width={m.gaulois.portrait.largeur * 4}
+                        height={m.gaulois.portrait.hauteur * 4}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ))}
+                  </div>
+                  <span class="accueil-ombre" aria-hidden="true" />
+                  <p class="accueil-echelle-qui jeu-bulle jeu-n9">
+                    {echelle.map((m, i) => (
+                      <span class:list={["accueil-echelle-nom", i === 0 && "actif"]} data-marche={i} data-rarete={m.rarete}>
+                        Le Gaulois de {m.gaulois.pseudo}, <b>{m.nom.toLowerCase()}</b>
+                      </span>
+                    ))}
+                  </p>
+                </div>
+              )
+            }
+            <ol class="accueil-echelle" aria-label="Les raretés, du divin au commun">
+              {[...RARETES_DE_L_ECHELLE].reverse().map((r) => (
+                <li class:list={["accueil-tuile", echelle.length > 0 && echelle[0]?.rarete === r && "actif"]} data-rarete={r} data-marche={echelle.findIndex((m) => m.rarete === r)}>
+                  {NOMS_DES_RARETES[r]}
+                </li>
+              ))}
+            </ol>
+          </div>
+          {/* 4. Montré partout : l'image de /fiche du membre le plus haut, et son Gaulois à côté de son pseudo. */}
+          <div class="accueil-calque" data-calque="3">
+            {
+              sommet && ficheImage ? (
+                <div class="accueil-partout">
+                  <figure class="accueil-message jeu-panneau jeu-n9">
+                    <figcaption>
+                      <span class="accueil-commande">/fiche</span> sur Discord
+                    </figcaption>
+                    <img src={ficheImage} width="1200" height="630" alt={`La fiche de ${sommet.gaulois.pseudo} telle que /fiche la montre sur Discord : son pseudo, sa place dans le clan, ses victoires, ses défaites et son palier.`} loading="lazy" decoding="async" />
+                  </figure>
+                  <p class="accueil-pseudo jeu-bulle jeu-n9">
+                    <span class="accueil-pseudo-buste" aria-hidden="true" style={`--image: url("${base}${sommet.gaulois.portrait.image}"); --w: ${sommet.gaulois.portrait.largeur}; --h: ${sommet.gaulois.portrait.buste}`} />
+                    {sommet.gaulois.pseudo}
+                  </p>
+                </div>
+              ) : (
+                <div class="accueil-heros">
+                  <span class="accueil-depart" aria-hidden="true" style={`--image: url("${depart}")`} />
+                  <span class="accueil-ombre" aria-hidden="true" />
+                </div>
+              )
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

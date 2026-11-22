@@ -37,7 +37,8 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « Mon Gaulois » (/village) : les onglets, le vestiaire, la bourse, la boutique et le marché (la boutique est un onglet de
   // /village depuis le 15 novembre 2026 : /boutique ne fait plus qu'y renvoyer).
   // « Mon compte » montre le vestiaire à l'inscription (ParcoursArrivee.tsx, 15 novembre 2026).
-  { fichier: "09-village.css", pages: ["/compte", "/village", "/direction"] },
+  // L'accueil aussi depuis le 22 novembre 2026 : son booster d'essai est celui de « Mon Gaulois », avec toutes ses pièces.
+  { fichier: "09-village.css", pages: ["/", "/compte", "/village", "/direction"] },
   // Le classement en colonne et les fenêtres de la Carte.
   { fichier: "10-carte-colonne.css", pages: ["/carte", "/direction"] },
   // L'onglet Comptes de la Direction.
@@ -52,10 +53,11 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   { fichier: "15-revoir.css", pages: ["/revoir", "/utiles", "/direction"] },
   // « Mon Gaulois » en écran de jeu (21 novembre 2026) : le kit en pixels (cadres, boutons, rubans, barres, icônes) et le
   // cadre de jeu plein écran de /village (barre du jeu, menu, « Ma carte »). Ses images viennent de /village/kit.css.
-  { fichier: "16-jeu.css", pages: ["/village", "/direction"] },
+  // L'accueil aussi depuis le 22 novembre 2026 : son booster d'essai et « Du commun au divin » sont faits des pièces du kit.
+  { fichier: "16-jeu.css", pages: ["/", "/village", "/direction"] },
   // « Les boosters » de « Mon Gaulois » (21 novembre 2026) : leur écran habillé du kit et l'animation d'ouverture validée
   // par le pilote (SceneDuBooster.ts).
-  { fichier: "17-jeu-boosters.css", pages: ["/village", "/direction"] },
+  { fichier: "17-jeu-boosters.css", pages: ["/", "/village", "/direction"] },
   // Le vestiaire du jeu « Mon Gaulois » (21 novembre 2026) : le Gaulois et ses emplacements, ses cartes qu'on lâche sur lui.
   { fichier: "18-jeu-vestiaire.css", pages: ["/village", "/direction"] },
   // « La boutique » de « Mon Gaulois » habillée en écran de jeu (21 novembre 2026) : la sélection de la semaine, les onglets
@@ -75,7 +77,9 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // du duel, le hall, l'attente, le bandeau du match, la fin. Tout sous `.duel-jeu`, classes `ds-…`.
   { fichier: "23-jeu-duel-salles.css", pages: ["/village", "/direction"] },
   // Les cartes des cosmétiques (22 novembre 2026) : les cases du vestiaire en sont, et « Mon compte » les pose à l'inscription.
-  { fichier: "24-cartes.css", pages: ["/compte", "/village", "/direction"] },
+  { fichier: "24-cartes.css", pages: ["/", "/compte", "/village", "/direction"] },
+  // Le jeu des Gaulois sur l'accueil (22 novembre 2026) : « Ouvre ton premier booster » et « Du commun au divin ».
+  { fichier: "25-accueil-jeu.css", pages: ["/", "/direction"] },
 ];
 
 /** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */

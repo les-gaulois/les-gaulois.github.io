@@ -1,0 +1,117 @@
+---
+/**
+ * « Ouvre ton premier booster », sur l'accueil (22 novembre 2026, maquette « Le booster sur la table » retenue par le pilote,
+ * avec « Du commun au divin » juste dessous, `AccueilParcours.astro`). Un paysage animé du jeu derrière, le vrai booster
+ * d'essai sur une table (`BoosterDeLAccueil.tsx`), de chaque côté le Gaulois d'un membre parmi les plus hautes raretés
+ * portées, puis le ruban de tous les Gaulois déjà habillés et les nombres du catalogue. Rien n'est inventé : les Gaulois
+ * sont ceux que la construction a relevés (vitrine des visiteurs de « Mon Gaulois »), les nombres ceux du catalogue
+ * (src/lib/accueil-jeu.ts). Sans Gaulois relevé, la table reste seule, avec les nombres.
+ */
+import BoosterDeLAccueil from "./BoosterDeLAccueil";
+import { gauloisEnVedette, NOMS_DES_RARETES, type GauloisMontre, type NombreDuJeu, type RareteDeLEchelle } from "../../lib/accueil-jeu";
+import { fmtDayAndTime, fmtInt } from "../../lib/format";
+import { motAuBuild } from "../../lib/jeu/mots-au-build";
+
+interface Props {
+  gaulois: readonly GauloisMontre[];
+  /** L'heure du relevé des Gaulois, `null` si elle manque. */
+  releve: string | null;
+  nombres: readonly NombreDuJeu[];
+}
+const { gaulois, releve, nombres } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const fiche = (id: string) => `${base}/membres/${encodeURIComponent(id)}`;
+const vedettes = gauloisEnVedette(gaulois);
+const nomDeRarete = (r: string | null) => (r && r in NOMS_DES_RARETES ? NOMS_DES_RARETES[r as RareteDeLEchelle].toLowerCase() : null);
+const ICONES: Readonly<Record<NombreDuJeu["cle"], string>> = { objets: "rayon-tout", familiers: "pochettes", uniques: "rayon-uniques", bannieres: "rayon-banniere", cadres: "rayon-cadres" };
+const nomDuLien = (g: GauloisMontre) => (nomDeRarete(g.rarete) ? `${g.pseudo}, rareté portée : ${nomDeRarete(g.rarete)}` : g.pseudo);
+const titreDuRuban = gaulois.length > 1 ? `${fmtInt(gaulois.length)} Gaulois déjà habillés` : "1 Gaulois déjà habillé";
+// Un seul appel : « Créer mon Gaulois ». L'accueil parle d'abord aux membres ; rejoindre le clan a sa rubrique dans le menu.
+const [rubanEnPixels, creer] = await Promise.all([motAuBuild(titreDuRuban.replace(/ | /g, " "), "creme", "ombre"), motAuBuild("Créer mon Gaulois", "encre")]);
+---
+
+<section class="accueil-jeu accueil-booster" aria-labelledby="accueil-booster-titre" data-testid="home-booster">
+  <canvas class="accueil-paysage" data-accueil-paysage="p8-lac" aria-hidden="true"></canvas>
+  <div class="wrap accueil-jeu-dedans">
+    <div class="accueil-jeu-tete">
+      <h2 id="accueil-booster-titre" class="accueil-jeu-titre section-title-sm jeu-panneau jeu-n9">Ouvre ton premier booster</h2>
+    </div>
+    <div class="accueil-booster-scene" data-vedettes={vedettes.length}>
+      {
+        vedettes.map((g, i) => (
+          <a class:list={["accueil-vedette", i === 0 ? "accueil-vedette-gauche" : "accueil-vedette-droite"]} href={fiche(g.id)} aria-label={nomDuLien(g)} data-testid="home-vedette">
+            <span class="accueil-tuile accueil-vedette-tuile" data-rarete={g.rarete ?? undefined}>
+              {g.banniere && <img class="accueil-vedette-fond" src={`${base}${g.banniere}`} alt="" loading="lazy" decoding="async" />}
+              <img class="accueil-vedette-gaulois" src={`${base}${g.portrait.image}`} width={g.portrait.largeur * 4} height={g.portrait.hauteur * 4} alt="" loading="lazy" decoding="async" />
+            </span>
+            <span class="accueil-vedette-nom pseudo">{g.pseudo}</span>
+          </a>
+        ))
+      }
+      {/* Dessiné dans le navigateur seulement, comme la démonstration de « Mon Gaulois » : l'écriture en pixels et le paquet
+          sont peints par une toile. Sans script, la table mène à « Mon Gaulois ». */}
+      <BoosterDeLAccueil client:only="preact" village={`${base}/village`}>
+        <div slot="fallback" class="accueil-table jeu-panneau jeu-n9">
+          <p class="accueil-table-mot">
+            <a href={`${base}/village`} class="underline underline-offset-2">Essaie un booster dans « Mon Gaulois »</a>
+          </p>
+        </div>
+      </BoosterDeLAccueil>
+    </div>
+    {
+      gaulois.length > 0 && (
+        <div class="accueil-defile-bloc" data-testid="home-defile">
+          <p class="accueil-defile-titre">
+            <span class="jeu-ruban jeu-ruban-bleu jeu-n9">
+              <span class="jeu-px">
+                <i style={rubanEnPixels} aria-hidden="true" />
+                <span class="sr-only">{titreDuRuban}</span>
+              </span>
+            </span>
+          </p>
+          {releve && (
+            <p class="accueil-defile-releve">
+              <span>Relevés le {fmtDayAndTime(releve)}</span>
+            </p>
+          )}
+          <div class="accueil-defile">
+            <ul class="accueil-defile-rang" data-testid="home-defile-rang">
+              {[0, 1].map((copie) =>
+                gaulois.map((g) => (
+                  <li aria-hidden={copie === 1 ? "true" : undefined}>
+                    <a class="accueil-case" href={fiche(g.id)} aria-label={copie === 0 ? nomDuLien(g) : undefined} tabindex={copie === 1 ? -1 : undefined} data-testid={copie === 0 ? "home-defile-gaulois" : undefined}>
+                      <span class="accueil-tuile accueil-case-tuile" data-rarete={g.rarete ?? undefined}>
+                        {g.banniere && <img class="accueil-case-fond" src={`${base}${g.banniere}`} alt="" loading="lazy" decoding="async" />}
+                        <img class="accueil-case-gaulois" src={`${base}${g.portrait.image}`} width={g.portrait.largeur * 2} height={g.portrait.hauteur * 2} alt="" loading="lazy" decoding="async" />
+                      </span>
+                      <span class="accueil-case-nom">{g.pseudo}</span>
+                    </a>
+                  </li>
+                )),
+              )}
+            </ul>
+          </div>
+        </div>
+      )
+    }
+    {
+      nombres.length > 0 && (
+        <ul class="accueil-nombres" data-testid="home-nombres">
+          {nombres.map((n) => (
+            <li data-cle={n.cle}>
+              <i class="jeu-ic" style={`--i: var(--jeu-ic-${ICONES[n.cle]})`} aria-hidden="true" />
+              <span>
+                <b class="tnum">{fmtInt(n.n)}</b> {n.mot}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+    <div class="accueil-appel">
+      <a class="jeu-btn jeu-n9 accueil-grand" href={`${base}/village`} aria-label="Créer mon Gaulois" data-testid="home-creer">
+        <span class="jeu-px" aria-hidden="true"><i style={creer} /></span>
+      </a>
+    </div>
+  </div>
+</section>

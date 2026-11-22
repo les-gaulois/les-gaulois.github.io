@@ -764,7 +764,7 @@ test("l'accueil n'affiche que des données collectées", async ({ page }) => {
   for (const id of ["home-week", "home-map", "home-village", "home-join"]) await expect(page.getByTestId(id)).toHaveCount(0);
 });
 
-test("l'accueil donne d'abord le classement, et remonte Ma place pour qui a dit « C'est moi »", async ({ page }) => {
+test("l'accueil donne le classement avant Ma place, et remonte Ma place pour qui a dit « C'est moi »", async ({ page }) => {
   const titles = () => page.locator("main h2").allTextContents();
   const at = (list: string[], text: string) => list.findIndex((t) => t.includes(text));
   await page.goto("/");

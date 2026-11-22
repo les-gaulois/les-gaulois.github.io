@@ -1,0 +1,863 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- Le jeu des Gaulois sur l'accueil (22 novembre 2026) ---------- */
+/* « Ouvre ton premier booster » et « Du commun au divin », les deux maquettes retenues par le pilote pour donner envie de
+   créer son Gaulois (src/components/accueil/). Les pièces viennent du kit de « Mon Gaulois » (16-jeu.css, et ses images de
+   /village/kit.css) : cadres, rubans, boutons et tuiles de rareté sont des images en cases, jamais des dégradés. Le kit
+   tient sa taille de --jeu-p, posée ici sur chaque bande, puisque l'accueil n'est pas l'écran du jeu. */
+
+.accueil-jeu {
+  --jeu-p: 2px;
+  --jeu-ombre: rgb(10 18 48 / 0.28);
+  --jeu-or-focus: #8a5a00;
+  /* La hauteur de l'en-tête du site, collé en haut : la scène de « Du commun au divin » se cale dessous. */
+  --accueil-en-tete: 4rem;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--color-surface);
+  color: var(--texte-courant);
+}
+:root[data-mode="sombre"] .accueil-jeu {
+  --jeu-ombre: rgb(2 4 14 / 0.5);
+  --jeu-or-focus: #ffd84a;
+}
+.accueil-paysage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.accueil-jeu-dedans {
+  position: relative;
+  padding-block: 3rem 2.75rem;
+}
+.accueil-jeu-tete {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+.accueil-jeu-titre {
+  display: inline-block;
+  margin: 0;
+  padding: 0.25rem 1rem 0.5rem;
+  color: var(--ecriture);
+}
+
+/* Une tuile à la couleur d'une rareté : le cadre et la tranche en neuf parts, le fond clair et la trame qui le fonce vers le
+   bas, comme les cartes du vestiaire du jeu (18-jeu-vestiaire.css). */
+.accueil-tuile {
+  --t-cadre: var(--jeu-v-tuile-aucune);
+  --t-trame: var(--jeu-v-trame-aucune);
+  --t-fond: var(--jeu-v-fond-aucune);
+  border-style: solid;
+  border-color: transparent;
+  border-width: calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  border-image: var(--t-cadre) 2 2 5 / calc(2 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p)) stretch;
+  background:
+    var(--t-trame) left bottom / calc(4 * var(--jeu-p)) calc(28 * var(--jeu-p)) repeat-x padding-box,
+    var(--t-fond) padding-box;
+  image-rendering: pixelated;
+}
+.accueil-tuile[data-rarete="commun"] {
+  --t-cadre: var(--jeu-v-tuile-commun);
+  --t-trame: var(--jeu-v-trame-commun);
+  --t-fond: var(--jeu-v-fond-commun);
+}
+.accueil-tuile[data-rarete="peu-commun"] {
+  --t-cadre: var(--jeu-v-tuile-peu-commun);
+  --t-trame: var(--jeu-v-trame-peu-commun);
+  --t-fond: var(--jeu-v-fond-peu-commun);
+}
+.accueil-tuile[data-rarete="epique"] {
+  --t-cadre: var(--jeu-v-tuile-epique);
+  --t-trame: var(--jeu-v-trame-epique);
+  --t-fond: var(--jeu-v-fond-epique);
+}
+.accueil-tuile[data-rarete="mystique"] {
+  --t-cadre: var(--jeu-v-tuile-mystique);
+  --t-trame: var(--jeu-v-trame-mystique);
+  --t-fond: var(--jeu-v-fond-mystique);
+}
+.accueil-tuile[data-rarete="legendaire"] {
+  --t-cadre: var(--jeu-v-tuile-legendaire);
+  --t-trame: var(--jeu-v-trame-legendaire);
+  --t-fond: var(--jeu-v-fond-legendaire);
+}
+.accueil-tuile[data-rarete="divin"] {
+  --t-cadre: var(--jeu-v-tuile-divin);
+  --t-trame: var(--jeu-v-trame-divin);
+  --t-fond: var(--jeu-v-fond-divin);
+}
+
+/* L'accueil autour des deux bandes : ce qui vient d'arriver au-dessus (vide sans annonce ni retour), le classement dessous. */
+.accueil-avant:has([data-testid="since-visit"], [data-testid="news-board"]) {
+  padding-bottom: 3rem;
+}
+.accueil-apres {
+  padding-top: clamp(3rem, 6vw, 5rem);
+}
+
+/* ---------- « Ouvre ton premier booster » ---------- */
+
+.accueil-booster-scene {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 28rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 1.5rem;
+}
+.accueil-table {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  min-height: 27rem;
+  align-content: center;
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 1.75rem 1rem 0.75rem;
+  text-align: center;
+}
+.accueil-table-ruban {
+  position: absolute;
+  top: calc(-9 * var(--jeu-p));
+  left: 50%;
+  translate: -50% 0;
+  margin: 0;
+}
+.accueil-paquet {
+  margin: 0;
+  padding: calc(3 * var(--jeu-p));
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.accueil-paquet:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.accueil-paquet-image {
+  width: 180px;
+  height: 264px;
+  filter: drop-shadow(0 calc(3 * var(--jeu-p)) 0 var(--jeu-ombre));
+  animation: accueil-flotte 3.4s ease-in-out infinite alternate;
+  transition: transform 0.16s steps(3);
+}
+@media (hover: hover) {
+  .accueil-paquet:hover .accueil-paquet-image {
+    transform: translateY(calc(-2 * var(--jeu-p))) rotate(-4deg);
+  }
+}
+.accueil-table-actions {
+  display: flex;
+  justify-content: center;
+}
+.accueil-grand {
+  --jeu-p: 3px;
+}
+.accueil-table-mot {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+.accueil-vedette {
+  grid-row: 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--ecriture);
+}
+.accueil-vedette-gauche {
+  grid-column: 1;
+  justify-self: end;
+  rotate: -4deg;
+}
+.accueil-vedette-droite {
+  grid-column: 3;
+  justify-self: start;
+  rotate: 4deg;
+}
+.accueil-vedette-tuile {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  width: 13rem;
+  height: 19rem;
+  overflow: hidden;
+  filter: drop-shadow(0 calc(4 * var(--jeu-p)) 0 var(--jeu-ombre));
+  transition: translate 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.accueil-vedette-fond {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+.accueil-vedette-gaulois {
+  position: relative;
+  max-width: none;
+  margin-bottom: 0.75rem;
+  image-rendering: pixelated;
+  animation: accueil-respire 3.6s steps(2, jump-none) infinite;
+}
+.accueil-vedette-droite .accueil-vedette-gaulois {
+  animation-delay: -1.8s;
+}
+.accueil-vedette-nom {
+  padding: 0.2rem 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  font: 700 1rem/1.2 var(--font-display);
+}
+@media (hover: hover) {
+  .accueil-vedette:hover .accueil-vedette-tuile {
+    translate: 0 calc(-3 * var(--jeu-p));
+  }
+  .accueil-vedette:hover .accueil-vedette-nom {
+    text-decoration: underline;
+  }
+}
+.accueil-vedette:focus-visible {
+  outline: 2px solid var(--anneau, var(--ecriture));
+  outline-offset: 4px;
+}
+
+/* Le ruban de tous les Gaulois déjà habillés : il défile seul, lentement, s'arrête sous la souris, et laisse la place à
+   un défilement à la main quand le visiteur réduit les animations. */
+.accueil-defile-bloc {
+  margin-top: 2.75rem;
+  text-align: center;
+}
+.accueil-defile-titre {
+  margin: 0;
+}
+.accueil-defile-releve {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+.accueil-defile-releve span {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  color: var(--ecriture);
+}
+.accueil-defile {
+  margin-top: 1rem;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+}
+.accueil-defile-rang {
+  display: flex;
+  width: max-content;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  animation: accueil-defile 90s linear infinite;
+}
+.accueil-defile-rang > li {
+  padding-right: 0.75rem;
+}
+.accueil-defile:hover .accueil-defile-rang,
+.accueil-defile:focus-within .accueil-defile-rang {
+  animation-play-state: paused;
+}
+/* En pause (bouton de l'en-tête), le ruban s'arrête : on le fait défiler à la main, sans sa copie. */
+:root.fx-off .accueil-defile {
+  overflow-x: auto;
+}
+:root.fx-off .accueil-defile-rang > li[aria-hidden="true"] {
+  display: none;
+}
+.accueil-case {
+  display: grid;
+  justify-items: center;
+  width: 6.5rem;
+  text-decoration: none;
+  color: var(--ecriture);
+}
+.accueil-case-tuile {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  width: 6.5rem;
+  height: 8.75rem;
+  overflow: hidden;
+}
+.accueil-case-fond {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+.accueil-case-gaulois {
+  position: relative;
+  max-width: none;
+  margin-bottom: 0.25rem;
+  image-rendering: pixelated;
+}
+.accueil-case-nom {
+  max-width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.25rem;
+  background: var(--color-surface);
+  font: 700 0.78rem/1.25 var(--font-display);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.accueil-case:hover .accueil-case-nom,
+.accueil-case:focus-visible .accueil-case-nom {
+  text-decoration: underline;
+}
+.accueil-case:focus-visible {
+  outline: 2px solid var(--ecriture);
+  outline-offset: 2px;
+}
+
+.accueil-nombres {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem 2rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 2.25rem auto 0;
+  padding: 0.6rem 1.5rem;
+  list-style: none;
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+}
+.accueil-nombres li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font: 600 0.9rem/1.2 var(--font-display);
+  color: var(--color-muted);
+}
+.accueil-nombres .jeu-ic {
+  --jeu-p: 1.5px;
+}
+.accueil-nombres b {
+  display: block;
+  font: 800 1.4rem/1.1 var(--font-display);
+  color: var(--ecriture);
+}
+.accueil-appel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: calc(6 * var(--jeu-p));
+  margin-top: 1.75rem;
+}
+
+/* ---------- « Du commun au divin » ---------- */
+
+/* La bande ne coupe pas ce qui dépasse : sa scène doit pouvoir rester collée en haut pendant le défilement. */
+.accueil-parcours {
+  overflow: visible;
+}
+.accueil-parcours-piste {
+  position: relative;
+}
+.accueil-parcours-vivant {
+  height: 280vh;
+}
+.accueil-parcours-scene {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.accueil-parcours-vivant .accueil-parcours-scene {
+  position: sticky;
+  top: var(--accueil-en-tete);
+  height: calc(100vh - var(--accueil-en-tete));
+  height: calc(100svh - var(--accueil-en-tete));
+}
+.accueil-parcours-grille {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 2rem;
+  padding-block: 3rem;
+}
+.accueil-parcours-vivant .accueil-parcours-grille {
+  height: 100%;
+  padding-block: 1.5rem;
+}
+.accueil-parcours-etapes {
+  padding: 0.25rem 0.5rem 0.75rem;
+}
+.accueil-parcours-etapes h2 {
+  margin: 0 0 0.75rem;
+  color: var(--ecriture);
+}
+.accueil-parcours-liste {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.accueil-parcours-etape button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.15rem 0.75rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.accueil-parcours-etape .jeu-ic {
+  grid-row: span 2;
+  --jeu-p: 1.5px;
+  transition: transform 0.25s;
+}
+.accueil-parcours-etape strong {
+  font: 700 1.05rem/1.25 var(--font-display);
+  color: var(--ecriture);
+}
+.accueil-parcours-texte {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+.accueil-parcours-vivant .accueil-parcours-etape:not(.actif) .accueil-parcours-texte {
+  display: none;
+}
+.accueil-parcours-vivant .accueil-parcours-etape.actif button {
+  background: color-mix(in srgb, var(--ecriture) 7%, transparent);
+}
+.accueil-parcours-vivant .accueil-parcours-etape.actif .jeu-ic {
+  transform: scale(1.12) rotate(-4deg);
+}
+.accueil-parcours-tube {
+  --jeu-p: 1.5px;
+  margin: 1rem 0.5rem 0.25rem;
+}
+.accueil-parcours-etapes .accueil-appel {
+  justify-content: flex-start;
+  margin-top: 1.25rem;
+}
+.accueil-parcours-plateau {
+  position: relative;
+  height: min(70vh, 38rem);
+}
+
+/* Les quatre calques de la scène : sans script, le premier ; avec, celui de l'étape. */
+.accueil-calque {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 0.75rem;
+  transition:
+    opacity 0.45s,
+    visibility 0.45s,
+    translate 0.45s;
+}
+.accueil-parcours-piste:not(.accueil-parcours-vivant) .accueil-parcours-plateau {
+  display: grid;
+  gap: 2rem;
+  height: auto;
+}
+.accueil-parcours-piste:not(.accueil-parcours-vivant) .accueil-calque {
+  position: relative;
+  opacity: 1;
+  visibility: visible;
+  translate: none;
+}
+.accueil-parcours-scene[data-etape="0"] [data-calque="0"],
+.accueil-parcours-scene[data-etape="1"] [data-calque="1"],
+.accueil-parcours-scene[data-etape="2"] [data-calque="2"],
+.accueil-parcours-scene[data-etape="3"] [data-calque="3"] {
+  opacity: 1;
+  visibility: visible;
+  translate: 0 0;
+}
+.accueil-heros {
+  position: relative;
+  display: grid;
+  justify-items: center;
+}
+.accueil-depart {
+  display: block;
+  width: 192px;
+  height: 256px;
+  background: var(--image) 0 0 / 400% 100% no-repeat;
+  image-rendering: pixelated;
+  animation: accueil-respire 3.6s steps(2, jump-none) infinite;
+}
+.accueil-ombre {
+  display: block;
+  width: 9rem;
+  height: 0.75rem;
+  margin-top: -0.4rem;
+  border-radius: 50%;
+  background: var(--ombre);
+}
+.accueil-traits {
+  position: absolute;
+  inset: -1rem -7rem;
+  pointer-events: none;
+}
+.accueil-traits .jeu-ic {
+  position: absolute;
+  animation: accueil-flotte 5s ease-in-out infinite alternate;
+}
+.accueil-traits .jeu-ic:nth-child(1) {
+  left: 8%;
+  top: 6%;
+}
+.accueil-traits .jeu-ic:nth-child(2) {
+  right: 6%;
+  top: 14%;
+  animation-delay: -1s;
+}
+.accueil-traits .jeu-ic:nth-child(3) {
+  left: 0;
+  top: 46%;
+  animation-delay: -2s;
+}
+.accueil-traits .jeu-ic:nth-child(4) {
+  right: 0;
+  top: 52%;
+  animation-delay: -3s;
+}
+.accueil-traits .jeu-ic:nth-child(5) {
+  left: 16%;
+  bottom: 8%;
+  animation-delay: -4s;
+}
+.accueil-legende {
+  margin-top: 1rem;
+}
+
+/* La bourse d'exemple, sur une bulle crème du kit (la même dans les deux thèmes) : son écriture garde ses tons clairs. */
+.accueil-bourse {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+  color: #0a1230;
+  font: 600 0.85rem/1.3 var(--font-display);
+}
+.accueil-bourse .jeu-ic {
+  --jeu-p: 1.5px;
+}
+.accueil-bourse b {
+  display: block;
+  font: 800 1.9rem/1.05 var(--font-display);
+  color: #7d5900;
+}
+.accueil-bourse em {
+  display: block;
+  font-size: 0.75rem;
+  color: #3d4a80;
+}
+.accueil-pieces {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.accueil-pieces i {
+  position: absolute;
+  bottom: 40%;
+  left: calc(36% + var(--n) * 4%);
+  width: 16px;
+  height: 16px;
+  background: var(--jeu-i-piece) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  opacity: 0;
+  animation: accueil-piece 2.6s ease-out infinite;
+  animation-delay: calc(var(--n) * -0.43s);
+}
+
+.accueil-calque-echelle {
+  grid-template-columns: auto auto;
+  align-content: center;
+  justify-content: center;
+  gap: 2.5rem;
+}
+.accueil-echelle-gaulois {
+  display: grid;
+  place-items: end center;
+  min-width: 11rem;
+  min-height: 16rem;
+}
+.accueil-echelle-sprite {
+  grid-area: 1 / 1;
+  max-width: none;
+  image-rendering: pixelated;
+  opacity: 0;
+  visibility: hidden;
+}
+.accueil-echelle-sprite.actif {
+  opacity: 1;
+  visibility: visible;
+}
+.accueil-echelle-sprite.saut {
+  animation: accueil-saut 0.42s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.accueil-echelle-qui {
+  margin: 1rem 0 0;
+  padding: 0.25rem 0.75rem;
+  color: #0a1230;
+  font: 600 0.9rem/1.3 var(--font-display);
+}
+.accueil-echelle-nom {
+  display: none;
+}
+.accueil-echelle-nom.actif {
+  display: inline;
+}
+.accueil-echelle-nom[data-rarete="commun"] b {
+  color: #0b5cad;
+}
+.accueil-echelle-nom[data-rarete="peu-commun"] b {
+  color: #2a3bc4;
+}
+.accueil-echelle-nom[data-rarete="epique"] b {
+  color: #6a1fd0;
+}
+.accueil-echelle-nom[data-rarete="mystique"] b {
+  color: #a50f24;
+}
+.accueil-echelle-nom[data-rarete="legendaire"] b {
+  color: #7d5900;
+}
+.accueil-echelle-nom[data-rarete="divin"] b {
+  color: #00706a;
+}
+.accueil-echelle {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.accueil-echelle li {
+  display: grid;
+  place-items: center;
+  width: 9.5rem;
+  height: 2.75rem;
+  font: 700 0.95rem/1 var(--font-display);
+  transition: transform 0.3s;
+}
+.accueil-echelle li.actif {
+  transform: translateX(-0.75rem) scale(1.06);
+}
+.accueil-echelle li[data-rarete="commun"] {
+  color: var(--rarete-commun-texte);
+}
+.accueil-echelle li[data-rarete="peu-commun"] {
+  color: var(--rarete-peu-commun-texte);
+}
+.accueil-echelle li[data-rarete="epique"] {
+  color: var(--rarete-epique-texte);
+}
+.accueil-echelle li[data-rarete="mystique"] {
+  color: var(--rarete-mystique-texte);
+}
+.accueil-echelle li[data-rarete="legendaire"] {
+  color: var(--rarete-legendaire-texte);
+}
+.accueil-echelle li[data-rarete="divin"] {
+  color: var(--rarete-divin-texte);
+}
+
+.accueil-partout {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  width: min(100%, 34rem);
+}
+.accueil-message {
+  width: 100%;
+  margin: 0;
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+.accueil-message figcaption {
+  margin-bottom: 0.5rem;
+  font: 700 0.85rem/1.2 var(--font-display);
+  color: var(--ecriture);
+}
+.accueil-commande {
+  font-family: var(--font-console);
+}
+.accueil-message img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+}
+.accueil-pseudo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.3rem 0.75rem 0.3rem 0.4rem;
+  color: #0a1230;
+  font: 700 0.95rem/1 var(--font-display);
+}
+.accueil-pseudo-buste {
+  display: block;
+  width: calc(var(--w) * 1px);
+  height: calc(var(--h) * 1px);
+  background: var(--image) 0 0 / calc(var(--w) * 1px) auto no-repeat;
+  image-rendering: pixelated;
+}
+
+@keyframes accueil-flotte {
+  from {
+    translate: 0 calc(2 * var(--jeu-p));
+  }
+  to {
+    translate: 0 calc(-2 * var(--jeu-p));
+  }
+}
+@keyframes accueil-respire {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -2px;
+  }
+}
+@keyframes accueil-defile {
+  to {
+    translate: -50% 0;
+  }
+}
+@keyframes accueil-piece {
+  0% {
+    opacity: 0;
+    translate: 0 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: calc((var(--n) - 3) * 10px) -14rem;
+  }
+}
+@keyframes accueil-saut {
+  40% {
+    translate: 0 -1.5rem;
+  }
+}
+
+/* Sous 64 rem : une colonne. Les Gaulois en vedette laissent la table seule (le ruban les montre tous), et la scène de
+   « Du commun au divin » passe au-dessus de son étape. */
+@media (max-width: 63.99rem) {
+  .accueil-booster-scene {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+  .accueil-table {
+    grid-column: 1;
+    width: min(28rem, 100%);
+  }
+  .accueil-vedette {
+    display: none;
+  }
+  .accueil-parcours-grille {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .accueil-parcours-vivant .accueil-parcours-grille {
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .accueil-parcours-plateau {
+    order: -1;
+    height: auto;
+    min-height: 20rem;
+  }
+  .accueil-parcours-vivant .accueil-parcours-plateau {
+    min-height: 0;
+  }
+  .accueil-parcours-vivant .accueil-parcours-etape:not(.actif) {
+    display: none;
+  }
+  .accueil-parcours-vivant .accueil-parcours-etapes .accueil-appel {
+    display: none;
+  }
+  .accueil-parcours-etapes h2 {
+    margin-bottom: 0.25rem;
+  }
+  .accueil-depart {
+    width: 144px;
+    height: 192px;
+  }
+  .accueil-traits {
+    inset: -0.5rem -2.5rem;
+  }
+  .accueil-traits .jeu-ic:nth-child(5) {
+    left: 0;
+    bottom: 26%;
+  }
+  .accueil-calque-echelle {
+    gap: 1rem;
+  }
+  .accueil-echelle-gaulois {
+    min-width: 7rem;
+    min-height: 11rem;
+    scale: 0.75;
+  }
+  .accueil-echelle li {
+    width: 7rem;
+    height: 2.1rem;
+    font-size: 0.8rem;
+  }
+  .accueil-message {
+    max-width: 20rem;
+  }
+}
+
+@media (max-width: 24rem) {
+  .accueil-grand {
+    --jeu-p: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accueil-jeu *,
+  .accueil-jeu *::before,
+  .accueil-jeu *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .accueil-defile {
+    overflow-x: auto;
+  }
+  .accueil-defile-rang > li[aria-hidden="true"] {
+    display: none;
+  }
+}

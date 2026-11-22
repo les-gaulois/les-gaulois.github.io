@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import Base from "../layouts/Base.astro";
+import AccueilBooster from "../components/accueil/AccueilBooster.astro";
+import AccueilParcours from "../components/accueil/AccueilParcours.astro";
 import CartesPodium from "../components/CartesPodium.astro";
 import DataStatus from "../components/DataStatus.astro";
 import Invite from "../components/Invite.astro";
@@ -11,6 +13,17 @@ import MyPlace from "../components/MyPlace.tsx";
 import NewsBoard from "../components/NewsBoard";
 import SinceLastVisit from "../components/SinceLastVisit.tsx";
 import { AUTH_ENABLED } from "../lib/compte/api";
+import { nombresDuJeu, type GauloisMontre } from "../lib/accueil-jeu";
+import { EMPLACEMENTS_OBJETS, OBJETS } from "../lib/gaulois";
+import { gauloisLusLe } from "../lib/gaulois-joueurs";
+import { tenueOf } from "../lib/gaulois-sprite";
+import { feuilleDuKit } from "../lib/jeu/kit-css";
+import { CADRES } from "../lib/village/cadres";
+import { rareteDuCadre } from "../lib/village/vitrine";
+import { vitrinePublique } from "../lib/village/vitrine-publique";
+import { BANNIERES } from "../../supabase/functions/code-discord/bannieres/index";
+import { FAMILIERS } from "../../supabase/functions/code-discord/familiers/index";
+import { MODELES } from "../../supabase/functions/code-discord/modeles/index";
 import { clan } from "../../config/clan";
 import { ACCUEIL_IMAGE, accueilFacts, accueilImageAlt, accueilRanking } from "../lib/accueil-image";
 import { BANNIERES_MEMBRES_FILE, bannieresDuCache, fondsDesLignes } from "../lib/bannieres-joueurs";
@@ -22,7 +35,7 @@ import { gazetteEditions, playersPeriod, weekLabel } from "../lib/gazette";
 import { cartesDuPodium, legendeDuPodium } from "../lib/cartes-podium";
 import { FAMILIERS_MEMBRES_FILE, familiersDuCache } from "../lib/familiers-joueurs";
 import { FINITIONS_MEMBRES_FILE, finitionsDuCache } from "../lib/finitions-joueurs";
-import { portraitDuGaulois } from "../lib/gaulois-site";
+import { gauloisDuSite, portraitDuGaulois } from "../lib/gaulois-site";
 import { ME_KEY } from "../lib/moi";
 import { findClan, neighbours, winRate, withOfficialRanks } from "../lib/stats";
 import { loadVisitSnapshot } from "../lib/visite-snapshot";
@@ -67,6 +80,28 @@ const familiersDuPodium = familiersDuCache(FAMILIERS_MEMBRES_FILE, (gazette?.pla
 const cartesPodium = cartesDuPodium(gazette?.players, portraitDuGaulois, (id) => fondsDuPodium[id]?.image ?? null, (id) => finitionsDuPodium.get(id) ?? null, (id) => familiersDuPodium.get(id) ?? null);
 const legendeCartes = gazette ? legendeDuPodium(playersPeriod(gazette), weekLabel(gazette)) : "";
 
+// Le jeu des Gaulois, sous le haut de la page (22 novembre 2026, maquettes « Le booster sur la table » et « Du commun au
+// divin » retenues par le pilote) : les Gaulois déjà créés par les membres au pseudo public, relevés avant la construction
+// comme la vitrine des visiteurs de « Mon Gaulois », avec la rareté la plus haute qu'ils portent et leur bannière, et les
+// nombres du catalogue du jeu (src/lib/accueil-jeu.ts).
+const tenues = gauloisDuSite();
+const vitrine = vitrinePublique(members?.members ?? [], (id) => portraitDuGaulois(id) !== null);
+const fondsDeLaVitrine = fondsDesLignes(bannieresDuCache(BANNIERES_MEMBRES_FILE, vitrine.map((g) => g.id)));
+const gauloisDuJeu: GauloisMontre[] = vitrine.flatMap((g) => {
+  const portrait = portraitDuGaulois(g.id);
+  const tenue = tenueOf(tenues, g.id);
+  return portrait ? [{ ...g, portrait, rarete: tenue ? rareteDuCadre(tenue) : null, banniere: fondsDeLaVitrine[g.id]?.image ?? null }] : [];
+});
+const nombres = nombresDuJeu({
+  objets: EMPLACEMENTS_OBJETS.flatMap((e) => Object.values(OBJETS[e])),
+  familiers: FAMILIERS.length,
+  uniques: MODELES.length,
+  bannieres: BANNIERES.length,
+  cadres: CADRES.length,
+});
+// Les images du kit en pixels de « Mon Gaulois » (cadres, rubans, boutons, icônes), la même feuille, gardée en cache.
+const kit = await feuilleDuKit();
+
 // Le même relevé que sur la page Carte, où il fait reprendre le film.
 const snapshot = loadVisitSnapshot();
 
@@ -80,6 +115,7 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
 ---
 
 <Base image={image} imageAlt={imageAlt}>
+  <link slot="tete" rel="stylesheet" href={`${base}/village/kit.css?v=${kit.version}`} />
   <section class="relative overflow-hidden">
     {/* Avec les cartes du podium, les deux colonnes sont égales : trois cartes demandent plus de largeur que le guerrier. */}
     <div class:list={["wrap relative grid items-center gap-4 pb-16 pt-5 md:gap-10 md:pb-12 md:pt-10", cartesPodium ? "md:grid-cols-2" : "md:grid-cols-[3fr_2fr]"]}>
@@ -131,8 +167,9 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
     </div>
   </section>
 
-  {/* Entre deux parties, de l'air (jeton --spacing-section de 01-socle.css) ; la rangée « Ma place » et QG garde sa gouttière. */}
-  <div class="wrap grid grid-cols-1 gap-section">
+  {/* Ce qui vient d'arriver, quand il y en a : le résumé depuis la dernière visite, les annonces et les événements de l'équipe.
+      Sans eux, ce bloc est vide et ne prend pas de place (25-accueil-jeu.css). */}
+  <div class="wrap accueil-avant grid grid-cols-1 gap-8">
     {snapshot && <SinceLastVisit client:load snapshot={snapshot} gazetteHref={`${base}/gazette`} />}
 
     {
@@ -142,8 +179,19 @@ const imageAlt = hasImage && imageFacts ? accueilImageAlt(imageFacts, clan.tag, 
         <NewsBoard announcements={announcements} events={events} now={Date.now()} />
       )
     }
+  </div>
 
-    {/* Le clan au classement officiel, d'abord : le rang dit tout de suite où en est GAL. */}
+  {/* Le jeu des Gaulois (22 novembre 2026, demande du pilote : « le but de cette accueil est de donner envie au joueur de
+      s'empresser de créer son gaulois ») : un booster d'essai à ouvrir tout de suite, puis ce qu'un Gaulois devient en jouant. */}
+  <AccueilBooster gaulois={gauloisDuJeu} releve={gauloisLusLe()} nombres={nombres} />
+  <AccueilParcours gaulois={gauloisDuJeu} />
+  <script>
+    import "../scripts/accueil-jeu";
+  </script>
+
+  {/* Entre deux parties, de l'air (jeton --spacing-section de 01-socle.css) ; la rangée « Ma place » et QG garde sa gouttière. */}
+  <div class="wrap accueil-apres grid grid-cols-1 gap-section">
+    {/* Le clan au classement officiel : le rang dit tout de suite où en est GAL. */}
     <section class="stage stage-blue reveal" id="classement-clan" aria-labelledby="stats-title">
       <h2 id="stats-title" class="section-title section-title-sm">Le clan au classement officiel</h2>
       {/* Les chiffres en grand, sans case : un filet à gauche de chacun. La rangée passe à la ligne quand la place manque. */}

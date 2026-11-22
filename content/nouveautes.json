@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "top",
+    "title": "Le jeu des Gaulois sur l'accueil",
+    "body": "Sur l'accueil, un booster d'essai à ouvrir tout de suite, les Gaulois déjà habillés par les membres, puis, en descendant, ce que ton Gaulois devient en jouant avec le clan, du commun au divin.",
+    "link": {
+      "href": "/",
+      "label": "L'accueil"
+    }
+  },
+  {
+    "date": "2026-11-22",
     "kind": "ameliore",
     "title": "Des cartes en or pour les statères",
     "body": "Un booster de statères finit sur une carte en or, de « Quelques pièces » au « Trésor », selon le lot. Les statères rendus par un booster ont aussi leur carte, avec la part du prix.",
