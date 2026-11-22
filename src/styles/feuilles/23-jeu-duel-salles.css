@@ -1,0 +1,644 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- « Les salles » du duel de « Mon Gaulois » (22 novembre 2026) ---------- */
+/* Les matchs en direct, avec mise, entre deux membres (src/components/village/duel-salles/), d'après le dessin de Claude
+   Fable 5.2 : l'entrée dans l'accueil du duel, le hall des six salles, l'attente, le bandeau du match au-dessus de la scène
+   du duel, la confirmation de départ, la fin. Tout sous `.duel-jeu`, sur les jetons du duel (22-jeu-duel.css). Rien ne
+   clignote ; tout s'arrête avec la pause du jeu et « réduire les animations » (règles du duel, plus bas pour les nôtres). */
+
+.duel-jeu {
+  --ds-vert: #13763a;
+  --ds-rouge: #c2182b;
+  --ds-voile: rgb(238 242 251 / 0.86);
+}
+:root[data-mode="sombre"] .duel-jeu {
+  --ds-vert: #7df0a0;
+  --ds-rouge: #ff8a8f;
+  --ds-voile: rgb(10 18 48 / 0.86);
+}
+
+/* Un dessin des salles : chaque case fait --ds-case pixels, un nombre entier. */
+.duel-jeu .ds-img {
+  display: block;
+  flex: none;
+  width: calc(var(--w) * var(--ds-case, var(--jeu-p)));
+  height: calc(var(--h) * var(--ds-case, var(--jeu-p)));
+  background: var(--i) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+
+/* ---------- L'entrée dans l'accueil du duel ---------- */
+.duel-jeu .ds-entree {
+  grid-column: 1 / -1;
+}
+.ds-entree-droite {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--jeu-p));
+}
+.ds-frise {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(4 * var(--jeu-p));
+}
+.ds-frise .ds-img {
+  --ds-case: 1px;
+}
+.ds-entree-mot {
+  display: block;
+}
+
+/* ---------- La tête : la cagnotte de la saison ---------- */
+.ds-cagnotte {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p));
+  margin-left: auto;
+}
+.ds-tete .ds-cagnotte {
+  padding: calc(2 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  background: var(--dl-page);
+  box-shadow: 0 calc(2 * var(--jeu-p)) 0 var(--dl-ombre);
+}
+
+/* ---------- Le hall ---------- */
+/* Une seule colonne, qui ne grandit jamais au-delà de l'écran (la rangée de la main ne l'élargit pas). */
+.duel-jeu .ds-hall,
+.duel-jeu .ds-attente,
+.duel-jeu .ds-match {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ds-essai {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p));
+  margin: 0;
+  min-height: calc(28 * var(--jeu-p));
+  padding: calc(2 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  background: var(--dl-face);
+  box-shadow: 0 0 0 var(--jeu-p) var(--dl-trait);
+  color: var(--dl-texte);
+  font-size: 12.5px;
+}
+.ds-essai-court {
+  display: none;
+}
+.ds-haut {
+  display: grid;
+  gap: calc(8 * var(--jeu-p));
+  grid-template-columns: minmax(0, 1fr);
+}
+.ds-main-corps {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--jeu-p));
+}
+.ds-main-cartes {
+  flex-wrap: nowrap;
+}
+.ds-main-carte {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.09s steps(2);
+}
+@media (hover: hover) {
+  .ds-main-carte:hover {
+    transform: translateY(calc(-1 * var(--jeu-p)));
+  }
+}
+.ds-main-carte:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+.ds-changer {
+  margin-left: auto;
+}
+.ds-main-refus {
+  color: var(--ds-rouge);
+}
+.ds-jour {
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--jeu-p));
+  padding-top: calc(4 * var(--jeu-p));
+}
+.ds-jour-ligne {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(4 * var(--jeu-p));
+}
+.ds-jour-tube {
+  display: block;
+  position: relative;
+  height: calc(13 * var(--jeu-p));
+}
+.ds-salles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(6 * var(--jeu-p));
+  padding-top: calc(5 * var(--jeu-p));
+}
+.duel-jeu .ds-salle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p));
+  width: 100%;
+  margin: 0;
+  padding: calc(6 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  color: var(--dl-texte);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.09s steps(2);
+}
+.ds-salle .ds-embleme {
+  --ds-case: 2px;
+  transition: transform 0.09s steps(2);
+}
+@media (hover: hover) {
+  .ds-salle:not(:disabled):hover {
+    transform: translateY(calc(-1 * var(--jeu-p)));
+  }
+  .ds-salle:not(:disabled):hover .ds-embleme {
+    transform: translateY(calc(-2 * var(--jeu-p)));
+  }
+}
+.ds-salle:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: calc(2 * var(--jeu-p));
+}
+.ds-salle[data-etat="attend"] {
+  box-shadow: inset 0 0 0 var(--jeu-p) var(--ds-vert);
+}
+.ds-salle-attend {
+  position: absolute;
+  top: calc(-5 * var(--jeu-p));
+  left: 50%;
+  translate: -50% 0;
+  animation: ds-souffle 6s steps(2) infinite;
+  animation-delay: var(--ds-retard, 0s);
+}
+@keyframes ds-souffle {
+  0%,
+  92% {
+    transform: none;
+  }
+  96% {
+    transform: translateY(calc(-1 * var(--jeu-p)));
+  }
+}
+.duel-jeu .ds-salle:disabled {
+  cursor: default;
+}
+.ds-salle[data-etat="ferme"] .ds-embleme {
+  filter: grayscale(1) brightness(0.8);
+  opacity: 0.55;
+}
+.ds-salle[data-etat="ferme"] .ds-prix {
+  opacity: 0.6;
+}
+.ds-salle[data-envoi="autre"] {
+  opacity: 0.55;
+}
+.ds-verrou {
+  position: absolute;
+  top: calc(3 * var(--jeu-p));
+  right: calc(3 * var(--jeu-p));
+}
+.ds-refus {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p));
+  margin: 0;
+  padding: calc(3 * var(--jeu-p)) calc(5 * var(--jeu-p));
+  background: var(--dl-face);
+  box-shadow: inset calc(2 * var(--jeu-p)) 0 0 var(--ds-rouge);
+  color: var(--dl-texte);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.ds-regles {
+  padding: calc(2 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  background: var(--dl-page);
+  color: var(--dl-texte);
+}
+.ds-regles ul {
+  margin: calc(4 * var(--jeu-p)) 0 0;
+  padding-left: 1.2em;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* ---------- L'attente ---------- */
+.duel-jeu .ds-attente-p {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: calc(10 * var(--jeu-p));
+  width: 100%;
+  max-width: calc(420 * var(--jeu-p));
+  margin: calc(8 * var(--jeu-p)) auto 0;
+  padding-top: calc(16 * var(--jeu-p));
+}
+.ds-attente-ruban {
+  position: absolute;
+  top: calc(-8 * var(--jeu-p));
+  left: 50%;
+  translate: -50% 0;
+  margin: 0;
+  gap: calc(3 * var(--jeu-p));
+}
+.ds-attente-ruban .boutique-jeu-prix {
+  margin-top: calc(3 * var(--jeu-p));
+}
+.ds-place {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p));
+  min-width: 0;
+}
+.duel-jeu .ds-place-moi .dl-apercu-gaulois {
+  width: 144px;
+  height: auto;
+  padding: 12px;
+}
+.ds-attente-milieu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p));
+  text-align: center;
+}
+.ds-attente-milieu .ds-embleme {
+  --ds-case: 3px;
+}
+.ds-temps {
+  --jeu-p: 4px;
+}
+.ds-points {
+  display: flex;
+  gap: calc(3 * var(--jeu-p));
+}
+.ds-points i {
+  display: block;
+  width: calc(3 * var(--jeu-p));
+  height: calc(3 * var(--jeu-p));
+  background: var(--dl-filet);
+  animation: ds-point 3.6s steps(1) infinite;
+}
+.ds-points i:nth-child(2) {
+  animation-delay: 1.2s;
+}
+.ds-points i:nth-child(3) {
+  animation-delay: 2.4s;
+}
+@keyframes ds-point {
+  0% {
+    background: var(--dl-or);
+  }
+  33.4% {
+    background: var(--dl-filet);
+  }
+}
+.ds-place-dessin {
+  --ds-case: 4px;
+  animation: ds-flotte 8s steps(2) infinite;
+}
+@keyframes ds-flotte {
+  50% {
+    transform: translateY(calc(-1 * var(--jeu-p)));
+  }
+}
+.ds-attente-bas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4 * var(--jeu-p));
+}
+.ds-attente-bas .dl-p-mot {
+  margin: 0;
+  padding: calc(1 * var(--jeu-p)) calc(4 * var(--jeu-p));
+  background: var(--dl-page);
+}
+
+/* ---------- Le match : le bandeau au-dessus de la scène ---------- */
+.ds-bandeau {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--jeu-p));
+  min-height: calc(30 * var(--jeu-p));
+  padding: 0 calc(4 * var(--jeu-p));
+  background: var(--dl-page);
+  box-shadow: 0 0 0 var(--jeu-p) var(--dl-trait);
+}
+.ds-bandeau > div + div {
+  padding-left: calc(6 * var(--jeu-p));
+  box-shadow: inset var(--jeu-p) 0 0 var(--dl-filet);
+}
+.ds-temps-manche {
+  display: flex;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p));
+}
+.ds-temps-manche .ds-img {
+  --ds-case: 2px;
+}
+.ds-secondes {
+  --jeu-p: 4px;
+  min-width: calc(11 * var(--jeu-p));
+}
+.ds-face {
+  display: flex;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p));
+  min-width: 0;
+  overflow: hidden;
+}
+.ds-face-nom {
+  max-width: calc(90 * var(--jeu-p));
+  overflow: hidden;
+}
+.ds-face-carte {
+  animation: ds-pose 0.24s steps(2);
+}
+.ds-face[data-pose="oui"] .ds-face-carte {
+  animation-name: ds-pose-bis;
+}
+@keyframes ds-pose {
+  50% {
+    transform: translateY(var(--jeu-p));
+  }
+}
+@keyframes ds-pose-bis {
+  50% {
+    transform: translateY(var(--jeu-p));
+  }
+}
+.duel-jeu .ds-pot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(3 * var(--jeu-p));
+  margin-left: auto;
+}
+.ds-pot-gagnant {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p));
+  margin-left: calc(4 * var(--jeu-p));
+}
+.duel-jeu .ds-confirme {
+  position: absolute;
+  z-index: 30;
+  top: calc(34 * var(--jeu-p));
+  left: 0;
+  max-width: calc(200 * var(--jeu-p));
+  padding-top: calc(4 * var(--jeu-p));
+}
+.ds-confirme-titre {
+  margin: 0;
+}
+.ds-match {
+  position: relative;
+}
+
+/* ---------- La fin ---------- */
+.ds-voile {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: calc(6 * var(--jeu-p));
+  background: var(--ds-voile);
+}
+.duel-jeu .ds-fin {
+  position: relative;
+  width: min(100%, calc(180 * var(--jeu-p)));
+  padding-top: calc(14 * var(--jeu-p));
+  animation: ds-arrive 0.3s steps(3);
+}
+@keyframes ds-arrive {
+  from {
+    transform: translateY(calc(4 * var(--jeu-p)));
+    opacity: 0;
+  }
+}
+.ds-fin-ruban {
+  position: absolute;
+  top: calc(-8 * var(--jeu-p));
+  left: 50%;
+  translate: -50% 0;
+  margin: 0;
+}
+.ds-fin-gain {
+  --jeu-p: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--jeu-p));
+  margin: 0 0 calc(2 * var(--jeu-p));
+}
+.ds-fin-gain .ds-img {
+  --ds-case: 2px;
+}
+.ds-fin-lignes {
+  display: grid;
+  gap: calc(2 * var(--jeu-p));
+}
+.ds-fin-ligne {
+  display: flex;
+  align-items: center;
+  gap: calc(3 * var(--jeu-p));
+  margin: 0;
+}
+.ds-fin-boutons {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--jeu-p));
+  margin-top: calc(6 * var(--jeu-p));
+}
+.ds-fin-boutons .jeu-btn {
+  width: 100%;
+  justify-content: center;
+  gap: calc(3 * var(--jeu-p));
+}
+.ds-fin-seule {
+  display: grid;
+  place-items: center;
+  padding: calc(14 * var(--jeu-p)) 0 calc(6 * var(--jeu-p));
+}
+
+/* ---------- Ordinateur ---------- */
+@media (min-width: 64rem) {
+  .ds-haut {
+    grid-template-columns: minmax(0, 1fr) calc(150 * var(--jeu-p));
+  }
+  .ds-salles {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .ds-salle .ds-embleme {
+    --ds-case: 3px;
+  }
+  .ds-frise .ds-img {
+    --ds-case: 2px;
+  }
+}
+
+/* ---------- Téléphone ---------- */
+@media (max-width: 47.99rem) {
+  .ds-frise,
+  .ds-entree-mot,
+  .ds-cagnotte-mot,
+  .ds-essai-long,
+  .ds-pot-gagnant,
+  .ds-face-mot,
+  .ds-revelation {
+    display: none;
+  }
+  .ds-essai-court {
+    display: inline;
+  }
+  /* Le hall tient au-dessus du menu du bas : la main en une ligne, les six salles, puis les matchs du jour. */
+  .ds-hall .ds-haut {
+    display: contents;
+  }
+  .ds-hall .ds-jour {
+    order: 1;
+    flex-direction: row;
+    align-items: center;
+    padding-top: calc(2 * var(--jeu-p));
+  }
+  .ds-hall .ds-jour-tube {
+    flex: 1;
+  }
+  .ds-hall .ds-refus,
+  .ds-hall .ds-regles {
+    order: 2;
+  }
+  .ds-main .dl-p-tete {
+    display: none;
+  }
+  .ds-main {
+    padding-top: calc(4 * var(--jeu-p));
+  }
+  .ds-salles {
+    gap: calc(4 * var(--jeu-p));
+    padding-top: calc(3 * var(--jeu-p));
+  }
+  .duel-jeu .ds-salle {
+    padding: calc(4 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(3 * var(--jeu-p));
+    gap: calc(2 * var(--jeu-p));
+  }
+  .ds-main-corps {
+    gap: calc(3 * var(--jeu-p));
+  }
+  .ds-main-cartes {
+    gap: 2px;
+  }
+  .ds-main-cartes .dl-petite {
+    width: 40px;
+    height: 52px;
+  }
+  .ds-tete .ds-cagnotte {
+    padding: calc(1 * var(--jeu-p)) calc(3 * var(--jeu-p));
+  }
+  .ds-tete .ds-cagnotte .ds-img,
+  .ds-tete .dl-tete-titre .ds-img {
+    --ds-case: 1px;
+  }
+  .ds-tete {
+    flex-wrap: nowrap;
+  }
+  .ds-attente .ds-tete .ds-cagnotte {
+    display: none;
+  }
+  .duel-jeu .ds-attente-p {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: calc(6 * var(--jeu-p));
+  }
+  .ds-attente-milieu {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .ds-attente-milieu .ds-embleme {
+    display: none;
+  }
+  .duel-jeu .ds-attente-p {
+    margin-top: calc(10 * var(--jeu-p));
+    padding-top: calc(12 * var(--jeu-p));
+  }
+  .duel-jeu .ds-place-moi .dl-apercu-gaulois {
+    width: 84px;
+    padding: 6px;
+  }
+  .ds-place-dessin {
+    --ds-case: 2px;
+  }
+  .ds-temps {
+    --jeu-p: 3px;
+  }
+  .ds-quitter {
+    width: 100%;
+    justify-content: center;
+  }
+  .ds-bandeau {
+    min-height: calc(24 * var(--jeu-p));
+    gap: calc(4 * var(--jeu-p));
+    margin-inline: calc(-1 * max(16px, calc(12 * var(--jeu-p))));
+    padding: 0 calc(3 * var(--jeu-p));
+    box-shadow: 0 var(--jeu-p) 0 var(--dl-trait);
+  }
+  .ds-bandeau > div + div {
+    padding-left: calc(4 * var(--jeu-p));
+  }
+  .ds-secondes {
+    --jeu-p: 2px;
+  }
+  .ds-face-nom {
+    max-width: calc(60 * var(--jeu-p));
+  }
+  .duel-jeu .ds-confirme {
+    left: 0;
+    right: 0;
+    max-width: none;
+  }
+  .ds-voile {
+    place-items: center stretch;
+  }
+  .duel-jeu .ds-fin {
+    width: 100%;
+  }
+  .ds-fin-boutons {
+    flex-direction: row;
+  }
+  /* Les salles en direct : l'arène du match n'a pas de tête d'écran (le bandeau la remplace). */
+  .ds-match .dl-tete {
+    display: none;
+  }
+}
+
+/* La pause du jeu et « réduire les animations » : nos mouvements aussi (les règles du duel les arrêtent déjà toutes). */
+:root.fx-off .ds-salle-attend,
+:root.fx-off .ds-points i,
+:root.fx-off .ds-place-dessin,
+:root.fx-off .ds-face-carte,
+:root.fx-off .ds-fin {
+  animation: none !important;
+}
+:root.fx-off .ds-points i {
+  background: var(--dl-filet);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-points i {
+    background: var(--dl-filet);
+  }
+}

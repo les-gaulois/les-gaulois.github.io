@@ -71,6 +71,9 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « Le duel » de « Mon Gaulois » (22 novembre 2026) : la scène du duel de cartes « Coup pour coup », ses cartes et leurs
   // finitions, l'accueil du duel, la collection et la main de défense. Tout sous `.duel-jeu`.
   { fichier: "22-jeu-duel.css", pages: ["/village", "/direction"] },
+  // « Les salles » du duel (22 novembre 2026) : les matchs en direct, avec mise, entre deux membres ; l'entrée dans l'accueil
+  // du duel, le hall, l'attente, le bandeau du match, la fin. Tout sous `.duel-jeu`, classes `ds-…`.
+  { fichier: "23-jeu-duel-salles.css", pages: ["/village", "/direction"] },
 ];
 
 /** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */

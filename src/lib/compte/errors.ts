@@ -263,6 +263,15 @@ export const ERROR_MESSAGES: Record<string, string> = {
   mauvaise_manche: "Cette manche est déjà jouée. Rechargez la page.",
   carte_au_repos: "Cette carte se repose : choisissez-en une autre.",
 
+  // Les salles en direct du duel (contrat : `REFUS_DES_SALLES` de src/lib/village/contrat-salles.ts, migration
+  // 20261122001000_duel_salles_en_direct).
+  salle_inconnue: "Cette salle n'existe pas. Rechargez la page.",
+  match_en_cours: "Un match vous attend déjà : finissez-le d'abord.",
+  trop_de_matchs: "Dix matchs avec mise aujourd'hui : revenez demain.",
+  match_inconnu: "Ce match n'existe pas. Rechargez la page.",
+  match_fini: "Ce match est déjà fini.",
+  deja_pose: "Votre carte est déjà posée : on attend l'autre Gaulois.",
+
   // La vie du village : les bulles et l'état vocal (migration 20261113002300_village_vie).
   invalid_plafond: "Indiquez un plafond de 0 à 100 dollars, au centime près.",
   invalid_releve: "Le relevé de la vie du village est mal formé : rien n'a été noté.",

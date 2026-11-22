@@ -3,6 +3,17 @@
     "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "staff",
+    "title": "Duel : les salles en direct",
+    "body": "Pour le duel encore fermé : six salles de 25 à 1 000 statères, deux Gaulois en direct, 30 secondes par manche. Le gagnant prend les deux mises, moins un dixième pour la cagnotte de la saison.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "staff",
     "title": "Les Gaulois se battent avec leurs armes",
     "body": "Dans « Le duel », encore réservé au pilote, chaque Gaulois se sert de l'objet de sa carte : l'épée tranche, le marteau s'abat, l'arc tire une flèche jusqu'à l'adversaire, la tête cogne.",
     "link": {

@@ -10,6 +10,7 @@ import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { errorMessage } from "./errors";
 import { setPlayerView } from "./vue-joueur";
 import type { AdversairesDuDuel, ContreQui, EtatDuDuel, MainDuDuel, MainEnregistree, PartieRendue } from "../village/contrat-duel";
+import type { EtatDesSalles } from "../village/contrat-salles";
 
 export const SUPABASE_URL = (import.meta.env.PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
 export const SUPABASE_KEY = import.meta.env.PUBLIC_SUPABASE_KEY ?? "";
@@ -241,4 +242,21 @@ export const duel = {
   jouerManche: (partie: number, manche: number, carte: number): Promise<PartieRendue> => call<PartieRendue>("jouer_manche_duel", { p_partie: partie, p_manche: manche, p_carte: carte }),
   /** Abandonne la partie : elle est perdue. */
   abandonner: (partie: number): Promise<PartieRendue> => call<PartieRendue>("abandonner_duel", { p_partie: partie }),
+};
+
+/**
+ * Les salles en direct du duel, avec mise (migration `20261122001000_duel_salles_en_direct`, formes des réponses :
+ * `src/lib/village/contrat-salles.ts`). Le serveur apparie, garde les mises et la carte posée de chacun, compte le temps et
+ * résout chaque manche. Chaque appel rend l'état entier ; l'écran le relit environ chaque seconde. Un refus devient une
+ * `ServerError` dont le code est dans `REFUS_DES_SALLES` (ou ceux du duel).
+ */
+export const salles = {
+  /** Tout l'écran des salles ; donne aussi des nouvelles de qui attend. */
+  etat: (): Promise<EtatDesSalles> => call<EtatDesSalles>("get_salles_duel"),
+  /** Entre dans la salle `mise` avec ta main : rejoint le premier qui attend, ou attend. */
+  entrer: (mise: number, main: MainDuDuel): Promise<EtatDesSalles> => call<EtatDesSalles>("entrer_salle_duel", { p_mise: mise, p_main: main }),
+  /** Pose ta carte (de 0 à 4) pour la manche `manche` du match : elle reste cachée jusqu'à ce que l'autre pose. */
+  poser: (match: number, manche: number, carte: number): Promise<EtatDesSalles> => call<EtatDesSalles>("poser_carte_salle", { p_match: match, p_manche: manche, p_carte: carte }),
+  /** Quitte ta salle (rien n'est perdu) ; avec `match`, quitte aussi ce match (il est perdu). */
+  quitter: (match: number | null = null): Promise<EtatDesSalles> => call<EtatDesSalles>("quitter_salle_duel", { p_match: match }),
 };

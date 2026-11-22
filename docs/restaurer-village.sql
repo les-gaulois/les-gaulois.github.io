@@ -1,5 +1,5 @@
--- La restauration du village des Gaulois depuis une sauvegarde chiffrée ouverte (export_site, version 6 à 12 ; l'étape 17, les
--- demandes d'achat du marché, depuis la version 12), APRÈS celle des
+-- La restauration du village des Gaulois depuis une sauvegarde chiffrée ouverte (export_site, version 6 à 13 ; l'étape 17, les
+-- demandes d'achat du marché, depuis la version 12 ; l'étape 18, les salles du duel, depuis la version 13), APRÈS celle des
 -- comptes (docs/DIRECTION.md, « La sauvegarde chiffrée »). Le contenu du fichier .json ouvert par `npm run sauvegarde:ouvrir`
 -- est d'abord collé dans une table `sauvegarde (contenu jsonb)`, puis ce fichier se colle en entier dans l'éditeur SQL.
 --
@@ -138,3 +138,20 @@ select r.id, r.acheteur_id, r.emplacement, r.objet, r.prix, r.etat, r.vendeur_id
 from sauvegarde, jsonb_to_recordset(contenu -> 'marche_demandes') as r (id bigint, acheteur_id uuid, emplacement text, objet text, prix integer, etat text, vendeur_id uuid, cree_le timestamptz, expire_le timestamptz, ferme_le timestamptz)
 on conflict (id) do nothing;
 select setval(pg_get_serial_sequence('internal.marche_demandes', 'id'), greatest(coalesce((select max(id) from internal.marche_demandes), 0), 1));
+
+-- 18. Version 13 (22 novembre 2026) : les salles du duel (docs/DIRECTION.md, « Les salles du duel »). Les matchs ne sont pas
+-- sauvegardés : un match en cours à l'heure de la sauvegarde ne reprend pas, et chacun de ses joueurs reprend sa mise (le
+-- débit « duel_mise » est déjà au journal, étape 5), dans l'ordre des comptes. Puis le journal de la cagnotte de chaque
+-- saison, sans le numéro de son match (les matchs ne sont pas sauvegardés) ; la cagnotte suit son journal. Après l'étape 7
+-- (son contrôle compte les soldes de la sauvegarde, mises en jeu déduites) et la migration 20261122001000. Une sauvegarde
+-- d'avant la version 13 n'en a pas : rien ne change.
+insert into internal.stateres_mouvements (user_id, nature, montant, ref)
+select j.joueur, 'duel_rendu', r.mise, 'duel/salle/' || r.id
+from sauvegarde, jsonb_to_recordset(contenu -> 'duel_matchs_en_cours') as r (id bigint, mise integer, joueur_a uuid, joueur_b uuid, commence_le timestamptz),
+  lateral (values (r.joueur_a), (r.joueur_b)) as j (joueur)
+where j.joueur is not null and exists (select 1 from public.profiles p where p.user_id = j.joueur)
+order by j.joueur, r.id;
+insert into internal.duel_cagnotte_mouvements (saison, nature, montant, ref, cree_le)
+select r.saison, r.nature, r.montant, r.ref, r.cree_le
+from sauvegarde, jsonb_to_recordset(contenu -> 'duel_cagnotte_mouvements') as r (id bigint, saison text, nature text, montant integer, ref text, cree_le timestamptz)
+order by r.id;
