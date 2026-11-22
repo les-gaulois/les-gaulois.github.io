@@ -80,6 +80,9 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   { fichier: "24-cartes.css", pages: ["/", "/compte", "/village", "/direction"] },
   // Le jeu des Gaulois sur l'accueil (22 novembre 2026) : « Ouvre ton premier booster » et « Du commun au divin ».
   { fichier: "25-accueil-jeu.css", pages: ["/", "/direction"] },
+  // « Le tableau » du duel (22 novembre 2026) : les duellistes de la semaine et de la saison, le podium, la cagnotte et ses
+  // parts, l'entrée dans l'accueil du duel. Tout sous `.duel-jeu`, classes `dt-…` ; il reprend `.ds-img` des salles.
+  { fichier: "26-jeu-duel-tableau.css", pages: ["/village", "/direction"] },
 ];
 
 /** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */

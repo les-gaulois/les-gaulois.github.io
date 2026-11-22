@@ -291,3 +291,15 @@ export const casino = {
   /** La main laissée ouverte, à reprendre, ou `null`. */
   lire: (): Promise<LectureDuVingtEtUn> => call<LectureDuVingtEtUn>("lire_vingt_et_un"),
 };
+
+/**
+ * Le tableau des duellistes et la saison du duel (migration `20261122002000_duel_tableau_et_saison`, formes des réponses :
+ * `src/lib/village/contrat-tableau.ts`, qui les lit sans confiance). Le serveur classe, couronne le premier de chaque
+ * semaine et partage la cagnotte de la saison ; l'écran ne fait que lire.
+ */
+export const tableauDuel = {
+  /** Le tableau de la semaine et de la saison, la cagnotte, la dernière semaine couronnée, tes insignes. */
+  etat: (): Promise<unknown> => call<unknown>("get_tableau_duel"),
+  /** Tes insignes du duelliste de la semaine, pour ta carte. */
+  mesInsignes: (): Promise<unknown> => call<unknown>("get_mes_insignes_duel"),
+};

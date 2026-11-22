@@ -628,7 +628,8 @@ describe("les salles en direct, avec mise", () => {
 
 describe("le fichier à coller des salles", () => {
   it("s'installe après toutes les autres migrations, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
-    const base = await baseDeTest({ sauf: [`${NOM}.sql`] });
+    // après celles qui l'ont précédée, comme le pilote l'a collé : les migrations suivantes (le tableau des duellistes) en dépendent
+    const base = await baseDeTest({ sauf: migrations().filter((m) => m >= `${NOM}.sql`) });
     const controle = async (): Promise<string> => ((await base.exec(texteAColler())).at(-1)!.rows[0] as { controle: string }).controle;
     expect(await controle()).toBe(ATTENDU);
     expect(await controle()).toBe(ATTENDU);
