@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-22",
+    "kind": "ameliore",
+    "title": "Les cartes qui défilent",
+    "body": "Les bannières, les finitions et les cadres de la carte passent en grandes cartes qui défilent, à la boutique et dans « Ma bannière sur /gaulois », à la place du livre.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "top",
     "title": "Le jeu des Gaulois sur l'accueil",

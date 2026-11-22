@@ -9,7 +9,6 @@ import { CARTES, REFLETS, finitionParId, lireMesCartes, refusDeCarte } from "../
 import { familierDeCarte, pngDuFamilier, poseSurLaCarte } from "../../src/lib/carte-familier";
 import { cacheDesFamiliers, familiersDuCache, lireFamiliersDesJoueurs } from "../../src/lib/familiers-joueurs";
 import { FAMILIERS } from "../../supabase/functions/code-discord/familiers/index";
-import { PLACE_DE_LA_BANNIERE, volVersLeDecor } from "../../src/lib/village/livre-bannieres";
 import { VIGNETTE_HAUTEUR, VIGNETTE_LARGEUR, lireLePng, vignetteDeLaCarte } from "../../src/lib/village/cartes-vignettes";
 import { lireReponseDesAchats, nouveautes, titreEnMots, vignetteDeLAchat, choseDe } from "../../src/lib/achats-discord";
 
@@ -121,19 +120,6 @@ describe("les reflets et l'inclinaison de la carte", () => {
     // Un motif qui suit l'inclinaison ne se déplace pas de plus de 45 % : au-delà, sa couture se verrait.
     const reflets = FEUILLE.slice(FEUILLE.indexOf("/* Les dix reflets du rayon"), FEUILLE.indexOf("@keyframes podium-reflet-braise"));
     for (const m of reflets.matchAll(/var\(--carte-m[xy]\) \* (\d+)%/g)) expect(Number(m[1])).toBeLessThanOrEqual(45);
-  });
-});
-
-describe("le livre des bannières avec un autre dessin", () => {
-  it("fait voler une vignette vers la place d'une bannière par défaut, et vers celle d'une carte si on la donne", () => {
-    const livre = { largeur: 1000, hauteur: 800 };
-    const vignette = { x: 100, y: 500, largeur: 100 };
-    expect(volVersLeDecor(livre, vignette)).toEqual(volVersLeDecor(livre, vignette, PLACE_DE_LA_BANNIERE));
-    // Une carte : un quart de la largeur du livre, au milieu, plus haute que large.
-    const vol = volVersLeDecor(livre, vignette, { gauche: 0.375, largeur: 0.25, hauteurSurLargeur: 160 / 96 });
-    expect(vol?.echelle).toBeCloseTo(2.5);
-    expect(vol?.dx).toBeCloseTo(275);
-    expect(vol?.dy).toBeCloseTo(400 - 250 * (160 / 96) - 500);
   });
 });
 

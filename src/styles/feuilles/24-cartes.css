@@ -1472,3 +1472,399 @@
     animation: none;
   }
 }
+
+/* ---------- Le défilé des cartes (22 novembre 2026) ---------- */
+/* À la place du livre des bannières, à la demande du pilote : « au lieu que ça soit un livre, ça affiche les cartes en gros
+   qui défilent de gauche à droite », maquette de Claude Fable 5.2, choix faits par Claude à sa demande (DefileDeCartes.tsx).
+   La bande garde son mouvement à elle : aucun défilement de côté de la page. Les cases des images valent un nombre entier
+   de pixels : --dc-c pour une bannière (124 × 80 cases), --dc-fx pour la carte du membre (96 × 160), --dc-g pour son
+   Gaulois. */
+/* Toute la largeur de son parent, même s'il centre ses enfants : à la taille de son contenu, une bande qui suit sa largeur
+   (container-type) n'en aurait aucune. */
+.dc-defile {
+  position: relative;
+  container-type: inline-size;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+/* La taille suit la largeur de la bande (celle du panneau qui la porte), pas celle de l'écran. */
+.dc-bande,
+.dc-compte {
+  --dc-c: 2px;
+  --dc-fx: 2px;
+  --dc-ecart: 10px;
+  --co-p: 2px;
+}
+@container (min-width: 34rem) {
+  .dc-bande {
+    --dc-c: 3px;
+    --co-p: 3px;
+    --dc-ecart: 20px;
+  }
+}
+@container (min-width: 56rem) {
+  .dc-bande {
+    --dc-c: 4px;
+    --dc-ecart: 28px;
+  }
+}
+@media (min-height: 1050px) {
+  @container (min-width: 72rem) {
+    .dc-bande {
+      --dc-fx: 3px;
+    }
+  }
+  @container (min-width: 110rem) {
+    .dc-bande {
+      --dc-c: 5px;
+    }
+  }
+}
+.dc-bande {
+  position: relative;
+  border-block: 2px solid color-mix(in srgb, var(--ecriture) 18%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-blue-text, #2148b8) 7%, var(--color-surface, transparent)), color-mix(in srgb, var(--color-blue-text, #2148b8) 15%, var(--color-surface, transparent)));
+}
+.dc-piste {
+  position: relative;
+  height: 12rem;
+  overflow: clip;
+  outline: none;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+}
+.dc-piste.dc-glisse {
+  cursor: grabbing;
+}
+/* L'ombre posée sous la carte du milieu : elle ne bouge pas, les cartes passent au-dessus. */
+.dc-socle {
+  position: absolute;
+  bottom: 0.625rem;
+  left: 50%;
+  width: min(26rem, 70%);
+  height: 1rem;
+  margin-left: calc(min(26rem, 70%) / -2);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(10 18 48 / 0.22), transparent);
+  pointer-events: none;
+}
+.dc-fleche {
+  position: absolute;
+  top: 50%;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin-top: -1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.625rem;
+  background: var(--ecriture);
+  color: var(--color-navy);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--ecriture) 55%, #000);
+  cursor: pointer;
+}
+.dc-fleche[data-sens="-1"] {
+  left: 12px;
+}
+.dc-fleche[data-sens="1"] {
+  right: 12px;
+}
+.dc-fleche svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+/* Au bout de la liste, la flèche reste un bouton (le focus du clavier ne se perd pas), pâlie. */
+.dc-fleche[aria-disabled="true"] {
+  opacity: 0.3;
+  cursor: default;
+}
+.dc-fleche:not([aria-disabled="true"]):active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ecriture) 55%, #000);
+}
+.dc-fleche:focus-visible {
+  outline: 3px solid var(--color-blue-text, #2148b8);
+  outline-offset: 2px;
+}
+/* Sur une bande étroite, les flèches descendent sous elle, de part et d'autre du compte : les voisines restent visibles. */
+@container (max-width: 33.99rem) {
+  .dc-fleche {
+    top: calc(100% + 0.625rem);
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-top: 0;
+  }
+  .dc-compte {
+    min-height: 2.75rem;
+    padding: 0 3.25rem;
+  }
+}
+.dc-compte {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.625rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--ecriture) 70%, transparent);
+}
+
+/* La carte : celle des cosmétiques (co-carte), en grand, posée par l'écran. */
+.co-carte.dc-carte {
+  position: absolute;
+  top: 0;
+  left: 0;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 0.75rem;
+  color: #0a1230;
+  transform-origin: 0 0;
+  cursor: pointer;
+}
+.co-carte.dc-carte[aria-selected="true"] {
+  cursor: inherit;
+}
+.co-carte.dc-carte[data-carte="pixel"] {
+  padding: calc(5 * var(--co-p) + 2px);
+  border-radius: 0;
+}
+.dc-piste:focus-visible .dc-carte[aria-selected="true"] {
+  outline: 3px solid var(--color-blue-text, #2148b8);
+  outline-offset: 4px;
+}
+/* La lumière holographique sur le cadre seul : rien ne voile l'image. Au repos, elle passe lentement sur la carte du milieu. */
+.co-carte.dc-carte[data-carte="pixel"][aria-selected="true"] {
+  animation: co-balayage 11s ease-in-out infinite alternate;
+}
+/* La largeur d'une carte est celle de son image : la tête et le pied s'y plient (width 0, min-width 100 %), sinon une
+   marque « Sur /gaulois » élargirait la carte du milieu, et le défilé, qui mesure une carte, la poserait de travers. */
+.dc-tete,
+.dc-pied {
+  width: 0;
+  min-width: 100%;
+}
+.dc-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.125rem;
+  padding: 0 2px;
+}
+.dc-tete .co-nom {
+  min-height: 0;
+  font-size: 1.0625rem;
+  line-height: 1.15;
+  text-align: left;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.dc-marque {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1875rem 0.5rem 0.1875rem 0.375rem;
+  border-radius: 999px;
+  background: #0a1230;
+  color: var(--co-lumiere);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.dc-carte[data-carte="pixel"] .dc-marque {
+  border-radius: 0;
+}
+.dc-coche {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+}
+.dc-image {
+  position: relative;
+  display: block;
+  flex: none;
+  overflow: hidden;
+  border-radius: 0.375rem;
+  box-shadow: 0 0 0 1px var(--co-bord);
+}
+.dc-carte[data-carte="pixel"] .dc-image {
+  border-radius: 0;
+  box-shadow: 0 0 0 var(--co-p) var(--co-filet, #0a1230);
+}
+.dc-image :is(img, canvas) {
+  display: block;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+/* Une bannière : l'image entière, une case du dessin pour un nombre entier de pixels. */
+.dc-defile[data-forme="banniere"] .dc-image {
+  width: calc(124 * var(--dc-c));
+  height: calc(80 * var(--dc-c));
+}
+.dc-defile[data-forme="banniere"] .dc-image img {
+  width: 100%;
+  height: 100%;
+}
+/* Une finition ou un cadre : la vraie carte du membre, posée sur une table marine (elle fait lire les lumières des cadres). */
+.dc-defile:is([data-forme="finition"], [data-forme="cadre"]) .dc-image {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(110% 80% at 50% 38%, #22357e, #0a1230 72%);
+}
+.dc-defile[data-forme="finition"] .dc-image {
+  width: calc(112 * var(--dc-fx));
+  height: calc(176 * var(--dc-fx));
+}
+.dc-defile[data-forme="cadre"] .dc-image {
+  width: calc(144 * var(--dc-fx));
+  height: calc(208 * var(--dc-fx));
+}
+.dc-pied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.75rem;
+  padding: 0 2px;
+}
+.dc-rarete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--co-encre);
+}
+.dc-prix {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.dc-mot {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--co-encre);
+}
+@container (max-width: 33.99rem) {
+  .dc-tete .co-nom {
+    font-size: 0.9375rem;
+  }
+  .dc-rarete,
+  .dc-mot {
+    font-size: 0.6875rem;
+  }
+  .dc-prix {
+    font-size: 0.875rem;
+  }
+}
+:root.fx-off .co-carte.dc-carte[aria-selected="true"] {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .co-carte.dc-carte[aria-selected="true"] {
+    animation: none;
+  }
+}
+
+/* La carte du membre dans le défilé : celle de l'accueil (04-poste.css), deux cases de la carte par case de l'image, sans
+   flotter ; avec un cadre, la toile du cadre la déborde de douze cases de chaque côté. Les voisines sont en image fixe. */
+.dc-membre {
+  --px: calc(var(--dc-fx) * 2);
+}
+.dc-membre-cadre {
+  padding: calc(var(--px) * 12);
+}
+.dc-membre .podium-carte-case {
+  margin-top: 0;
+  animation: none;
+}
+.dc-membre .podium-carte {
+  box-shadow: none;
+}
+.dc-image .dc-membre-fixe {
+  width: calc(96 * var(--dc-fx));
+  height: calc(160 * var(--dc-fx));
+  border-radius: calc(5 * var(--dc-fx));
+}
+.dc-image .dc-cadre-fixe {
+  width: calc(144 * var(--dc-fx));
+  height: calc(208 * var(--dc-fx));
+}
+/* La scène d'une bannière essayée : le Gaulois du membre devant elle, à la taille de la bannière. */
+.dc-image > .dc-scene {
+  width: 100%;
+  height: 100%;
+}
+
+/* Sous la bande : la fiche de la carte du milieu et ce qu'on en fait. */
+/* La bande remplace la vitrine d'avant : pas de second cadre autour d'elle. */
+.banniere-vitrine.dc-vitrine {
+  display: block;
+  justify-items: stretch;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.dc-fiche {
+  display: grid;
+  justify-items: center;
+  gap: 0.375rem;
+  max-width: 40rem;
+  margin: 0.75rem auto 0;
+  text-align: center;
+}
+.dc-fiche > * {
+  margin: 0;
+}
+.dc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  margin-top: 0.375rem;
+}
+.dc-prix-bouton {
+  margin-left: 0.25rem;
+}
+/* « Essayer sur mon Gaulois » enfoncé : plein, comme une bascule. */
+.dc-actions .btn[aria-pressed="true"] {
+  border-color: var(--ecriture);
+  background: var(--ecriture);
+  color: var(--color-navy);
+}
+/* Dans l'écran du jeu, rien de « site » : pas de dégradé ni de filet autour de la bande, des flèches carrées à l'ombre
+   franche, comme les pièces en pixels du kit (« Le kit du jeu » de docs/DESIGN.md). */
+:root[data-ecran="jeu"] .dc-bande {
+  border-block: 0;
+  background: none;
+}
+:root[data-ecran="jeu"] .dc-fleche {
+  border-radius: 0;
+  box-shadow:
+    0 4px 0 color-mix(in srgb, var(--ecriture) 55%, #000),
+    0 0 0 2px var(--color-navy);
+}
+:root[data-ecran="jeu"] .dc-socle {
+  display: none;
+}
+.dc-apercus {
+  margin-top: 1.5rem;
+}

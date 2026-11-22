@@ -251,7 +251,7 @@ function FinitionDeVitrine({ id, vive }: { id: string; vive: boolean }) {
 /**
  * La fenêtre où un Gaulois de la vitrine s'ouvre en grand. Par défaut, celle de la boutique d'avant, avec « Fermer » ;
  * l'écran de jeu de « Mon Gaulois » donne la sienne (`VitrineDuJeu.tsx`, 21 novembre 2026) : ce fichier, que « Mon compte »
- * atteint par le livre des bannières, ne connaît rien du jeu. `titre` : le nom du Gaulois.
+ * atteint par le choix de la bannière, ne connaît rien du jeu. `titre` : le nom du Gaulois.
  */
 export type FenetreDeLaVitrine = (p: { titre: string; onFermer: () => void; children: ComponentChildren }) => JSX.Element;
 
@@ -267,8 +267,8 @@ const FenetreDAvant: FenetreDeLaVitrine = ({ titre, onFermer, children }) => (
 );
 
 /**
- * Les cartes : une par Gaulois, aussi large que lui et son familier, au cadre de la rareté la plus haute portée. Le livre
- * des bannières (`LivreDesBannieres.tsx`) s'en sert aussi pour montrer au membre sa propre carte avec la bannière qu'il essaie.
+ * Les cartes : une par Gaulois, aussi large que lui et son familier, au cadre de la rareté la plus haute portée. Les
+ * aperçus de la bannière (`Bannieres.tsx`) s'en servent aussi pour montrer au membre sa propre carte avec la bannière du milieu.
  * `Fenetre` : la fenêtre d'un Gaulois ouvert en grand ; `moi` : la marque de la carte du membre qui regarde.
  */
 export function CartesDeLaVitrine({

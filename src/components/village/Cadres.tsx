@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ServerError, basePath, call } from "../../lib/compte/api";
 import { HAUTEUR_DU_CADRE, LARGEUR_DU_CADRE } from "../../lib/fx/cadres-carte";
 import { RARETES, TENUE_DE_DEPART, type Tenue } from "../../lib/gaulois";
@@ -10,26 +10,33 @@ import { manque, stateres } from "../../lib/village/ecran-boutique";
 import type { Familier } from "../../lib/village/familiers";
 import { Problem, Success, messageOf } from "../compte/common";
 import { BANNIERE_CHOISIE } from "./Bannieres";
-import { Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
-import { MarqueDeRarete, Prix } from "./BoutiquePixels";
+import { Compte, Dialogue, Refus } from "./BoutiqueDialogue";
+import { Prix } from "./BoutiquePixels";
 import { IconeDeRarete } from "./IconeDeRarete";
 import { CarteAnimee } from "./CarteAnimee";
-import { LivreDesBannieres, type DessinDuLivre } from "./LivreDesBannieres";
+import { DefileDeCartes, bruitDuJeu, type CarteDuDefile } from "./DefileDeCartes";
 
 /**
  * Le rayon « Cadres » de la boutique (`src/lib/village/cadres.ts`) : les vingt-six cadres animés de la carte du membre.
- * Présenté comme le rayon des cartes et celui des bannières (demande du pilote, 17 novembre 2026 : « exactement comme la
- * boutique bannière, le style de livre ») : le même livre, où le cadre touché s'envole et se dresse autour de la carte du
- * membre, animé, avec sa bannière, sa finition et son familier ; à côté, sa fiche, son prix et le bouton d'achat ;
- * au-dessus, le filtre par rareté. Tout cadre se voit avant l'achat. Le serveur décide de tout (`get_mes_cadres`,
+ * Présenté comme le rayon des cartes et celui des bannières (demande du pilote, 17 novembre 2026) : depuis le 22 novembre
+ * 2026, à sa demande, en grandes cartes qui défilent (`DefileDeCartes.tsx`, à la place du livre) ; la carte du milieu montre
+ * le cadre autour de la vraie carte du membre, animé, avec sa bannière, sa finition et son familier ; sous la bande, sa
+ * description et le bouton d'achat ; au-dessus, le filtre par rareté. Tout cadre se voit avant l'achat. Le serveur décide de tout (`get_mes_cadres`,
  * `acheter_cadre`, `choisir_cadre`) ; l'écran ne montre que ce qu'il a reçu, et jamais le solde d'un autre.
  */
 type Etat = { kind: "lecture" } | { kind: "panne" } | { kind: "pret"; mes: MesCadres };
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
 const RARETES_DES_CADRES = ["commun", "peu-commun", "epique", "mystique", "legendaire"] as const;
-/** La carte dressée dans le livre, avec la marge de son cadre : un tiers de sa largeur, au milieu. */
-const PLACE_DU_CADRE = { gauche: 0.335, largeur: 0.33, hauteurSurLargeur: HAUTEUR_DU_CADRE / LARGEUR_DU_CADRE };
+
+/** L'image fixe d'un cadre autour de la carte du membre : les cartes voisines du défilé. */
+function VignetteDuCadre({ cadre, banniere }: { cadre: IdDeCadre; banniere: HTMLImageElement | null }) {
+  const toile = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (toile.current) peindreLaVignetteDuCadre(toile.current, cadre, banniere);
+  }, [cadre, banniere]);
+  return <canvas ref={toile} width={LARGEUR_DU_CADRE} height={HAUTEUR_DU_CADRE} class="pixels dc-cadre-fixe" />;
+}
 
 export function SectionDesCadres({ tenue, familier = null, onSolde, onRefus }: { tenue: Tenue | null; familier?: Familier | null; onSolde: (reste: number) => void; onRefus: () => void }) {
   const [etat, setEtat] = useState<Etat>({ kind: "lecture" });
@@ -96,42 +103,29 @@ export function SectionDesCadres({ tenue, familier = null, onSolde, onRefus }: {
   const etatDe = (id: string): EtatDeLaBanniere => (mes?.porte === id ? "montree" : mes?.possedes.some((p) => p === id) ? "a-moi" : "a-acheter");
   const etatVu = etatDe(cadre.id);
   const montre = mes?.porte ? cadreParId(mes.porte) : null;
-  const motDe = (id: string): string => {
-    const e = etatDe(id);
-    const p = mes?.prix[cadreParId(id)?.rarete ?? "commun"];
-    return e === "montree" ? "sur votre carte" : e === "a-moi" ? "à vous" : p ? stateres(p) : "";
-  };
 
   const comptes = useMemo(() => Object.fromEntries(RARETES_DES_CADRES.map((r) => [r, CADRES.filter((c) => c.rarete === r).length])) as Record<(typeof RARETES_DES_CADRES)[number], number>, []);
-  const duLivre = useMemo(() => (rarete ? CADRES.filter((c) => c.rarete === rarete) : CADRES), [rarete]);
+  const duDefile = useMemo(() => (rarete ? CADRES.filter((c) => c.rarete === rarete) : CADRES), [rarete]);
+  /** Ce que dit chaque carte du défilé : son prix tant qu'elle n'est pas au compte, sinon « À vous », et « Sur ma carte ». */
+  const cartesDuDefile = duDefile.map((c): CarteDuDefile => {
+    const e = etatDe(c.id);
+    return { id: c.id, nom: c.nom, rarete: c.rarete, prix: e === "a-acheter" ? (mes?.prix[c.rarete] ?? null) : null, mot: e === "a-acheter" ? null : "À vous", marque: e === "montree" ? "Sur ma carte" : null };
+  });
 
-  // Le dessin du livre : les cadres à la place des bannières. Refait quand la bannière, la tenue ou la finition change.
-  const dessin = useMemo<DessinDuLivre>(
-    () => ({
-      genre: "cadres",
-      label: "Les cadres",
-      image: (id) => {
-        const c = cadreParId(id);
-        return c ? { largeur: LARGEUR_DU_CADRE, hauteur: HAUTEUR_DU_CADRE, peindre: (toile) => peindreLaVignetteDuCadre(toile, c.id, imageDeBanniere) } : null;
-      },
-      decor: (id) => {
-        const c = cadreParId(id);
-        return c ? <CarteAnimee finition={finition} cadre={c.id} tenue={tenueVue} fond={fond} classe="livre-carte livre-carte-cadree" sonde familier={familier} /> : null;
-      },
-      parId: cadreParId,
-      place: PLACE_DU_CADRE,
-    }),
-    [imageDeBanniere, tenueVue, fond, familier, finition],
-  );
+  /** L'image d'une carte du défilé : au milieu, la vraie carte du membre dans ce cadre, animée ; à côté, son image fixe. */
+  const imageDuDefile = (id: string, milieu: boolean) => {
+    const c = cadreParId(id);
+    if (!c) return null;
+    return milieu ? <CarteAnimee finition={finition} cadre={c.id} tenue={tenueVue} fond={fond} classe="dc-membre dc-membre-cadre" sonde familier={familier} /> : <VignetteDuCadre cadre={c.id} banniere={imageDeBanniere} />;
+  };
 
-  /** Dans le livre, toucher un cadre ne fait que le montrer : rien ne part au serveur. */
-  const voirDansLeLivre = (id: string | null): Promise<Issue<string | null>> => {
+  /** Un autre cadre au milieu du défilé : rien ne part au serveur, la fiche dessous le décrit. */
+  const voir = (id: string): void => {
     const c = cadreParId(id);
     if (c) setVue(c.id);
     setRefus(null);
     setReussite(null);
     setProbleme(null);
-    return Promise.resolve({ ok: true, valeur: id });
   };
 
   const acheter = async () => {
@@ -148,6 +142,7 @@ export function SectionDesCadres({ tenue, familier = null, onSolde, onRefus }: {
       }
       setEtat({ kind: "pret", mes: { ...mes, solde, possedes: [cadre.id, ...mes.possedes] } });
       onSolde(solde);
+      bruitDuJeu("piece");
       setAchat("fait");
     } catch (e) {
       const frais = e instanceof ServerError ? await lire(true) : null;
@@ -170,6 +165,10 @@ export function SectionDesCadres({ tenue, familier = null, onSolde, onRefus }: {
       else {
         const choisi = cadreParId(typeof porte === "string" ? porte : null);
         setEtat({ kind: "pret", mes: { ...mes, porte: choisi?.id ?? null } });
+        if (choisi) {
+          bruitDuJeu("enfile");
+          bruitDuJeu("enfile2", 0.09);
+        }
         setReussite(choisi ? `« ${choisi.nom} » entoure votre carte.` : "Votre carte n'a plus de cadre.");
       }
     } catch (e) {
@@ -221,55 +220,41 @@ export function SectionDesCadres({ tenue, familier = null, onSolde, onRefus }: {
         ))}
       </div>
 
-      <div class="banniere-vitrine banniere-vitrine-livre" data-rarete={cadre.rarete} data-testid="cadre-vitrine" data-cadre={cadre.id} data-etat={etatVu}>
-        <div class="banniere-vue">
-          <LivreDesBannieres mode="boutique" dessin={dessin} miennes={duLivre} montree={cadre} tenue={tenueVue} familier={null} choisir={voirDansLeLivre} etatDe={etatDe} motDe={motDe} />
-        </div>
-        <div class="banniere-fiche">
-          <p class="banniere-famille">Cadre animé</p>
-          <h5 class="banniere-nom" data-testid="cadre-vu">
-            {cadre.nom}
-          </h5>
-          <span class="banniere-rarete" data-rarete={cadre.rarete}>
-            <MarqueDeRarete rarete={cadre.rarete} />
-          </span>
-          <p class="banniere-description">{cadre.description}</p>
-          <div class="banniere-actions">
-            {!mes ? null : etatVu === "a-acheter" ? (
-              <>
-                {prix !== null && <Prix montant={prix} class="banniere-prix" />}
-                {prix === null || !mes.peutAcheter ? (
+      <div class="banniere-vitrine dc-vitrine" data-rarete={cadre.rarete} data-testid="cadre-vitrine" data-cadre={cadre.id} data-etat={etatVu}>
+        <DefileDeCartes cartes={cartesDuDefile} choisie={cadre.id} onChoisir={voir} forme="cadre" label="Les cadres" image={imageDuDefile} testid="cadres-defile">
+          <div class="dc-fiche">
+            <p class="banniere-famille">Cadre animé</p>
+            <h5 class="banniere-nom" data-testid="cadre-vu">
+              {cadre.nom}
+            </h5>
+            <p class="banniere-description">{cadre.description}</p>
+            <div class="dc-actions">
+              {!mes ? null : etatVu === "a-acheter" ? (
+                prix === null || !mes.peutAcheter ? (
                   <p class="pochette-raison" data-testid="cadre-raison">
                     {mes.peutAcheter ? "Ce cadre n'a pas de prix pour l'instant." : "Réservé aux membres validés qui ont créé leur Gaulois."}
                   </p>
                 ) : (
-                  <div>
-                    <button type="button" class="btn btn-primary" onClick={() => setAchat("confirmer")} data-testid="cadre-acheter">
-                      Acheter
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
+                  <button type="button" class="btn btn-primary" onClick={() => setAchat("confirmer")} data-testid="cadre-acheter">
+                    Acheter <Prix montant={prix} class="dc-prix-bouton" />
+                  </button>
+                )
+              ) : etatVu === "a-moi" ? (
+                <button type="button" class="btn btn-primary" disabled={occupe} onClick={() => void choisir(cadre.id)} data-testid="cadre-montrer">
+                  {occupe ? "Enregistrement…" : "Mettre sur ma carte"}
+                </button>
+              ) : (
                 <span class="banniere-etat" data-etat={etatVu}>
-                  {etatVu === "montree" ? "Sur votre carte" : "À vous"}
+                  Sur votre carte
                 </span>
-                {etatVu === "a-moi" && (
-                  <div>
-                    <button type="button" class="btn btn-primary" disabled={occupe} onClick={() => void choisir(cadre.id)} data-testid="cadre-montrer">
-                      {occupe ? "Enregistrement…" : "Mettre sur ma carte"}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+              )}
+            </div>
+            <div class="banniere-avis" data-testid="cadre-avis">
+              <Success message={reussite} />
+              <Problem message={probleme} />
+            </div>
           </div>
-          <div class="banniere-avis" data-testid="cadre-avis">
-            <Success message={reussite} />
-            <Problem message={probleme} />
-          </div>
-        </div>
+        </DefileDeCartes>
       </div>
 
       {achat !== "ferme" && mes && prix !== null && (

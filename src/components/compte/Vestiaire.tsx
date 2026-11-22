@@ -565,7 +565,7 @@ export function ChoixDuFamilier({ v, plie = true }: { v: LeVestiaire; plie?: boo
   return <MonFamilier etat={v.familiers.etat} occupe={v.occupeFamilier} probleme={v.problemeFamilier} annonce={v.annonceFamilier} onChoisir={(id) => void v.choisirLeFamilier(id)} onRelire={() => void v.familiers.lire()} plie={plie} />;
 }
 
-/** La bannière montrée sur /gaulois et son livre, pour un Gaulois qui existe. */
+/** La bannière montrée sur /gaulois et le défilé de ses bannières, pour un Gaulois qui existe. */
 export function ChoixDeLaBanniere({ v, actif }: { v: LeVestiaire; actif: boolean | undefined }) {
   if (!v.existait || v.me === null || !v.me.signed_in) return null;
   return <MaBanniere actif={actif} nom={v.me.name ?? "Moi"} tenue={v.enregistree ?? v.tenue} familier={v.familiers.montre} />;

@@ -40,7 +40,7 @@ import { useEssayage } from "./Essayage";
  * la bannière, qui avaient chacun leur pli au-dessus des rayons. Tout le reste vient du vestiaire d'avant
  * (`useVestiaire` et ses pièces, `src/components/compte/Vestiaire.tsx`), sans rien en retirer : l'essai jusqu'à
  * l'enregistrement, « Au hasard », les couleurs, les Gaulois uniques, « Nouveau », « à vous », « essai », la collection
- * (« 12 sur 62 »), les tenues gardées, le livre des bannières, et la création du Gaulois à l'inscription, où seuls ses
+ * (« 12 sur 62 »), les tenues gardées, le défilé des bannières, et la création du Gaulois à l'inscription, où seuls ses
  * six premiers emplacements paraissent. La bourse n'y est plus : la barre du jeu la montre toujours.
  */
 
@@ -179,7 +179,7 @@ function Emplacement({ vue, ouvert, onChoisir, onClavier }: { vue: VueDEmplaceme
 
 export default function VestiaireDuJeu({ actif }: { actif: boolean }) {
   const v = useVestiaire(actif);
-  // L'essayage : les cartes du rayon ouvert se lâchent sur le Gaulois. La bannière se choisit dans son livre, sans rien
+  // L'essayage : les cartes du rayon ouvert se lâchent sur le Gaulois. La bannière se choisit dans son défilé, sans rien
   // glisser. La phrase dite aux lecteurs d'écran quand une carte arrive.
   const zone = useRef<HTMLDivElement>(null);
   const cartes = useRef<HTMLDivElement>(null);

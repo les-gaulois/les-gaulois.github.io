@@ -947,7 +947,7 @@ D'après la maquette validée par le pilote, dessin de Claude Fable 5.2, feuille
 
 - **La vitrine** (`/village#vitrine`, `VitrineDuJeu.tsx`) : le ruban, la recherche, les cartes des Gaulois du clan. Les cartes
   et leur fenêtre en grand restent celles de `Vitrine.tsx` (bannière, finition, familier, rareté, « où trouver cet objet »),
-  que « Mon compte » atteint par le livre des bannières : ce fichier ne connaît rien du jeu. L'écran du jeu lui donne sa
+  que « Mon compte » atteint par le choix de la bannière : ce fichier ne connaît rien du jeu. L'écran du jeu lui donne sa
   fenêtre (`Fenetre`, celle des boosters) et sa marque « Moi » (`moi`, une étiquette du kit). Un nom de membre s'écrit en
   lettres du site ; dans le ruban d'une fenêtre, en pixels seulement si l'écriture sait tous ses signes.
 - **La loterie** (`/village#loterie`) : la mise en page choisie par le pilote, « le podium d'abord », ne change pas (la toile
@@ -1081,6 +1081,17 @@ des cartes « jolies mais pas en pixel art et non holographiques ». Ne pas chan
   `statere.ts` du robot), carte `CarteDeStateres.tsx`, classes `cs-…` de `24-cartes.css` ; les rayons derrière elle
   prennent la couleur du lot (`rayon` d'`OuvertureDuBooster`). Le booster de loterie n'en a pas : il donne des billets,
   pas des statères.
+- **Le défilé des cartes** (22 novembre 2026, à la place du livre des bannières, à la demande du pilote ; maquette de
+  Claude Fable 5.2, choix faits par Claude à sa demande) : les bannières, les finitions et les cadres en grandes cartes
+  (`DefileDeCartes.tsx`, calculs dans `src/lib/village/defile.ts`, classes `dc-…` de `24-cartes.css`), à la boutique et
+  dans « Ma bannière sur /gaulois ». La carte du milieu en grand, ses voisines aux trois quarts, les suivantes à la moitié,
+  posées par l'écran sur un ressort sans rebond. Tout est dans la carte : nom, rareté (icône et mot), prix ou « À vous »,
+  « Du booster », et la marque « Sur /gaulois » ou « Sur ma carte » ; la carte prend la largeur de son image. Une bannière
+  à `--dc-c` pixels la case (2, 3, 4, 5 selon la largeur de la bande, `container-type`), la carte du membre à `--dc-fx`
+  (2, 3 sur une très grande bande haute) sur une table marine, la lumière holographique sur le cadre seul. Les flèches
+  descendent sous la bande quand elle est étroite ; au bout de la liste, elles pâlissent mais gardent le focus
+  (`aria-disabled`). La bande est une `listbox` (options avec `aria-setsize` et `aria-posinset`) ; la carte choisie n'est
+  jamais cachée. Dans l'écran du jeu, ni dégradé ni filet autour de la bande, des flèches carrées à l'ombre franche.
 
 ### Le duel « Coup pour coup » (22 novembre 2026)
 

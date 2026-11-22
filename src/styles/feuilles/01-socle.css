@@ -1376,7 +1376,7 @@ tr.ligne-banniere > td:last-child {
     font-size: 1rem;
   }
 }
-/* L'aperçu « Sur ma fiche » du livre des bannières (LivreDesBannieres.tsx) : le dessin agrandi sans lissage, et dessus le
+/* L'aperçu « Sur ma fiche » sous le défilé des bannières (Bannieres.tsx) : le dessin agrandi sans lissage, et dessus le
    titre d'un bloc de la fiche, clair et cerné de marine comme sur la fiche, où la bannière est le fond des scènes
    (« .stage-banniere », plus bas). Jusqu'au 17 novembre 2026, la fiche montrait cette image en tête. */
 .fiche-banniere {

@@ -822,8 +822,7 @@ footer h2 {
   padding: calc(var(--px) * 12);
 }
 /* La carte seule ne remonte pas comme le premier du podium : son cadre resterait hors de sa place. */
-.carte-membre-cadree .podium-carte-case,
-.livre-carte-cadree .podium-carte-case {
+.carte-membre-cadree .podium-carte-case {
   margin-top: 0;
 }
 .podium-carte-fx-devant {

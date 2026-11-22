@@ -1,6 +1,6 @@
 /**
  * L'image fixe d'une finition de carte (rayon « Cartes », `cartes.ts`) : la carte sans le Gaulois, devant une bannière ou
- * le fond marine, avec la finition posée une fois. Elle sert aux cases du livre de la boutique
+ * le fond marine, avec la finition posée une fois. Elle sert aux cartes voisines du défilé de la boutique
  * (`src/components/village/Cartes.tsx`) et, dessinée d'avance par `scripts/atelier-cartes.ts` dans
  * `src/lib/village/cartes-vignettes/`, à l'annonce des achats sur Discord (`src/lib/achats-discord.ts`), où il n'y a pas de
  * navigateur. Ce fichier ne tourne que dans un navigateur : il dessine sur des toiles.
@@ -163,8 +163,8 @@ function travail(): [CanvasRenderingContext2D, CanvasRenderingContext2D] | null 
 }
 
 /**
- * L'image d'une finition, pour sa case du livre et son vol : la carte sans le Gaulois, devant la bannière du membre (ou le
- * fond marine), avec la finition en image fixe. Rien ne bouge dans les cases : la finition s'anime une fois dressée.
+ * L'image d'une finition, pour une carte voisine du défilé : la carte sans le Gaulois, devant la bannière du membre (ou le
+ * fond marine), avec la finition en image fixe. Rien ne bouge à côté : la finition s'anime au milieu.
  */
 export function peindreLaVignette(toile: HTMLCanvasElement, finition: FinitionDuRayon, banniere: HTMLImageElement | null): void {
   const c = toile.getContext("2d");

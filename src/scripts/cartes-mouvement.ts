@@ -54,7 +54,7 @@ function passerEnEconome(): void {
 
 /**
  * Anime les cartes (`.podium-carte`) de cette racine. Rend de quoi tout arrêter : l'écran qui les retire l'appelle.
- * `sonde` : dans le livre de la boutique, la carte est dressée en relief et le navigateur la croit parfois hors de l'écran ;
+ * `sonde` : dans le défilé de la boutique, la carte est posée et déplacée par l'écran, et le navigateur la croit parfois hors de l'écran ;
  * sa place est alors remesurée, deux fois par seconde au plus, tant qu'elle est au repos pour cette seule raison.
  * `immobile` : sans souris, pas de balancement (le reflet d'un grand bloc de fiche : rien à repeindre quand rien ne bouge).
  */

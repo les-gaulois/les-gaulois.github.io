@@ -1,5 +1,5 @@
 /**
- * L'image fixe d'un cadre, pour les cases du livre du rayon « Cadres » (`src/components/village/Cadres.tsx`) : le cadre
+ * L'image fixe d'un cadre, pour les cartes voisines du défilé du rayon « Cadres » (`src/components/village/Cadres.tsx`) : le cadre
  * à un instant choisi, autour de la bannière du membre ou du fond marine de la carte. Navigateur seulement.
  */
 import { CARTE_H, CARTE_L, HAUTEUR_DU_CADRE, INSTANT_DU_CADRE_FIGE, LARGEUR_DU_CADRE, MARGE_DU_CADRE, peindreLeCadre, type CadreDeCarte } from "../fx/cadres-carte";

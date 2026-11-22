@@ -9,18 +9,18 @@ import { manque, stateres } from "../../lib/village/ecran-boutique";
 import type { Familier } from "../../lib/village/familiers";
 import { Problem, Success, messageOf } from "../compte/common";
 import { BANNIERE_CHOISIE } from "./Bannieres";
-import { Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
-import { MarqueDeRarete, Prix } from "./BoutiquePixels";
+import { Compte, Dialogue, Refus } from "./BoutiqueDialogue";
+import { Prix } from "./BoutiquePixels";
 import { IconeDeRarete } from "./IconeDeRarete";
 import { CarteAnimee, RefletDeBloc } from "./CarteAnimee";
-import { LivreDesBannieres, type DessinDuLivre } from "./LivreDesBannieres";
+import { DefileDeCartes, bruitDuJeu, type CarteDuDefile } from "./DefileDeCartes";
 
 /**
  * Le rayon « Cartes » de la boutique (`src/lib/village/cartes.ts`) : les trente-trois finitions de la carte du membre,
- * celle qui paraît en haut de l'accueil quand il est sur le podium de la semaine. Présenté comme le rayon des bannières,
- * à la demande du pilote (17 novembre 2026 : « exactement comme la boutique bannière, le style de livre ») : le même livre
- * (`LivreDesBannieres.tsx`, avec un autre dessin), où la finition touchée s'envole et se dresse en carte, animée, devant
- * la bannière que le membre montre ; à côté, sa fiche, son prix et le bouton d'achat ; au-dessus, le filtre par rareté.
+ * celle qui paraît en haut de l'accueil quand il est sur le podium de la semaine. Présenté comme le rayon des bannières
+ * (demande du pilote, 17 novembre 2026) : depuis le 22 novembre 2026, à sa demande, en grandes cartes qui défilent
+ * (`DefileDeCartes.tsx`, à la place du livre) ; la carte du milieu montre la finition sur la vraie carte du membre, animée,
+ * devant la bannière qu'il montre ; sous la bande, sa description et le bouton d'achat ; au-dessus, le filtre par rareté.
  * Rien n'est caché derrière un prix : toute finition se voit avant l'achat. Le serveur décide de tout (`get_mes_cartes`,
  * `acheter_carte`, `choisir_carte`) ; l'écran ne montre que ce qu'il a reçu, et jamais le solde d'un autre.
  */
@@ -28,8 +28,15 @@ type Etat = { kind: "lecture" } | { kind: "panne" } | { kind: "pret"; mes: MesCa
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
 const RARETES_DES_CARTES = ["commun", "peu-commun", "epique", "mystique", "legendaire"] as const;
-/** La carte dressée dans le livre : un quart de sa largeur, au milieu, plus haute que large. */
-const PLACE_DE_LA_CARTE = { gauche: 0.375, largeur: 0.25, hauteurSurLargeur: HAUTEUR_DE_TOILE / LARGEUR_DE_TOILE };
+
+/** L'image fixe d'une finition sur la carte du membre, devant sa bannière : les cartes voisines du défilé. */
+function VignetteDeLaFinition({ finition, banniere }: { finition: FinitionDuRayon; banniere: HTMLImageElement | null }) {
+  const toile = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (toile.current) peindreLaVignette(toile.current, finition, banniere);
+  }, [finition, banniere]);
+  return <canvas ref={toile} width={LARGEUR_DE_TOILE} height={HAUTEUR_DE_TOILE} class="pixels dc-membre-fixe" />;
+}
 
 /** L'image fixe d'une finition, telle que le robot la poste sur Discord à l'achat : la carte sans le Gaulois, sur le fond marine. */
 function ImageDeLAnnonce({ finition }: { finition: FinitionDuRayon }) {
@@ -100,43 +107,28 @@ export function SectionDesCartes({ tenue, familier = null, onSolde, onRefus }: {
   const etatDe = (id: string): EtatDeLaBanniere => (mes?.porte === id ? "montree" : mes?.possedees.some((p) => p === id) ? "a-moi" : "a-acheter");
   const etatVu = etatDe(finition.id);
   const montree = mes?.porte ? finitionParId(mes.porte) : null;
-  const motDe = (id: string): string => {
-    const e = etatDe(id);
-    const p = mes?.prix[finitionParId(id)?.rarete ?? "commun"];
-    return e === "montree" ? "sur votre carte" : e === "a-moi" ? "à vous" : p ? stateres(p) : "";
-  };
-
   const comptes = useMemo(() => Object.fromEntries(RARETES_DES_CARTES.map((r) => [r, CARTES.filter((c) => c.rarete === r).length])) as Record<(typeof RARETES_DES_CARTES)[number], number>, []);
-  const duLivre = useMemo(() => (rarete ? CARTES.filter((c) => c.rarete === rarete) : CARTES), [rarete]);
+  const duDefile = useMemo(() => (rarete ? CARTES.filter((c) => c.rarete === rarete) : CARTES), [rarete]);
+  /** Ce que dit chaque carte du défilé : son prix tant qu'elle n'est pas au compte, sinon « À vous », et « Sur ma carte ». */
+  const cartesDuDefile = duDefile.map((f): CarteDuDefile => {
+    const e = etatDe(f.id);
+    return { id: f.id, nom: f.nom, rarete: f.rarete, prix: e === "a-acheter" ? (mes?.prix[f.rarete] ?? null) : null, mot: e === "a-acheter" ? null : "À vous", marque: e === "montree" ? "Sur ma carte" : null };
+  });
 
-  // Le dessin du livre : les finitions à la place des bannières. Refait quand la bannière ou la tenue change.
-  const dessin = useMemo<DessinDuLivre>(
-    () => ({
-      genre: "cartes",
-      label: "Les finitions",
-      image: (id) => {
-        const f = finitionParId(id);
-        return f ? { largeur: LARGEUR_DE_TOILE, hauteur: HAUTEUR_DE_TOILE, peindre: (toile) => peindreLaVignette(toile, f, imageDeBanniere) } : null;
-      },
-      decor: (id) => {
-        const f = finitionParId(id);
-        return f ? <CarteAnimee finition={f} tenue={tenueVue} fond={fond} classe="livre-carte" sonde familier={familier} /> : null;
-      },
-      parId: finitionParId,
-      place: PLACE_DE_LA_CARTE,
-    }),
-    [imageDeBanniere, tenueVue, fond, familier],
-  );
-
-  /**
-   * Les aperçus sous le livre, comme ceux du livre des bannières : ce que la finition survolée donne sur la fiche du membre
-   * (le premier bloc, devant sa bannière : un reflet seulement) et l'image que le robot poste sur Discord à l'achat.
-   */
-  const apercus = (id: string | null) => {
+  /** L'image d'une carte du défilé : au milieu, la vraie carte du membre, animée ; à côté, son image fixe. */
+  const imageDuDefile = (id: string, milieu: boolean) => {
     const f = finitionParId(id);
     if (!f) return null;
+    return milieu ? <CarteAnimee finition={f} tenue={tenueVue} fond={fond} classe="dc-membre" sonde familier={familier} /> : <VignetteDeLaFinition finition={f} banniere={imageDeBanniere} />;
+  };
+
+  /**
+   * Les aperçus sous le défilé : ce que la finition du milieu donne sur la fiche du membre (le premier bloc, devant sa
+   * bannière : un reflet seulement) et l'image que le robot poste sur Discord à l'achat.
+   */
+  const apercus = (f: FinitionDuRayon) => {
     return (
-      <>
+      <div class="livre-apercus dc-apercus">
         <figure class="livre-apercu" data-testid="carte-apercu-fiche">
           <figcaption>Sur ma fiche</figcaption>
           <div class="fiche-banniere">
@@ -151,18 +143,17 @@ export function SectionDesCartes({ tenue, familier = null, onSolde, onRefus }: {
           <ImageDeLAnnonce finition={f} />
           <p class="livre-apercu-note">L'image fixe que le robot poste dans le salon des achats.</p>
         </figure>
-      </>
+      </div>
     );
   };
 
-  /** Dans le livre, toucher une finition ne fait que la montrer : rien ne part au serveur. */
-  const voirDansLeLivre = (id: string | null): Promise<Issue<string | null>> => {
+  /** Une autre finition au milieu du défilé : rien ne part au serveur, la fiche dessous la décrit. */
+  const voir = (id: string): void => {
     const f = finitionParId(id);
     if (f) setVue(f.id);
     setRefus(null);
     setReussite(null);
     setProbleme(null);
-    return Promise.resolve({ ok: true, valeur: id });
   };
 
   const acheter = async () => {
@@ -179,6 +170,7 @@ export function SectionDesCartes({ tenue, familier = null, onSolde, onRefus }: {
       }
       setEtat({ kind: "pret", mes: { ...mes, solde, possedees: [finition.id, ...mes.possedees] } });
       onSolde(solde);
+      bruitDuJeu("piece");
       setAchat("fait");
     } catch (e) {
       const fraiche = e instanceof ServerError ? await lire(true) : null;
@@ -201,6 +193,10 @@ export function SectionDesCartes({ tenue, familier = null, onSolde, onRefus }: {
       else {
         const choisie = finitionParId(typeof porte === "string" ? porte : null);
         setEtat({ kind: "pret", mes: { ...mes, porte: choisie?.id ?? null } });
+        if (choisie) {
+          bruitDuJeu("enfile");
+          bruitDuJeu("enfile2", 0.09);
+        }
         setReussite(choisie ? `« ${choisie.nom} » est sur votre carte.` : "Votre carte retrouve la finition de votre place.");
       }
     } catch (e) {
@@ -252,55 +248,42 @@ export function SectionDesCartes({ tenue, familier = null, onSolde, onRefus }: {
         ))}
       </div>
 
-      <div class="banniere-vitrine banniere-vitrine-livre" data-rarete={finition.rarete} data-testid="carte-vitrine" data-finition={finition.id} data-etat={etatVu}>
-        <div class="banniere-vue">
-          <LivreDesBannieres mode="boutique" dessin={dessin} apercus={apercus} miennes={duLivre} montree={finition} tenue={tenueVue} familier={null} choisir={voirDansLeLivre} etatDe={etatDe} motDe={motDe} />
-        </div>
-        <div class="banniere-fiche">
-          <p class="banniere-famille">{finition.animee ? "Animation en pixels" : "Reflet holographique"}</p>
-          <h5 class="banniere-nom" data-testid="carte-vue">
-            {finition.nom}
-          </h5>
-          <span class="banniere-rarete" data-rarete={finition.rarete}>
-            <MarqueDeRarete rarete={finition.rarete} />
-          </span>
-          <p class="banniere-description">{finition.description}</p>
-          <div class="banniere-actions">
-            {!mes ? null : etatVu === "a-acheter" ? (
-              <>
-                {prix !== null && <Prix montant={prix} class="banniere-prix" />}
-                {prix === null || !mes.peutAcheter ? (
+      <div class="banniere-vitrine dc-vitrine" data-rarete={finition.rarete} data-testid="carte-vitrine" data-finition={finition.id} data-etat={etatVu}>
+        <DefileDeCartes cartes={cartesDuDefile} choisie={finition.id} onChoisir={voir} forme="finition" label="Les finitions" image={imageDuDefile} testid="cartes-defile">
+          <div class="dc-fiche">
+            <p class="banniere-famille">{finition.animee ? "Animation en pixels" : "Reflet holographique"}</p>
+            <h5 class="banniere-nom" data-testid="carte-vue">
+              {finition.nom}
+            </h5>
+            <p class="banniere-description">{finition.description}</p>
+            <div class="dc-actions">
+              {!mes ? null : etatVu === "a-acheter" ? (
+                prix === null || !mes.peutAcheter ? (
                   <p class="pochette-raison" data-testid="carte-raison">
                     {mes.peutAcheter ? "Cette finition n'a pas de prix pour l'instant." : "Réservé aux membres validés qui ont créé leur Gaulois."}
                   </p>
                 ) : (
-                  <div>
-                    <button type="button" class="btn btn-primary" onClick={() => setAchat("confirmer")} data-testid="carte-acheter">
-                      Acheter
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
+                  <button type="button" class="btn btn-primary" onClick={() => setAchat("confirmer")} data-testid="carte-acheter">
+                    Acheter <Prix montant={prix} class="dc-prix-bouton" />
+                  </button>
+                )
+              ) : etatVu === "a-moi" ? (
+                <button type="button" class="btn btn-primary" disabled={occupe} onClick={() => void choisir(finition.id)} data-testid="carte-montrer">
+                  {occupe ? "Enregistrement…" : "Mettre sur ma carte"}
+                </button>
+              ) : (
                 <span class="banniere-etat" data-etat={etatVu}>
-                  {etatVu === "montree" ? "Sur votre carte" : "À vous"}
+                  Sur votre carte
                 </span>
-                {etatVu === "a-moi" && (
-                  <div>
-                    <button type="button" class="btn btn-primary" disabled={occupe} onClick={() => void choisir(finition.id)} data-testid="carte-montrer">
-                      {occupe ? "Enregistrement…" : "Mettre sur ma carte"}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+              )}
+            </div>
+            <div class="banniere-avis" data-testid="carte-avis">
+              <Success message={reussite} />
+              <Problem message={probleme} />
+            </div>
           </div>
-          <div class="banniere-avis" data-testid="carte-avis">
-            <Success message={reussite} />
-            <Problem message={probleme} />
-          </div>
-        </div>
+          {apercus(finition)}
+        </DefileDeCartes>
       </div>
 
       {achat !== "ferme" && mes && prix !== null && (

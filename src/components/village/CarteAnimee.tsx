@@ -11,8 +11,9 @@ import { peindre } from "./BoutiquePixels";
 
 /**
  * La carte d'un membre, animée, dans « Mon Gaulois » : la même que celles de l'accueil et de la fiche (`04-poste.css`),
- * avec son Gaulois devant une bannière et une finition. Elle se dresse dans le livre des cartes (`Cartes.tsx`) et paraît
- * dans les aperçus du livre des bannières (`LivreDesBannieres.tsx`). Sans finition : le reflet offert. Décorative.
+ * avec son Gaulois devant une bannière et une finition. Elle est la carte du milieu du défilé des finitions et des cadres
+ * (`Cartes.tsx`, `Cadres.tsx`) et paraît dans les aperçus de la bannière (`Bannieres.tsx`). Sans finition : le reflet
+ * offert. Décorative.
  *
  * Le familier du membre, s'il en montre un, est posé en bas à droite, devant le Gaulois (demande du pilote, 17 novembre
  * 2026 ; `src/lib/carte-familier-pose.ts`).

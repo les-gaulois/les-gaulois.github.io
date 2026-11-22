@@ -1376,7 +1376,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                   </div>
                 </div>
               )}
-              {/* Les bannières de /gaulois, les cartes, les cadres et les Gaulois uniques : leurs sections et leurs livres,
+              {/* Les bannières de /gaulois, les cartes, les cadres et les Gaulois uniques : leurs sections et leurs défilés,
                   comme avant. Lues à la première ouverture de leur onglet, puis seulement cachées quand un autre rayon s'ouvre.
                   Après un achat, la bourse de la page prend le solde du serveur ; après un refus, elle se relit. */}
               {(bannieresOuvertes || rayon === RAYON_BANNIERE) && (

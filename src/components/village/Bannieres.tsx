@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks"
 import { ServerError, basePath, call } from "../../lib/compte/api";
 import type { ComponentType } from "preact";
 import { ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../../lib/gaulois";
-import type { Banniere, EtatDeLaBanniere } from "../../lib/village/bannieres";
+import type { Banniere } from "../../lib/village/bannieres";
 import { finitionParId, type FinitionDuRayon } from "../../lib/village/cartes";
 import { adresseDansLaBoutique } from "../../lib/village/boutique-rayons";
 import type { MesBannieres, PochetteBannieresReponse } from "../../lib/village/contrat";
 import { sansCadre, type DecorDeBanniere } from "../../lib/village/decor-banniere";
-import { trierParRarete } from "../../lib/village/livre-bannieres";
+import { trierParRarete } from "../../lib/village/defile";
 import { ANCRE_BANNIERES, BANNIERE_HAUTEUR, BANNIERE_LARGEUR, apresLAchat, banniereDOuverture, idsDesBannieres, messageDuRefusDAchat, raisonDeLaBanniere, raisonDeLaPochetteDesBannieres, sansBanniere } from "../../lib/village/ecran-bannieres";
 import { manque, pourcent, stateres } from "../../lib/village/ecran-boutique";
 import type { Familier } from "../../lib/village/familiers";
@@ -15,7 +15,9 @@ import { Problem, Success, messageOf } from "../compte/common";
 import { Compte, Dialogue, PochetteGagneeIci, Refus, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
 import { IconeDeRarete } from "./IconeDeRarete";
-import { LivreDesBannieres } from "./LivreDesBannieres";
+import { CarteAnimee, RefletDeBloc } from "./CarteAnimee";
+import { DefileDeCartes, bruitDuJeu, type CarteDuDefile } from "./DefileDeCartes";
+import { CartesDeLaVitrine } from "./Vitrine";
 
 /**
  * Les bannières du Gaulois à l'écran (15 novembre 2026, demande du pilote : « un lot de bannières », « achetables par
@@ -235,19 +237,14 @@ export function RareteDeLaBanniere({ rarete }: { rarete: Rarete }) {
   );
 }
 
-/**
- * Ce qu'une bannière est pour ce compte, en deux mots : rien pour une bannière à acheter (son prix le dit), « Pochette »
- * pour un trésor qu'il n'a pas (il ne s'achète pas).
- */
-function MotsDeLEtat({ etat }: { etat: EtatDeLaBanniere }) {
-  if (etat === "a-acheter") return null;
+/** La bannière montrée sur /gaulois, dite sous le défilé, à côté de ce qu'on peut en faire. */
+function SurGaulois() {
   return (
-    <span class="banniere-etat" data-etat={etat}>
-      {etat === "montree" ? "Sur /gaulois" : etat === "a-gagner" ? "Pochette" : "À vous"}
+    <span class="banniere-etat" data-etat="montree">
+      Sur /gaulois
     </span>
   );
 }
-
 
 /**
  * Acheter une bannière : la fenêtre la montre derrière le Gaulois du membre, dit son prix et ce qu'il restera, puis
@@ -325,10 +322,11 @@ function DialogueBanniere({ lib, banniere, prix, solde, tenue, familier, acheter
 
 /**
  * « Les bannières », l'onglet « Bannière » des rayons de « La boutique » : l'objet le plus cher de la boutique (le
- * double d'un objet de la même rareté depuis le 21 novembre 2026, le triple avant). Depuis le 16 novembre 2026, à la demande du pilote, toutes les bannières sont dans le livre
- * des bannières (`LivreDesBannieres.tsx`, mode « boutique »), triées par rareté, réduites à une rareté si on le veut : la
- * bannière touchée s'y dresse derrière le Gaulois du membre, et la fiche d'à côté donne sa description, son prix, et de
- * quoi l'acheter ou la mettre sur /gaulois. Le nom de l'onglet sert de titre : celui de la section ne se
+ * double d'un objet de la même rareté depuis le 21 novembre 2026, le triple avant). Toutes les bannières, triées par
+ * rareté, réduites à une rareté si on le veut, en grandes cartes qui défilent (`DefileDeCartes.tsx`, 22 novembre 2026, à
+ * la place du livre, à la demande du pilote) : la bannière entière dans sa carte, son nom, sa rareté, son prix ou ce
+ * qu'elle est pour le compte ; sous la bande, sa description et de quoi l'acheter, l'essayer derrière son Gaulois ou la
+ * mettre sur /gaulois. Le nom de l'onglet sert de titre : celui de la section ne se
  * lit qu'aux lecteurs d'écran. L'adresse des bannières (`#bannieres`) est suivie par la boutique, qui ouvre cet onglet.
  * `tenue` et `familier` : la tenue enregistrée et le familier montré. `solde` : le dernier que le serveur a donné à la
  * page ; `onSolde` le lui rend après un achat, `onRefus` après un refus (la bourse se relit).
@@ -372,6 +370,8 @@ export function SectionDesBannieres({
   useEffect(() => onPrixDeLaPochette?.(prixDeLaPochette), [prixDeLaPochette]);
   const [rarete, setRarete] = useState<Rarete | null>(null);
   const [choisie, setChoisie] = useState<string | null>(null);
+  // La bannière du milieu essayée derrière le Gaulois du membre, comme sur /gaulois ; l'essai s'arrête quand elle change.
+  const [essai, setEssai] = useState(false);
   const [fenetre, setFenetre] = useState<string | null>(null);
   const [pochetteOuverte, setPochetteOuverte] = useState(false);
   const [occupe, setOccupe] = useState(false);
@@ -411,29 +411,22 @@ export function SectionDesBannieres({
   const vue = lib.banniereParId(choisie ?? banniereDOuverture(mes, liste.map((b) => b.id)));
   const comptes = lib.comptesParRarete(null, liste);
   const rareteRetenue = rarete && comptes[rarete] > 0 ? rarete : null;
-  // Le livre : toutes les bannières, de la plus courante à la plus rare, ou celles de la rareté retenue.
-  const duLivre = trierParRarete(rareteRetenue ? liste.filter((b) => b.rarete === rareteRetenue) : liste, ORDRE_RARETES);
+  // Le défilé : toutes les bannières, de la plus courante à la plus rare, ou celles de la rareté retenue.
+  const duDefile = trierParRarete(rareteRetenue ? liste.filter((b) => b.rarete === rareteRetenue) : liste, ORDRE_RARETES);
+  /** Ce que dit chaque carte : son prix, « Du booster » pour un trésor, « À vous », et « Sur /gaulois » pour la montrée. */
+  const cartesDuDefile = duDefile.map((b): CarteDuDefile => {
+    const e = lib.etatDeLaBanniere(b.id, mes);
+    return { id: b.id, nom: b.nom, rarete: b.rarete, prix: e === "a-acheter" ? mes.prix[b.rarete] : null, mot: e === "a-gagner" ? "Du booster" : e === "a-acheter" ? null : "À vous", marque: e === "montree" ? "Sur /gaulois" : null };
+  });
   const total = ORDRE_RARETES.reduce((somme, r) => somme + comptes[r], 0);
   const soldeConnu = solde ?? mes.solde;
 
+  /** Une autre bannière au milieu du défilé : rien n'est demandé au serveur, la fiche dessous la décrit. */
   const voir = (id: string) => {
     setChoisie(id);
+    setEssai(false);
     setProbleme(null);
     setReussite(null);
-  };
-  /** Le livre dresse la bannière touchée : rien n'est demandé au serveur, la fiche d'à côté la décrit. */
-  const voirDansLeLivre = (id: string | null): Promise<Issue<string | null>> => {
-    if (id) voir(id);
-    return Promise.resolve({ ok: true, valeur: id });
-  };
-  /** Ce qu'une bannière est pour ce compte, en mots, pour qui ne voit pas sa vignette. */
-  const motDe = (id: string): string => {
-    const e = lib.etatDeLaBanniere(id, mes);
-    const banniere = lib.banniereParId(id);
-    if (e === "montree") return "sur /gaulois";
-    if (e === "a-moi") return "à vous";
-    if (e === "a-gagner") return "dans la pochette des bannières";
-    return banniere ? stateres(mes.prix[banniere.rarete]) : "";
   };
 
   /** Mettre une bannière sur /gaulois, ou revenir au décor de son lieu (`null`) : le serveur répond ce qu'il montre. */
@@ -442,7 +435,13 @@ export function SectionDesBannieres({
     setProbleme(null);
     setReussite(null);
     const issue = await choisir(id);
-    if (issue.ok) setReussite(issue.valeur ? `« ${lib.banniereParId(issue.valeur)?.nom ?? "Cette bannière"} » est sur /gaulois.` : "Sur /gaulois, votre Gaulois retrouve le décor de son lieu.");
+    if (issue.ok) {
+      setReussite(issue.valeur ? `« ${lib.banniereParId(issue.valeur)?.nom ?? "Cette bannière"} » est sur /gaulois.` : "Sur /gaulois, votre Gaulois retrouve le décor de son lieu.");
+      if (issue.valeur) {
+        bruitDuJeu("enfile");
+        bruitDuJeu("enfile2", 0.09);
+      }
+    }
     setOccupe(false);
     return issue;
   };
@@ -454,6 +453,7 @@ export function SectionDesBannieres({
   const acheterLaBanniere = async (banniere: Banniere, prix: number): Promise<Issue<number>> => {
     const issue = await acheter(banniere, prix);
     if (issue.ok) {
+      bruitDuJeu("piece");
       onSolde(issue.valeur);
       setProbleme(null);
       setReussite(`« ${banniere.nom} » est à vous.`);
@@ -542,64 +542,63 @@ export function SectionDesBannieres({
       )}
 
       {entiere && vue && etatVu && (
-        <div class="banniere-vitrine banniere-vitrine-livre" data-rarete={vue.rarete} data-testid="banniere-vitrine" data-banniere={vue.id} data-etat={etatVu}>
-          <div class="banniere-vue">
-            <LivreDesBannieres mode="boutique" lib={lib} miennes={duLivre} montree={vue} tenue={tenue} familier={familier} choisir={voirDansLeLivre} etatDe={(id) => lib.etatDeLaBanniere(id, mes)} motDe={motDe} />
-          </div>
-          <div class="banniere-fiche">
-            <p class="banniere-famille">{lib.FAMILLES_DES_BANNIERES[vue.famille]}</p>
-            <h5 class="banniere-nom" data-testid="banniere-nom">
-              {vue.nom}
-            </h5>
-            <RareteDeLaBanniere rarete={vue.rarete} />
-            <p class="banniere-description">{vue.description}</p>
-            <div class="banniere-actions">
-              {etatVu === "a-acheter" ? (
-                <>
-                  <Prix montant={prixVu} class="banniere-prix" />
-                  {raison ? (
+        <div class="banniere-vitrine dc-vitrine" data-rarete={vue.rarete} data-testid="banniere-vitrine" data-banniere={vue.id} data-etat={etatVu}>
+          <DefileDeCartes
+            cartes={cartesDuDefile}
+            choisie={vue.id}
+            onChoisir={voir}
+            forme="banniere"
+            label="Les bannières"
+            image={(id, milieu) => {
+              const b = milieu && essai ? lib.banniereParId(id) : null;
+              return b ? <SceneDeLaBanniere lib={lib} banniere={b} tenue={tenue} familier={familier} class="dc-scene" /> : <img src={`${basePath()}/bannieres/${id}.png`} width={BANNIERE_LARGEUR} height={BANNIERE_HAUTEUR} alt="" draggable={false} decoding="async" />;
+            }}
+            testid="bannieres-defile"
+          >
+            <div class="dc-fiche">
+              <p class="banniere-famille">{lib.FAMILLES_DES_BANNIERES[vue.famille]}</p>
+              <h5 class="banniere-nom" data-testid="banniere-nom">
+                {vue.nom}
+              </h5>
+              <p class="banniere-description">{vue.description}</p>
+              <div class="dc-actions">
+                {etatVu === "a-acheter" ? (
+                  raison ? (
                     <p class="pochette-raison" data-testid="banniere-raison">
                       {raison}
                     </p>
                   ) : (
-                    <div>
-                      <button type="button" class="btn btn-primary" onClick={() => setFenetre(vue.id)} data-testid="banniere-acheter">
-                        Acheter
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : etatVu === "a-gagner" ? (
-                <>
-                  <MotsDeLEtat etat={etatVu} />
+                    <button type="button" class="btn btn-primary" onClick={() => setFenetre(vue.id)} data-testid="banniere-acheter">
+                      Acheter <Prix montant={prixVu} class="dc-prix-bouton" />
+                    </button>
+                  )
+                ) : etatVu === "a-gagner" ? (
                   <p class="banniere-pochette-mot" data-testid="banniere-pochette-mot">
-                    Ne s'achète pas : elle ne sort que de la pochette des bannières, dans « Les pochettes »
+                    Ne s'achète pas : elle ne sort que du booster des bannières, dans « Les boosters »
                     {chanceVue > 0 && (
                       <>
-                        , <span class="tnum">{pourcent(chanceVue)}</span> de chance dans votre prochaine pochette
+                        , <span class="tnum">{pourcent(chanceVue)}</span> de chance dans votre prochain booster
                       </>
                     )}
                     .
                   </p>
-                </>
-              ) : (
-                <>
-                  <MotsDeLEtat etat={etatVu} />
-                  {etatVu === "a-moi" && (
-                    <div>
-                      <button type="button" class="btn btn-primary" disabled={occupe} onClick={() => void montrerIci(vue.id)} data-testid="banniere-montrer">
-                        {occupe ? "Enregistrement…" : "Mettre sur /gaulois"}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+                ) : etatVu === "a-moi" ? (
+                  <button type="button" class="btn btn-primary" disabled={occupe} onClick={() => void montrerIci(vue.id)} data-testid="banniere-montrer">
+                    {occupe ? "Enregistrement…" : "Mettre sur /gaulois"}
+                  </button>
+                ) : (
+                  <SurGaulois />
+                )}
+                <button type="button" class="btn btn-ghost" aria-pressed={essai} onClick={() => setEssai((e) => !e)} data-testid="banniere-essayer">
+                  Essayer sur mon Gaulois
+                </button>
+              </div>
+              <div class="banniere-avis" data-testid="banniere-avis">
+                <Success message={reussite} />
+                <Problem message={probleme} />
+              </div>
             </div>
-            <div class="banniere-avis" data-testid="banniere-avis">
-              <Success message={reussite} />
-              <Problem message={probleme} />
-            </div>
-          </div>
+          </DefileDeCartes>
         </div>
       )}
 
@@ -629,7 +628,7 @@ export function SectionDesBannieres({
             dejaMontree={(id) => mes.porte === id}
             onFermer={(recue) => {
               setPochetteOuverte(false);
-              // Le trésor reçu paraît dans la vitrine, dressé dans le livre.
+              // Le trésor reçu paraît au milieu du défilé.
               if (recue) setChoisie(recue);
             }}
           />
@@ -640,8 +639,112 @@ export function SectionDesBannieres({
 }
 
 /**
+ * Ce que la bannière du milieu donne ailleurs : le Gaulois du membre devant elle sur /gaulois, en tête de sa fiche (avec le
+ * reflet de sa finition), sa carte du podium et sa carte de la vitrine. Repris du livre d'avant, sous le défilé.
+ */
+function ApercusDeLaBanniere({ lib, banniere, nom, tenue, familier, finition }: { lib: Lib; banniere: Banniere; nom: string; tenue: Tenue; familier: Familier | null; finition: FinitionDuRayon | null }) {
+  const adresse = `${basePath()}/bannieres/${banniere.id}.png`;
+  const maCarte = useMemo(() => [{ nom, tenue, moi: true, familier: familier?.id ?? null, banniere: banniere.id, carte: finition?.id ?? null }], [nom, tenue, familier, banniere.id, finition]);
+  return (
+    <div class="livre-apercus dc-apercus">
+      <figure class="livre-apercu">
+        <figcaption>Sur /gaulois</figcaption>
+        <SceneDeLaBanniere lib={lib} banniere={banniere} tenue={tenue} familier={familier} class="livre-apercu-scene" />
+      </figure>
+      <figure class="livre-apercu" data-testid="banniere-apercu-fiche">
+        <figcaption>Sur ma fiche</figcaption>
+        <div class="fiche-banniere">
+          <img src={adresse} width={BANNIERE_LARGEUR} height={BANNIERE_HAUTEUR} alt="" decoding="async" />
+          <RefletDeBloc finition={finition} />
+          <span class="fiche-banniere-titre">Ses parties sous le tag</span>
+        </div>
+        <p class="livre-apercu-note">À la prochaine mise à jour du site, si votre pseudo est public.</p>
+      </figure>
+      <figure class="livre-apercu" data-testid="banniere-apercu-carte">
+        <figcaption>Ma carte</figcaption>
+        <CarteAnimee finition={finition} tenue={tenue} fond={`--banniere:url("${adresse}")`} classe="livre-apercu-carte" familier={familier} />
+        <p class="livre-apercu-note">Sur ma fiche, et en haut de l'accueil si je suis sur le podium de la semaine.</p>
+      </figure>
+      <figure class="livre-apercu">
+        <figcaption>Dans la vitrine</figcaption>
+        <CartesDeLaVitrine gaulois={maCarte} testid="banniere-apercu-vitrine" label="Ma carte de la vitrine" />
+      </figure>
+    </div>
+  );
+}
+
+/**
+ * Les bannières du compte en grandes cartes qui défilent, dans « Mon Gaulois » (22 novembre 2026, à la place du livre, à
+ * la demande du pilote) : celles qu'on a seulement ; sous la bande, « Mettre sur /gaulois », ou « Retirer » pour revenir au
+ * décor de son lieu, et les aperçus de la bannière du milieu. Le serveur décide (`choisir_banniere`) : la marque « Sur
+ * /gaulois » ne change qu'après sa réponse.
+ */
+function DefileDeMesBannieres({ lib, miennes, montree, nom, tenue, familier, choisir, finition }: { lib: Lib; miennes: readonly Banniere[]; montree: Banniere | null; nom: string; tenue: Tenue; familier: Familier | null; choisir: (id: string | null) => Promise<Issue<string | null>>; finition: FinitionDuRayon | null }) {
+  const [vue, setVue] = useState<string | null>(montree?.id ?? null);
+  const [occupe, setOccupe] = useState(false);
+  const [probleme, setProbleme] = useState<string | null>(null);
+  const [annonce, setAnnonce] = useState<string | null>(null);
+  const banniere = miennes.find((b) => b.id === vue) ?? montree ?? miennes[0] ?? null;
+  if (!banniere) return null;
+  const cartes = miennes.map((b): CarteDuDefile => ({ id: b.id, nom: b.nom, rarete: b.rarete, prix: null, mot: "À vous", marque: montree?.id === b.id ? "Sur /gaulois" : null }));
+  const portee = montree?.id === banniere.id;
+  const mettre = async (id: string | null): Promise<void> => {
+    setOccupe(true);
+    setProbleme(null);
+    setAnnonce(null);
+    const issue = await choisir(id);
+    if (issue.ok) {
+      setAnnonce(issue.valeur ? `« ${lib.banniereParId(issue.valeur)?.nom ?? "Cette bannière"} » est sur /gaulois.` : "Sur /gaulois, votre Gaulois retrouve le décor de son lieu.");
+      if (issue.valeur) {
+        bruitDuJeu("enfile");
+        bruitDuJeu("enfile2", 0.09);
+      }
+    } else setProbleme(issue.message);
+    setOccupe(false);
+  };
+  return (
+    <DefileDeCartes
+      cartes={cartes}
+      choisie={banniere.id}
+      onChoisir={(id) => {
+        setVue(id);
+        setProbleme(null);
+        setAnnonce(null);
+      }}
+      forme="banniere"
+      label="Mes bannières"
+      image={(id) => <img src={`${basePath()}/bannieres/${id}.png`} width={BANNIERE_LARGEUR} height={BANNIERE_HAUTEUR} alt="" draggable={false} decoding="async" />}
+      testid="mes-bannieres-defile"
+    >
+      <div class="dc-fiche">
+        <p class="banniere-description">{banniere.description}</p>
+        <div class="dc-actions">
+          {portee ? (
+            <>
+              <SurGaulois />
+              <button type="button" class="btn btn-ghost" disabled={occupe} onClick={() => void mettre(null)} data-testid="banniere-retirer">
+                {occupe ? "Enregistrement…" : "Retirer"}
+              </button>
+            </>
+          ) : (
+            <button type="button" class="btn btn-primary" disabled={occupe} onClick={() => void mettre(banniere.id)} data-testid="banniere-mettre">
+              {occupe ? "Enregistrement…" : "Mettre sur /gaulois"}
+            </button>
+          )}
+        </div>
+        <Problem message={probleme} />
+        <p class="sr-only" role="status" data-testid="banniere-annonce">
+          {annonce}
+        </p>
+      </div>
+      <ApercusDeLaBanniere lib={lib} banniere={banniere} nom={nom} tenue={tenue} familier={familier} finition={finition} />
+    </DefileDeCartes>
+  );
+}
+
+/**
  * « Ma bannière », dans « Mon Gaulois » : la bannière montrée sur /gaulois, à choisir parmi celles qu'on a, ou le décor de
- * son lieu, dans le livre des bannières (`LivreDesBannieres.tsx`). Le choix part tout de suite au serveur
+ * son lieu, dans le défilé de ses bannières (`DefileDeMesBannieres`, à la place du livre). Le choix part tout de suite au serveur
  * (`choisir_banniere`) : il ne passe pas par l'enregistrement de la tenue. Sans bannière, une ligne mène aux bannières de
  * « La boutique », sans charger leurs dessins. En panne, le vestiaire reste. `actif` : l'onglet est ouvert ; au retour de
  * la boutique, les bannières se relisent. `nom`, `tenue` et `familier` : le membre et son Gaulois enregistré, ceux que /gaulois et la vitrine montrent.
@@ -649,7 +752,7 @@ export function SectionDesBannieres({
 export function MaBanniere({ actif, nom, tenue, familier }: { actif?: boolean | undefined; nom: string; tenue: Tenue; familier: Familier | null }) {
   const { etat, lire, choisir } = useBannieres({ leger: true });
   const [ouvert, setOuvert] = useState(false);
-  // La finition de carte qu'il montre (rayon « Cartes »), pour les aperçus du livre : lue quand le livre s'ouvre. De
+  // La finition de carte qu'il montre (rayon « Cartes »), pour les aperçus : lue quand le pli s'ouvre. De
   // l'habillage : sans le rayon, ou en panne, les aperçus gardent le reflet offert.
   const [finition, setFinition] = useState<FinitionDuRayon | null>(null);
   useEffect(() => {
@@ -705,8 +808,8 @@ export function MaBanniere({ actif, nom, tenue, familier }: { actif?: boolean | 
           {ouvert ? "Fermer" : "Changer"}
         </span>
       </summary>
-      {/* Le livre ne se dessine qu'une fois le pli ouvert. */}
-      {ouvert && <LivreDesBannieres lib={lib} miennes={miennes} montree={montree} nom={nom} tenue={tenue} familier={familier} choisir={choisir} finition={finition} />}
+      {/* Le défilé ne se dessine qu'une fois le pli ouvert. */}
+      {ouvert && <DefileDeMesBannieres lib={lib} miennes={miennes} montree={montree} nom={nom} tenue={tenue} familier={familier} choisir={choisir} finition={finition} />}
     </details>
   );
 }
