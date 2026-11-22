@@ -9,6 +9,7 @@
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { errorMessage } from "./errors";
 import { setPlayerView } from "./vue-joueur";
+import type { AdversairesDuDuel, ContreQui, EtatDuDuel, MainDuDuel, MainEnregistree, PartieRendue } from "../village/contrat-duel";
 
 export const SUPABASE_URL = (import.meta.env.PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
 export const SUPABASE_KEY = import.meta.env.PUBLIC_SUPABASE_KEY ?? "";
@@ -221,3 +222,23 @@ export async function signOut(): Promise<void> {
   const sb = await supabase();
   await sb.auth.signOut();
 }
+
+/**
+ * Le duel des Gaulois, « Coup pour coup » (migration `20261122000100_duel_des_gaulois`, formes des réponses :
+ * `src/lib/village/contrat-duel.ts`). Le serveur décide de tout : il garde les mains, choisit la carte de la machine sans
+ * voir la tienne et résout chaque manche. Un refus devient une `ServerError` dont le code est dans `REFUS_DU_DUEL`.
+ */
+export const duel = {
+  /** Tout l'écran du duel. */
+  etat: (): Promise<EtatDuDuel> => call<EtatDuDuel>("get_mon_duel"),
+  /** La main de défense, que la machine joue quand un autre membre te défie. */
+  enregistrerMain: (main: MainDuDuel): Promise<MainEnregistree> => call<MainEnregistree>("enregistrer_main_duel", { p_main: main }),
+  /** Les Gaulois qu'on peut défier. */
+  adversaires: (): Promise<AdversairesDuDuel> => call<AdversairesDuDuel>("get_adversaires_duel"),
+  /** Un duel contre la main de défense d'un membre (sa clé) ou contre le boss du jour (sans clé), avec ta main. */
+  commencer: (contre: ContreQui, cle: string | null, main: MainDuDuel): Promise<PartieRendue> => call<PartieRendue>("commencer_duel", { p_contre: contre, p_cle: cle, p_main: main }),
+  /** Pose ta carte (de 0 à 4) pour la manche `manche` ; la réponse dit la carte de la machine et la partie après la manche. */
+  jouerManche: (partie: number, manche: number, carte: number): Promise<PartieRendue> => call<PartieRendue>("jouer_manche_duel", { p_partie: partie, p_manche: manche, p_carte: carte }),
+  /** Abandonne la partie : elle est perdue. */
+  abandonner: (partie: number): Promise<PartieRendue> => call<PartieRendue>("abandonner_duel", { p_partie: partie }),
+};

@@ -242,11 +242,26 @@ export const ERROR_MESSAGES: Record<string, string> = {
   rarete_sans_objet: "Une rareté qui n'a aucun objet à vendre ne peut pas avoir de chance dans la pochette.",
 
   // Le mode GOD du village, l'essai sans trace du pilote (migration 20261116000900_village_mode_god).
-  mode_god: "Le mode GOD est allumé : le marché et les mises sont fermés pendant l'essai. Éteignez-le dans la Direction, onglet Village.",
+  mode_god: "Le mode GOD est allumé : le marché, les mises et les défis entre membres sont fermés pendant l'essai. Éteignez-le dans la Direction, onglet Village.",
   offres_ouvertes: "Vous avez une offre ouverte au marché : retirez-la avant d'allumer le mode GOD.",
 
   // Le don de statères, le panneau d'un seul compte (migration 20261117000200_don_de_stateres).
   unknown_member: "Ce membre n'a plus de compte validé. Actualisez la page.",
+
+  // Le duel des Gaulois, « Coup pour coup » (contrat : `REFUS_DU_DUEL` de src/lib/village/contrat-duel.ts, migration
+  // 20261122000100_duel_des_gaulois).
+  duel_ferme: "Le duel n'est pas encore ouvert.",
+  main_invalide: "Il faut une carte par emplacement, chacune à sa place. Rechargez la page.",
+  carte_non_possedee: "Une carte de cette main n'est plus dans votre garde-robe.",
+  main_trop_chere: "Cette main coûte plus que les 12 points de la bourse.",
+  partie_en_cours: "Un duel attend d'être fini : reprenez-le d'abord.",
+  adversaire_inconnu: "Ce Gaulois ne peut plus être défié. Rechargez la page.",
+  pas_de_boss: "Pas de boss aujourd'hui.",
+  trop_de_duels: "Trente duels aujourd'hui : revenez demain.",
+  duel_inconnu: "Ce duel n'existe pas. Rechargez la page.",
+  partie_finie: "Ce duel est déjà fini.",
+  mauvaise_manche: "Cette manche est déjà jouée. Rechargez la page.",
+  carte_au_repos: "Cette carte se repose : choisissez-en une autre.",
 
   // La vie du village : les bulles et l'état vocal (migration 20261113002300_village_vie).
   invalid_plafond: "Indiquez un plafond de 0 à 100 dollars, au centime près.",

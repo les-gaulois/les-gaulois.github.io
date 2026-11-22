@@ -6,15 +6,17 @@
  * qu'elle peut jouer, elle regarde `loin` manches devant, contre un adversaire qui choisirait au hasard, puis tire sa carte
  * avec une part de fantaisie : plus la fantaisie est grande, plus elle se trompe, pour rester battable et imprévisible.
  *
- * Trois niveaux réglables (`NIVEAUX`) : l'apprenti, le guerrier (le réglage de la maquette, qu'un joueur moyen devait battre
- * un duel sur deux) et le druide. Le serveur en aura une copie en SQL (`internal.duel_choisir`, migration du duel à venir),
- * qui fera foi pour les duels qui comptent, comparée à ce fichier par un test. Deux changements, pour que le SQL et ce
- * fichier rendent exactement les mêmes choix :
+ * Trois niveaux réglables (`NIVEAUX`, de `contenu/niveaux.ts`) : l'apprenti, le guerrier et le druide. Le serveur en a une
+ * copie en SQL (`internal.duel_choisir`, migration 20261122000100_duel_des_gaulois), qui fait foi pour les duels qui
+ * comptent, comparée à ce fichier par `tests/unit/duel-serveur.test.ts`. Deux changements par rapport à la maquette, pour
+ * que le SQL et ce fichier rendent exactement les mêmes choix :
  * - le hasard vient d'une graine (`hasardDeLaGraine`, le générateur « minimal standard » de Park et Miller), que le serveur
  *   garde pour lui ;
  * - l'exponentielle est calculée par `expDuDuel`, avec les quatre opérations seulement, que JavaScript et Postgres font à
  *   l'identique ; elle ne s'écarte de `Math.exp` que d'un millionième de millionième.
  */
+import { NIVEAUX, NIVEAUX_DE_LA_MACHINE } from "./contenu/niveaux.ts";
+import type { NiveauDeLaMachine } from "./contenu/niveaux.ts";
 import { libres, manche, verdict } from "./regles.ts";
 import type { Camp } from "./regles.ts";
 
@@ -43,8 +45,7 @@ export const EXP_PLANCHER = -40;
 
 /**
  * L'exponentielle d'un nombre négatif ou nul, faite des quatre opérations seulement : moitiés jusqu'à un 128e, série de
- * Taylor à neuf termes, puis autant de carrés. Le SQL (`internal.duel_exp`, à venir) fera les mêmes opérations dans le même
- * ordre.
+ * Taylor à neuf termes, puis autant de carrés. Le SQL (`internal.duel_exp`) fait les mêmes opérations dans le même ordre.
  */
 export function expDuDuel(x: number): number {
   if (!(x > EXP_PLANCHER)) return 0;
@@ -73,29 +74,13 @@ export function choisir(moi: Camp, lui: Camp, m: number, hasard: () => number = 
   return notes[notes.length - 1]![0];
 }
 
-/** Les trois niveaux de la machine : sa fantaisie et combien de manches elle regarde devant. */
-export const NIVEAUX_DE_LA_MACHINE = ["apprenti", "guerrier", "druide"] as const;
-export type NiveauDeLaMachine = (typeof NIVEAUX_DE_LA_MACHINE)[number];
-export interface ReglageDuNiveau {
-  fantaisie: number;
-  loin: number;
-}
 /**
- * Réglages provisoires : les niveaux appartiennent à la session « boss, défis et niveaux », dont `contenu/niveaux.ts` fera
- * foi une fois sur main ; ce fichier en reprendra alors les chiffres.
- *
- * Le guerrier est le réglage de la maquette (fantaisie 2,5, deux manches devant ; elle visait un joueur moyen qui gagne un
- * duel sur deux). L'apprenti ne regarde que la manche qui vient et se trompe souvent ; le druide regarde aussi deux manches
- * devant, avec bien moins de fantaisie. Essai du 22 novembre 2026 (`scripts/essai-duel.ts`, 150 duels par paire, la même
- * main des deux côtés) : contre le hasard, l'apprenti gagne 74 fois sur 100, le guerrier 80, le druide 89 ; le guerrier bat
- * l'apprenti 66 fois sur 100, le druide bat le guerrier 57 fois sur 100. Trois manches devant rendaient le druide à peine
- * plus fort pour sept fois plus de calcul, que le serveur fera à chaque manche.
+ * Les trois niveaux de la machine (apprenti, guerrier, druide) : leur fantaisie et combien de manches ils regardent devant.
+ * Ils appartiennent à la session « boss, défis et niveaux » : `contenu/niveaux.ts` fait foi, ce fichier les réexporte, et la
+ * migration du duel en recopie les chiffres (`internal.duel_niveaux`).
  */
-export const NIVEAUX: Readonly<Record<NiveauDeLaMachine, ReglageDuNiveau>> = {
-  apprenti: { fantaisie: 6, loin: 1 },
-  guerrier: { fantaisie: 2.5, loin: 2 },
-  druide: { fantaisie: 1, loin: 2 },
-};
+export { NIVEAUX, NIVEAUX_DE_LA_MACHINE } from "./contenu/niveaux.ts";
+export type { NiveauDeLaMachine, ReglageDuNiveau } from "./contenu/niveaux.ts";
 export const estUnNiveau = (x: unknown): x is NiveauDeLaMachine => typeof x === "string" && (NIVEAUX_DE_LA_MACHINE as readonly string[]).includes(x);
 
 /** Le choix de la machine à un niveau donné. */

@@ -3,6 +3,13 @@
     "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "staff",
+    "title": "Le duel des Gaulois, côté serveur",
+    "body": "Le serveur du duel de cartes est prêt : mains de défense, duels contre un membre ou le boss du jour, duels comptés et pas du pass. Il reste fermé, visible du seul pilote, en attendant son écran."
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "staff",
     "title": "L'image d'une victoire en duel",
     "body": "Après chaque victoire d'un Gaulois sur un autre au duel, le robot postera les deux Gaulois devant la bannière du vaincu. Rien ne part tant que le duel est fermé.",
     "link": {

@@ -5,7 +5,8 @@
  * refus et ses chiffres de départ ; les règles sont dans `supabase/functions/code-discord/duel/` (le moteur partagé),
  * l'écran les rejoue pour montrer chaque manche.
  *
- * Fonctions SQL (migration du duel, à venir ; elles seront appelées par `src/lib/compte/api.ts`) :
+ * Fonctions SQL (migrations 20261122000100_duel_des_gaulois et 20261122000200_duel_boss_salon_corrections, appelées par
+ * `duel` de `src/lib/compte/api.ts`) :
  * - `get_mon_duel()` : tout l'écran d'un coup (`EtatDuDuel`) ;
  * - `enregistrer_main_duel(p_main)` : la main de défense, celle que la machine joue quand un autre membre te défie ;
  * - `get_adversaires_duel()` : les Gaulois qu'on peut défier (`AdversaireDuDuel`) ;
@@ -32,7 +33,7 @@ export type MainDuDuel = MainParEmplacement;
 
 /** Les duels comptés par jour (heure de Paris) : au-delà, on rejoue pour le plaisir, sans récompense. */
 export const DUELS_COMPTES_PAR_JOUR = 3;
-/** Le duel de plus quand la flamme de série du membre brûle. */
+/** Le duel de plus quand la flamme de série du membre brûle. Rien n'est compté tant que le duel est fermé, ni pendant un essai du mode GOD. */
 export const DUELS_DE_LA_FLAMME = 1;
 /** Le plafond de duels joués contre le serveur par jour, comptés ou non : chaque manche se calcule chez lui. */
 export const DUELS_AU_PLUS_PAR_JOUR = 30;
@@ -116,7 +117,7 @@ export interface PartieDuDuel {
   adversaire: GauloisDuDuel | null;
   boss: string | null;
   niveau: NiveauDeLaMachine;
-  /** Un des duels comptés du jour : une victoire rapporte. */
+  /** Un des duels comptés du jour : une victoire rapporte. Un seul par jour contre un même membre ou un même boss. */
   compte: boolean;
   mains: { a: MainDuDuel; b: MainDuDuel };
   options: { a: OptionsDUnCamp; b: OptionsDUnCamp };
@@ -138,8 +139,8 @@ export interface PartieDuDuel {
 /** Une attaque reçue par ta main de défense : qui t'a battu, qui tu as repoussé. */
 export interface LigneDeDefense {
   le: string;
-  /** Le Gaulois qui t'a défié. */
-  nom: string;
+  /** Le nom au village du Gaulois qui t'a défié ; `null` si son compte n'est plus validé (l'écran écrit « un Gaulois »). */
+  nom: string | null;
   /** Du côté du défenseur : « repousse » (il a perdu), « battu » (il a gagné), « egalite ». */
   issue: "repousse" | "battu" | "egalite";
   manches: number;
@@ -149,7 +150,7 @@ export interface LigneDeDefense {
 export interface LigneDAttaque {
   le: string;
   contre: ContreQui;
-  /** Le Gaulois défié, ou le boss. */
+  /** Le nom au village du Gaulois défié ; `null` contre un boss, ou si son compte n'est plus validé. */
   nom: string | null;
   boss: string | null;
   verdict: -1 | 0 | 1;
@@ -204,13 +205,19 @@ export interface PartieRendue {
   carte_machine?: number;
 }
 
+/** Un Gaulois d'une annonce sur Discord : son pseudo public du clan en plus, `null` sans pseudo public (jamais le nom du village). */
+export interface GauloisAnnonce extends GauloisDuDuel {
+  pseudo: string | null;
+}
+
 /**
  * Une victoire à annoncer sur Discord (`duel_annonces_a_envoyer`, clé de service seulement, pour la session de l'image) :
- * chaque duel compté gagné, le plus ancien d'abord. `essai` : le duel était encore fermé (une victoire du titulaire qui
- * l'essaie). `noter_annonces_duel(p_parties)` les note envoyées.
+ * chaque duel compté gagné contre la main de défense d'un autre membre, quand le duel est ouvert, la plus ancienne d'abord,
+ * 20 au plus. `noter_annonces_duel(p_parties)` les note envoyées.
  */
 export interface AnnonceDuDuel {
   partie: number;
+  /** Toujours faux depuis 20261122000200 : les essais du titulaire n'entrent plus dans la file. */
   essai: boolean;
   le: string;
   contre: ContreQui;
@@ -219,14 +226,19 @@ export interface AnnonceDuDuel {
   /** La main du vainqueur, puis celle du vaincu. */
   main: MainDuDuel;
   main_vaincue: MainDuDuel;
-  vainqueur: GauloisDuDuel;
+  /** La carte décisive : celle que le vainqueur a posée à la dernière manche ; `null` sans manche jouée. */
+  carte: { emplacement: EmplacementDuDuel; objet: string } | null;
+  /** La mise de la salle, en statères ; `null` sans salle (les duels contre une main de défense). */
+  salle: number | null;
+  vainqueur: GauloisAnnonce;
   /** Le Gaulois vaincu, ou `null` contre un boss. */
-  vaincu: GauloisDuDuel | null;
+  vaincu: GauloisAnnonce | null;
 }
 
 /**
- * Les refus propres au duel (leur message en français sera dans `src/lib/compte/errors.ts`) ; s'y ajoutent les refus de
- * tout le site (`not_signed_in`, `suspended`, `not_validated`, `rate_limited`, `no_gaulois`…).
+ * Les refus propres au duel (leur message en français est dans `src/lib/compte/errors.ts`) ; s'y ajoutent les refus de
+ * tout le site (`not_signed_in`, `suspended`, `not_validated`, `rate_limited`, `no_gaulois`…), et `mode_god` quand un membre en
+ * essai du mode GOD veut défier un autre membre.
  */
 export const REFUS_DU_DUEL = [
   /** Le duel n'est pas encore ouvert. */

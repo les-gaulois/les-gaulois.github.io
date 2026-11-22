@@ -48,6 +48,7 @@
     "lecteurs:construire": "tsx scripts/construire-lecteurs.ts",
     "stateres:crediter": "tsx scripts/crediter-stateres.ts",
     "sentier:parties": "tsx scripts/noter-parties-sentier.ts",
+    "duel:flammes": "tsx scripts/noter-flammes-duel.ts",
     "pronostics:regler": "tsx scripts/regler-pronostics.ts",
     "village:economie": "tsx scripts/mesurer-economie-village.ts",
     "village:vie": "tsx scripts/animer-village.ts",
@@ -76,6 +77,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@axe-core/playwright": "^4.14.0",
+    "@electric-sql/pglite": "0.3.14",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/outfit": "^5.3.0",

@@ -521,6 +521,17 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      # Les flammes de série qui brûlent, pour le duel des Gaulois : un membre dont la flamme brûle a un duel compté de plus
+      # par jour. Seules les empreintes SHA-256 partent au serveur (src/lib/village/flammes-duel.ts). Sans la migration du duel
+      # ou en cas de panne, le serveur garde son dernier relevé ; rien ne retient le site.
+      - name: Noter les flammes du duel
+        if: github.ref_name == 'main'
+        continue-on-error: true
+        timeout-minutes: 1
+        run: npm run duel:flammes
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       - name: Construire le site
         run: npm run build
         env:
