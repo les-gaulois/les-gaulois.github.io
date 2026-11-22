@@ -7,11 +7,10 @@ import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import { albumDeLaPochetteSurprise, nombreDansLaPochetteSurprise } from "../../lib/village/album-pochette";
 import type { MaBoutique, PochetteReponse } from "../../lib/village/contrat";
 import { chancesDeLaPochette, manque, pourcent, stateres } from "../../lib/village/ecran-boutique";
-import type { Issue } from "./BoutiqueDialogue";
+import { CaseMontree, type Issue } from "./BoutiqueDialogue";
 import { feterLObjet } from "./Cases";
-import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RareteEnPixels, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
-import { AussiCarteDeDuel } from "./duel/AussiCarteDeDuel";
 
 /**
  * Le booster surprise, sous l'étal (fiche du kit, `FicheDuBooster`) : son paquet, qui ouvre l'album des objets qu'il peut
@@ -45,8 +44,9 @@ export function Pochette({ boutique, solde, fermee, gagnees = 0, onOuvrir }: { b
 /**
  * Ouvrir un booster surprise : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis le joueur ouvre le
  * paquet et retourne la carte de l'objet que le serveur a tiré (`OuvertureDuBooster.tsx`, l'animation validée par le pilote
- * le 21 novembre 2026, qui remplace le tambour des pochettes). Dessous, une fois la carte retournée : son nom, sa rareté,
- * le choix d'un double, la bourse et « Le porter ». L'animation ne fait que montrer ce que le serveur a déjà tiré.
+ * le 21 novembre 2026, qui remplace le tambour des pochettes). Une fois la carte retournée et sa fête passée, la grande
+ * carte de l'objet, avec tout ce qu'il dit (22 novembre 2026), prend la place de la scène ; dessous, la bourse, le choix
+ * d'un double et « Le porter ». L'animation ne fait que montrer ce que le serveur a déjà tiré.
  */
 export function DialoguePochette({
   prix,
@@ -107,11 +107,15 @@ export function DialoguePochette({
   return (
     <FenetreDuBooster titre={titre} etape={ouverte ? "ouvre" : "confirmer"} occupe={etape === "envoi" || etape === "ouvre"} scene={ouverte} onFermer={onFermer} testid="dialogue-pochette">
       {ouverte && tirage && tire && objet && carte ? (
-        <OuvertureDuBooster sorte="surprise" carte={carte} revelee={etape === "revele"} onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}>
-          <ResultatDuBooster nom={objet.nom} detail={<RareteEnPixels rarete={tire.rarete} />} double={tire.double} testid="pochette-tirage">
-            <span hidden data-objet={`${tire.emplacement}/${tire.objet}`} />
-            <AussiCarteDeDuel cle={cleDeLObjet(tire.emplacement, tire.objet)} rarete={tire.rarete} />
-          </ResultatDuBooster>
+        <OuvertureDuBooster
+          sorte="surprise"
+          carte={carte}
+          revelee={etape === "revele"}
+          onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
+          carteFinale={<CaseMontree objet={objet} rarete={tire.rarete} vignette={vignetteDe(tire)} fond={cleDeLObjet(tire.emplacement, tire.objet)} grande testid="pochette-tirage" />}
+        >
+          {/* La carte dit tout (nom, rareté, effets) : dessous, la bourse et les boutons seulement. */}
+          <span hidden data-objet={`${tire.emplacement}/${tire.objet}`} />
           <ResteEnPixels solde={tirage.solde} />
           {tire.double &&
             (suiteDuDouble ? (

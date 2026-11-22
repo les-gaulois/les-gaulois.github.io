@@ -1,11 +1,12 @@
 import { useState } from "preact/hooks";
-import { OBJETS, vignetteDeLObjet } from "../../lib/gaulois";
+import { OBJETS, vignetteDeLObjet, type Emplacement, type RareteDObjet } from "../../lib/gaulois";
 import { carteDeRarete, type CarteDeScene } from "../../lib/jeu/boosters";
 import { cleDeLObjet } from "../../lib/village/fonds-objets";
 import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import { tirageDEssai } from "../../lib/village/demo-booster";
 import { Px } from "../jeu/Pixels";
-import { BoutonDesBoosters, FenetreDuBooster, PaquetEnImage, RareteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { CaseMontree } from "./BoutiqueDialogue";
+import { BoutonDesBoosters, FenetreDuBooster, PaquetEnImage } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 
 /**
@@ -22,7 +23,9 @@ import { OuvertureDuBooster } from "./OuvertureDuBooster";
 interface Essai {
   n: number;
   nom: string;
-  rarete: string;
+  emplacement: Emplacement;
+  objet: string;
+  rarete: RareteDObjet;
   carte: CarteDeScene;
 }
 
@@ -48,7 +51,7 @@ export default function DemoDuJeu({ rejoindre, connexion }: { rejoindre: string;
     if (!tire) return;
     const nom = OBJETS[tire.emplacement][tire.objet]?.nom ?? "Objet";
     setRevelee(false);
-    setEssai((avant) => ({ n: (avant?.n ?? 0) + 1, nom, rarete: tire.rarete, carte: carteDeRarete(nom, tire.rarete, vignetteDeLObjet(tire.emplacement, tire.objet), { cle: cleDeLObjet(tire.emplacement, tire.objet) }) }));
+    setEssai((avant) => ({ n: (avant?.n ?? 0) + 1, nom, emplacement: tire.emplacement, objet: tire.objet, rarete: tire.rarete, carte: carteDeRarete(nom, tire.rarete, vignetteDeLObjet(tire.emplacement, tire.objet), { cle: cleDeLObjet(tire.emplacement, tire.objet) }) }));
   };
   const fermer = () => setEssai(null);
 
@@ -93,10 +96,23 @@ export default function DemoDuJeu({ rejoindre, connexion }: { rejoindre: string;
       </section>
       {essai && (
         <FenetreDuBooster key={essai.n} titre="Booster d'essai" etape={revelee ? "revele" : "ouvre"} occupe={false} scene onFermer={fermer} testid="demo-fenetre">
-          <OuvertureDuBooster sorte="surprise" carte={essai.carte} revelee={revelee} onRevelee={() => setRevelee(true)}>
-            <ResultatDuBooster nom={essai.nom} detail={<RareteEnPixels rarete={essai.rarete} />} testid="demo-tirage">
-              <p class="bst-mot">Tirage d'exemple : cet objet n'est ni enregistré ni donné.</p>
-            </ResultatDuBooster>
+          <OuvertureDuBooster
+            sorte="surprise"
+            carte={essai.carte}
+            revelee={revelee}
+            onRevelee={() => setRevelee(true)}
+            carteFinale={
+              <CaseMontree
+                objet={OBJETS[essai.emplacement][essai.objet] ?? { nom: essai.nom, dessin: null, couleurs: {}, rarete: essai.rarete, gratuit: false }}
+                rarete={essai.rarete}
+                vignette={vignetteDeLObjet(essai.emplacement, essai.objet)}
+                fond={cleDeLObjet(essai.emplacement, essai.objet)}
+                grande
+                testid="demo-tirage"
+              />
+            }
+          >
+            <p class="bst-mot">Tirage d'exemple : cet objet n'est ni enregistré ni donné.</p>
             <div class="bst-actions">
               <a class="jeu-btn jeu-n9" href={rejoindre} data-testid="demo-fenetre-rejoindre">
                 <Px t="Rejoindre le clan" couleur="encre" />

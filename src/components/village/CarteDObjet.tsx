@@ -13,6 +13,8 @@ import {
   styleDeCarte,
   tonsDeLaCarte,
 } from "../../lib/jeu/cartes-d-objets";
+import type { Rarete } from "../../lib/gaulois";
+import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
 import type { CarteDuDuel, EffetsDeCarte } from "./effets-des-cartes";
 
 /**
@@ -246,4 +248,28 @@ export function useBulleDesEffets(nom: string, effets: EffetsDeCarte | null): { 
     },
     onBlur: () => cacherLaBulle(ancre.current),
   };
+}
+
+/* ---------- La carte d'une bannière ---------- */
+
+/**
+ * La carte d'une bannière, en grand et en paysage (22 novembre 2026, demande du pilote : « j'aimerais voir uniquement la
+ * bannière avec la rareté et tout affiché, la bannière doit être visible ») : la bannière entière, avec son propre cadre de
+ * rareté, agrandie d'un nombre entier de fois, dans le cadre des cartes des cosmétiques ; son nom au-dessus et sa rareté
+ * dessous, jamais sur elle. Le reflet holographique passe sur elle du mystique au légendaire.
+ */
+export function CarteDeBanniere({ nom, rarete, image, testid }: { nom: string; rarete: Rarete; image: { largeur: number; hauteur: number; cases: readonly (string | null)[] }; testid?: string }) {
+  const suivre = suivreLePointeur(10);
+  const etroit = typeof window !== "undefined" && window.matchMedia("(max-width: 30rem)").matches;
+  return (
+    <div class="case case-montree case-carte co-carte co-grande co-paysage" data-carte={styleDeCarte(rarete)} data-rarete={rarete} data-testid={testid} style={variablesDeLaCarte(rarete)} {...suivre}>
+      <HabitDeCarte rarete={rarete} />
+      <span class="case-nom co-nom">{nom}</span>
+      <span class="case-image co-banniere">
+        <Pixels largeur={image.largeur} hauteur={image.hauteur} cases={image.cases} echelle={etroit ? 2 : 3} />
+        <RefletDeCarte rarete={rarete} />
+      </span>
+      <MarqueDeRarete rarete={rarete} />
+    </div>
+  );
 }

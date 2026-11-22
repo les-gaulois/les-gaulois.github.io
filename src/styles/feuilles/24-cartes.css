@@ -523,11 +523,29 @@
   color: var(--co-encre);
 }
 
-/* Sous la carte sortie d'un booster : ses effets, pour qui voit le duel. */
-.co-carte.co-effets-booster {
-  display: block;
-  width: min(20rem, 100%);
-  margin: 0.5rem auto 0;
+/* La carte d'une bannière, en paysage : elle prend la largeur de la bannière entière, agrandie d'un nombre entier de fois. */
+.co-carte.co-paysage {
+  width: max-content;
+  max-width: 100%;
+}
+/* Une bannière est déjà une scène riche : la feuille holographique y est plus légère, pour qu'elle reste bien visible. */
+.co-carte.co-paysage .co-holo[data-couche="a"] {
+  opacity: 0.3;
+}
+.co-carte.co-paysage .case-image.co-banniere {
+  width: auto;
+  height: auto;
+  justify-self: center;
+  align-self: center;
+}
+
+/* Quelques mots de plus sous la rareté (la taille d'un familier). */
+.co-carte .co-sous {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--co-encre);
+  text-align: center;
 }
 
 /* ---------- La grande carte d'une fenêtre (achat, objet reçu) : elle s'incline vers le pointeur ---------- */

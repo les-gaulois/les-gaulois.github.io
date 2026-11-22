@@ -35,7 +35,7 @@ export async function lireLAcces(): Promise<AccesAuDuel> {
 
 /**
  * Le duel est-il visible pour le compte de cette page ? Retenu ici quand l'accès est lu, pour que d'autres parties du jeu (le
- * badge « carte de duel » d'un objet sorti d'un booster) ne parlent du duel qu'à qui le voit.
+ * les effets écrits sur les cartes des cosmétiques) ne parlent du duel qu'à qui le voit.
  */
 let visible = false;
 export const ACCES_CHANGE = "gal:duel-acces";

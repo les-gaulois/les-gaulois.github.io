@@ -46,7 +46,7 @@ import { feterLObjet, useJoie } from "./Cases";
 import { DessinSurFond } from "./DessinSurFond";
 import { ImageEnCases, imageEnCases } from "./ImageEnCases";
 import InsigneDeSaison from "./InsigneDeSaison";
-import { BoutonDesBoosters, FenetreDuBooster, RangEnIcone, RareteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { BoutonDesBoosters, FenetreDuBooster, RangEnIcone } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 import { DESSINS_DES_MISSIONS, type DessinDuSentier } from "./SentierDessins";
 
@@ -815,24 +815,19 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
             carte={ouverture.carte}
             revelee={ouverture.revele}
             onRevelee={() => setOuverture((o) => (o ? { ...o, revele: true } : o))}
+            carteFinale={
+              <CaseMontree
+                objet={recu.fiche}
+                rarete={rareteRecue}
+                vignette={vignetteDeLObjet(ouverture.recu.objet.emplacement, ouverture.recu.objet.objet)}
+                fond={fondDeLObjet(ouverture.recu.objet.emplacement, ouverture.recu.objet.objet)}
+                grande
+                testid="palier-recu"
+              />
+            }
           >
-            <ResultatDuBooster
-              nom={recu.fiche.nom}
-              detail={
-                rareteRecue === "saison" ? (
-                  <span class="bst-rarete-px">
-                    <RangEnIcone rang={5} rarete="saison" />
-                    <Px t={RARETES_DES_OBJETS.saison.nom} couleur="legendaire" dit={RARETES_DES_OBJETS.saison.nom} />
-                  </span>
-                ) : (
-                  <RareteEnPixels rarete={rareteRecue} />
-                )
-              }
-              double={ouverture.recu.objet.double}
-              testid="palier-recu"
-            >
-              <span hidden data-objet={`${ouverture.recu.objet.emplacement}/${ouverture.recu.objet.objet}`} />
-            </ResultatDuBooster>
+            {/* La carte dit tout (nom, rareté, effets) : dessous, l'insigne s'il y en a un et les boutons. */}
+            <span hidden data-objet={`${ouverture.recu.objet.emplacement}/${ouverture.recu.objet.objet}`} />
             {ouverture.recu.insigne && (
               <p class="bst-mot pj-insigne-recu" data-testid="palier-insigne">
                 <InsigneDeSaison saison={ouverture.recu.insigne.saison} echelle={2} />

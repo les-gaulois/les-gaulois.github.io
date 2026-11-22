@@ -1026,7 +1026,11 @@ des cartes « jolies mais pas en pixel art et non holographiques ». Ne pas chan
   `BoutiqueDialogue.tsx`, `grande`), qui s'inclinent vers le pointeur. La face des cartes qui sortent des boosters prend le
   même cadre, dessiné sous les mots (`habillerUnePlanche`, posé par `faceDeCarte` de `src/lib/jeu/boosters.ts`) ; le
   mouvement, les lumières et les sons de l'animation n'ont pas changé. Le corps, le visage, les coupes et « rien » gardent la
-  case d'avant ; la vitrine aussi. Les marques (« à vous », « porté », « Nouveau », « essai », la coche, la plaque) sont
+  case d'avant ; la vitrine aussi. À la fin d'un booster d'objet, de familier ou de Gaulois unique, d'un palier du pass
+  et du booster d'essai des visiteurs, la grande carte prend la place de la scène une fois la fête de la carte retournée
+  passée (`carteFinale` d'`OuvertureDuBooster.tsx`, `.bst-finale` de `17-jeu-boosters.css`), avec toute sa description ;
+  dessous, la bourse et les boutons seulement (demande du pilote : « je préfère qu'on voie la carte en gros avec toute la
+  description contenue dans la carte »). Les boosters de statères, de bannières et de loterie gardent leur scène. Les marques (« à vous », « porté », « Nouveau », « essai », la coche, la plaque) sont
   dans les coins de l'image, jamais sur le nom ; l'intérieur de la carte prend les jetons du thème clair, la carte garde ceux
   de la page, pour que ses anneaux d'état se voient dans les deux thèmes.
 - **Trois façons** (`styleDeCarte` de `src/lib/jeu/cartes-d-objets.ts`, `data-carte` sur la carte) : « lisse » (de base,
@@ -1093,7 +1097,7 @@ dessinés autour par Claude Fable 5.2 (icônes de `dessins-ecran.ts`). Les règl
 - **Ma main de défense** : le Gaulois « chez toi » devant sa bannière, les cinq cartes, la bourse, « Enregistrer » ;
   l'historique de ceux qui t'ont battu et de ceux que tu as repoussés. Au téléphone, deux boutons dans l'en-tête montrent
   l'une ou l'autre.
-- **Le badge « carte de duel »** (`AussiCarteDeDuel.tsx`) sous un objet sorti du booster surprise, pour qui voit le duel.
+- **Le badge « carte de duel »** sous un objet sorti du booster surprise : retiré le 22 novembre 2026, la grande carte de la fin du booster porte ses effets (« Les cartes des cosmétiques »).
 
 
 ### Les salles du duel (22 novembre 2026)

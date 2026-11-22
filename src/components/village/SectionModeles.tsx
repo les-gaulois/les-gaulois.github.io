@@ -10,9 +10,9 @@ import { MODELES, apercuDuModele, decrireLeModele, etatDuModele, idsDesModeles, 
 import { Problem } from "../compte/common";
 import { Px } from "../jeu/Pixels";
 import { BoutonDuJeu, PrixDuJeu } from "./BoutiqueDuJeu";
-import { Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
+import { CaseMontree, Compte, Dialogue, Refus, type Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Prix, peindre } from "./BoutiquePixels";
-import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RareteEnPixels, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
 import type { EtatDesModeles } from "./Modeles";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 
@@ -349,6 +349,8 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
     }
   };
   const recu = tirage?.modele ? modeleParId(tirage.modele.modele) : null;
+  // Le Gaulois du membre dans son nouveau corps, pour la grande carte : calculé une fois.
+  const apercuRecu = useMemo(() => (recu ? apercuDuModele(tenue, recu.id) : null), [tenue, recu]);
   const rendu = tirage?.remboursement ?? null;
   const sorti = recu !== null || rendu !== null;
   const ouverte = (etape === "ouvre" || etape === "revele") && sorti && carte !== null;
@@ -373,13 +375,26 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
           </div>
         </OuvertureDuBooster>
       ) : ouverte && tirage && carte && recu ? (
-        <OuvertureDuBooster sorte="modeles" carte={carte} revelee={revele} onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}>
-          <ResultatDuBooster nom={recu.nom} detail={<RareteEnPixels rarete={recu.rarete} />} testid="uniques-tirage">
-            <span hidden data-modele={recu.id} />
-          </ResultatDuBooster>
-          <div class="pochette-revelation uniques-revelation bst-apercu-modele" data-rarete={recu.rarete}>
-            <GauloisUnique tenue={tenue} modele={recu} />
-          </div>
+        <OuvertureDuBooster
+          sorte="modeles"
+          carte={carte}
+          revelee={revele}
+          onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
+          carteFinale={
+            <CaseMontree
+              objet={{ nom: recu.nom, dessin: null, couleurs: {}, rarete: recu.rarete, gratuit: false }}
+              rarete={recu.rarete}
+              vignette={apercuRecu}
+              fond={cleDuModele(recu.id)}
+              pose="bas"
+              sous={`Votre Gaulois en ${decrireLeModele(recu.id)}. ${recu.description}`}
+              grande
+              testid="uniques-tirage"
+            />
+          }
+        >
+          {/* La carte montre votre Gaulois dans son nouveau corps, son nom et sa rareté : dessous, la bourse et les boutons. */}
+          <span hidden data-modele={recu.id} />
           <ResteEnPixels solde={tirage.solde} />
           <p class="bst-mot">{tirage.reste > 0 ? `Encore ${tirage.reste} à découvrir.` : "Vous les avez tous."}</p>
           <div class="bst-actions">

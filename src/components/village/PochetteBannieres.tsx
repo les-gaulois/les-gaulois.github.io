@@ -5,18 +5,21 @@ import type { PochetteBannieresReponse } from "../../lib/village/contrat";
 import { idsDesBannieres } from "../../lib/village/ecran-bannieres";
 import { nombre, pourcent } from "../../lib/village/ecran-boutique";
 import { Px } from "../jeu/Pixels";
-import { SceneDeLaBanniere as Scene, plusTard, type ProprietesDeLaFicheDesBannieres, type ProprietesDuBoosterDesBannieres } from "./Bannieres";
-import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RareteEnPixels, RefusDuBooster, ResteEnPixels, ResultatDuBooster, type LigneDeChance } from "./KitDesBoosters";
+import type { Banniere } from "../../lib/village/bannieres";
+import { plusTard, type ProprietesDeLaFicheDesBannieres, type ProprietesDuBoosterDesBannieres } from "./Bannieres";
+import { CarteDeBanniere } from "./CarteDObjet";
+import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RefusDuBooster, ResteEnPixels, ResultatDuBooster, type LigneDeChance } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 
 /**
  * Ouvrir un booster des bannières : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis le joueur ouvre le
  * paquet et retourne la carte de ce que le serveur a tiré (`OuvertureDuBooster.tsx`, qui remplace le tambour depuis le 21
- * novembre 2026) : un trésor, ou des statères rendus (une carte sans rareté, à la lumière neutre). Dessous, le trésor en
- * grand derrière le Gaulois du membre, et de quoi le mettre sur /gaulois ; ou ce qui est rendu, et quelle part du prix. Si
+ * novembre 2026) : un trésor, ou des statères rendus (une carte sans rareté, à la lumière neutre). Un trésor : sa carte,
+ * la bannière entière (22 novembre 2026), prend la place de la scène, et dessous de quoi la mettre sur /gaulois ; des
+ * statères : ce qui est rendu, et quelle part du prix. Si
  * le serveur refuse, le compte de l'ouverture s'efface : il ne reste que les mots du refus et « Fermer ».
  */
-export function DialoguePochetteBannieres({ lib, prix, solde, tenue, familier, ouvrir, montrer, dejaMontree, onFermer }: ProprietesDuBoosterDesBannieres) {
+export function DialoguePochetteBannieres({ lib, prix, solde, ouvrir, montrer, dejaMontree, onFermer }: ProprietesDuBoosterDesBannieres) {
   const [etape, setEtape] = useState<"confirmer" | "envoi" | "ouvre" | "revele" | "pose">("confirmer");
   const [refus, setRefus] = useState<string | null>(null);
   const [tirage, setTirage] = useState<PochetteBannieresReponse | null>(null);
@@ -62,15 +65,17 @@ export function DialoguePochetteBannieres({ lib, prix, solde, tenue, familier, o
   return (
     <FenetreDuBooster titre={recue && revelee ? "Nouveau trésor" : rendu && revelee ? "Statères rendus" : refus ? "Le booster reste fermé" : "Booster des bannières"} etape={ouverte ? "ouvre" : "confirmer"} occupe={etape === "envoi" || etape === "pose" || etape === "ouvre"} scene={ouverte} onFermer={fermer} testid="dialogue-pochette-bannieres">
       {ouverte && tirage && carte && (recue || rendu) ? (
-        <OuvertureDuBooster sorte="bannieres" carte={carte} revelee={revelee} onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}>
+        <OuvertureDuBooster
+          sorte="bannieres"
+          carte={carte}
+          revelee={revelee}
+          onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
+          carteFinale={recue ? <CarteDeLaBanniereRecue lib={lib} banniere={recue} /> : undefined}
+        >
           {recue ? (
             <>
-              <ResultatDuBooster nom={recue.nom} detail={<RareteEnPixels rarete={recue.rarete} />} testid="bannieres-pochette-tirage">
-                <span hidden data-banniere={recue.id} />
-              </ResultatDuBooster>
-              <div class="banniere-fenetre bst-apercu-banniere" data-rarete={recue.rarete}>
-                <Scene lib={lib} banniere={recue} tenue={tenue} familier={familier} class="banniere-scene-fenetre" />
-              </div>
+              {/* La carte montre la bannière entière, son nom et sa rareté : dessous, la bourse, ce qui reste et les boutons. */}
+              <span hidden data-banniere={recue.id} />
               <ResteEnPixels solde={tirage.solde} />
               <p class="bst-mot">{tirage.reste > 0 ? `Encore ${tirage.reste} ${tirage.reste > 1 ? "trésors" : "trésor"} à gagner.` : "Vous les avez tous."}</p>
               <div class="bst-actions">
@@ -99,6 +104,12 @@ export function DialoguePochetteBannieres({ lib, prix, solde, tenue, familier, o
       )}
     </FenetreDuBooster>
   );
+}
+
+/** La carte de la bannière reçue, entière, pour la fin du booster ; rien si son dessin manque. */
+function CarteDeLaBanniereRecue({ lib, banniere }: { lib: typeof import("../../lib/village/bannieres"); banniere: Banniere }) {
+  const image = useMemo(() => lib.vignetteDeLaBanniere(banniere.id), [lib, banniere.id]);
+  return image ? <CarteDeBanniere nom={banniere.nom} rarete={banniere.rarete} image={image} testid="bannieres-pochette-tirage" /> : null;
 }
 
 /**

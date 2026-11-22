@@ -8,6 +8,7 @@ import { FicheDesEffets, HabitDeCarte, RangDuDuel, RefletDeCarte, suivreLePointe
 import { styleDeCarte } from "../../lib/jeu/cartes-d-objets";
 import { feterLObjet } from "./Cases";
 import { DessinSurFond } from "./DessinSurFond";
+import type { PoseDeLaChose } from "../../lib/village/fonds-objets";
 import { useEffetsDeLaChose } from "./effets-des-cartes";
 
 /** Ce que rend un achat : le résultat du serveur, ou les mots de son refus. */
@@ -57,7 +58,27 @@ export function Dialogue({ titre, etape, occupe, onFermer, testid, children }: {
  * carte (22 novembre 2026) ; `grande` : la carte en grand d'une fenêtre (achat, objet reçu), qui s'incline vers le pointeur
  * et porte, pour qui voit le duel, toutes les phrases de ses effets.
  */
-export function CaseMontree({ objet, rarete, vignette, fond = null, grande = false }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; fond?: string | null; grande?: boolean }) {
+export function CaseMontree({
+  objet,
+  rarete,
+  vignette,
+  fond = null,
+  grande = false,
+  pose = "centre",
+  sous = null,
+  testid,
+}: {
+  objet: Objet;
+  rarete: Rarete;
+  vignette: Vignette | null;
+  fond?: string | null;
+  grande?: boolean;
+  /** Où poser la chose sur son fond : au milieu (un objet), au sol (un familier), contre le bas (un Gaulois unique). */
+  pose?: PoseDeLaChose;
+  /** Quelques mots de plus sous la rareté, dans la carte (la taille d'un familier). */
+  sous?: string | null;
+  testid?: string;
+}) {
   const carte = !!fond && !!vignette;
   const effets = useEffetsDeLaChose(carte ? fond : null);
   const bulle = useBulleDesEffets(objet.nom, grande ? null : effets);
@@ -69,6 +90,7 @@ export function CaseMontree({ objet, rarete, vignette, fond = null, grande = fal
         class={`case case-montree case-carte co-carte${grande ? " co-grande" : ""}`}
         data-carte={style}
         data-rarete={rarete}
+        data-testid={testid}
         style={variablesDeLaCarte(rarete)}
         onPointerMove={suivre?.onPointerMove}
         onPointerLeave={(e) => {
@@ -81,22 +103,24 @@ export function CaseMontree({ objet, rarete, vignette, fond = null, grande = fal
         <HabitDeCarte rarete={rarete} />
         <span class="case-nom co-nom">{objet.nom}</span>
         <span class="case-image" data-fond="">
-          <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} place={grande ? 168 : 80} maximum={grande ? 4 : 3} class="case-dessin" />
+          <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} place={grande ? 168 : 80} maximum={grande ? 4 : 3} pose={pose} class="case-dessin" />
           <RefletDeCarte rarete={rarete} />
         </span>
         <MarqueDeRarete rarete={rarete} />
+        {sous && <span class="co-sous">{sous}</span>}
         {effets?.duel && <RangDuDuel duel={effets.duel} />}
         {grande && effets && <FicheDesEffets effets={effets} />}
       </div>
     );
   }
   return (
-    <div class="case case-montree" data-rarete={rarete}>
+    <div class="case case-montree" data-rarete={rarete} data-testid={testid}>
       <span class="case-image" data-fond={vignette && fond ? "" : undefined}>
         {vignette && <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} class="case-dessin" />}
       </span>
       <span class="case-nom">{objet.nom}</span>
       <MarqueDeRarete rarete={rarete} />
+      {sous && <span class="co-sous">{sous}</span>}
     </div>
   );
 }

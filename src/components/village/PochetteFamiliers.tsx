@@ -7,9 +7,8 @@ import type { MesFamiliers, PochetteFamiliersReponse } from "../../lib/village/c
 import { pourcent } from "../../lib/village/ecran-boutique";
 import { ANCRE_FAMILIERS, idsPossedes, lignesDesChances, raisonPochetteFermee, vignetteDuFamilier } from "../../lib/village/ecran-familiers";
 import { FAMILIERS, familierDe, tailleDuFamilier, TAILLES, type Familier } from "../../lib/village/familiers";
-import { Px } from "../jeu/Pixels";
-import type { Issue } from "./BoutiqueDialogue";
-import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RareteEnPixels, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
+import { CaseMontree, type Issue } from "./BoutiqueDialogue";
+import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 
 /** Le nom d'une taille : « Minuscule », « Géant »… */
@@ -85,19 +84,26 @@ export function DialogueFamiliers({ prix, solde, village, ouvrir, dejaMontre, on
   return (
     <FenetreDuBooster titre={ouverte && etape === "revele" ? "Nouveau familier" : refus ? "Le booster reste fermé" : "Booster des familiers"} etape={ouverte ? "ouvre" : "confirmer"} occupe={etape === "envoi" || etape === "ouvre"} scene={ouverte} onFermer={onFermer} testid="dialogue-familiers">
       {ouverte && tirage && recu && carte ? (
-        <OuvertureDuBooster sorte="familiers" carte={carte} revelee={etape === "revele"} onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}>
-          <ResultatDuBooster
-            nom={recu.nom}
-            detail={
-              <>
-                <RareteEnPixels rarete={recu.rarete} />
-                <Px t={nomDeLaTaille(recu)} couleur="doux" dit={nomDeLaTaille(recu)} />
-              </>
-            }
-            testid="familiers-tirage"
-          >
-            <span hidden data-familier={recu.id} />
-          </ResultatDuBooster>
+        <OuvertureDuBooster
+          sorte="familiers"
+          carte={carte}
+          revelee={etape === "revele"}
+          onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
+          carteFinale={
+            <CaseMontree
+              objet={{ nom: recu.nom, dessin: null, couleurs: {}, rarete: recu.rarete, gratuit: false }}
+              rarete={recu.rarete}
+              vignette={vignetteDuFamilier(recu)}
+              fond={cleDuFamilier(recu.id)}
+              pose="sol"
+              sous={nomDeLaTaille(recu)}
+              grande
+              testid="familiers-tirage"
+            />
+          }
+        >
+          {/* La carte dit tout (nom, rareté, taille, effet de compagnon) : dessous, la bourse, ce qui reste et les boutons. */}
+          <span hidden data-familier={recu.id} />
           <ResteEnPixels solde={tirage.solde} />
           <p class="bst-mot">{tirage.reste > 0 ? `Encore ${tirage.reste} ${tirage.reste > 1 ? "familiers" : "familier"} à recevoir.` : "Vous les avez tous."}</p>
           <div class="bst-actions">

@@ -5,9 +5,13 @@
    règles sont celles de la démonstration, préfixées « bst- ». Ne pas changer le mouvement ni les lumières sans sa demande.
    Le blanc des lumières est un blanc chaud (255, 253, 245) : la feuille n'écrit jamais un blanc pur. */
 
-.bst-scene {
+/* Le ciel de la scène, que reprend la grande carte de la fin (.bst-finale, plus bas). */
+.bst-scene,
+.bst-finale {
   --bst-ciel-a: #86a5ec;
   --bst-ciel-b: #d9e5fb;
+}
+.bst-scene {
   --bst-etoile: #fffdf5;
   --bst-voile: 30, 46, 120;
   --bst-ombre: rgba(10, 18, 48, 0.3);
@@ -25,7 +29,7 @@
   -webkit-user-select: none;
   outline: none;
 }
-:root[data-mode="sombre"] .bst-scene {
+:root[data-mode="sombre"] :is(.bst-scene, .bst-finale) {
   --bst-ciel-a: #060a20;
   --bst-ciel-b: #152262;
   --bst-etoile: #f6f1e3;
@@ -932,12 +936,6 @@
   justify-self: center;
   font-size: 0.875rem;
 }
-.bst-apercu-banniere,
-.bst-apercu-modele {
-  justify-self: center;
-  max-width: 100%;
-}
-
 /* La fiche dans une colonne étroite (21 novembre 2026) : sur un écran moyen, de 768 à 1 180 pixels environ, le menu du jeu
    et le Gaulois ne lui laissent qu'une colonne, et son prix sortait de la page. Elle prend alors la mise en page du
    téléphone, d'après sa propre place et non celle de l'écran. */
@@ -1047,4 +1045,92 @@
 }
 .bst-fiche .album-declencheur {
   justify-self: center;
+}
+
+/* ---------- La grande carte de la fin (22 novembre 2026) ---------- */
+/* Demande du pilote : « je préfère qu'on voie la carte en gros avec toute la description contenue dans la carte ». Après la
+   fête de la carte retournée (la scène n'a pas changé), la carte de la chose reçue, en grand et au dessin des cartes des
+   cosmétiques (24-cartes.css), prend la place de la scène, sur le même ciel, devant des rayons lents de la couleur de sa
+   rareté. Dessous, seulement la bourse et les boutons. */
+.bst-finale {
+  --bst-rayon: 255, 242, 200;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+  padding: 22px 12px;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(180deg, var(--bst-ciel-a), var(--bst-ciel-b));
+}
+.bst-finale[data-rarete="commun"] {
+  --bst-rayon: 156, 194, 255;
+}
+.bst-finale[data-rarete="peu-commun"] {
+  --bst-rayon: 169, 182, 255;
+}
+.bst-finale[data-rarete="epique"] {
+  --bst-rayon: 216, 201, 255;
+}
+.bst-finale[data-rarete="mystique"] {
+  --bst-rayon: 255, 160, 172;
+}
+.bst-finale[data-rarete="legendaire"] {
+  --bst-rayon: 255, 216, 74;
+}
+.bst-finale[data-rarete="divin"] {
+  --bst-rayon: 174, 240, 234;
+}
+.bst-finale-rayons {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  width: 1200px;
+  height: 1200px;
+  margin: -600px 0 0 -600px;
+  background: repeating-conic-gradient(rgba(var(--bst-rayon), 0.5) 0deg 7deg, transparent 7deg 16deg);
+  -webkit-mask-image: radial-gradient(circle, #000 0, #000 18%, transparent 52%);
+  mask-image: radial-gradient(circle, #000 0, #000 18%, transparent 52%);
+  animation: bst-finale-tourne 90s linear infinite;
+  pointer-events: none;
+}
+@keyframes bst-finale-tourne {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Grande, mais toujours dans l'écran : l'image se resserre sur un écran bas. */
+.bst-finale .co-carte.co-grande {
+  --co-p: 4px;
+  /* L'image prend ce que la hauteur de l'écran laisse au texte de la carte, à la bourse et aux boutons. */
+  --co-image-h: clamp(7rem, calc(100dvh - 42rem), 14rem);
+  width: min(23rem, 100%);
+}
+.bst-finale .co-carte.co-grande .co-nom {
+  font-size: 1.375rem;
+}
+.bst-finale .co-carte.co-grande.co-paysage {
+  width: max-content;
+}
+@media (max-width: 30rem) {
+  .bst-finale .co-carte.co-grande {
+    --co-p: 3px;
+  }
+  /* Le bouton de pause, en haut à droite, ne mord pas la carte. */
+  .bst-finale {
+    padding-top: 58px;
+  }
+}
+/* La pause de la fenêtre arrête les rayons et la lumière de la carte, là où ils sont. */
+.bst-finale[data-pause] :is(.bst-finale-rayons, .co-carte) {
+  animation-play-state: paused;
+}
+:root.fx-off .bst-finale-rayons {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bst-finale-rayons {
+    animation: none;
+  }
 }
