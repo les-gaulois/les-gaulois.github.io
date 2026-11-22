@@ -1040,7 +1040,9 @@ dessinés autour par Claude Fable 5.2 (icônes de `dessins-ecran.ts`). Les règl
   `interrompre(verdict, mot)` (la fin tout de suite, même quand une carte attend le serveur) et `libelles` (les mots des
   deux boutons de la fin).
 - **L'accueil** (`LeDuel.tsx`) : l'entraînement en trois niveaux (apprenti, guerrier, druide), ma défense (mes cinq cartes,
-  repoussés et fois battu), ma collection (« 21 sur 273 »), le boss du jour et les défis (`BossEtDefis.tsx`).
+  repoussés et fois battu), ma collection (« 21 sur 273 »), le boss du jour et les défis (`BossEtDefis.tsx`), et l'entrée
+  « Les salles » (`duel-salles/Entree.tsx`, à la session des salles), qui ne paraît que si le serveur a les salles ; leur
+  vue (`duel-salles/LesSalles.tsx`) ne se charge qu'en y entrant et emporte la main d'entraînement.
 - **Le boss du jour** : un Gaulois unique debout sur sa bannière, son pouvoir, et le bouton pour l'affronter. Au serveur,
   le duel est compté (`commencer_duel` puis une manche à la fois) ; une partie laissée en route reprend où elle en était,
   contre son boss, même le lendemain. Tant que le serveur n'a pas le duel, la machine du navigateur le joue pour l'essai,

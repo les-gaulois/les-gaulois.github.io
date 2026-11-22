@@ -1,4 +1,4 @@
-import type { JSX } from "preact";
+import type { ComponentType, JSX } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { call, duel } from "../../../lib/compte/api";
 import { TENUE_DE_DEPART, changerObjet, tenueDuServeur, type Tenue } from "../../../lib/gaulois";
@@ -39,6 +39,8 @@ import type { MoteurDuDuel } from "./moteur";
 import { Recueil, urlDeLaCarte } from "./Recueil";
 import { lancerLeDuel, type CampAPoser, type FinDuDuel, type LieuDuDuel, type OptionsDeLaScene, type SceneDuDuel } from "./SceneDuDuel";
 import { urlDePetiteIcone } from "./petites-icones";
+import { EntreeDesSalles } from "../duel-salles/Entree";
+import type { ProprietesDesSalles } from "../duel-salles/LesSalles";
 import { DEFIS, ICONE_DES_DEFIS, ICONE_DU_BOSS, ListeDesDefis, PanneauDesDefis, PanneauDuBoss, bossDAujourdHui, choisirLeBoss, motDeFinDuBoss, optionsDuBossDuJour, partieContreLeBoss, sceneDuDefi, tenueDuBoss, useDefisReussis, type Boss, type Defi } from "./BossEtDefis";
 import { SON } from "./sons-du-duel";
 
@@ -220,7 +222,7 @@ function TeteDEcran({ titre, icone, retour, droite }: { titre: string; icone: st
 /* ---------- Le duel ---------- */
 
 /** L'arène : sa rencontre, et de quoi en refaire une neuve pour « Rejouer » (jamais une reprise, jamais une partie finie). */
-type Vue = { kind: "accueil" } | { kind: "arene"; rencontre: Rencontre; neuve: () => Rencontre; partie: number } | { kind: "collection" } | { kind: "defense" } | { kind: "defis" };
+type Vue = { kind: "accueil" } | { kind: "arene"; rencontre: Rencontre; neuve: () => Rencontre; partie: number } | { kind: "collection" } | { kind: "defense" } | { kind: "defis" } | { kind: "salles" };
 
 export default function LeDuel({ serveur }: { serveur: unknown | null }) {
   const m = MOTEUR;
@@ -246,6 +248,15 @@ export default function LeDuel({ serveur }: { serveur: unknown | null }) {
   }, []);
   const mainRef = useRef<readonly string[]>([]);
   mainRef.current = main ?? [];
+  // Les salles en direct (vague 2, session « Duel : salles en direct avec mise ») : leur écran ne se charge qu'en y entrant.
+  const [LesSalles, setLesSalles] = useState<ComponentType<ProprietesDesSalles> | null>(null);
+  useEffect(() => {
+    if (vue.kind !== "salles" || LesSalles) return;
+    import("../duel-salles/LesSalles").then(
+      (mod) => setLesSalles(() => mod.default),
+      () => setVue({ kind: "accueil" }),
+    );
+  }, [vue.kind, LesSalles]);
 
   // La main d'entraînement : celle de l'appareil si elle est encore valable, sinon la défense, sinon ce que porte le Gaulois.
   useEffect(() => {
@@ -304,8 +315,26 @@ export default function LeDuel({ serveur }: { serveur: unknown | null }) {
             />
           }
           defis={<PanneauDesDefis reussis={reussis} onOuvrir={() => setVue({ kind: "defis" })} />}
+          salles={<EntreeDesSalles onOuvrir={() => setVue({ kind: "salles" })} />}
         />
       )}
+      {vue.kind === "salles" &&
+        (LesSalles ? (
+          <LesSalles
+            retour={() => {
+              relireLeServeur();
+              setVue({ kind: "accueil" });
+            }}
+            m={m}
+            lib={lib}
+            gaulois={{ tenue: gaulois.tenue, familier: gaulois.familier, banniere: gaulois.banniere }}
+            main={main}
+            aMoi={aMoi}
+            onMain={garderLaMain}
+          />
+        ) : (
+          <p class="dl-attente">Ouverture des salles…</p>
+        ))}
       {vue.kind === "arene" && (
         <Arene
           key={vue.partie}
@@ -384,7 +413,7 @@ function PetiteCarte({ m, id, classe = "" }: { m: MoteurDuDuel; id: string; clas
 
 /* ---------- L'accueil ---------- */
 
-function Accueil({ m, main, aMoi, serveur, onNiveau, onDefense, onCollection, boss = null, defis = null }: { m: MoteurDuDuel; main: readonly string[]; aMoi: ReadonlySet<string>; serveur: EtatLuDuServeur | null; onNiveau: (n: NiveauDEntrainement) => void; onDefense: () => void; onCollection: () => void; boss?: JSX.Element | null; defis?: JSX.Element | null }) {
+function Accueil({ m, main, aMoi, serveur, onNiveau, onDefense, onCollection, boss = null, defis = null, salles = null }: { m: MoteurDuDuel; main: readonly string[]; aMoi: ReadonlySet<string>; serveur: EtatLuDuServeur | null; onNiveau: (n: NiveauDEntrainement) => void; onDefense: () => void; onCollection: () => void; boss?: JSX.Element | null; defis?: JSX.Element | null; salles?: JSX.Element | null }) {
   const defense = serveur?.defense ?? null;
   const [guideRevu, setGuideRevu] = useState(false);
   const { a, total } = compteDeLaCollection(m.catalogue, aMoi);
@@ -438,6 +467,7 @@ function Accueil({ m, main, aMoi, serveur, onNiveau, onDefense, onCollection, bo
       </div>
 
       {defis}
+      {salles}
       <button type="button" class="jeu-panneau jeu-n9 dl-p dl-p-lien dl-p-defense" data-testid="duel-ouvrir-defense" onClick={onDefense}>
         <span class="dl-p-tete">
           <IconeDuDuel url={ICONES.defense()} />

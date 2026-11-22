@@ -3,6 +3,17 @@
     "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "staff",
+    "title": "Le duel mène aux salles",
+    "body": "L'accueil du duel, encore réservé au pilote, mène aux salles. Au téléphone, la page ne déborde plus sur le côté, et le bilan de fin est lu par les lecteurs d'écran.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "staff",
     "title": "Duel : les salles en direct",
     "body": "Pour le duel encore fermé : six salles de 25 à 1 000 statères, deux Gaulois en direct, 30 secondes par manche. Le gagnant prend les deux mises, moins un dixième pour la cagnotte de la saison.",
     "link": {

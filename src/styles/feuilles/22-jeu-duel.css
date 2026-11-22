@@ -75,6 +75,12 @@
 .duel-jeu .dl-btn[data-mot]:focus-visible::after {
   opacity: 1;
 }
+/* Le bouton du boss est au bord droit de son panneau : son mot s'aligne à droite, sans sortir de l'écran. */
+.duel-jeu .dl-affronter[data-mot]::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
 .duel-jeu .dl-grand {
   width: calc(44 * var(--jeu-p));
 }
