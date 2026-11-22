@@ -283,7 +283,7 @@ describe("le workflow des victoires", () => {
   it("ne garde pas le fichier dans son cache : il ne passe jamais d'un passage à l'autre", () => {
     expect(yml).not.toContain("sessions-du-passage");
     // Passent d'un passage à l'autre : les copies de l'état des envois (victoires, puis achats du village, puis annonces du marché,
-    // puis messages du trop-payé rendu) et les moteurs du jeu
+    // puis victoires en duel, puis messages du trop-payé rendu) et les moteurs du jeu
     // du rejeu. Les cartes de fin ne vont que du job du rejeu à celui de l'envoi, dans le même passage.
     expect([...yml.matchAll(/^\s+path: (.+?)\s*$/gm)].map((m) => m[1])).toEqual([
       ".cache/victoires-envoi.json",
@@ -297,6 +297,8 @@ describe("le workflow des victoires", () => {
       ".cache/achats-envoi.json",
       ".cache/marche-envoi.json",
       ".cache/marche-envoi.json",
+      ".cache/duels-envoi.json",
+      ".cache/duels-envoi.json",
       ".cache/rendus-prix-envoi.json",
       ".cache/rendus-prix-envoi.json",
     ]);

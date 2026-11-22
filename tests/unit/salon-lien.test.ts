@@ -272,6 +272,34 @@ describe("le salon des achats du village", () => {
   });
 });
 
+describe("le salon des duels", () => {
+  const ACHATS = "https://discord.com/api/webhooks/623456789012345678/achatsachatsachatsachatsach";
+  const DUELS = "https://discord.com/api/webhooks/723456789012345678/duelsduelsduelsduelsduelsdu";
+  it("son lien d'abord ; sinon celui des achats, puis celui des nouvelles, puis le secret des nouvelles", () => {
+    expect(chooseLink("duels", { nouvelles: NEWS, achats: ACHATS, duels: DUELS }, OLD)).toEqual({ link: DUELS, source: "direction" });
+    expect(chooseLink("duels", { nouvelles: NEWS, achats: ACHATS, duels: null }, OLD)).toEqual({ link: ACHATS, source: "direction" });
+    expect(chooseLink("duels", { nouvelles: NEWS, achats: null, duels: null }, OLD)).toEqual({ link: NEWS, source: "direction" });
+    expect(chooseLink("duels", { nouvelles: null, achats: null }, ` ${OLD} `)).toEqual({ link: OLD, source: "secret" });
+    expect(chooseLink("duels", null, "")).toEqual({ link: null, source: "none" });
+    // Le repli ne remonte pas : les achats ne prennent jamais le lien des duels.
+    expect(chooseLink("achats", { duels: DUELS }, "")).toEqual({ link: null, source: "none" });
+  });
+  it("un serveur qui ne connaît pas encore les duels les laisse suivre les achats", async () => {
+    expect(await salonLink("duels", ENV, answering({ nouvelles: NEWS, encadrement: null, achats: ACHATS }))).toEqual({ link: ACHATS, source: "direction", warning: null });
+    expect(await salonLink("duels", ENV, answering({ nouvelles: NEWS, encadrement: null, achats: ACHATS, duels: DUELS }))).toEqual({ link: DUELS, source: "direction", warning: null });
+  });
+  it("sans lien à lui, le contrôle du passage dit où partent ses messages, sans rien lire", async () => {
+    const logs: string[] = [];
+    const get = vi.fn(async () => new Response(JSON.stringify({ name: "x" }), { status: 200 }));
+    await checkSalons({ env: ENV, fetch: get as unknown as typeof fetch, log: (l) => logs.push(l), call: answering({ nouvelles: NEWS, encadrement: null, victoires: null, achats: null, duels: null }), note: async () => {} });
+    expect(logs).toContain("Salon des duels : pas de lien réglé pour lui, ses messages partent dans le salon des nouvelles.");
+    const avecAchats: string[] = [];
+    const ACHATS_LIEN = "https://discord.com/api/webhooks/623456789012345678/achatsachatsachatsachatsach";
+    await checkSalons({ env: ENV, fetch: get as unknown as typeof fetch, log: (l) => avecAchats.push(l), call: answering({ nouvelles: NEWS, encadrement: null, victoires: null, achats: ACHATS_LIEN, duels: null }), note: async () => {} });
+    expect(avecAchats).toContain("Salon des duels : pas de lien réglé pour lui, ses messages partent dans le salon des achats du village.");
+  });
+});
+
 describe("la migration du salon des achats", () => {
   const SQL = readFileSync("supabase/migrations/20261115000200_salon_des_achats.sql", "utf8");
   const outside = SQL.split("$$").filter((_, i) => i % 2 === 0).join(" ");

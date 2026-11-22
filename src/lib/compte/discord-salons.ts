@@ -7,7 +7,7 @@
  */
 import { lastSendSentence, outcomeSentence, type LastSend, type SendOutcome } from "./discord-appels";
 
-export type RobotSalonId = "nouvelles" | "encadrement" | "victoires" | "alliance" | "achats";
+export type RobotSalonId = "nouvelles" | "encadrement" | "victoires" | "alliance" | "achats" | "duels";
 
 export interface RobotSalonText {
   id: RobotSalonId;
@@ -71,6 +71,16 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
     intro: "Chaque objet reçu au village des Gaulois (boutique, pochette surprise, marché), en image, sous le nom Discord de l'acheteur, sans le prix, quelques minutes après l'achat.",
     secret: null,
     repli: { phrase: "Sans lien ici, les achats partent dans le salon des nouvelles.", etat: "Avec les nouvelles" },
+    optional: true,
+  },
+  {
+    // Chantier du duel « Coup pour coup » (22 novembre 2026) : le robot de la GitHub Action y poste l'image de chaque victoire
+    // d'un membre sur un autre membre en duel, toutes les 5 minutes ; sans lien ici, elles suivent le salon des achats.
+    id: "duels",
+    title: "Le salon des duels",
+    intro: "Chaque victoire d'un Gaulois sur un autre en duel de cartes, en image : les deux Gaulois, les pseudos publics seulement, sans aucun solde, quelques minutes après le duel.",
+    secret: null,
+    repli: { phrase: "Sans lien ici, les duels partent dans le salon des achats du village, ou dans celui des nouvelles s'il n'est pas branché.", etat: "Suit les achats" },
     optional: true,
   },
 ];

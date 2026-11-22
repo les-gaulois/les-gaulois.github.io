@@ -216,6 +216,16 @@ Le salut du salon général (`src/lib/arrivees-general-image.ts`, 14 novembre 20
 
 Une tenue que le village ne sait pas lire ne dessine rien et ne fait rien échouer. Les alertes de place, la course du soir, « Hier chez les Gaulois », les records et les images des commandes ne nomment aucun membre : elles n'ont pas de Gaulois. Chaque rangée de pastilles avec Gaulois ajoute environ 60 pixels : une victoire à beaucoup de Gaulois est plus haute, donc montrée plus étroite par Discord (320 pixels au lieu de 404 pour 24 Gaulois sur quatre lignes). `npm run images:apercu` dessine chaque image deux fois, sans puis avec des Gaulois tirés au sort (fichiers « -gaulois »).
 
+**La victoire en duel.** Depuis le 22 novembre 2026 (chantier du duel « Coup pour coup »), le robot poste une image après chaque victoire d'un membre sur un autre membre en duel de cartes (`src/lib/duels-image.ts`, envoyée par `src/lib/duels-discord.ts`). Mise en page « La grande scène », choisie parmi trois propositions de Claude Fable 5.2, montrées au pilote le 22 novembre 2026. 1 200 × 762, soit 1,57 fois plus large que haute.
+
+| Partie | Ce qu'elle montre |
+|---|---|
+| En-tête | Serré, pour laisser la place à la scène : le badge à 84 px, le filet tricolore, l'invite `./village`, la date du duel à droite de l'invite, puis le titre « Brennos bat Sucellos » en Inter, sans lettrine (deux pseudos). Un membre sans pseudo public s'écrit « Un Gaulois » (« un Gaulois » après « bat ») |
+| Scène | D'un bord à l'autre, à 6 pixels par case (`supabase/functions/code-discord/duel-image.ts`, calcul pur que Deno lit aussi) : la bannière du vaincu entière, cadre compris, accrochée au milieu d'un mur d'encre, avec 32 cases de coulisses de chaque côté, sur un plancher. Le vainqueur debout à gauche, tel que /gaulois le dessine ; le vaincu couché sur le côté à droite, les yeux fermés, trois étoiles au-dessus de la tête, comme à la fin d'un duel dans le jeu. Les poses ne font que retourner et tourner la grille du Gaulois : toute tenue et tout Gaulois unique passent. Chaque familier se tient du côté de son maître, tourné vers le milieu ; un grand familier reste derrière son maître plutôt que de sortir. Sans bannière, la place du village au moment du duel |
+| Rangée du bas | Les manches en chiffre clé ; la carte décisive (l'objet joué par le vainqueur à la dernière manche) dans sa vitrine au cadre de sa rareté, son nom, sa rareté en toutes lettres, « De base » pour un objet gratuit ; sans elle, « Fin du duel, Tombé sans coup ». Puis « Salle des 250 statères » pour un duel misé, rien sans mise. Jamais un solde ni un gain |
+
+`npx tsx scripts/atelier-gaulois/duels.ts` dessine sept cas d'exemple dans `.cache/atelier-duels/` (`bannieres` : devant chaque bannière ; `familiers` : chaque familier de chaque côté), avec l'étiquette « EXEMPLE », qui n'est pas dans l'image envoyée.
+
 Ce que disent les images ne change pas : les libellés des chiffres passent au-dessus du chiffre et en capitales, comme sur le site (« VICTOIRES », « TAUX DE VICTOIRE », « GAULOIS » puis « sur 23 joueurs »), et le titre de la gazette s'écrit en minuscules. Leur description pour les lecteurs d'écran et le texte de secours sont les mêmes. `npm run images:apercu` dessine un exemple de chacune, sans rien envoyer ; un test vérifie qu'aucun titre, libellé ou chiffre n'y est coupé.
 
 ## Organisation du site

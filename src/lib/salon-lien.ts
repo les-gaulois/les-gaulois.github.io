@@ -10,26 +10,44 @@
  * - Le salon des achats du village, depuis le 15 novembre 2026 (migration `20261115000200_salon_des_achats.sql`) : les objets
  *   reçus au village des Gaulois. Il n'a pas de secret GitHub propre : sans lien réglé pour lui, les achats suivent le salon
  *   des nouvelles (`SALON_REPLI`), lien de la Direction puis secret, comme avant ce réglage.
+ * - Le salon des duels, depuis le 22 novembre 2026 (chantier du duel « Coup pour coup ») : l'image de chaque victoire d'un
+ *   membre sur un autre membre en duel. Sans lien réglé pour lui, il suit le salon des achats, qui suit lui-même celui des
+ *   nouvelles.
  * À chaque passage, le robot lit aussi chaque webhook sans rien poster (`probeWebhook`) et note la réponse de Discord pour
  * l'espace Direction : un webhook supprimé s'y voit.
  * Le lien vaut un mot de passe pour le salon : il n'est écrit dans aucun journal, même d'erreur.
  */
 import { isWebhookUrl } from "./gazette-discord";
 
-export type RobotSalon = "nouvelles" | "encadrement" | "victoires" | "achats";
-export const ROBOT_SALONS: readonly RobotSalon[] = ["nouvelles", "encadrement", "victoires", "achats"];
+export type RobotSalon = "nouvelles" | "encadrement" | "victoires" | "achats" | "duels";
+export const ROBOT_SALONS: readonly RobotSalon[] = ["nouvelles", "encadrement", "victoires", "achats", "duels"];
 
 /**
- * Le secret GitHub de chaque salon, qui sert quand rien n'est réglé dans la Direction. Les achats n'ont pas le leur : celui
- * des nouvelles, par leur salon de repli.
+ * Le secret GitHub de chaque salon, qui sert quand rien n'est réglé dans la Direction. Les achats et les duels n'ont pas le
+ * leur : celui des nouvelles, au bout de leurs salons de repli.
  */
-export const SALON_SECRETS: Record<RobotSalon, string> = { nouvelles: "DISCORD_WEBHOOK_GAZETTE", encadrement: "DISCORD_WEBHOOK_ENCADREMENT", victoires: "DISCORD_WEBHOOK_VICTOIRES", achats: "DISCORD_WEBHOOK_GAZETTE" };
+export const SALON_SECRETS: Record<RobotSalon, string> = {
+  nouvelles: "DISCORD_WEBHOOK_GAZETTE",
+  encadrement: "DISCORD_WEBHOOK_ENCADREMENT",
+  victoires: "DISCORD_WEBHOOK_VICTOIRES",
+  achats: "DISCORD_WEBHOOK_GAZETTE",
+  duels: "DISCORD_WEBHOOK_GAZETTE",
+};
 
-/** Le salon dont un salon prend le lien quand rien n'est réglé pour lui dans la Direction. */
-export const SALON_REPLI: Partial<Record<RobotSalon, RobotSalon>> = { achats: "nouvelles" };
+/**
+ * Le salon dont un salon prend le lien quand rien n'est réglé pour lui dans la Direction. Un repli peut avoir le sien : les
+ * duels suivent les achats, qui suivent les nouvelles.
+ */
+export const SALON_REPLI: Partial<Record<RobotSalon, RobotSalon>> = { achats: "nouvelles", duels: "achats" };
 
 /** « Salon des nouvelles », pour le journal de l'Action. */
-export const SALON_LABELS: Record<RobotSalon, string> = { nouvelles: "Salon des nouvelles", encadrement: "Salon de l'encadrement", victoires: "Salon des victoires", achats: "Salon des achats du village" };
+export const SALON_LABELS: Record<RobotSalon, string> = {
+  nouvelles: "Salon des nouvelles",
+  encadrement: "Salon de l'encadrement",
+  victoires: "Salon des victoires",
+  achats: "Salon des achats du village",
+  duels: "Salon des duels",
+};
 
 /** D'où vient le lien : réglé dans la Direction, secret GitHub, ou aucun. */
 export type LinkSource = "direction" | "secret" | "none";
@@ -49,14 +67,16 @@ export type DirectionCall = (url: string, key: string) => Promise<unknown>;
 
 /**
  * Le lien de la Direction d'abord, sinon le secret. Un copier-coller peut laisser une espace autour du secret. Un salon de
- * repli (`SALON_REPLI`) sans lien à lui prend ensuite le lien de la Direction de son repli, puis le secret.
+ * repli (`SALON_REPLI`) sans lien à lui prend ensuite le lien de la Direction de son repli, puis du repli de son repli, puis
+ * le secret.
  */
 export function chooseLink(salon: RobotSalon, direction: DirectionLinks | null, secret: string | undefined): Omit<SalonLink, "warning"> {
-  const fromDirection = direction?.[salon]?.trim();
-  if (fromDirection) return { link: fromDirection, source: "direction" };
-  const repli = SALON_REPLI[salon];
-  const fromRepli = repli ? direction?.[repli]?.trim() : undefined;
-  if (fromRepli) return { link: fromRepli, source: "direction" };
+  const vus = new Set<RobotSalon>();
+  for (let s: RobotSalon | undefined = salon; s && !vus.has(s); s = SALON_REPLI[s]) {
+    vus.add(s);
+    const fromDirection = direction?.[s]?.trim();
+    if (fromDirection) return { link: fromDirection, source: "direction" };
+  }
   const fromSecret = secret?.trim();
   if (fromSecret) return { link: fromSecret, source: "secret" };
   return { link: null, source: "none" };
@@ -207,7 +227,10 @@ export async function checkSalons({ env, fetch: get, log, call = callSupabase, n
       continue;
     }
     if (repli && !links?.[salon]?.trim()) {
-      log(`${SALON_LABELS[salon]} : pas de lien réglé pour lui, ses messages partent dans le ${SALON_LABELS[repli].toLocaleLowerCase("fr")}.`);
+      // Le premier salon de la chaîne des replis qui a son lien, sinon le dernier, qui prend son secret.
+      let vers: RobotSalon = repli;
+      while (!links?.[vers]?.trim() && SALON_REPLI[vers]) vers = SALON_REPLI[vers] as RobotSalon;
+      log(`${SALON_LABELS[salon]} : pas de lien réglé pour lui, ses messages partent dans le ${SALON_LABELS[vers].toLocaleLowerCase("fr")}.`);
       continue;
     }
     const link = { ...chooseLink(salon, links, env[SALON_SECRETS[salon]]), warning };

@@ -11,7 +11,8 @@ name: Victoires et arrivées sur Discord
 #
 # Il annonce aussi les achats du village des Gaulois (demande du pilote, 15 novembre 2026 : toutes les 5 minutes), dans le
 # salon des achats réglé dans la Direction, sinon celui des nouvelles. Voir src/lib/achats-discord.ts. Et, depuis le
-# 19 novembre 2026, les nouvelles offres et demandes du marché, dans le même salon. Voir src/lib/marche-discord.ts.
+# 19 novembre 2026, les nouvelles offres et demandes du marché, dans le même salon. Voir src/lib/marche-discord.ts. Et, depuis
+# le 22 novembre 2026, les victoires en duel de cartes, dans le salon des duels. Voir src/lib/duels-discord.ts.
 on:
   workflow_dispatch:
 
@@ -94,8 +95,8 @@ jobs:
     if: ${{ !cancelled() && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     # La somme des délais des étapes, achats du village compris (15 novembre 2026), puis le marché (19 novembre 2026), puis
-    # les messages du trop-payé rendu (22 novembre 2026).
-    timeout-minutes: 28
+    # les messages du trop-payé rendu et les victoires en duel (22 novembre 2026).
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -286,6 +287,35 @@ jobs:
           done
           echo "::warning::Marché des Gaulois : état des annonces non enregistré sur main. Sa copie gardée en cache évite de les renvoyer ; il sera de nouveau enregistré avec la prochaine annonce."
           exit 1
+      # Les victoires en duel de cartes (chantier du duel « Coup pour coup », 22 novembre 2026) : l'image de chaque victoire d'un
+      # membre sur un autre, lue au serveur (duel_annonces_a_envoyer), qui note chaque envoi : pas d'état dans data/. Le robot garde
+      # aussi chaque envoi accepté dans le cache du workflow (.cache/duels-envoi.json) : une victoire que le serveur n'a pas pu
+      # noter ne repart pas. Dans le salon des duels réglé dans la Direction, sinon celui des achats, sinon celui des
+      # nouvelles. Rien tant que le duel est fermé ou que sa migration n'est pas collée.
+      - name: Restaurer l'état des victoires en duel annoncées
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/duels-envoi.json
+          key: duels-envoi-${{ github.run_id }}
+          restore-keys: duels-envoi-
+      - name: Annoncer les victoires en duel sur Discord
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run duels:envoyer
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+      - name: Conserver l'état des victoires en duel annoncées
+        if: ${{ !cancelled() && hashFiles('.cache/duels-envoi.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/duels-envoi.json
+          key: duels-envoi-${{ hashFiles('.cache/duels-envoi.json') }}
       # Le trop-payé rendu après les prix baissés du 21 novembre 2026 (docs/DIRECTION.md, « Le trop-payé rendu ») : le
       # message public, une fois, dans le salon des nouvelles, puis un message privé du robot (DISCORD_BOT_TOKEN) à chaque
       # joueur remboursé, lu au serveur (rendus_des_prix). Une fois tout parti, l'étape ne fait plus rien. Même garde-fou :

@@ -3,6 +3,17 @@
     "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "staff",
+    "title": "L'image d'une victoire en duel",
+    "body": "Après chaque victoire d'un Gaulois sur un autre au duel, le robot postera les deux Gaulois devant la bannière du vaincu. Rien ne part tant que le duel est fermé.",
+    "link": {
+      "href": "/direction#discord",
+      "label": "La Direction"
+    }
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "staff",
     "title": "Duel : boss du jour, défis et niveaux",
     "body": "Pour le futur duel de cartes, encore fermé : onze boss du jour avec leur pouvoir et leur lieu, vingt défis d'entraînement prouvés par un solveur, et les trois niveaux de l'ordinateur mesurés."
   },
