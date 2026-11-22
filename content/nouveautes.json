@@ -3,6 +3,17 @@
     "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "staff",
+    "title": "Le boss du jour et les défis dans le duel",
+    "body": "Dans « Le duel », encore réservé au pilote : le boss du jour avec son pouvoir et sa bannière, joué au serveur, et vingt défis d'entraînement, des énigmes de une à trois manches.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "staff",
     "title": "Le duel, en essai pour le pilote",
     "body": "Une partie « Le duel » dans Mon Gaulois, visible du seul pilote tant qu'il est fermé : duel de cartes contre la machine en trois niveaux, avec ses vrais objets, main de défense et collection.",
     "link": {

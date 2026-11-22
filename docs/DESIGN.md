@@ -1028,7 +1028,13 @@ dessinés autour par Claude Fable 5.2 (icônes de `dessins-ecran.ts`). Les règl
   navigateur, entraînement) ou au serveur (`jouer`, duel compté) ; une partie reprise rejoue ses manches sans les montrer.
   Sur téléphone, l'arène prend toute la largeur de l'écran.
 - **L'accueil** (`LeDuel.tsx`) : l'entraînement en trois niveaux (apprenti, guerrier, druide), ma défense (mes cinq cartes,
-  repoussés et fois battu), ma collection (« 21 sur 273 »). Le boss du jour et les défis y paraîtront avec leur contenu.
+  repoussés et fois battu), ma collection (« 21 sur 273 »), le boss du jour et les défis (`BossEtDefis.tsx`).
+- **Le boss du jour** : un Gaulois unique debout sur sa bannière, son pouvoir, et le bouton pour l'affronter. Au serveur,
+  le duel est compté (`commencer_duel` puis une manche à la fois) ; une partie laissée en route reprend où elle en était,
+  contre son boss, même le lendemain. Tant que le serveur n'a pas le duel, la machine du navigateur le joue pour l'essai,
+  sans rien gagner. La logique sans écran est dans `partie-du-boss.ts`, testée.
+- **Les défis** : de petites énigmes du contenu, une consigne courte chacune, joués dans la page sans le serveur. Ceux
+  qu'on a réussis ne sont retenus que sur l'appareil (`gal-duel-defis`).
 - **La collection** (`Recueil.tsx`) : les vraies cartes du membre (son inventaire et les cartes de base). Une carte qu'on n'a
   pas est grisée (proposition de Claude Fable 5.2 : face pâlie sans couleur, objet en silhouette, bord en pointillé), avec
   où la trouver (boutique, booster, pass, qui mènent à leur partie ; le divin au booster seul, la saison au pass seul). Le

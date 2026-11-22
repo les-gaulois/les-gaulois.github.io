@@ -1,6 +1,6 @@
 import type { JSX } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { call } from "../../../lib/compte/api";
+import { call, duel } from "../../../lib/compte/api";
 import { TENUE_DE_DEPART, changerObjet, tenueDuServeur, type Tenue } from "../../../lib/gaulois";
 import { urlDeLaPlanche } from "../../../lib/jeu/dans-la-page";
 import { ecrire, enCapitales, largeurDuTexte } from "../../../lib/jeu/ecriture";
@@ -18,6 +18,7 @@ import {
   compteDeLaCollection,
   NIVEAUX_AVEC_ARTICLE,
   lireLEtatDuServeur,
+  type PartieEnCours,
   mainParDefaut,
   nomDeLObjet,
   type EtatLuDuServeur,
@@ -38,6 +39,7 @@ import type { MoteurDuDuel } from "./moteur";
 import { Recueil, urlDeLaCarte } from "./Recueil";
 import { lancerLeDuel, type CampAPoser, type FinDuDuel, type LieuDuDuel, type OptionsDeLaScene, type SceneDuDuel } from "./SceneDuDuel";
 import { urlDePetiteIcone } from "./petites-icones";
+import { DEFIS, ICONE_DES_DEFIS, ICONE_DU_BOSS, ListeDesDefis, PanneauDesDefis, PanneauDuBoss, bossDAujourdHui, choisirLeBoss, motDeFinDuBoss, optionsDuBossDuJour, partieContreLeBoss, sceneDuDefi, tenueDuBoss, useDefisReussis, type Boss, type Defi } from "./BossEtDefis";
 import { SON } from "./sons-du-duel";
 
 /**
@@ -217,7 +219,8 @@ function TeteDEcran({ titre, icone, retour, droite }: { titre: string; icone: st
 
 /* ---------- Le duel ---------- */
 
-type Vue = { kind: "accueil" } | { kind: "arene"; rencontre: Rencontre; partie: number } | { kind: "collection" } | { kind: "defense" };
+/** L'arène : sa rencontre, et de quoi en refaire une neuve pour « Rejouer » (jamais une reprise, jamais une partie finie). */
+type Vue = { kind: "accueil" } | { kind: "arene"; rencontre: Rencontre; neuve: () => Rencontre; partie: number } | { kind: "collection" } | { kind: "defense" } | { kind: "defis" };
 
 export default function LeDuel({ serveur }: { serveur: unknown | null }) {
   const m = MOTEUR;
@@ -228,6 +231,21 @@ export default function LeDuel({ serveur }: { serveur: unknown | null }) {
   // Les cartes à moi : celles que le serveur dit jouables quand il a le duel, sinon l'inventaire et les cartes de base.
   const aMoi = useMemo(() => etatServeur?.collection ?? (inventaire || !panne ? cartesAMoi(m.catalogue, inventaire) : null), [etatServeur, inventaire, panne, m]);
   const [main, setMain] = useState<string[] | null>(null);
+  const [reussis, noterReussi] = useDefisReussis();
+  // Après un duel au serveur : l'état se relit (le boss battu, la partie finie, l'historique).
+  const relireLeServeur = (): void => {
+    if (!etatServeur) return;
+    void duel.etat().then(
+      (r) => setEtatServeur(lireLEtatDuServeur(r)),
+      () => undefined,
+    );
+  };
+  const boss = useMemo(() => bossDAujourdHui(etatServeur?.boss ?? null), [etatServeur]);
+  useEffect(() => {
+    if (serveur) relireLeServeur();
+  }, []);
+  const mainRef = useRef<readonly string[]>([]);
+  mainRef.current = main ?? [];
 
   // La main d'entraînement : celle de l'appareil si elle est encore valable, sinon la défense, sinon ce que porte le Gaulois.
   useEffect(() => {
@@ -269,9 +287,23 @@ export default function LeDuel({ serveur }: { serveur: unknown | null }) {
           main={main}
           aMoi={aMoi}
           serveur={etatServeur}
-          onNiveau={(niveau) => setVue({ kind: "arene", rencontre: rencontreDEntrainement(niveau), partie: Date.now() })}
+          onNiveau={(niveau) => setVue({ kind: "arene", rencontre: rencontreDEntrainement(niveau), neuve: () => rencontreDEntrainement(niveau), partie: Date.now() })}
           onDefense={() => setVue({ kind: "defense" })}
           onCollection={() => setVue({ kind: "collection" })}
+          boss={
+            <PanneauDuBoss
+              boss={boss}
+              battu={etatServeur?.bossBattu ?? false}
+              lib={lib || null}
+              onAffronter={() => {
+                // Une partie que le serveur garde ouverte contre un boss se reprend, contre ce boss-là (peut-être celui d'hier).
+                const enCours = etatServeur?.partie?.contre === "boss" ? etatServeur.partie : null;
+                const neuve = (): Rencontre => rencontreDuBoss(bossDAujourdHui(), !!etatServeur, () => mainRef.current, null, relireLeServeur);
+                setVue({ kind: "arene", rencontre: enCours ? rencontreDuBoss(bossDAujourdHui(enCours.boss), true, () => mainRef.current, enCours, relireLeServeur) : neuve(), neuve, partie: Date.now() });
+              }}
+            />
+          }
+          defis={<PanneauDesDefis reussis={reussis} onOuvrir={() => setVue({ kind: "defis" })} />}
         />
       )}
       {vue.kind === "arene" && (
@@ -284,9 +316,29 @@ export default function LeDuel({ serveur }: { serveur: unknown | null }) {
           aMoi={aMoi}
           rencontre={vue.rencontre}
           onMain={garderLaMain}
-          onRejouer={() => setVue({ kind: "arene", rencontre: vue.rencontre, partie: Date.now() })}
-          onQuitter={() => setVue({ kind: "accueil" })}
+          onRejouer={() => setVue({ kind: "arene", rencontre: vue.neuve(), neuve: vue.neuve, partie: Date.now() })}
+          onQuitter={() => {
+            relireLeServeur();
+            setVue({ kind: "accueil" });
+          }}
         />
+      )}
+      {vue.kind === "defis" && (
+        <section class="dl-ecran" aria-label="Les défis">
+          <TeteDEcran
+            titre="Défis"
+            icone={ICONE_DES_DEFIS()}
+            retour={() => setVue({ kind: "accueil" })}
+            droite={<Px t={`${DEFIS.filter((d) => reussis.has(d.id)).length} SUR ${DEFIS.length}`} couleur="or" classe="dl-p-droite" />}
+          />
+          <ListeDesDefis
+            reussis={reussis}
+            onJouer={(d) => {
+              const neuve = (): Rencontre => rencontreDuDefi(d, () => noterReussi(d.id));
+              setVue({ kind: "arene", rencontre: neuve(), neuve, partie: Date.now() });
+            }}
+          />
+        </section>
       )}
       {vue.kind === "collection" && (
         <section class="dl-ecran" aria-label="Ma collection">
@@ -332,13 +384,14 @@ function PetiteCarte({ m, id, classe = "" }: { m: MoteurDuDuel; id: string; clas
 
 /* ---------- L'accueil ---------- */
 
-function Accueil({ m, main, aMoi, serveur, onNiveau, onDefense, onCollection }: { m: MoteurDuDuel; main: readonly string[]; aMoi: ReadonlySet<string>; serveur: EtatLuDuServeur | null; onNiveau: (n: NiveauDEntrainement) => void; onDefense: () => void; onCollection: () => void }) {
+function Accueil({ m, main, aMoi, serveur, onNiveau, onDefense, onCollection, boss = null, defis = null }: { m: MoteurDuDuel; main: readonly string[]; aMoi: ReadonlySet<string>; serveur: EtatLuDuServeur | null; onNiveau: (n: NiveauDEntrainement) => void; onDefense: () => void; onCollection: () => void; boss?: JSX.Element | null; defis?: JSX.Element | null }) {
   const defense = serveur?.defense ?? null;
   const [guideRevu, setGuideRevu] = useState(false);
   const { a, total } = compteDeLaCollection(m.catalogue, aMoi);
   const eventail = [...aMoi].filter((id) => m.catalogue[id]?.r !== "base").sort((x, y) => m.prix(y) - m.prix(x)).slice(0, 3);
   return (
     <section class="dl-accueil" aria-label="L'accueil du duel">
+      {boss}
       <div class="jeu-panneau jeu-n9 dl-p dl-p-entrainement">
         <h3 class="dl-p-tete">
           <IconeDuDuel url={ICONES.duel()} />
@@ -384,6 +437,7 @@ function Accueil({ m, main, aMoi, serveur, onNiveau, onDefense, onCollection }: 
         </p>
       </div>
 
+      {defis}
       <button type="button" class="jeu-panneau jeu-n9 dl-p dl-p-lien dl-p-defense" data-testid="duel-ouvrir-defense" onClick={onDefense}>
         <span class="dl-p-tete">
           <IconeDuDuel url={ICONES.defense()} />
@@ -442,6 +496,12 @@ export interface Rencontre {
   lui: (idDuLieu: string | null) => CampAPoser;
   /** Une main imposée (un défi) : elle ne se change pas, et la mienne reste celle d'avant. */
   mainImposee?: readonly string[];
+  /** Le lieu que donne le serveur (la famille de la bannière du boss), quand les bannières ne se chargent pas. */
+  lieuDuServeur?: string;
+  /** Les manches déjà jouées d'une partie reprise au serveur. */
+  reprise?: readonly (readonly [number, number])[];
+  /** Un défi : sa consigne s'écrit à la place du lieu, et le familier n'y donne rien (le défi pose les deux camps). */
+  consigne?: { titre: string; phrase: string };
   choisir?: OptionsDeLaScene["choisir"];
   jouer?: OptionsDeLaScene["jouer"];
   defi?: OptionsDeLaScene["defi"];
@@ -469,6 +529,56 @@ function rencontreDEntrainement(niveau: NiveauDEntrainement): Rencontre {
     }),
     choisir: (b, a, manche) => choisirAuNiveau(b, a, manche, niveau),
     motDeFin: () => "Duel d'entraînement : rien n'est gagné ni perdu.",
+  };
+}
+
+/**
+ * La rencontre contre le boss du jour : au serveur quand il a le duel, sinon un essai dans la page. Une partie que le
+ * serveur garde ouverte contre ce boss se reprend : sa main et ses manches jouées.
+ */
+function rencontreDuBoss(boss: Boss, auServeur: boolean, main: () => readonly string[], enCours: PartieEnCours | null, onFin: () => void): Rencontre {
+  const reprise = enCours && enCours.contre === "boss" && enCours.boss === boss.id ? enCours : null;
+  const serveur = auServeur ? partieContreLeBoss(main, reprise?.id ?? null) : null;
+  return {
+    ...(reprise ? { mainImposee: reprise.main, reprise: reprise.coups } : {}),
+    titre: boss.titre,
+    icone: ICONE_DU_BOSS(),
+    dit: `Duel contre le boss du jour : ${boss.titre}`,
+    banniere: boss.lieu.banniere,
+    lui: () => ({
+      ruban: "BOSS",
+      bleu: false,
+      dit: `Le boss du jour, ${boss.titre}`,
+      main: boss.main,
+      tenue: tenueDuBoss(boss),
+      familier: null,
+      options: optionsDuBossDuJour(boss),
+      plus: [{ gras: `Pouvoir du boss : ${boss.pouvoir.nom}.`, texte: boss.pouvoir.phrase }],
+    }),
+    lieuDuServeur: boss.lieu.famille,
+    ...(serveur ? { jouer: serveur.jouer } : { choisir: choisirLeBoss }),
+    motDeFin: motDeFinDuBoss(boss, auServeur, () => serveur?.pas() ?? null),
+    onFin,
+  };
+}
+
+/** La rencontre d'un défi : sa main, son adversaire, son issue. */
+function rencontreDuDefi(d: Defi, onReussi: () => void): Rencontre {
+  const sd = sceneDuDefi(d);
+  return {
+    titre: d.titre,
+    icone: ICONE_DES_DEFIS(),
+    dit: `Défi : ${d.titre}. ${d.consigne}`,
+    banniere: null,
+    lui: () => ({ ruban: "DÉFI", bleu: false, dit: "Le Gaulois du défi", main: d.lui.main, tenue: TENUE_DE_DEPART, familier: null, options: { lieu: d.lieu } }),
+    mainImposee: d.toi.main,
+    consigne: { titre: d.titre, phrase: `${d.consigne}${d.lieu && MOTEUR.lieux[d.lieu] ? ` ${MOTEUR.lieux[d.lieu]!.phrase}` : ""}` },
+    choisir: sd.choisir,
+    defi: { depart: sd.depart, annonce: sd.annonce, issue: sd.issue },
+    motDeFin: (f) => (f.verdict > 0 ? "Défi réussi." : `Défi raté. Un indice : ${d.indice}`),
+    onFin: (f) => {
+      if (f.verdict > 0) onReussi();
+    },
   };
 }
 
@@ -501,7 +611,8 @@ function Arene({
   const r = rencontre;
   useEffect(() => {
     if (!pret || !racine.current) return;
-    const { lieu, idDuLieu } = lieuDe(lib, r.banniere, m);
+    const { lieu, idDuLieu: lieuDeLaBanniere } = lieuDe(lib, r.banniere, m);
+    const idDuLieu = lieuDeLaBanniere ?? r.lieuDuServeur ?? null;
     let guide = true;
     try {
       guide = localStorage.getItem(CLE_DU_GUIDE) !== "vu";
@@ -509,15 +620,17 @@ function Arene({
       guide = true;
     }
     const imposee = r.mainImposee ?? null;
-    const moi: CampAPoser = { ruban: "TOI", bleu: true, dit: "Ton Gaulois", main: imposee ?? main, tenue: gaulois.tenue, familier: gaulois.familier, options: { compagnon: compagnonDe(gaulois.familier), lieu: idDuLieu } };
+    const moi: CampAPoser = { ruban: "TOI", bleu: true, dit: "Ton Gaulois", main: imposee ?? main, tenue: gaulois.tenue, familier: r.consigne ? null : gaulois.familier, options: { compagnon: r.consigne ? null : compagnonDe(gaulois.familier), lieu: idDuLieu } };
+    const lieuMontre = r.consigne ? { ...lieu, nom: r.consigne.titre, phrase: r.consigne.phrase } : lieu;
     scene.current = lancerLeDuel(racine.current, {
       moteur: m,
       moi,
       lui: r.lui(idDuLieu),
-      lieu,
+      lieu: lieuMontre,
       choisir: r.choisir,
       jouer: r.jouer,
       defi: r.defi,
+      reprise: r.reprise,
       changerUneCarte: imposee ? null : (i, mainActuelle) => setTiroir({ i, main: mainActuelle }),
       guide,
       motDeFin: r.motDeFin,
@@ -612,7 +725,7 @@ function MainDeDefense({
     if (refus || envoi.kind === "envoi") return;
     setEnvoi({ kind: "envoi" });
     try {
-      await call<unknown>("enregistrer_main_duel", { p_main: Object.fromEntries(EMPLACEMENTS_DE_LA_MAIN.map((e, i) => [e, main[i]])) });
+      await duel.enregistrerMain(Object.fromEntries(EMPLACEMENTS_DE_LA_MAIN.map((e, i) => [e, main[i]!])) as Parameters<typeof duel.enregistrerMain>[0]);
       onEnregistree(main);
       setEnvoi({ kind: "fait" });
       SON.enfile();
@@ -731,7 +844,7 @@ function MainDeDefense({
           <ul class="dl-historique-liste">
             {serveur.defenses.map((l, i) => (
               <li key={i} class={`dl-h-${l.issue}`}>
-                <span class="dl-h-nom">{l.nom}</span>
+                <span class="dl-h-nom">{l.nom ?? "Un Gaulois"}</span>
                 <span class="dl-h-date">{new Date(l.le).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "Europe/Paris" })}</span>
                 {l.issue === "repousse" ? <Mot t="Repoussé" {...VERT} /> : l.issue === "battu" ? <Mot t="T'a battu" {...ROUGE} /> : <Px t="Égalité" couleur="doux" />}
               </li>

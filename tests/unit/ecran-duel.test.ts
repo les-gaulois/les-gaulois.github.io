@@ -120,6 +120,7 @@ describe("ce que le serveur du duel dit de moi", () => {
       defenses: [
         { le: "2026-11-22T10:00:00Z", nom: "Ambre", issue: "repousse", manches: 6 },
         { le: "2026-11-22T11:00:00Z", nom: "Boris", issue: "inconnue", manches: 3 },
+        { le: "2026-11-22T12:00:00Z", nom: null, issue: "battu", manches: 4 },
       ],
       bilan: { repousses: 12, battus: 4 },
     });
@@ -129,7 +130,8 @@ describe("ce que le serveur du duel dit de moi", () => {
     expect([...e!.collection!].sort()).toEqual(["bonnet", "epee", "gourdin"]);
     expect(e!.boss).toBe("loup");
     expect(e!.bossBattu).toBe(true);
-    expect(e!.defenses).toHaveLength(1);
+    expect(e!.defenses).toHaveLength(2);
+    expect(e!.defenses[1]!.nom).toBeNull();
     expect([e!.repousses, e!.battus]).toEqual([12, 4]);
   });
 
@@ -139,6 +141,13 @@ describe("ce que le serveur du duel dit de moi", () => {
     expect(e!.defenseValide).toBe(false);
     expect([e!.repousses, e!.battus]).toEqual([null, null]);
     expect(e!.collection).toBeNull();
+  });
+
+  it("lit la partie en cours à reprendre, et ignore une partie finie", () => {
+    const partie = { partie: 42, contre: "boss", boss: "loup", fini: false, compte: true, mains: { a: MAIN, b: MAIN }, coups: [[0, 1], [2, 0]] };
+    expect(lireLEtatDuServeur({ ok: true, partie })!.partie).toEqual({ id: 42, contre: "boss", boss: "loup", main: ["gourdin", "bonnet", "tunique", "bottes", "braies"], coups: [[0, 1], [2, 0]], compte: true });
+    expect(lireLEtatDuServeur({ ok: true, partie: { ...partie, fini: true } })!.partie).toBeNull();
+    expect(lireLEtatDuServeur({ ok: true, partie: { ...partie, coups: [[0, "x"]] } })!.partie).toBeNull();
   });
 
   it("refuse une réponse illisible ou un refus", () => {

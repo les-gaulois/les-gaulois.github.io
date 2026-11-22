@@ -209,7 +209,8 @@ export const ADVERSAIRES_D_ENTRAINEMENT: Readonly<Record<NiveauDEntrainement, Ad
 /** Une attaque reçue par ma main de défense. */
 export interface DefenseRecue {
   le: string;
-  nom: string;
+  /** Le nom au village de celui qui m'a défié ; `null` si son compte n'est plus validé (l'écran écrit « Un Gaulois »). */
+  nom: string | null;
   issue: "repousse" | "battu" | "egalite";
   manches: number;
 }
@@ -229,6 +230,36 @@ export interface EtatLuDuServeur {
   defenses: DefenseRecue[];
   repousses: number | null;
   battus: number | null;
+  /** La partie en cours au serveur, à reprendre (une seule à la fois) ; `null` sans partie en cours. */
+  partie: PartieEnCours | null;
+}
+
+/** Une partie que le serveur garde ouverte : l'écran la rejoue depuis sa main et ses coups, puis la poursuit. */
+export interface PartieEnCours {
+  id: number;
+  contre: "membre" | "boss";
+  boss: string | null;
+  /** Ma main de cette partie, dans l'ordre des emplacements. */
+  main: string[];
+  /** Les manches jouées : [ma carte, la sienne]. */
+  coups: [number, number][];
+  compte: boolean;
+}
+
+function lirePartie(p: unknown): PartieEnCours | null {
+  if (!estObjet(p) || p["fini"] !== false || entier(p["partie"]) === null) return null;
+  const contre = p["contre"];
+  const mains = estObjet(p["mains"]) ? p["mains"] : null;
+  const a = mains && estObjet(mains["a"]) ? mains["a"] : null;
+  if ((contre !== "membre" && contre !== "boss") || !a) return null;
+  const main = EMPLACEMENTS_DE_LA_MAIN.map((e) => (typeof a[e] === "string" ? (a[e] as string) : ""));
+  if (!main.every(Boolean)) return null;
+  const coups: [number, number][] = [];
+  for (const c of Array.isArray(p["coups"]) ? p["coups"] : []) {
+    if (!Array.isArray(c) || entier(c[0]) === null || entier(c[1]) === null) return null;
+    coups.push([c[0] as number, c[1] as number]);
+  }
+  return { id: p["partie"] as number, contre, boss: typeof p["boss"] === "string" ? p["boss"] : null, main, coups, compte: p["compte"] === true };
 }
 
 const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -241,9 +272,10 @@ export function lireLEtatDuServeur(raw: unknown): EtatLuDuServeur | null {
   const c = raw["collection"];
   const collection = estObjet(c) ? new Set(EMPLACEMENTS_DE_LA_MAIN.flatMap((e) => (Array.isArray(c[e]) ? (c[e] as unknown[]).filter((x): x is string => typeof x === "string") : []))) : null;
   const defenses = (Array.isArray(raw["defenses"]) ? raw["defenses"] : []).flatMap((l): DefenseRecue[] => {
-    if (!estObjet(l) || typeof l["le"] !== "string" || typeof l["nom"] !== "string" || entier(l["manches"]) === null) return [];
+    if (!estObjet(l) || typeof l["le"] !== "string" || entier(l["manches"]) === null) return [];
+    const nom = typeof l["nom"] === "string" && l["nom"].trim() !== "" ? l["nom"] : null;
     const issue = l["issue"];
-    return issue === "repousse" || issue === "battu" || issue === "egalite" ? [{ le: l["le"], nom: l["nom"], issue, manches: l["manches"] as number }] : [];
+    return issue === "repousse" || issue === "battu" || issue === "egalite" ? [{ le: l["le"], nom, issue, manches: l["manches"] as number }] : [];
   });
   const bilan = estObjet(raw["bilan"]) ? raw["bilan"] : {};
   const boss = estObjet(raw["boss"]) ? raw["boss"] : null;
@@ -257,6 +289,7 @@ export function lireLEtatDuServeur(raw: unknown): EtatLuDuServeur | null {
     defenses,
     repousses: entier(bilan["repousses"]),
     battus: entier(bilan["battus"]),
+    partie: lirePartie(raw["partie"]),
   };
 }
 

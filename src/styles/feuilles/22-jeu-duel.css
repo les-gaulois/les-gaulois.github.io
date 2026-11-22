@@ -1485,10 +1485,6 @@
   display: flex;
   justify-content: center;
 }
-.dl-boss-scene .gaulois-cadre {
-  display: block;
-  width: 100%;
-}
 .dl-boss-nom {
   position: absolute;
   top: calc(4 * var(--jeu-p));
@@ -1601,5 +1597,31 @@
   .dl-p-defense .dl-petite {
     width: 30px;
     height: 39px;
+  }
+}
+/* Avec le boss du jour : le boss à gauche sur deux rangées, l'entraînement et les défis à sa droite, puis la défense et la
+   collection (dessin de Claude Fable 5.2). */
+@media (min-width: 64rem) {
+  .dl-accueil:has(.dl-p-boss) .dl-p-entrainement {
+    grid-column: auto;
+  }
+}
+.dl-boss-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 124 / 80;
+  background: 0 100% / 100% auto no-repeat;
+  image-rendering: pixelated;
+  box-shadow: 0 0 0 var(--jeu-p) var(--dl-trait);
+}
+/* Sous 1 024 pixels, la scène du boss garde ses proportions sur 128 pixels de haut au plus, centrée : le boss paraît
+   en entier et tout l'accueil tient dans l'écran du téléphone. */
+@media (max-width: 63.99rem) {
+  .dl-boss-image {
+    width: min(100%, 198px);
+  }
+  .dl-boss-nom {
+    top: calc(2 * var(--jeu-p));
+    right: calc(2 * var(--jeu-p));
   }
 }
