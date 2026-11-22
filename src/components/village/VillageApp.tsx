@@ -135,9 +135,9 @@ export default function VillageApp() {
     if (surLeDuel && acces.kind === "ferme") select(ANCRE_MA_CARTE);
   }, [surLeDuel, acces.kind, select]);
 
-  // « Le casino » : visible dès que le serveur répond. Son écran (le hall, les jeux, leurs peintures) ne se charge qu'à
-  // l'ouverture de sa partie ; le hall relit le serveur à chaque retour d'un jeu. Une adresse `#casino` sans casino ramène
-  // à « Ma carte ».
+  // « Le casino » : visible quand le serveur répond, et au seul pilote tant que `CASINO_POUR_TOUS` est faux. Son écran (le
+  // hall, les jeux, leurs peintures) ne se charge qu'à l'ouverture de sa partie ; le hall relit le serveur à chaque retour
+  // d'un jeu. Une adresse `#casino` sans casino ramène à « Ma carte ».
   const surLeCasino = active === ANCRE_CASINO;
   const casinoServeur = useCasinoDuServeur(gauloisCree);
   const casinoVisible = !!casinoServeur.etat;

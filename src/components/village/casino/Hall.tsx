@@ -214,7 +214,7 @@ export function Hall({ etat, prets, ouvrir }: { etat: EtatDuCasino; prets: Reado
             {(
               [
                 ["bouclier", "Le serveur tire d'abord"],
-                ["balance", "Chaque jeu rend la mise"],
+                ["balance", "Les jeux rendent la mise en moyenne"],
                 ["piece", "Des statères, rien d'autre"],
               ] as const
             ).map(([ic, t]) => (

@@ -55,7 +55,7 @@ export const jeuxDeLaCategorie = (cat: CategorieDuCasino): JeuDuHall[] => JEUX_D
 
 /**
  * L'onglet « Le casino » paraît-il ? À tous quand le casino est ouvert à tous (`CASINO_POUR_TOUS` d'`acces.ts`) ; sinon au
- * seul titulaire du don de statères, que le serveur reconnaît par `get_village_god` (`permis`). Une réponse illisible : non.
+ * seul titulaire du mode GOD (le pilote), que le serveur reconnaît par `get_village_god` (`permis`). Une réponse illisible : non.
  */
 export function casinoMontre(pourTous: boolean, god: { permis: boolean } | null): boolean {
   return pourTous || god?.permis === true;
