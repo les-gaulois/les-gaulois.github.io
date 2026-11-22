@@ -256,6 +256,8 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   racine.textContent = "";
   const scene = cree("div", "dl-scene", racine);
   scene.dataset["phase"] = "avant";
+  // un groupe nommé : un `div` sans rôle ne peut pas porter d'étiquette
+  scene.setAttribute("role", "group");
   scene.setAttribute("aria-label", "Le duel");
   const fx = cree("canvas", "dl-fx", scene);
   fx.setAttribute("aria-hidden", "true");
@@ -454,7 +456,9 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   const finTitre = cree("span", "", finRuban);
   finTitre.id = `dl-fin-titre-${Math.random().toString(36).slice(2, 8)}`;
   finPanneau.setAttribute("aria-labelledby", finTitre.id);
+  // le bilan est un dessin en pixels (noms, cœurs, vie) : une image, dite par son étiquette
   const finBilan = cree("div", "dl-fin-bilan", finPanneau);
+  finBilan.setAttribute("role", "img");
   const finChute = cree("span", "dl-fin-chute", finPanneau);
   const finMot = cree("p", "dl-fin-mot", finPanneau);
   const finBoutons = cree("div", "dl-fin-boutons", finPanneau);
