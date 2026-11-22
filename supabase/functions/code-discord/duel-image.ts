@@ -1,6 +1,6 @@
 /**
  * La scène de l'image d'une victoire en duel de cartes (« Coup pour coup », chantier du 22 novembre 2026) : les deux Gaulois
- * devant la bannière du vaincu, qui était le lieu du duel, case par case. Le vainqueur est debout à gauche, tel que /gaulois
+ * devant la bannière du lieu du duel (celle du vaincu, ou dans une salle en direct celle de qui attendait), case par case. Le vainqueur est debout à gauche, tel que /gaulois
  * le dessine ; le vaincu est couché sur le côté à droite, les yeux fermés, trois étoiles au-dessus de la tête, comme à la
  * fin d'un duel dans le jeu (maquette validée par le pilote). Chaque familier se tient du côté de son maître, tourné vers le
  * milieu.
@@ -34,7 +34,7 @@ export const COULISSES = 32;
 /** La scène entière, en cases : la bannière et ses deux coulisses. */
 export const SCENE_DU_DUEL = { largeur: LARGEUR + 2 * COULISSES, hauteur: HAUTEUR } as const;
 
-/** Le lieu où pose le vainqueur, sans bannière du vaincu : la place du village, au moment du duel. */
+/** Le lieu du duel sans bannière : la place du village, au moment du duel. */
 export const LIEU_DE_SECOURS = "place";
 
 /** Les couleurs des coulisses : l'encre des images du robot (`CARD_COLORS` de src/lib/gazette-image.ts), écrites ici pour Deno. */
@@ -136,7 +136,7 @@ export interface Duelliste {
   familier: FamilierAPoser | null;
 }
 
-/** Le fond d'un duel : la bannière du vaincu, cadre compris, ou, sans elle, la place du village au moment du duel. */
+/** Le fond d'un duel : la bannière du lieu, cadre compris, ou, sans elle, la place du village au moment du duel. */
 export function fondDuDuel(banniere: string | null, le: Date): Decor {
   return dessinDeLaBanniere(banniere) ?? decorDe(LIEU_DE_SECOURS, momentDeParis(le));
 }

@@ -1,10 +1,12 @@
 /**
  * Les victoires en duel sur Discord (chantier du duel « Coup pour coup », 22 novembre 2026, septième des neuf chantiers
  * choisis par le pilote) : après chaque victoire d'un membre sur un autre membre en duel de cartes, le robot poste une image,
- * « Jod bat Astérion en 7 manches », avec les deux Gaulois devant la bannière du vaincu, qui était le lieu du duel.
+ * « Jod bat Astérion en 7 manches », avec les deux Gaulois devant la bannière du lieu du duel : celle du vaincu pour un défi
+ * contre sa main de défense, celle du Gaulois qui attendait dans la salle pour un match en direct (`banniere_du_lieu`).
  *
  * - **Ce qui est annoncé** : la file du serveur (`duel_annonces_a_envoyer`, réservée à la clé de service, migration du duel)
- *   donne chaque duel compté gagné. Seule part la victoire d'un membre sur la main de défense d'un autre membre. Les essais
+ *   donne chaque duel compté gagné, et chaque match de salle en direct gagné au combat (migration 20261122001000). Partent
+ *   les victoires d'un membre sur la main de défense d'un autre membre, ou sur un autre membre en salle. Les essais
  *   joués pendant que le duel est fermé (`essai`, les parties du pilote) et les victoires contre le boss du jour, sans second
  *   Gaulois, sont notées sans être postées, comme une ligne illisible ou une victoire de plus de 48 heures.
  * - **Ce qui est écrit** : les pseudos publics du clan seulement (« Un Gaulois » sans pseudo public), le nombre de manches, la
@@ -82,7 +84,7 @@ export interface VictoireEnDuel {
    * que ce code ne connaît pas encore ; l'image ne dit alors rien de la fin du duel, plutôt que d'inventer une cause.
    */
   carte: CarteDecisive | "inconnue" | null;
-  /** La bannière du vaincu, lieu du duel, si elle est connue de ce code. */
+  /** La bannière du lieu du duel (du vaincu, ou de qui attendait dans la salle), si elle est connue de ce code. */
   lieu: string | null;
   vainqueur: GauloisDuDuel;
   vaincu: GauloisDuDuel;
@@ -138,7 +140,7 @@ export function duelEnMots(v: VictoireEnDuel): string[] {
   const avec = (g: GauloisDuDuel) => (familier(g) ? `, avec son familier (${familier(g)})` : "");
   return [
     `${titreDuDuel(v)}, en duel de cartes, ${quand(v.le)}.`,
-    `${lieu ? `Devant la bannière « ${lieu.nom} » du vaincu, lieu du duel` : "Au village"} : ${nomDuGaulois(v.vainqueur)} debout${avec(v.vainqueur)}, ${nomDuGaulois(v.vaincu)} à terre${avec(v.vaincu)}.`,
+    `${lieu ? `Devant la bannière « ${lieu.nom} », lieu du duel` : "Au village"} : ${nomDuGaulois(v.vainqueur)} debout${avec(v.vainqueur)}, ${nomDuGaulois(v.vaincu)} à terre${avec(v.vaincu)}.`,
     ...(carte ? [`Carte décisive : ${carte.nom} (${carte.rareteEnMots.toLocaleLowerCase("fr")}, ${carte.place}).`] : v.carte === null ? ["Pas de carte décisive : le vaincu est tombé sans coup."] : []),
     ...(v.salle !== null ? [`${salleEnMots(v.salle)}.`] : []),
     "Pseudos publics du clan seulement.",
@@ -213,6 +215,9 @@ const NumeroDePartie = z.union([z.number().int().positive().max(Number.MAX_SAFE_
 const GauloisDuServeur = z.object({ pseudo: z.string().nullish(), tenue: z.unknown(), banniere: z.string().nullish(), familier: z.string().nullish() });
 const LigneDuServeur = z.object({
   partie: NumeroDePartie,
+  // Un match de salle en direct (migration 20261122001000) : la bannière de qui attendait dans la salle, `null` s'il n'en
+  // montrait pas. Absente pour un défi contre une main de défense : le lieu est alors la bannière du vaincu.
+  banniere_du_lieu: z.string().nullish(),
   essai: z.boolean(),
   le: z.string().refine((s) => !Number.isNaN(Date.parse(s))),
   contre: z.enum(["membre", "boss"]),
@@ -267,8 +272,9 @@ export function lireReponseDesDuels(data: unknown): Extract<LectureDesDuels, { e
       if (id.success) aLaisser.push({ id: id.data.partie, raison: "illisible" });
       continue;
     }
-    // Le lieu du duel : la bannière du vaincu, s'il en montre une que ce code connaît.
-    const banniere = ligne.data.vaincu?.banniere;
+    // Le lieu du duel : la bannière de qui attendait dans la salle quand l'annonce la donne (même `null`), sinon celle du
+    // vaincu ; seulement si ce code la connaît.
+    const banniere = ligne.data.banniere_du_lieu !== undefined ? ligne.data.banniere_du_lieu : ligne.data.vaincu?.banniere;
     victoires.push({
       id: ligne.data.partie,
       le: new Date(ligne.data.le).toISOString(),

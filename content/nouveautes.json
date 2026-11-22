@@ -33,7 +33,7 @@
     "kind": "nouveau",
     "rank": "staff",
     "title": "L'image d'une victoire en duel",
-    "body": "Après chaque victoire d'un Gaulois sur un autre au duel, le robot postera les deux Gaulois devant la bannière du vaincu. Rien ne part tant que le duel est fermé.",
+    "body": "Après chaque victoire d'un Gaulois sur un autre au duel, le robot postera les deux Gaulois devant la bannière du lieu du duel. Rien ne part tant que le duel est fermé.",
     "link": {
       "href": "/direction#discord",
       "label": "La Direction"

@@ -4,7 +4,8 @@
  *
  * - En haut, l'en-tête serré des images du robot : le badge, l'invite de « Mon Gaulois », la date du duel à droite, puis le
  *   titre, « Brennos bat Sucellos », en Inter (un pseudo ne s'écrit jamais en onciale).
- * - Au milieu, la scène sur toute la largeur, à 6 pixels par case : la bannière du vaincu entière, avec son cadre de rareté,
+ * - Au milieu, la scène sur toute la largeur, à 6 pixels par case : la bannière du lieu du duel entière (du vaincu, ou de qui
+ *   attendait dans la salle), avec son cadre de rareté,
  *   le vainqueur debout et le vaincu couché (`supabase/functions/code-discord/duel-image.ts`).
  * - En bas, une seule rangée : les manches, la carte décisive dans sa vitrine (son dessin, son nom, sa rareté en toutes
  *   lettres) et la salle d'un duel misé. Sans mise, rien à la place : jamais un solde ni un gain.

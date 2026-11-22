@@ -320,3 +320,20 @@ describe("une carte de base, gratuite pour tous", () => {
     expect(carteEnClair({ emplacement: "tete", objet: "aucune" })).toBeNull();
   });
 });
+
+describe("le lieu d'un match de salle en direct", () => {
+  const AUTRE = BANNIERES[1]!;
+  it("prend la bannière de qui attendait dans la salle quand l'annonce la donne, même nulle", () => {
+    const avec = lireReponseDesDuels({ ok: true, annonces: [ligne(20, { salle: 250, banniere_du_lieu: AUTRE.id })] });
+    expect(avec?.victoires[0]).toMatchObject({ lieu: AUTRE.id, salle: 250 });
+    const sans = lireReponseDesDuels({ ok: true, annonces: [ligne(21, { banniere_du_lieu: null })] });
+    expect(sans?.victoires[0]?.lieu).toBeNull();
+    // Absente (un défi contre une main de défense) : la bannière du vaincu, comme avant.
+    expect(lireReponseDesDuels({ ok: true, annonces: [ligne(22)] })?.victoires[0]?.lieu).toBe(BANNIERE.id);
+  });
+  it("ne dit pas que la bannière est celle du vaincu", () => {
+    const mots = duelEnMots(victoire({ lieu: AUTRE.id })).join(" ");
+    expect(mots).toContain(`Devant la bannière « ${AUTRE.nom} », lieu du duel`);
+    expect(mots).not.toContain("du vaincu");
+  });
+});
