@@ -83,6 +83,9 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « Le tableau » du duel (22 novembre 2026) : les duellistes de la semaine et de la saison, le podium, la cagnotte et ses
   // parts, l'entrée dans l'accueil du duel. Tout sous `.duel-jeu`, classes `dt-…` ; il reprend `.ds-img` des salles.
   { fichier: "26-jeu-duel-tableau.css", pages: ["/village", "/direction"] },
+  // « Le casino » de « Mon Gaulois » (22 novembre 2026, direction « Le Palais d'or ») : le hall, le commun des jeux (pupitre,
+  // croupier, plaque, pluie) et chaque jeu. Tout sous `.casino-jeu`, classes `cas-…` et `<jeu>-…`.
+  { fichier: "27-jeu-casino.css", pages: ["/village", "/direction"] },
 ];
 
 /** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */

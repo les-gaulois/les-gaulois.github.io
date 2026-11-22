@@ -1228,6 +1228,67 @@ Le serveur classe et fait foi (« Le tableau des duellistes » de `docs/DIRECTIO
 - Regardé le 22 novembre 2026 sur une construction à faux serveur, à 1 920, 1 280, 820, 390 et 360 px de large, dans les deux thèmes,
   sans défilement horizontal ni défaut relevé par axe.
 
+### Le casino du jeu (22 novembre 2026)
+
+`/village#casino`, « Le casino » : six jeux en statères dans la direction « Le Palais d'or » choisie par le pilote (« fais en
+sorte que ça reste cohérent avec le reste du Mon Gaulois »), pixel de luxe, laque noire, or et bordeaux la nuit, ivoire et or
+le jour (le pourpre de la maquette est devenu bordeaux, « le velours de théâtre, plus chaud », choix du pilote du soir
+du 22 novembre 2026). Maquettes jouables de Claude Fable 5.2, validées, **portées telles quelles** : mêmes dessins, mêmes mouvements, mêmes
+lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de Claude Opus 5.5. Le serveur tire tout, d'abord
+(contrat `src/lib/village/contrat-casino.ts`, « Le casino des Gaulois » de `docs/DIRECTION.md`) ; l'écran ne fait que montrer.
+
+- **Le bordeaux** (soir du 22 novembre 2026) : le pourpre de la maquette est devenu le bordeaux d'un velours de théâtre
+  (rampes `BORDEAUX` et `ROSE`, `JOUR` réchauffé en ivoire rosé, bouton et ruban reteints couleur à couleur par
+  `BORDEAUX_DU_BOUTON` et `BORDEAUX_DU_RUBAN`, panneaux de nuit en laque bordeaux presque noire). Tons posés par Claude Opus
+  5.5 sur la réponse du pilote (« Opus maintenant ») pendant que Claude Fable 5.2 était à sa limite : à faire relire à Fable.
+  Toute écriture garde AA dans les deux thèmes (test dans `jeu-casino.test.ts`). Un jeu ne recopie jamais une couleur :
+  il passe par les rampes et les jetons `--cas-*`.
+- **Dans le vrai cadre du jeu** : la barre, le menu (une entrée de plus, « Le casino », icône d'un dé d'os sur un statère,
+  « Nouveau » jusqu'à la première ouverture sur l'appareil), le paysage. L'onglet ne paraît que si le serveur répond à
+  `get_casino` (`casino/acces.ts`) ; ses écrans ne se chargent qu'à l'ouverture de sa partie. La salle est un `jeu-ecran` aux
+  matières du palais, son enseigne un ruban bordeaux qui dit le jeu ouvert.
+- **Le hall** (`Hall.tsx`) : les catégories (tables, machines, courses) en boutons bordeaux, l'or pour celle qui est choisie ;
+  la bannière « À l'affiche » (le palais, ses colonnes, ses tentures, ses lustres, la grande roue sur sa table, le croupier en
+  pied) ; les six vignettes, chacune avec son croupier en médaillon et ce que le jeu rend en moyenne ; « Vos dernières
+  parties », les six plus récentes du compte lues au serveur (mise, rendu, solde de la partie) ; le jeu juste en trois lignes, les
+  règles en pli, et ce qui a été misé aujourd'hui sur le plafond de 2 000. Jamais rien d'un autre compte.
+- **Une seule bourse, celle de la barre.** Un jeu l'annonce en deux temps, avec les nombres du serveur : la mise prise dès la
+  réponse (`prendreLaMise`), le gain une fois le résultat montré (`finDeTour`, `solde_apres`). La barre ne montre jamais un
+  résultat avant l'animation. En essai GOD, une étiquette « Essai » ; rien n'est misé ni rendu.
+- **Le commun des jeux** : le pupitre (jetons de 10 à 200, « Sur la table n sur 200 », reprendre, tout reprendre, « mêmes
+  mises », le bouton d'or ; il prévient avant le serveur : table, reste du jour, bourse), le croupier (un vrai Gaulois du clan
+  habillé de la garde-robe, cinq visages, son annonce lue aux lecteurs d'écran), la plaque du résultat à cinq niveaux (rien,
+  rendu partiel, mise rendue, gain, grand gain : l'or et le « + » seulement pour un gain ; son chiffre saute), la pluie lente
+  de statères des grands gains, les sons (famille des boosters, rien au-dessus de 7 400 Hz).
+- **Un jeu se met en page d'après sa table**, pas la fenêtre : `.cas-table` est le conteneur `casino` des requêtes de conteneur
+  (les largeurs de la maquette, faite pour un cadre : 1 540 px à 1 920, 1 060 à 1 440, 310 à 390).
+- **La roue du charron** (`Roue.tsx`, `casino-roue.ts`) : la roue peinte point par point, sa lumière fixe pendant que les
+  cases tournent dessous, la bille qui court, descend, tinte contre les cloisons et tombe dans la case que le serveur a tirée
+  (`mouvementDeLaRoue`, testé : elle finit toujours sur ce numéro) ; le tapis en long sur une table large, en hauteur sur une
+  table étroite ; « Vos tours » ; les jetons gagnants qui restent un instant, les autres qui s'effacent.
+- **Pause et « réduire les animations »** : le résultat se pose sans mouvement (la roue s'arrête où elle est si la pause
+  arrive en plein tour), pas de pluie, pas de reflet. Échap ou le bouton de retour ramènent au hall ; un tour quitté en
+  plein mouvement se finit sans animation (la bourse reçoit son solde, la partie s'inscrit).
+
+**Les fichiers.**
+
+| Fichier | Rôle |
+|---|---|
+| `src/lib/jeu/casino-toile.ts` | La toile en points, les rampes des matières, les objets peints (jetons, piles, cartes, dés, bille, cadres, lueurs), les pièces des tables |
+| `src/lib/jeu/casino-dessins.ts` | Les croupiers (tenues et visages), les familiers, le statère : les vrais dessins du site |
+| `src/lib/jeu/casino-pieces.ts` | Les images fixes dans `/village/kit.css` : pièces du palais, des tables, icônes `--cas-pic-*`, icône du menu |
+| `src/lib/jeu/casino-hall.ts` | La roue de trois quarts, les six vignettes, la bannière |
+| `src/lib/jeu/casino-roue.ts` | La roue peinte et son mouvement |
+| `src/lib/jeu/casino-sons.ts` | Les sons du casino |
+| `src/lib/village/ecran-casino.ts` | Les jeux du hall, la lecture de `get_casino`, les résumés, les mots des refus, le niveau d'un tour, le pupitre |
+| `src/components/village/casino/` | `LeCasino.tsx` (la salle ; les jeux dans `JEUX_OUVERTS`), `Hall.tsx`, `Roue.tsx`, et le commun : `contexte.ts` (`useCasino`), `Pupitre.tsx`, `Croupier.tsx`, `Pieces.tsx`, `commun.ts`, `serveur.ts` et `acces.ts` (la lecture de `get_casino` pour le menu). Les coups passent par `casino.*` de `src/lib/compte/api.ts` ; les règles (numéros rouges, ordre de la roue, paris) viennent de `src/lib/village/casino/` |
+| `src/styles/feuilles/27-jeu-casino.css` | Tout sous `.casino-jeu`, classes `cas-…` (commun et hall) et `<jeu>-…` |
+
+**Ajouter un jeu** : un composant dans `src/components/village/casino/` (racine `cas-jeu <jeu>-jeu`, `useCasino`,
+`useCroupier`, `usePupitre`, le tirage du serveur avant toute animation, `prendreLaMise` puis `finDeTour`), ses dessins de la
+maquette dans `src/lib/jeu/casino-<jeu>.ts`, une ligne dans `JEUX_OUVERTS`, ses styles à la suite de la feuille en
+`@container casino`. Un jeu absent de `JEUX_OUVERTS` montre « Bientôt ». Tout dessin nouveau passe par Claude Fable 5.2.
+
 ## Accessibilité
 
 - Lien d'évitement, focus visible partout, navigation entièrement utilisable au clavier.

@@ -15,6 +15,7 @@ import { JETONS_DES_PIECES } from "./palette";
 import { PALIERS_DE_VICTOIRES, insigne } from "./paliers-de-victoires";
 import { IMAGES_DU_KIT, PIECES_EN_NEUF_PARTS, pieceMini, pionDeSerie } from "./pieces";
 import type { Planche } from "./planche";
+import { VARIABLES_DU_CASINO } from "./casino-pieces";
 import { VARIABLES_DU_VESTIAIRE } from "./vestiaire";
 
 async function png(p: Planche): Promise<string> {
@@ -53,6 +54,12 @@ export function feuilleDuKit(): Promise<{ css: string; version: string }> {
         if (theme === "sombre" && !piece.theme) continue;
         const valeur = piece.valeur(theme);
         (theme === "clair" ? clair : sombre).push(`--jeu-v-${piece.nom}:${typeof valeur === "string" ? valeur : await png(valeur)}`);
+      }
+    // Le casino (22 novembre 2026, `casino-pieces.ts`) : les pièces du palais, des tables, ses icônes et celle du menu.
+    for (const piece of VARIABLES_DU_CASINO)
+      for (const theme of ["clair", "sombre"] as const) {
+        if (theme === "sombre" && !piece.theme) continue;
+        (theme === "clair" ? clair : sombre).push(`${piece.nom}:${await png(piece.valeur(theme))}`);
       }
     const css = `/* Les images du kit en pixels de « Mon Gaulois » (src/lib/jeu/kit-css.ts), fabriquées à la construction. */\n:root{${clair.join(";")}}\n:root[data-mode="sombre"]{${sombre.join(";")}}\n`;
     let empreinte = 0;

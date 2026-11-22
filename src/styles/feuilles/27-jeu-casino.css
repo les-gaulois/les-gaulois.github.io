@@ -1,0 +1,1082 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- « Le casino » de « Mon Gaulois » (22 novembre 2026) ---------- */
+/* La direction « Le Palais d'or » validée par le pilote (maquette de Claude Fable 5.2, portée telle quelle) : pixel de luxe,
+   laque noire, or et bordeaux la nuit (« le velours de théâtre », choix du pilote du 22 novembre 2026, qui remplace le
+   pourpre de la maquette), ivoire et or le jour, posé dans le vrai cadre du jeu. Tout est sous `.casino-jeu`,
+   classes `cas-…` pour le commun et le hall, `<jeu>-…` pour chaque jeu (`roue-…`). Mode d'emploi : « Le casino du jeu » de
+   docs/DESIGN.md.
+
+   - Les images (pièces du palais, pierres, feutre, jonc, cadres, halo, reflet, icônes `--cas-pic-*`) viennent de
+     /village/kit.css (src/lib/jeu/casino-pieces.ts) ; les peintures (roue, vignettes, bannière, croupiers, jetons) sont des
+     toiles en points, posées à 2 pixels par point.
+   - Un jeu se met en page d'après la largeur de sa table, pas de la fenêtre : `.cas-table` est le conteneur `casino`, et
+     les règles d'un jeu passent par `@container casino`.
+   - Rien qui clignote : des lueurs qui montent lentement, des reflets d'or lents, la pluie lente des grands gains ; tout
+     s'arrête avec la pause du jeu (`fx-off`) et « réduire les animations ». */
+
+.casino-jeu {
+  --cas-ecriture: #2a0a14;
+  --cas-doux: #6b3f4b;
+  --cas-or: #7a5200;
+  --cas-filet: #c9a646;
+  --cas-creux: #eadfc2;
+  --cas-face: #fffdf6;
+  --cas-page: #f8f3e6;
+  --cas-ombre: rgb(42 26 5 / 0.28);
+  color: var(--cas-ecriture);
+}
+:root[data-mode="sombre"] .casino-jeu {
+  --cas-ecriture: #f3ead2;
+  --cas-doux: #dcaeb7;
+  --cas-or: #ffd84a;
+  --cas-filet: #8a5a0a;
+  --cas-creux: #0e0508;
+  --cas-face: #1d0910;
+  --cas-page: #11050a;
+  --cas-ombre: rgb(0 0 0 / 0.55);
+}
+.casino-jeu canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+.casino-jeu .cas-titre {
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: var(--cas-ecriture);
+}
+.casino-jeu summary:focus-visible,
+.casino-jeu .cas-jeton:focus-visible,
+.casino-jeu .cas-vignette:focus-visible,
+.casino-jeu .roue-case:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+
+/* Les variantes « casino » des pièces du kit : mêmes dessins, matières du palais. */
+.casino-jeu .cas-panneau {
+  --src: var(--cas-s-panneau);
+  --bt: 12;
+  --br: 12;
+  --bb: 14;
+  --bl: 12;
+}
+.casino-jeu.cas-ecran {
+  --src: var(--cas-s-ecran);
+  --bt: 12;
+  --br: 12;
+  --bb: 14;
+  --bl: 12;
+}
+.casino-jeu .cas-ruban {
+  --src: var(--cas-s-ruban);
+}
+.casino-jeu .jeu-btn {
+  border-top-color: transparent;
+}
+.casino-jeu .cas-btn-bordeaux {
+  --src: var(--cas-s-btn-bordeaux-repos);
+}
+@media (hover: hover) {
+  .casino-jeu .jeu-btn.cas-btn-bordeaux:hover {
+    --src: var(--cas-s-btn-bordeaux-survol);
+  }
+}
+.casino-jeu .jeu-btn.cas-btn-bordeaux:active {
+  --src: var(--cas-s-btn-bordeaux-enfonce);
+}
+.casino-jeu .cas-btn-large {
+  padding: 0 calc(6 * var(--jeu-p));
+}
+
+/* Les pièces peintes des tables : pierres, feutre, jonc, cadre d'or, halo. */
+.casino-jeu .cas-gemme {
+  --src: var(--cas-s-case-feutre);
+  --bt: 3;
+  --br: 3;
+  --bb: 3;
+  --bl: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 2px;
+}
+.casino-jeu .cas-rouge {
+  --src: var(--cas-s-case-rouge);
+}
+.casino-jeu .cas-bleue {
+  --src: var(--cas-s-case-bleue);
+}
+.casino-jeu .cas-verte {
+  --src: var(--cas-s-case-verte);
+}
+.casino-jeu .cas-or {
+  --src: var(--cas-s-case-or);
+}
+.casino-jeu .cas-feutre {
+  --src: var(--cas-s-case-feutre);
+}
+.casino-jeu .cas-tapis {
+  position: relative;
+  padding: 14px;
+  background: var(--cas-s-feutre) 0 0 / 64px 64px;
+  image-rendering: pixelated;
+}
+.casino-jeu .cas-tapis::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 12px;
+  border-image: var(--cas-s-jonc) 6 / 12px stretch;
+  image-rendering: pixelated;
+}
+.casino-jeu .cas-cadre {
+  position: relative;
+}
+.casino-jeu .cas-cadre::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 8px;
+  border-image: var(--cas-s-cadre) 4 / 8px stretch;
+  image-rendering: pixelated;
+}
+.casino-jeu .cas-halo {
+  position: relative;
+}
+.casino-jeu .cas-halo::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  z-index: 1;
+  pointer-events: none;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 10px;
+  border-image: var(--cas-s-halo) 5 / 10px stretch;
+  image-rendering: pixelated;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+.casino-jeu .cas-halo.cas-sorti::after {
+  opacity: 1;
+}
+.casino-jeu .cas-eteint {
+  filter: brightness(0.55) saturate(0.8);
+  transition: filter 0.8s ease;
+}
+
+/* ---------- La salle du palais, son enseigne, le hall ---------- */
+
+.casino-jeu.cas-salle {
+  position: relative;
+  margin-top: calc(8 * var(--jeu-p));
+}
+.casino-jeu .cas-enseigne {
+  position: absolute;
+  left: 50%;
+  top: calc(-22 * var(--jeu-p));
+  translate: -50% 0;
+  z-index: 3;
+  margin: 0;
+}
+.casino-jeu .cas-hall,
+.casino-jeu .cas-table {
+  padding: calc(8 * var(--jeu-p)) calc(4 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  min-width: 0;
+}
+.casino-jeu .cas-table {
+  container: casino / inline-size;
+}
+.casino-jeu .cas-cats {
+  display: flex;
+  gap: calc(4 * var(--jeu-p));
+  flex-wrap: wrap;
+  margin-bottom: calc(8 * var(--jeu-p));
+}
+.casino-jeu .cas-cat {
+  padding: 0 calc(5 * var(--jeu-p)) 0 calc(18 * var(--jeu-p));
+}
+.casino-jeu .cas-cat .jeu-pic {
+  position: absolute;
+  left: 0;
+  top: calc(-2 * var(--jeu-p));
+}
+.casino-jeu .cas-cat[aria-pressed="true"] {
+  --src: var(--jeu-s-btn-or-repos);
+}
+.casino-jeu .cas-cat[aria-pressed="true"] .jeu-pic {
+  filter: brightness(0.18);
+}
+.casino-jeu .cas-cat .cas-mot-or,
+.casino-jeu .cas-cat[aria-pressed="true"] .cas-mot-bordeaux {
+  display: none;
+}
+.casino-jeu .cas-cat[aria-pressed="true"] .cas-mot-or {
+  display: inline-flex;
+}
+@media (hover: hover) {
+  .casino-jeu .jeu-btn.cas-cat[aria-pressed="true"]:hover {
+    --src: var(--jeu-s-btn-or-survol);
+  }
+}
+.casino-jeu .jeu-btn.cas-cat[aria-pressed="true"]:active {
+  --src: var(--jeu-s-btn-or-enfonce);
+}
+.casino-jeu .cas-affiche {
+  overflow: hidden;
+  line-height: 0;
+  max-width: 100%;
+}
+.casino-jeu .cas-affiche-texte {
+  position: absolute;
+  left: calc(22 * var(--jeu-p));
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 42%;
+  line-height: normal;
+}
+.casino-jeu .cas-affiche-texte h4 {
+  margin: 0;
+  font-size: 44px;
+  line-height: 46px;
+  text-shadow: 0 2px 0 var(--cas-creux);
+}
+.casino-jeu .cas-affiche-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+}
+.casino-jeu .cas-affiche-portrait {
+  position: absolute;
+  z-index: 1;
+}
+/* Le reflet d'or qui passe sur un cadre, lentement, une fois toutes les onze secondes. */
+.casino-jeu .cas-reflet {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.casino-jeu .cas-reflet::before {
+  content: "";
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 112px;
+  background: var(--cas-s-reflet) 0 0 / 112px 16px repeat-y;
+  image-rendering: pixelated;
+  opacity: 0;
+  transform: translateX(-140px);
+  animation: cas-reflet 11s linear infinite;
+  animation-delay: var(--d, 0s);
+}
+@keyframes cas-reflet {
+  0% {
+    transform: translateX(-140px);
+    opacity: 0;
+  }
+  4% {
+    opacity: 0.55;
+  }
+  26% {
+    opacity: 0.55;
+  }
+  30%,
+  100% {
+    transform: translateX(var(--course, 900px));
+    opacity: 0;
+  }
+}
+@keyframes cas-reflet-vite {
+  0% {
+    transform: translateX(-140px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.6;
+  }
+  85% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(var(--course, 900px));
+    opacity: 0;
+  }
+}
+:root.fx-off .casino-jeu .cas-pluie {
+  display: none;
+}
+:root.fx-off .casino-jeu .cas-reflet::before,
+:root.fx-off .casino-jeu .cas-decor,
+:root.fx-off .casino-jeu .cas-decor::before {
+  animation: none !important;
+}
+.casino-jeu .cas-rang {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: calc(12 * var(--jeu-p)) 0 calc(8 * var(--jeu-p));
+}
+.casino-jeu .cas-trait {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cas-filet), transparent);
+}
+.casino-jeu .cas-grille {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: calc(8 * var(--jeu-p));
+}
+.casino-jeu .cas-vignette {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(5 * var(--jeu-p));
+  padding: 0;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.casino-jeu .cas-vignette .cas-etat {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 3;
+}
+.casino-jeu .cas-vignette .cas-image {
+  display: block;
+  overflow: hidden;
+  line-height: 0;
+  align-self: center;
+  max-width: 100%;
+}
+.casino-jeu .cas-vignette .cas-med {
+  position: absolute;
+  right: calc(-4 * var(--jeu-p));
+  top: calc(var(--th, 160px) - 44px);
+  z-index: 3;
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.casino-jeu .cas-vignette .cas-pied {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 84px 2px 2px;
+  min-height: 44px;
+}
+.casino-jeu .cas-vignette .cas-rend {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.casino-jeu .cas-vignette .cas-rend .jeu-pic {
+  margin: -9px 0 -9px -8px;
+  filter: none;
+}
+:root:not([data-mode="sombre"]) .casino-jeu .cas-rend .jeu-pic,
+:root:not([data-mode="sombre"]) .casino-jeu .cas-juste .jeu-pic,
+:root:not([data-mode="sombre"]) .casino-jeu .cas-remise .jeu-pic,
+:root:not([data-mode="sombre"]) .casino-jeu .cas-pli .jeu-pic {
+  filter: brightness(0.25) sepia(1) hue-rotate(10deg) saturate(3);
+}
+@media (hover: hover) {
+  .casino-jeu .cas-vignette:hover {
+    transform: translateY(-4px);
+  }
+  .casino-jeu .cas-vignette:hover .cas-image::after {
+    border-image-source: var(--cas-s-cadre-vif);
+  }
+  .casino-jeu .cas-vignette:hover .cas-med {
+    transform: translateY(-4px);
+  }
+  :root:not(.fx-off) .casino-jeu .cas-vignette:hover .cas-reflet::before {
+    animation: cas-reflet-vite 1.5s linear 1;
+  }
+}
+.casino-jeu .cas-vignette:focus-visible .cas-image::after {
+  border-image-source: var(--cas-s-cadre-vif);
+}
+.casino-jeu .cas-bas {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: calc(8 * var(--jeu-p));
+  margin-top: calc(22 * var(--jeu-p));
+  align-items: start;
+}
+.casino-jeu .cas-bloc {
+  position: relative;
+  padding-top: calc(6 * var(--jeu-p));
+}
+.casino-jeu .cas-ruban-bloc {
+  position: absolute;
+  left: 50%;
+  top: calc(-22 * var(--jeu-p));
+  translate: -50% 0;
+  margin: 0;
+}
+.casino-jeu .cas-parties {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+}
+.casino-jeu .cas-parties li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 96px 96px 112px;
+  gap: 12px;
+  align-items: center;
+  min-height: 56px;
+  border-top: 2px solid var(--cas-creux);
+  padding: 6px 0;
+}
+.casino-jeu .cas-parties li:first-child {
+  border-top: 0;
+}
+.casino-jeu .cas-parties li.cas-vide {
+  opacity: 0.5;
+}
+.casino-jeu .cas-parties .cas-col {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+.casino-jeu .cas-parties .cas-net {
+  justify-self: end;
+}
+.casino-jeu .cas-colonne {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--jeu-p));
+  min-width: 0;
+}
+.casino-jeu .cas-juste {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: 0;
+}
+.casino-jeu .cas-juste li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.casino-jeu .cas-juste .jeu-pic {
+  margin: -6px 0 -6px -6px;
+}
+.casino-jeu .cas-remise {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.casino-jeu .cas-table-tete {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(6 * var(--jeu-p));
+  flex-wrap: wrap;
+  margin-bottom: calc(6 * var(--jeu-p));
+}
+.casino-jeu .cas-table-tete .jeu-etq {
+  margin-top: calc(2 * var(--jeu-p));
+}
+.casino-jeu .cas-bientot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 0 30px;
+  text-align: center;
+}
+.casino-jeu .cas-bientot h4 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 36px;
+}
+.casino-jeu.cas-monte {
+  animation: cas-monte 0.45s ease 1;
+}
+@keyframes cas-monte {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@media (max-width: 63.99rem) {
+  .casino-jeu .cas-bas {
+    grid-template-columns: minmax(0, 1fr);
+    gap: calc(22 * var(--jeu-p));
+  }
+}
+@media (max-width: 47.99rem) {
+  .casino-jeu .cas-hall,
+  .casino-jeu .cas-table {
+    padding: calc(8 * var(--jeu-p)) calc(1 * var(--jeu-p)) 0;
+  }
+  .casino-jeu .cas-cats {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 2px 0 4px;
+  }
+  .casino-jeu .cas-cats::-webkit-scrollbar {
+    display: none;
+  }
+  .casino-jeu .cas-cat {
+    flex: none;
+  }
+  .casino-jeu .cas-affiche-texte {
+    position: static;
+    max-width: none;
+    padding: 14px 16px 20px;
+    gap: 12px;
+  }
+  .casino-jeu .cas-affiche-texte h4 {
+    font-size: 34px;
+    line-height: 36px;
+  }
+  .casino-jeu .cas-parties li {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+  }
+  .casino-jeu .cas-parties .cas-mi,
+  .casino-jeu .cas-parties .cas-re {
+    display: none;
+  }
+  .casino-jeu .cas-hall .cas-panneau:not(.cas-large) {
+    --bt: 6;
+    --br: 6;
+    --bb: 8;
+    --bl: 6;
+    border-image-slice: 12 12 14 12 fill;
+    border-width: calc(6 * var(--jeu-p)) calc(6 * var(--jeu-p)) calc(8 * var(--jeu-p));
+    padding: calc(4 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  }
+}
+
+/* ---------- Le commun des jeux : le pupitre de mise, le croupier, la plaque, la pluie, les règles ---------- */
+
+.casino-jeu .cas-jeu {
+  position: relative;
+  z-index: 1;
+  padding: calc(4 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(6 * var(--jeu-p));
+  max-width: 1760px;
+  margin: 0 auto;
+}
+.casino-jeu .cas-pupitre {
+  display: flex;
+  align-items: center;
+  gap: 14px 20px;
+  flex-wrap: wrap;
+  padding: 2px 6px 0;
+}
+.casino-jeu .cas-pupitre > * {
+  min-width: 0;
+}
+.casino-jeu .cas-jetons {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+.casino-jeu .cas-jeton {
+  position: relative;
+  padding: 2px 2px 8px;
+  transition: transform 0.2s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.casino-jeu .cas-jeton[aria-pressed="true"] {
+  transform: translateY(-8px);
+}
+.casino-jeu .cas-jeton::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  background: var(--cas-or);
+  transform: rotate(45deg) scale(0);
+  transition: transform 0.2s;
+}
+.casino-jeu .cas-jeton[aria-pressed="true"]::after {
+  transform: rotate(45deg) scale(1);
+}
+@media (hover: hover) {
+  .casino-jeu .cas-jeton:hover {
+    transform: translateY(-4px);
+  }
+  .casino-jeu .cas-jeton[aria-pressed="true"]:hover {
+    transform: translateY(-8px);
+  }
+}
+.casino-jeu .cas-compte {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-right: auto;
+}
+.casino-jeu .cas-gestes {
+  display: flex;
+  gap: calc(4 * var(--jeu-p));
+  align-items: flex-start;
+  padding-top: calc(3 * var(--jeu-p));
+  flex-wrap: wrap;
+}
+.casino-jeu .cas-action {
+  padding: 0 calc(8 * var(--jeu-p));
+}
+.casino-jeu .cas-pupitre-etroit {
+  gap: 10px 8px;
+}
+.casino-jeu .cas-pupitre-etroit .cas-jetons {
+  gap: 0;
+  width: 100%;
+  justify-content: space-between;
+}
+.casino-jeu .cas-pupitre-etroit .cas-jeton {
+  padding: 2px 0 8px;
+}
+.casino-jeu .cas-pupitre-etroit .cas-gestes {
+  gap: calc(3 * var(--jeu-p));
+}
+.casino-jeu .cas-pupitre-etroit .cas-action {
+  padding: 0 calc(4 * var(--jeu-p));
+}
+/* Le jeton d'une mise posée, à cheval sur le coin de son pari. */
+.casino-jeu .cas-mise {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  z-index: 2;
+  pointer-events: none;
+  animation: cas-pose 0.22s cubic-bezier(0.3, 1.5, 0.5, 1) 1;
+}
+.casino-jeu .cas-mise.cas-coin-hd {
+  bottom: auto;
+  top: -14px;
+  right: -8px;
+}
+.casino-jeu .cas-mise.cas-petit {
+  right: -10px;
+  bottom: -10px;
+}
+.casino-jeu .cas-mise.cas-petit.cas-coin-hd {
+  bottom: auto;
+  top: -18px;
+  right: -12px;
+}
+.casino-jeu .cas-mise.cas-coin-bg {
+  right: auto;
+  left: -6px;
+}
+.casino-jeu .cas-mise.cas-coin-hg {
+  right: auto;
+  left: -6px;
+  bottom: auto;
+  top: -6px;
+}
+.casino-jeu .cas-mise.cas-part {
+  transition:
+    opacity 0.9s ease,
+    transform 0.9s ease;
+  opacity: 0;
+  transform: translateY(6px);
+}
+@keyframes cas-pose {
+  0% {
+    transform: translateY(-14px);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Le panneau du croupier et la plaque du résultat. */
+.casino-jeu .cas-croupier {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 132px;
+  padding: 0 6px 0 0;
+}
+.casino-jeu .cas-dit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.casino-jeu .cas-resultat {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.casino-jeu .cas-resultat.cas-vu {
+  opacity: 1;
+  transform: none;
+}
+.casino-jeu .cas-resultat .cas-signe {
+  min-width: 72px;
+  height: 64px;
+  padding: 0 6px;
+}
+.casino-jeu .cas-gain {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+}
+.casino-jeu .cas-gain-note {
+  display: flex;
+  justify-content: flex-end;
+  text-align: right;
+  max-width: 220px;
+}
+.casino-jeu .cas-gain-note .jeu-px-plie {
+  justify-content: flex-end;
+}
+.casino-jeu .cas-resultat.cas-vu .cas-gain-n {
+  animation: cas-saute 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) 0.15s 1 both;
+}
+@keyframes cas-saute {
+  0% {
+    transform: translateY(10px) scale(0.7);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-6px) scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+.casino-jeu .cas-croupier-etroit {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.casino-jeu .cas-croupier-etroit .cas-resultat {
+  grid-column: 1 / 3;
+  justify-content: space-between;
+}
+.casino-jeu .cas-croupier-etroit .cas-resultat:not(.cas-vu) {
+  display: none;
+}
+/* La pluie lente d'un grand gain : des statères qui tombent devant la scène. */
+.casino-jeu .cas-pluie {
+  position: absolute;
+  top: -40px;
+  z-index: 5;
+  pointer-events: none;
+  animation: cas-pluie var(--t, 3s) cubic-bezier(0.4, 0, 0.8, 0.7) var(--d, 0s) 1 both;
+}
+@keyframes cas-pluie {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(var(--h, 600px));
+    opacity: 0;
+  }
+}
+
+/* Le pli des règles, comme les plis du site. */
+.casino-jeu .cas-pli > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  min-height: 32px;
+}
+.casino-jeu .cas-pli > summary::-webkit-details-marker {
+  display: none;
+}
+.casino-jeu .cas-pli > summary .cas-chev {
+  margin-left: auto;
+  transition: transform 0.25s;
+  filter: none;
+}
+.casino-jeu .cas-pli[open] > summary .cas-chev {
+  transform: rotate(180deg);
+}
+.casino-jeu .cas-pli ul {
+  margin: 12px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  color: var(--cas-ecriture);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.casino-jeu .cas-pli li {
+  padding-left: 16px;
+  position: relative;
+}
+.casino-jeu .cas-pli li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.5em;
+  width: 6px;
+  height: 6px;
+  background: var(--cas-or);
+  transform: rotate(45deg);
+}
+
+@container casino (max-width: 47.99rem) {
+  .casino-jeu .cas-croupier {
+    gap: 10px;
+    min-height: 0;
+  }
+  .casino-jeu .cas-pupitre {
+    gap: 12px 10px;
+    justify-content: space-between;
+    padding: 0;
+  }
+  .casino-jeu .cas-jetons {
+    gap: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .casino-jeu .cas-jeu .cas-panneau:not(.cas-large) {
+    --bt: 6;
+    --br: 6;
+    --bb: 8;
+    --bl: 6;
+    border-image-slice: 12 12 14 12 fill;
+    border-width: calc(6 * var(--jeu-p)) calc(6 * var(--jeu-p)) calc(8 * var(--jeu-p));
+    padding: calc(4 * var(--jeu-p)) calc(3 * var(--jeu-p)) calc(2 * var(--jeu-p));
+  }
+  .casino-jeu .cas-tapis {
+    padding: 12px;
+  }
+}
+
+/* ---------- La roue du charron ---------- */
+
+.casino-jeu .roue-salle {
+  display: grid;
+  grid-template-columns: var(--dr, 520px) minmax(0, 1fr);
+  grid-template-areas:
+    "roue croupier"
+    "roue tapis"
+    "roue pupitre";
+  gap: 14px 32px;
+  align-items: center;
+  overflow-x: clip;
+}
+.casino-jeu .roue-salle > * {
+  min-width: 0;
+}
+.casino-jeu .roue-cote {
+  grid-area: roue;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.casino-jeu .roue-croupier {
+  grid-area: croupier;
+}
+.casino-jeu .roue-plateau {
+  grid-area: tapis;
+}
+.casino-jeu .roue-pupitre {
+  grid-area: pupitre;
+}
+.casino-jeu .roue-boite {
+  position: relative;
+  width: var(--dr);
+  height: var(--dr);
+}
+.casino-jeu .roue-boite canvas {
+  filter: drop-shadow(0 8px 0 var(--cas-ombre));
+}
+/* La lueur d'or derrière la roue quand on gagne : elle monte lentement. */
+.casino-jeu .roue-halo {
+  position: absolute;
+  inset: -6%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 216 74 / 0.34), rgb(255 216 74 / 0) 72%);
+  opacity: 0;
+  transition: opacity 1.6s ease;
+  pointer-events: none;
+}
+.casino-jeu .roue-boite.roue-gagne .roue-halo {
+  opacity: 1;
+}
+.casino-jeu .roue-tours {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+  justify-content: center;
+  overflow: hidden;
+}
+.casino-jeu .roue-liste {
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+.casino-jeu .roue-liste .cas-gemme {
+  min-width: 32px;
+  height: 32px;
+}
+.casino-jeu .roue-liste .cas-gemme:first-child {
+  min-width: 40px;
+  height: 36px;
+}
+.casino-jeu .roue-liste .roue-vide {
+  opacity: 0.45;
+}
+.casino-jeu .roue-tapis {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 2px;
+  justify-content: center;
+}
+.casino-jeu .roue-case {
+  --bt: 3;
+  --br: 3;
+  --bb: 3;
+  --bl: 3;
+  --src: var(--cas-s-case-feutre);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  border-style: solid;
+  cursor: pointer;
+}
+.casino-jeu .roue-case.cas-rouge {
+  --src: var(--cas-s-case-rouge);
+}
+.casino-jeu .roue-case.cas-bleue {
+  --src: var(--cas-s-case-bleue);
+}
+.casino-jeu .roue-case.roue-num {
+  justify-content: flex-start;
+  padding-left: 4px;
+}
+.casino-jeu .roue-case .roue-coin {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  opacity: 0.7;
+  filter: none;
+  scale: 0.5;
+}
+.casino-jeu .roue-case .jeu-pic {
+  pointer-events: none;
+  filter: none;
+}
+.casino-jeu .roue-case .roue-grand {
+  margin: -8px;
+}
+@media (hover: hover) {
+  .casino-jeu .roue-tapis:not(.roue-ferme) .roue-case:hover {
+    --src: var(--cas-s-case-feutre-s);
+  }
+  .casino-jeu .roue-tapis:not(.roue-ferme) .roue-case.cas-rouge:hover {
+    --src: var(--cas-s-case-rouge-s);
+  }
+  .casino-jeu .roue-tapis:not(.roue-ferme) .roue-case.cas-bleue:hover {
+    --src: var(--cas-s-case-bleue-s);
+  }
+}
+.casino-jeu .roue-tapis.roue-ferme .roue-case {
+  cursor: default;
+}
+.casino-jeu .roue-regles {
+  margin-top: 18px;
+}
+@container casino (max-width: 1239px) {
+  .casino-jeu .roue-salle {
+    grid-template-areas:
+      "roue croupier"
+      "roue pupitre"
+      "tapis tapis";
+    gap: 14px 24px;
+  }
+}
+@container casino (max-width: 759px) {
+  .casino-jeu .roue-salle {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "roue"
+      "croupier"
+      "tapis"
+      "pupitre";
+    gap: 14px;
+  }
+}
+@container casino (max-width: 47.99rem) {
+  .casino-jeu .roue-tours {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* La pause du jeu et « réduire les animations » : rien ne bouge, le résultat se pose. */
+@media (prefers-reduced-motion: reduce) {
+  .casino-jeu *,
+  .casino-jeu *::before,
+  .casino-jeu *::after,
+  .casino-jeu.cas-monte {
+    animation-duration: 0.01s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01s !important;
+  }
+}

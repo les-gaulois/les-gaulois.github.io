@@ -22,6 +22,7 @@ import VestiaireDuJeu from "./VestiaireDuJeu";
 import LeSentier, { objetsQuiAttendent, useSentier } from "./Sentier";
 import VitrineDuJeu from "./VitrineDuJeu";
 import { ANCRE_DUEL, useAccesAuDuel } from "./duel/acces";
+import { ANCRE_CASINO, casinoDejaVu, noterCasinoVu, useCasinoDuServeur } from "./casino/acces";
 import { iconeDuDuel } from "./duel/dessins-ecran";
 import { urlDeLaPlanche } from "../../lib/jeu/dans-la-page";
 
@@ -59,6 +60,10 @@ const ONGLETS: OngletDuJeu[] = [
   { id: RAYON_POCHETTES, label: "Les boosters", mot: "Boosters", dessin: "pochettes" },
   { id: "vitrine", label: "La vitrine", mot: "Vitrine", dessin: "vitrine" },
   { id: ANCRE_LOTERIE, label: "La loterie", mot: "Loterie", dessin: "loterie" },
+  // « Le casino » (22 novembre 2026, direction « Le Palais d'or » validée par le pilote) : six jeux en statères, ouvert à tous
+  // les membres validés. Son icône est dans `/village/kit.css` (`casino-pieces.ts`). Il ne paraît que si le serveur répond à
+  // `get_casino` (`useCasinoDuServeur`).
+  { id: ANCRE_CASINO, label: "Le casino", mot: "Casino", image: "var(--jeu-ic-casino)" },
 ];
 const IDS = ONGLETS.map((onglet) => onglet.id);
 const ALIAS: Readonly<Record<string, string>> = { [ANCRE_MARCHE]: "boutique", [ANCRE_FAMILIERS]: RAYON_POCHETTES, [ANCRE_BANNIERES]: "boutique", [ANCRE_MODELES]: "boutique" };
@@ -76,9 +81,9 @@ function Ecran({ children }: { children: ComponentChildren }) {
  *
  * Un visiteur voit le Gaulois de départ et la porte. Un compte connecté finit d'abord son inscription
  * (src/lib/compte/arrivee.ts, 15 novembre 2026) : le lien de son profil OpenFront, puis son Gaulois, seul au vestiaire ; le
- * reste attend qu'il soit créé. Ensuite, le menu du jeu (MenuDuJeu.tsx) et ses huit parties (neuf pour le pilote, avec « Le
- * duel ») : « Ma carte », le vestiaire,
- * le pass, la forge, la boutique, les boosters, la vitrine et la loterie. Chaque partie ne lit le serveur qu'à son
+ * reste attend qu'il soit créé. Ensuite, le menu du jeu (MenuDuJeu.tsx) et ses parties : « Ma carte », « Le duel », le
+ * vestiaire, le pass, la forge, la boutique, les boosters, la vitrine, la loterie et « Le casino » (22 novembre 2026, dès que
+ * le serveur répond à `get_casino`). Chaque partie ne lit le serveur qu'à son
  * ouverture ; la forge et la boutique se relisent à chaque retour, et le vestiaire aussi : un objet acheté y paraît
  * aussitôt. Le palier du pass et la bourse sont dans la barre du jeu (RessourcesDuJeu.tsx).
  */
@@ -129,6 +134,33 @@ export default function VillageApp() {
   useEffect(() => {
     if (surLeDuel && acces.kind === "ferme") select(ANCRE_MA_CARTE);
   }, [surLeDuel, acces.kind, select]);
+
+  // « Le casino » : visible dès que le serveur répond. Son écran (le hall, les jeux, leurs peintures) ne se charge qu'à
+  // l'ouverture de sa partie ; le hall relit le serveur à chaque retour d'un jeu. Une adresse `#casino` sans casino ramène
+  // à « Ma carte ».
+  const surLeCasino = active === ANCRE_CASINO;
+  const casinoServeur = useCasinoDuServeur(gauloisCree);
+  const casinoVisible = !!casinoServeur.etat;
+  const [LeCasino, setLeCasino] = useState<typeof import("./casino/LeCasino").default | null>(null);
+  useEffect(() => {
+    if (!surLeCasino || !casinoVisible || LeCasino) return;
+    void import("./casino/LeCasino").then(
+      (mod) => setLeCasino(() => mod.default),
+      () => undefined,
+    );
+  }, [surLeCasino, casinoVisible, LeCasino]);
+  useEffect(() => {
+    if (surLeCasino && casinoServeur.etat === null) select(ANCRE_MA_CARTE);
+  }, [surLeCasino, casinoServeur.etat, select]);
+  // « Nouveau » sur son onglet, tant que le casino n'a pas été ouvert sur cet appareil.
+  const [casinoNouveau, setCasinoNouveau] = useState(false);
+  useEffect(() => setCasinoNouveau(!casinoDejaVu()), []);
+  useEffect(() => {
+    if (surLeCasino && casinoVisible) {
+      noterCasinoVu();
+      setCasinoNouveau(false);
+    }
+  }, [surLeCasino, casinoVisible]);
 
   // Les boosters gagnés à la loterie qui restent à ouvrir : leur nombre, sur le bouton « Boosters ». Relu quand on quitte
   // cette partie, où ils s'ouvrent ; tant qu'elle est ouverte, l'étiquette ne paraît pas (son nombre y change à chaque
@@ -188,7 +220,8 @@ export default function VillageApp() {
   const sentierVisible = sentier.etat.kind === "pret" || active === ANCRE_SENTIER;
   // Le tirage du mardi : les jours qui restent, en mots. Le serveur seul tire ; ceci ne fait que compter jusqu'à mardi.
   const avantLeTirage = motsAvantLeTirage(joursAvantLeTirage(new Date()));
-  const onglets = ONGLETS.filter((onglet) => (onglet.id !== ANCRE_SENTIER || sentierVisible) && (onglet.id !== ANCRE_DUEL || duelVisible)).map((onglet): OngletDuJeu => {
+  const onglets = ONGLETS.filter((onglet) => (onglet.id !== ANCRE_SENTIER || sentierVisible) && (onglet.id !== ANCRE_DUEL || duelVisible) && (onglet.id !== ANCRE_CASINO || casinoVisible)).map((onglet): OngletDuJeu => {
+    if (onglet.id === ANCRE_CASINO && casinoNouveau) return { ...onglet, count: { value: 1, text: "Nouveau", words: "nouveau", tone: "vif" } };
     if (onglet.id === ANCRE_DUEL) return { ...onglet, image: urlDeLaPlanche("duel-menu", iconeDuDuel) };
     if (onglet.id === ANCRE_SENTIER && attendent > 0) return { ...onglet, count: { value: attendent, words: `${attendent} ${attendent > 1 ? "objets" : "objet"} à prendre`, tone: "vif" } };
     if (onglet.id === RAYON_POCHETTES && aOuvrir > 0 && !surLesPochettes) return { ...onglet, count: { value: aOuvrir, words: `${aOuvrir} ${aOuvrir > 1 ? "boosters gagnés" : "booster gagné"} à ouvrir`, tone: "vif" } };
@@ -280,6 +313,12 @@ export default function VillageApp() {
           <Partie prefix={PREFIXE} id={ANCRE_LOTERIE} active={active} slide={slide}>
             <h2 class="sr-only">La loterie</h2>
             <LoterieDuMardi actif={active === ANCRE_LOTERIE} />
+          </Partie>
+        )}
+        {!aCreer && casinoServeur.etat && (
+          <Partie prefix={PREFIXE} id={ANCRE_CASINO} active={active} slide={slide}>
+            <h2 class="sr-only">Le casino</h2>
+            {surLeCasino && (LeCasino ? <LeCasino etatDuServeur={casinoServeur.etat} relire={casinoServeur.relire} /> : <Loading label="Ouverture du casino…" />)}
           </Partie>
         )}
       </div>
