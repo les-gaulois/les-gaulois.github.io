@@ -51,6 +51,16 @@ export const jeuDuHall = (id: JeuDuCasino): JeuDuHall => JEUX_DU_HALL.find((j) =
 /** Les jeux d'une catégorie. */
 export const jeuxDeLaCategorie = (cat: CategorieDuCasino): JeuDuHall[] => JEUX_DU_HALL.filter((j) => cat === "tout" || j.cat === cat);
 
+/* ---------- Qui voit l'onglet ---------- */
+
+/**
+ * L'onglet « Le casino » paraît-il ? À tous quand le casino est ouvert à tous (`CASINO_POUR_TOUS` d'`acces.ts`) ; sinon au
+ * seul titulaire du don de statères, que le serveur reconnaît par `get_village_god` (`permis`). Une réponse illisible : non.
+ */
+export function casinoMontre(pourTous: boolean, god: { permis: boolean } | null): boolean {
+  return pourTous || god?.permis === true;
+}
+
 /* ---------- La lecture de get_casino ---------- */
 
 const entier = (v: unknown): number | null => (typeof v === "number" && Number.isSafeInteger(v) ? v : null);

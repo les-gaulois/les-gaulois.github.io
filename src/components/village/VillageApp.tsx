@@ -60,9 +60,9 @@ const ONGLETS: OngletDuJeu[] = [
   { id: RAYON_POCHETTES, label: "Les boosters", mot: "Boosters", dessin: "pochettes" },
   { id: "vitrine", label: "La vitrine", mot: "Vitrine", dessin: "vitrine" },
   { id: ANCRE_LOTERIE, label: "La loterie", mot: "Loterie", dessin: "loterie" },
-  // « Le casino » (22 novembre 2026, direction « Le Palais d'or » validée par le pilote) : six jeux en statères, ouvert à tous
-  // les membres validés. Son icône est dans `/village/kit.css` (`casino-pieces.ts`). Il ne paraît que si le serveur répond à
-  // `get_casino` (`useCasinoDuServeur`).
+  // « Le casino » (22 novembre 2026, direction « Le Palais d'or » validée par le pilote) : six jeux en statères. Son icône est
+  // dans `/village/kit.css` (`casino-pieces.ts`). Il ne paraît que si le serveur répond à `get_casino`, et, tant que
+  // `CASINO_POUR_TOUS` (`casino/acces.ts`) est faux, au seul pilote (`useCasinoDuServeur`).
   { id: ANCRE_CASINO, label: "Le casino", mot: "Casino", image: "var(--jeu-ic-casino)" },
 ];
 const IDS = ONGLETS.map((onglet) => onglet.id);

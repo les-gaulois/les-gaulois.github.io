@@ -10,6 +10,7 @@ import { Planche, R } from "../../src/lib/jeu/planche";
 import { JEUX_DU_CASINO, REFUS_DU_CASINO, type CoupDuCasino } from "../../src/lib/village/contrat-casino";
 import {
   JEUX_DU_HALL,
+  casinoMontre,
   jeuxDeLaCategorie,
   lireEtatDuCasino,
   motsDuRefus,
@@ -257,6 +258,14 @@ describe("l'écran du casino", () => {
     ],
     main: null,
   };
+
+  it("ne montre l'onglet qu'au titulaire tant que le casino n'est pas ouvert à tous", () => {
+    expect(casinoMontre(false, { permis: true })).toBe(true);
+    expect(casinoMontre(false, { permis: false })).toBe(false);
+    expect(casinoMontre(false, null)).toBe(false);
+    expect(casinoMontre(true, null)).toBe(true);
+    expect(casinoMontre(true, { permis: false })).toBe(true);
+  });
 
   it("lit get_casino, et refuse ce qui ne lui ressemble pas", () => {
     const e = lireEtatDuCasino(etat);

@@ -13,6 +13,15 @@ import type { EtatDuCasino } from "../../../lib/village/contrat-casino";
 /** L'adresse de la partie du casino dans « Mon Gaulois » : `/village#casino`. */
 export const ANCRE_CASINO = "casino";
 
+/**
+ * L'ouverture du casino à tous les membres, le seul endroit qui la décide. Mise en ligne en deux temps (décision de la
+ * session qui coordonne le chantier, 23 novembre 2026) : tant que c'est faux, l'onglet ne paraît qu'au titulaire du don de
+ * statères, le pilote, reconnu comme pour le mode GOD (`get_village_god`), qui essaie la roue avec son vrai compte pendant
+ * que les autres jeux sont portés ; à vrai, il paraît à tout compte dont le Gaulois existe, avec la grande nouveauté. Le
+ * serveur, lui, est déjà ouvert (`internal.casino_ouvert`) : ceci ne protège rien, c'est l'annonce qui attend.
+ */
+export const CASINO_POUR_TOUS = false;
+
 /** Où l'on en est : `undefined` en lecture, `null` si le serveur n'a pas de casino, son état sinon. */
 export type CasinoDuServeur = EtatDuCasino | null | undefined;
 

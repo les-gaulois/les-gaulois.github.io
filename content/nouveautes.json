@@ -2,6 +2,17 @@
   {
     "date": "2026-11-23",
     "kind": "nouveau",
+    "rank": "staff",
+    "title": "Le casino, d'abord pour le pilote",
+    "body": "Dans Mon Gaulois, « Le casino » ne paraît d'abord qu'au pilote, pour essayer la roue du charron avec son vrai compte ; les autres jeux y disent « Bientôt ».",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-23",
+    "kind": "nouveau",
     "rank": "minor",
     "title": "L'insigne de saison sous votre carte",
     "body": "Le dernier palier du pass pris, l'insigne de la saison paraît sous votre carte, sur « Ma carte », à côté de vos autres insignes.",

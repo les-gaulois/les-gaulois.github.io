@@ -1245,7 +1245,9 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
   il passe par les rampes et les jetons `--cas-*`.
 - **Dans le vrai cadre du jeu** : la barre, le menu (une entrée de plus, « Le casino », icône d'un dé d'os sur un statère,
   « Nouveau » jusqu'à la première ouverture sur l'appareil), le paysage. L'onglet ne paraît que si le serveur répond à
-  `get_casino` (`casino/acces.ts`) ; ses écrans ne se chargent qu'à l'ouverture de sa partie. La salle est un `jeu-ecran` aux
+  `get_casino` (`casino/acces.ts`), et, mise en ligne en deux temps (23 novembre 2026), au seul pilote tant que
+  `CASINO_POUR_TOUS` est faux : il essaie la roue avec son vrai compte pendant que les autres jeux sont portés ; la
+  constante passe à vrai avec la grande nouveauté. Le serveur, lui, est ouvert : ce n'est que l'annonce qui attend ; ses écrans ne se chargent qu'à l'ouverture de sa partie. La salle est un `jeu-ecran` aux
   matières du palais, son enseigne un ruban bordeaux qui dit le jeu ouvert.
 - **Le hall** (`Hall.tsx`) : les catégories (tables, machines, courses) en boutons bordeaux, l'or pour celle qui est choisie ;
   la bannière « À l'affiche » (le palais, ses colonnes, ses tentures, ses lustres, la grande roue sur sa table, le croupier en
