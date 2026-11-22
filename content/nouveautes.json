@@ -3,6 +3,17 @@
     "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "staff",
+    "title": "Les Gaulois se battent avec leurs armes",
+    "body": "Dans « Le duel », encore réservé au pilote, chaque Gaulois se sert de l'objet de sa carte : l'épée tranche, le marteau s'abat, l'arc tire une flèche jusqu'à l'adversaire, la tête cogne.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "staff",
     "title": "Le boss du jour et les défis dans le duel",
     "body": "Dans « Le duel », encore réservé au pilote : le boss du jour avec son pouvoir et sa bannière, joué au serveur, et vingt défis d'entraînement, des énigmes de une à trois manches.",
     "link": {

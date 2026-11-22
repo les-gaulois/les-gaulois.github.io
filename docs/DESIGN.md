@@ -1026,7 +1026,19 @@ dessinés autour par Claude Fable 5.2 (icônes de `dessins-ecran.ts`). Les règl
   cartes (`dessins-des-cartes.ts`) restent claires à la couleur de leur rareté, avec les finitions holographiques de la
   maquette ; les sons (`sons-du-duel.ts`) passent par le réglage du son du jeu. Une manche se joue dans la page (machine du
   navigateur, entraînement) ou au serveur (`jouer`, duel compté) ; une partie reprise rejoue ses manches sans les montrer.
-  Sur téléphone, l'arène prend toute la largeur de l'écran.
+  Sur téléphone, l'arène prend toute la largeur de l'écran. Une carte se pose si le moteur la dit libre (`libres` : quand
+  toutes se reposent, celles qui reviennent le plus tôt restent jouables), la règle même du serveur.
+- **Les gestes d'armes** (`src/lib/jeu/gestes-armes.ts`, chorégraphies de Claude Fable 5.2) : au lieu de la poussée de la
+  maquette, le Gaulois se sert de l'objet de sa carte. Il tient toujours l'arme de sa main ; une frappe suit la famille de
+  cette arme (la lame tranche, la masse s'abat, la lance pique, l'arc et la fronde tirent un projectile qui vole jusqu'à
+  l'adversaire), la tête cogne, le haut garde, les pieds prennent de l'élan, le bas souffle. Chaque geste part pour que
+  son coup touche à l'instant de l'impact, la garde d'en face encaisse à ce même instant, et l'élan de chaque arme l'amène
+  juste au contact. Pendant son geste, le Gaulois passe devant les cartes posées au milieu. La toile d'un Gaulois tient
+  l'image entière d'un geste (`IMAGE_DU_GESTE`), plus grande que lui ; sous `prefers-reduced-motion`, chaque geste n'est
+  qu'une pose fixe.
+- **Pour les salles en direct** (vague 2) : `entreeDirecte` (la scène part sans « Entrer dans l'arène »),
+  `interrompre(verdict, mot)` (la fin tout de suite, même quand une carte attend le serveur) et `libelles` (les mots des
+  deux boutons de la fin).
 - **L'accueil** (`LeDuel.tsx`) : l'entraînement en trois niveaux (apprenti, guerrier, druide), ma défense (mes cinq cartes,
   repoussés et fois battu), ma collection (« 21 sur 273 »), le boss du jour et les défis (`BossEtDefis.tsx`).
 - **Le boss du jour** : un Gaulois unique debout sur sa bannière, son pouvoir, et le bouton pour l'affronter. Au serveur,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { TENUE_DE_DEPART, OBJETS, POILS } from "../../src/lib/gaulois";
 import { BANNIERES } from "../../src/lib/village/bannieres";
 import { FAMILIERS } from "../../src/lib/village/familiers";
+import { MOTEUR } from "../../src/components/village/duel/moteur-du-site";
 import {
   ADVERSAIRES_D_ENTRAINEMENT,
   EMPLACEMENTS_DE_LA_MAIN,
@@ -153,5 +154,13 @@ describe("ce que le serveur du duel dit de moi", () => {
   it("refuse une réponse illisible ou un refus", () => {
     expect(lireLEtatDuServeur(null)).toBeNull();
     expect(lireLEtatDuServeur({ ok: false, error: "duel_ferme" })).toBeNull();
+  });
+});
+
+describe("les cartes que l'arène laisse poser", () => {
+  it("suit la règle du moteur : celles qui ne se reposent pas, sinon celles qui reviennent le plus tôt", () => {
+    const camp = (repos: number[]) => ({ repos }) as unknown as Parameters<typeof MOTEUR.libres>[0];
+    expect(MOTEUR.libres(camp([0, 2, 0, 1, 3]))).toEqual([0, 2]);
+    expect(MOTEUR.libres(camp([2, 1, 3, 1, 2]))).toEqual([1, 3]);
   });
 });

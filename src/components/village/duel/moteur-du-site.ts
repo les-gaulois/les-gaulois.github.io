@@ -27,6 +27,7 @@ export const MOTEUR: MoteurDuDuel = {
   verdict: (a, b) => D.verdict(camps(a), camps(b)),
   forceJouee: (c, carte, lui) => D.forceJouee(camps(c), carte as unknown as CarteD, lui ? camps(lui) : null),
   estCoup: D.estCoup,
+  libres: (c) => D.libres({ repos: [...c.repos] }),
   fatigueDe: (m, c) => D.fatigueDe(m, c ? camps(c) : null),
   prixDeLaMain: (main) => D.prixDeLaMain(cartes(main)),
   panopliesDe: (main) => D.panopliesDe(cartes(main)),

@@ -14,11 +14,34 @@
  * entend chaque manche racontée (`aria-live`), et chaque carte est un bouton nommé.
  */
 import { motionAllowed } from "../../../lib/fx/motion";
-import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, casesDuGaulois, changerObjet, type Tenue } from "../../../lib/gaulois";
+import { GAULOIS_HAUTEUR, GAULOIS_LARGEUR, changerObjet, type Tenue } from "../../../lib/gaulois";
 import { texteEnPixels, urlDeLaPlanche, type CouleurDEcriture, type ReliefDEcriture } from "../../../lib/jeu/dans-la-page";
 import { ecrire, enCapitales, largeurDuTexte } from "../../../lib/jeu/ecriture";
 import { PAL } from "../../../lib/jeu/palette";
-import { Planche, R, cerne, grille, rr } from "../../../lib/jeu/planche";
+import {
+  IMAGE_DU_GESTE,
+  MARGES,
+  MILIEU_DU_GAULOIS,
+  POSE_DE_REPOS,
+  contactEntre,
+  departDuProjectile,
+  dessinsDuGaulois,
+  distanceDElan,
+  distancesDElanFaceAFace,
+  dureeDuGeste,
+  gesteDeLaCarte,
+  imageDeLaPose,
+  imageDuProjectile,
+  instantDeLImpact,
+  placeDuProjectile,
+  poseDuGeste,
+  type DessinsDuGaulois,
+  type Geste,
+  type ImageDuGeste,
+  type Point,
+  type Pose,
+} from "../../../lib/jeu/gestes-armes";
+import { Planche, R, cerne, grille, lireCouleur, rr } from "../../../lib/jeu/planche";
 import { familierAPoser, type Familier } from "../../../lib/village/familiers";
 import { CLE_DU_GUIDE, NOMS_DES_RANGS, type Role } from "../../../lib/village/ecran-duel";
 import {
@@ -116,6 +139,10 @@ export interface OptionsDeLaScene {
   onFin: (f: FinDuDuel) => void;
   onRejouer: () => void;
   onQuitter: () => void;
+  /** La scène part sans le panneau « Entrer dans l'arène » : la main est fixée d'avance (un duel en salle). */
+  entreeDirecte?: boolean;
+  /** Les mots des deux boutons de la fin, s'ils en veulent d'autres que « Retour au duel » et « Rejouer ». */
+  libelles?: { quitter?: string; rejouer?: string };
 }
 
 export interface SceneDuDuel {
@@ -124,6 +151,11 @@ export interface SceneDuDuel {
   /** La main du joueur, telle qu'elle est maintenant. */
   main: () => readonly string[];
   arreter: () => void;
+  /**
+   * Finit le duel tout de suite, avec le panneau de fin (en salle : l'autre n'a pas posé à temps, ou il est parti), même
+   * pendant qu'une carte attend le serveur. `mot` remplace le mot de la fin ; `onFin` est appelé comme à toute fin.
+   */
+  interrompre: (verdict: -1 | 0 | 1, mot: string | null) => void;
 }
 
 /* ---------- Petits outils ---------- */
@@ -141,6 +173,29 @@ function peindre(cv: HTMLCanvasElement, p: Planche): HTMLCanvasElement {
   return cv;
 }
 const toileDe = (p: Planche): HTMLCanvasElement => peindre(document.createElement("canvas"), p);
+/** Les couleurs déjà lues, en un mot de 32 bits (rouge d'abord, comme les octets d'une `ImageData`). */
+const MOTS_DES_COULEURS = new Map<string, number>();
+/** Des cases posées dans une toile d'un coup : les images d'un geste changent à chaque instant. */
+function peindreLesCases(cv: HTMLCanvasElement, cases: readonly (string | null)[], largeur: number, hauteur: number): void {
+  if (cv.width !== largeur) cv.width = largeur;
+  if (cv.height !== hauteur) cv.height = hauteur;
+  const image = new ImageData(largeur, hauteur);
+  const mots = new Uint32Array(image.data.buffer);
+  for (let i = 0; i < cases.length; i++) {
+    const c = cases[i];
+    if (!c) continue;
+    let mot = MOTS_DES_COULEURS.get(c);
+    if (mot === undefined) {
+      const [r, v, b, a] = lireCouleur(c);
+      mot = ((Math.round(a * 255) << 24) | (b << 16) | (v << 8) | r) >>> 0;
+      MOTS_DES_COULEURS.set(c, mot);
+    }
+    mots[i] = mot;
+  }
+  cv.getContext("2d")?.putImageData(image, 0, 0);
+}
+/** Une part en pour cent, pour poser la toile d'un geste autour du Gaulois. */
+const enPourCent = (n: number, sur: number): string => `${((n / sur) * 100).toFixed(4)}%`;
 const cree = <K extends keyof HTMLElementTagNameMap>(tag: K, classe = "", parent?: HTMLElement): HTMLElementTagNameMap[K] => {
   const el = document.createElement(tag);
   if (classe) el.className = classe;
@@ -243,14 +298,24 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     const g = cree("div", `dl-gaulois dl-gaulois-${k}`, scene);
     g.setAttribute("role", "img");
     g.setAttribute("aria-label", c.dit);
+    // La toile tient l'image d'un geste (`gestes-armes.ts`) : elle déborde du Gaulois de MARGES cases, pour que l'objet tourne
+    // sans sortir ; celle de droite se retourne autour du milieu du Gaulois.
     const gCv = cree("canvas", "", g);
-    gCv.width = GAULOIS_LARGEUR;
-    gCv.height = GAULOIS_HAUTEUR;
+    gCv.width = IMAGE_DU_GESTE.largeur;
+    gCv.height = IMAGE_DU_GESTE.hauteur;
+    gCv.style.left = enPourCent(-MARGES.gauche, GAULOIS_LARGEUR);
+    gCv.style.top = enPourCent(-MARGES.haut, GAULOIS_HAUTEUR);
+    gCv.style.width = enPourCent(IMAGE_DU_GESTE.largeur, GAULOIS_LARGEUR);
+    gCv.style.height = enPourCent(IMAGE_DU_GESTE.hauteur, GAULOIS_HAUTEUR);
+    if (k === "b") gCv.style.transformOrigin = `${enPourCent(MILIEU_DU_GAULOIS, IMAGE_DU_GESTE.largeur)} 50%`;
+    const tir = cree("canvas", "dl-tir", scene);
+    tir.setAttribute("aria-hidden", "true");
+    tir.hidden = true;
     const jeton = cree("div", "dl-jeton", scene);
     jeton.setAttribute("aria-hidden", "true");
     const fente = cree("div", `dl-fente dl-fente-${k}`, scene);
     fente.setAttribute("aria-hidden", "true");
-    return { ombre, fam, famCv, g, gCv, jeton, fente };
+    return { ombre, fam, famCv, g, gCv, tir, jeton, fente };
   };
   const pa = pieceDeCamp("a", o.moi);
   const pb = pieceDeCamp("b", o.lui);
@@ -304,6 +369,27 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     tombe: boolean;
     dec: number;
     vu: Vu;
+    /** Les dessins du Gaulois pour ses gestes, refaits quand sa main change. */
+    dessins: DessinsDuGaulois | null;
+    /** L'arme de sa main : il la tient pour tous ses gestes. */
+    arme: string | null;
+    geste: GesteEnCours | null;
+    /** La dernière pose peinte (sa clé), son image, et l'élan qu'elle donne, en pixels. */
+    poseVue: string;
+    imageVue: ImageDuGeste | null;
+    elanVu: number;
+  }
+  /**
+   * Un geste qui se joue : il a commencé à `debut` (horloge du jeu, en secondes) et avance de `distance` cases au plus. Le
+   * court arrêt d'un impact ne l'arrête pas : sa chorégraphie a le sien, et le coup touche à l'instant prévu.
+   */
+  interface GesteEnCours {
+    g: Geste;
+    arme: string | null;
+    debut: number;
+    distance: number;
+    /** D'où part le projectile, dans la scène, relevé au lâcher. */
+    depart: Point | null;
   }
   const nouveauCamp = (el: HTMLElement, p: ReturnType<typeof pieceDeCamp>, sens: number, dec: number): EtatDuCamp => ({
     el,
@@ -328,6 +414,12 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     tombe: false,
     dec,
     vu: { vie: 0, vieMax: 0, energie: 0, elan: 0, saigne: 0 },
+    dessins: null,
+    arme: null,
+    geste: null,
+    poseVue: "",
+    imageVue: null,
+    elanVu: 0,
   });
   const camps: Record<Camp, EtatDuCamp> = { a: nouveauCamp(elCampA, pa, 1, 0), b: nouveauCamp(elCampB, pb, -1, 2.1) };
 
@@ -366,8 +458,8 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   const finChute = cree("span", "dl-fin-chute", finPanneau);
   const finMot = cree("p", "dl-fin-mot", finPanneau);
   const finBoutons = cree("div", "dl-fin-boutons", finPanneau);
-  const bRejouer = boutonIcone("dl-grand", "Rejouer", urlDIcone("rejouer", true));
-  const bQuitter = boutonIcone("jeu-btn-bleu", "Retour au duel", urlDIcone("retour", false));
+  const bRejouer = boutonIcone("dl-grand", o.libelles?.rejouer ?? "Rejouer", urlDIcone("rejouer", true));
+  const bQuitter = boutonIcone("jeu-btn-bleu", o.libelles?.quitter ?? "Retour au duel", urlDIcone("retour", false));
   finBoutons.append(bQuitter, bRejouer);
 
   const indice = cree("div", "dl-indice", scene);
@@ -408,7 +500,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     minuteurs.push({ t: T + ms / 1000, fn });
     relancer();
   };
-  const occupe = (): boolean => minuteurs.length > 0 || grains.length > 0 || nombres.length > 0 || agite > 0;
+  const occupe = (): boolean => minuteurs.length > 0 || grains.length > 0 || nombres.length > 0 || agite > 0 || !!camps.a.geste || !!camps.b.geste;
   const marquerUnArret = (s: number): void => {
     if (!fige()) arret = Math.max(arret, s);
   };
@@ -480,7 +572,6 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     H: 0,
     pas: 0,
     yZ: 0,
-    elance: 0,
     ficheACote: false,
   };
   /** La hauteur que la scène peut prendre : de son haut au menu du bas (téléphone) ou au bas de la fenêtre. */
@@ -551,7 +642,6 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     scene.classList.toggle("dl-court", court);
     scene.classList.toggle("dl-tel", tel);
     scene.classList.toggle("dl-cotes", cotes);
-    Lay.elance = tel ? 18 : Math.max(36, Math.min(110, D - gw / 2 - xT - 68 * sT - 4));
     scene.style.height = `${Lay.H}px`;
     const b = banniere.style;
     b.left = `${bx}px`;
@@ -744,14 +834,26 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   function habiller(k: Camp, main: readonly CarteDuMoteur[]): void {
     let t = (k === "a" ? o.moi : o.lui).tenue;
     for (const c of main) t = changerObjet(t, c.e, c.id);
-    const cases = casesDuGaulois(t);
-    const p = new Planche(GAULOIS_LARGEUR, GAULOIS_HAUTEUR);
-    cases.forEach((coul, i) => {
-      if (!coul) return;
-      p.fillStyle = coul;
-      p.fillRect(i % GAULOIS_LARGEUR, Math.floor(i / GAULOIS_LARGEUR), 1, 1);
-    });
-    peindre(camps[k].p.gCv, p);
+    const c = camps[k];
+    c.dessins = dessinsDuGaulois(t);
+    const arme = t["arme"];
+    c.arme = arme && arme !== "aucune" ? arme : null;
+    c.geste = null;
+    c.elanVu = 0;
+    c.poseVue = "";
+    c.p.tir.hidden = true;
+    peindreLaPose(k, POSE_DE_REPOS, "repos");
+  }
+  /** Une pose du Gaulois dans sa toile ; rien ne se repeint si c'est la même. */
+  function peindreLaPose(k: Camp, pose: Pose, cle: string): ImageDuGeste | null {
+    const c = camps[k];
+    if (!c.dessins) return null;
+    if (cle === c.poseVue && c.imageVue) return c.imageVue;
+    const image = imageDeLaPose(c.dessins, pose);
+    peindreLesCases(c.p.gCv, image.cases, image.largeur, image.hauteur);
+    c.poseVue = cle;
+    c.imageVue = image;
+    return image;
   }
   function poserFamilier(k: Camp, f: Familier | null): void {
     const c = camps[k];
@@ -773,7 +875,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     for (const k of ["a", "b"] as const) {
       const c = camps[k];
       c.p.fam.style.transform = `translate3d(${c.famX}px,${(c.famYBase + Math.min(0, c.famY.v)).toFixed(1)}px,0)`;
-      c.p.g.style.transform = `translate3d(${(c.gx + c.ox.v).toFixed(1)}px,${(c.gy + c.oy.v).toFixed(1)}px,0) rotate(${c.rot.v.toFixed(2)}deg) scale(${c.sx.v.toFixed(3)},${c.sy.v.toFixed(3)})`;
+      c.p.g.style.transform = `translate3d(${(c.gx + c.ox.v + c.sens * c.elanVu).toFixed(1)}px,${(c.gy + c.oy.v).toFixed(1)}px,0) rotate(${c.rot.v.toFixed(2)}deg) scale(${c.sx.v.toFixed(3)},${c.sy.v.toFixed(3)})`;
     }
   }
   function pasGaulois(dt: number): void {
@@ -790,6 +892,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
         c.sy.c = 1 + resp * 0.012;
         c.sx.c = 1 - resp * 0.006;
       }
+      pasDuGeste(k);
       c.eclat = vers(c.eclat, 0, 7, dt);
       const e = c.eclat < 0.02 ? 0 : Math.round(c.eclat * 20) / 20;
       if (e !== c.eclatVu) {
@@ -818,21 +921,76 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     c.sy.vit += 1.6 * force;
     relancer();
   }
-  function elancer(k: Camp): void {
+  /* ---------- Les gestes : le Gaulois se sert de l'objet de sa carte (`gestes-armes.ts`, chorégraphies de Claude Fable 5.2) ---------- */
+  /** Le geste d'un camp pour le rôle de sa carte : sa frappe suit la famille de son arme. */
+  const gesteDe = (k: Camp, role: Role): Geste => gesteDeLaCarte(role, camps[k].arme);
+  /**
+   * Ce que chaque geste avance au plus, en cases : de quoi toucher juste l'adversaire resté chez lui, ou rejoindre son coup
+   * quand les deux frappent ensemble.
+   */
+  function distancesDesGestes(gestes: Partial<Record<Camp, Geste>>): Record<Camp, number> {
+    const A = camps.a.dessins;
+    const B = camps.b.dessins;
+    if (!A || !B) return { a: 0, b: 0 };
+    const contact = contactEntre(A, B, Math.round((camps.b.x - camps.a.x) / Lay.gs));
+    const ga = gestes.a;
+    const gb = gestes.b;
+    if (ga && gb) {
+      const [da, db] = distancesDElanFaceAFace({ d: A, geste: ga, arme: camps.a.arme }, { d: B, geste: gb, arme: camps.b.arme }, contact);
+      return { a: da, b: db };
+    }
+    return { a: ga ? distanceDElan(A, ga, contact, camps.a.arme) : 0, b: gb ? distanceDElan(B, gb, contact, camps.b.arme) : 0 };
+  }
+  function lancerLeGeste(k: Camp, g: Geste, distance: number): void {
     const c = camps[k];
-    if (fige()) return;
-    c.ox.c = c.sens * Lay.elance;
-    c.rot.c = c.sens * 7;
-    c.ox.k = 520;
-    c.ox.d = 30;
-    SON.elance();
-    apres(230, () => {
-      c.ox.c = 0;
-      c.rot.c = 0;
-      c.ox.k = 150;
-      c.ox.d = 15;
-    });
+    if (!c.dessins) return;
+    c.geste = { g, arme: c.arme, debut: T, distance, depart: null };
     relancer();
+  }
+  /** Un point de l'image du geste d'un camp, en pixels de la scène (celui de droite est retourné autour de son milieu). */
+  function versLaScene(k: Camp, p: Point): Point {
+    const c = camps[k];
+    const x = c.sens > 0 ? p.x - MARGES.gauche : 2 * MILIEU_DU_GAULOIS - p.x - MARGES.gauche;
+    return { x: c.gx + c.ox.v + c.sens * c.elanVu + x * Lay.gs, y: c.gy + c.oy.v + (p.y - MARGES.haut) * Lay.gs };
+  }
+  /** Le Gaulois d'un camp au repos, son geste fini ou arrêté, derrière les cartes posées. */
+  function reposer(k: Camp): void {
+    const c = camps[k];
+    c.geste = null;
+    c.elanVu = 0;
+    if (!c.p.tir.hidden) c.p.tir.hidden = true;
+    if (c.p.g.style.zIndex) c.p.g.style.zIndex = "";
+    peindreLaPose(k, POSE_DE_REPOS, "repos");
+  }
+  /** Le geste d'un camp à cet instant : sa pose, son élan, son projectile ; au repos quand il est fini. */
+  function pasDuGeste(k: Camp): void {
+    const c = camps[k];
+    const g = c.geste;
+    const t = g ? (T - g.debut) * 1000 : 0;
+    if (!g || t >= dureeDuGeste(g.g, g.arme)) {
+      reposer(k);
+      return;
+    }
+    // Pendant son geste, le Gaulois passe devant les cartes posées au milieu : on le voit se servir de son objet.
+    if (c.p.g.style.zIndex !== "23") c.p.g.style.zIndex = "23";
+    const pose = poseDuGeste(g.g, t, { arme: g.arme, calme: fige() });
+    // l'image ne dépend ni de l'élan (la scène déplace la toile) ni du projectile (sa propre toile)
+    const image = peindreLaPose(k, pose, JSON.stringify({ ...pose, elan: 0, projectile: null }));
+    c.elanVu = Math.round(pose.elan * g.distance) * Lay.gs;
+    const tir = c.p.tir;
+    if (!pose.projectile || !image) {
+      if (!tir.hidden) tir.hidden = true;
+      return;
+    }
+    g.depart ??= versLaScene(k, departDuProjectile(pose.projectile.sorte, image));
+    const [cx, cy] = centreDe(k === "a" ? "b" : "a", 0.44);
+    const place = placeDuProjectile(pose.projectile, g.depart, { x: cx, y: cy }, Lay.gs);
+    const vu = imageDuProjectile(pose.projectile.sorte, place.angle, c.dessins ?? undefined);
+    peindreLesCases(tir, vu.cases, vu.largeur, vu.hauteur);
+    tir.style.width = `${vu.largeur * Lay.gs}px`;
+    tir.style.height = `${vu.hauteur * Lay.gs}px`;
+    tir.style.transform = `translate3d(${place.x - vu.centre.x * Lay.gs}px,${place.y - vu.centre.y * Lay.gs}px,0)`;
+    tir.hidden = false;
   }
   function sauter(k: Camp): void {
     const c = camps[k];
@@ -943,7 +1101,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     if (!b) return;
     b.main.forEach((carte, i) => {
       const choix = scene.dataset["phase"] === "choix";
-      const repos = scene.dataset["phase"] === "avant" ? 0 : (b.repos[i] ?? 0);
+      const repos = scene.dataset["phase"] === "avant" || M_.libres(b).includes(i) ? 0 : (b.repos[i] ?? 0);
       const ess = !repos && choix && b.energie < carte.c;
       const coup = M_.estCoup(carte.role);
       const f = repos || !choix || !E.a ? carte.f : M_.forceJouee(b, carte, E.a);
@@ -1135,11 +1293,13 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   /** L'état d'une carte de ma main à cette manche : au repos, ou la force qu'elle aurait, l'élan qu'elle porte, l'énergie qui manque. */
   function etatDe(carte: CarteDuMoteur): EtatDeCarte {
     if (scene.dataset["phase"] === "avant" || !E.a || !E.b) return { force: carte.f };
-    const repos = E.a.repos[mainMoi.indexOf(carte)] ?? 0;
+    const i = mainMoi.indexOf(carte);
+    const repos = M_.libres(E.a).includes(i) ? 0 : (E.a.repos[i] ?? 0);
     if (repos > 0) return { force: carte.f, repos };
     return { force: M_.forceJouee(E.a, carte, E.b), essouffle: E.a.energie < carte.c, elan: M_.estCoup(carte.role) ? E.a.elan : 0 };
   }
-  const auRepos = (c: CarteVive): boolean => scene.dataset["phase"] !== "avant" && !!E.a && (E.a.repos[Mn.cartes.indexOf(c)] ?? 0) > 0;
+  // Au repos : une carte que le moteur ne laisse pas poser (quand toutes se reposent, celles qui reviennent le plus tôt restent jouables).
+  const auRepos = (c: CarteVive): boolean => scene.dataset["phase"] !== "avant" && !!E.a && !M_.libres(E.a).includes(Mn.cartes.indexOf(c));
   let indiceVu: string | null = null;
   function montrerIndice(c: CarteVive | null, defaut = ""): void {
     const cle = c ? c.carte.id + JSON.stringify(etatDe(c.carte)) : `d:${defaut}`;
@@ -1517,7 +1677,8 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   /* ---------- Les mains ---------- */
   const mainMoi: CarteDuMoteur[] = o.moi.main.map((id) => M_.carte(id));
   const mainLui: CarteDuMoteur[] = o.lui.main.map((id) => M_.carte(id));
-  const E: { m: number; debut: number; a: CampDuMoteur | null; b: CampDuMoteur | null; choixB: number; cb: CarteVive | null; suite: Record<Camp, number> } = { m: 1, debut: 1, a: null, b: null, choixB: -1, cb: null, suite: { a: 0, b: 0 } };
+  // `r` : la manche qui se montre, dont les camps ne deviennent `a` et `b` qu'à la fin de ce qu'elle montre.
+  const E: { m: number; debut: number; a: CampDuMoteur | null; b: CampDuMoteur | null; r: MancheDuMoteur | null; choixB: number; cb: CarteVive | null; suite: Record<Camp, number> } = { m: 1, debut: 1, a: null, b: null, r: null, choixB: -1, cb: null, suite: { a: 0, b: 0 } };
 
   /* ---------- Avant le duel : la bourse, la vie ---------- */
   function peindreBourse(): void {
@@ -1651,6 +1812,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   };
   let dernierRecit = "";
   function entrer(): void {
+    if (scene.dataset["phase"] !== "avant") return;
     const depart = o.defi?.depart() ?? null;
     E.a = depart ? depart.a : M_.camp(mainMoi, o.moi.options);
     E.b = depart ? depart.b : M_.camp(mainLui, o.lui.options);
@@ -1682,7 +1844,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     // La machine choisit maintenant, avant toi : elle ne peut pas voir ta carte. Contre le serveur, elle choisit quand tu
     // poses la tienne, sans la voir non plus : sa carte cachée est un dos, qui ne dit rien.
     E.choixB = o.choisir ? o.choisir(b, a, E.m) : -1;
-    const carteB = b.main[E.choixB >= 0 ? E.choixB : (b.repos.findIndex((r) => r === 0) + b.main.length) % b.main.length]!;
+    const carteB = b.main[E.choixB >= 0 ? E.choixB : (M_.libres(b)[0] ?? 0)]!;
     const cb = creerCarte(carteB, !(o.defi?.annonce && E.choixB >= 0));
     cb.lieu = "table";
     cb.camp = camps.b;
@@ -1728,7 +1890,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     guide(0);
     o.jouer(ia, E.m).then(
       (ib) => {
-        if (detruit) return;
+        if (detruit || scene.dataset["phase"] !== "attente") return;
         const b = E.b!;
         const carteB = b.main[ib];
         const cb = E.cb;
@@ -1740,7 +1902,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
         resoudre(c, ia);
       },
       (e: unknown) => {
-        if (detruit) return;
+        if (detruit || scene.dataset["phase"] !== "attente") return;
         c.lieu = "main";
         scene.dataset["phase"] = "choix";
         SON.retour();
@@ -1754,6 +1916,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   function resoudre(c: CarteVive, ia: number): void {
     if (!E.a || !E.b || !E.cb) return;
     const r: MancheDuMoteur = M_.manche(E.a, E.b, ia, E.choixB, E.m);
+    E.r = r;
     const fa = r.fa;
     const fb = r.fb;
     const cb = E.cb;
@@ -1800,23 +1963,43 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     if (M_.estCoup(fa.role)) coups.push(["a", "b", fa, fb, c, cb]);
     if (M_.estCoup(fb.role)) coups.push(["b", "a", fb, fa, cb, c]);
     if (coups.length) {
+      // Les gestes : celui qui frappe se sert de son arme (ou cogne de la tête), celui qui garde encaisse ; chacun part pour
+      // que son coup touche à l'instant de l'impact, `impact`.
+      const gestes: Partial<Record<Camp, Geste>> = {};
+      for (const [qui, , f] of coups) gestes[qui] = gesteDe(qui, f.role);
+      for (const [, cible, , fc] of coups) if (fc.role === "garde") gestes[cible] = "garde";
+      const avantLImpact = (k: Camp): number => {
+        const g = gestes[k];
+        return g ? (instantDeLImpact(g, camps[k].arme) ?? 0) : 0;
+      };
+      const impact = t + Math.max(210, avantLImpact("a"), avantLImpact("b"));
+      for (const k of ["a", "b"] as const) {
+        const g = gestes[k];
+        if (!g) continue;
+        apres(impact - avantLImpact(k), () => {
+          lancerLeGeste(k, g, distancesDesGestes(gestes)[k]);
+          if (g !== "garde" && !fige()) SON.elance();
+        });
+      }
       apres(t, () => {
-        for (const [qui, , f, , carteQui] of coups) {
-          elancer(qui);
-          fleche(qui, f.role);
+        for (const [qui, , , , carteQui] of coups) {
           carteQui.sc.vit = 4;
           carteQui.rz.vit = camps[qui].sens * 120;
         }
       });
-      // le court arrêt avant l'impact
-      apres(t + 150, () => {
+      // la flèche de chaque coup, jusqu'à l'impact
+      apres(Math.max(t, impact - 400), () => {
+        for (const [qui, , f] of coups) fleche(qui, f.role);
+      });
+      // le court arrêt, au contact
+      apres(impact - 10, () => {
         const gros = Math.max(...coups.map(([, , f]) => f.degats));
         if (gros > 0) {
           marquerUnArret(0.05 + Math.min(0.09, gros * 0.012));
           SON.arret();
         }
       });
-      apres(t + 210, () => {
+      apres(impact, () => {
         for (const [, cible, f, fc, , carteCible] of coups) {
           const [x, y] = centreDe(cible, 0.55);
           if (fc.role === "garde") {
@@ -1837,14 +2020,14 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
       // ce qui revient à celui qui a cogné : les dégâts renvoyés par la garde, et le point que coûte un coup de tête
       const retours = coups.filter(([, , f, fc]) => fc.renvoi + f.recul > 0);
       if (retours.length)
-        apres(t + 560, () => {
+        apres(impact + 350, () => {
           for (const [qui, , f, fc] of retours) blesser(qui, fc.renvoi + f.recul, fc.renvoi ? "renvoi" : "recul", fc.renvoi ? 0.9 : 0.35);
         });
       // un coup qui porte lance le suivant
       const lances = coups.filter(([, , f]) => f.enchaine);
       for (const k of ["a", "b"] as const) E.suite[k] = lances.some(([qui]) => qui === k) ? E.suite[k] + 1 : 0;
       if (lances.length && !r.fini)
-        apres(t + 700, () => {
+        apres(impact + 490, () => {
           for (const [qui, , f] of lances) {
             vu[qui].elan += f.enchaine ?? 0;
             peindreJeton(qui);
@@ -1856,10 +2039,17 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
           }
           SON.enchaine(Math.max(E.suite.a, E.suite.b));
         });
-      t += retours.length ? 1250 : 950;
+      t = impact - 210 + (retours.length ? 1250 : 950);
     } else if (fa.role === "garde" || fb.role === "garde") {
       apres(t, () => {
-        for (const [k, f] of [["a", fa], ["b", fb]] as const) if (f.role === "garde") bouclier(k);
+        const gestes: Partial<Record<Camp, Geste>> = {};
+        for (const [k, f] of [["a", fa], ["b", fb]] as const) if (f.role === "garde") gestes[k] = "garde";
+        const d = distancesDesGestes(gestes);
+        for (const [k, f] of [["a", fa], ["b", fb]] as const)
+          if (f.role === "garde") {
+            bouclier(k);
+            lancerLeGeste(k, "garde", d[k]);
+          }
         SON.vide();
       });
       t += 500;
@@ -1867,25 +2057,23 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     const suites = r.fini ? [] : ([["a", fa, c], ["b", fb, cb]] as const).filter(([, f]) => (f.role === "souffle" || f.role === "elan") && !f.coupe);
     if (suites.length) {
       apres(t, () => {
+        const gestes: Partial<Record<Camp, Geste>> = {};
+        for (const [k, f] of suites) gestes[k] = gesteDe(k, f.role);
+        const d = distancesDesGestes(gestes);
         for (const [k, f, carteEl] of suites) {
           const [x, y] = centreDe(k, 0.6);
           const g = camps[k];
+          lancerLeGeste(k, gesteDe(k, f.role), d[k]);
           if (f.role === "souffle") {
             if (f.soin > 0) SON.soin(f.soin);
             else SON.vide();
             gagnerVie(k, f.soin);
             nombre(x + g.sens * Lay.gw * (Lay.tel ? 0.15 : 0.3), y - Lay.gh * (Lay.tel ? 0.1 : 0.36), f.soin > 0 ? `+${f.soin}` : "PLEIN", "#7df0a0", Lay.tel ? 3 : 4, { ic: coeurPlein() });
             eclats(x, y, 9, [], { img: coeurPlein(), vit: 70, poids: -160, duree: 1, ouverture: Math.PI * 0.8 });
-            if (!fige()) g.sy.vit = 1.6;
           } else {
             SON.elan();
             vu[k].elan += f.elan;
             peindreJeton(k);
-            if (!fige()) {
-              g.sy.vit = -3;
-              g.sx.vit = 2;
-              g.oy.vit = -260;
-            }
             const ic = new Planche(13, 13);
             ic.drawImage(iconeDeRole("elan", "#d8c9ff"), 1, 1);
             nombre(x + g.sens * Lay.gw * (Lay.tel ? 0.15 : 0.3), y - Lay.gh * (Lay.tel ? 0.1 : 0.36), `+${f.elan}`, "#d8c9ff", Lay.tel ? 3 : 4, { ic: cerne(ic) });
@@ -1985,6 +2173,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
       apres(520, () => retirerCarte(cb));
       E.a = r.a;
       E.b = r.b;
+      E.r = null;
       for (const k of ["a", "b"] as const) {
         vu[k].vie = Math.max(0, E[k]!.vie);
         peindreCoeurs(k);
@@ -2056,6 +2245,38 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     if (r.fatigue.a || r.fatigue.b) t += `La fatigue te coûte ${r.fatigue.a} de vie, à lui ${r.fatigue.b}. `;
     return `${t}Il te reste ${Math.max(0, r.a.vie)} de vie, à lui ${Math.max(0, r.b.vie)}.`;
   }
+  /** Le mot de la fin donné par `interrompre`. */
+  let motImpose: string | null | undefined;
+  function interrompre(v: -1 | 0 | 1, mot: string | null): void {
+    if (detruit || scene.dataset["phase"] === "fin") return;
+    // ce qui restait à montrer de la manche ne se joue plus, mais son résultat compte, et ce qui devait se ranger se range
+    minuteurs.length = 0;
+    if (E.r) {
+      E.a = E.r.a;
+      E.b = E.r.b;
+      E.r = null;
+    }
+    for (const el of scene.querySelectorAll(".dl-fleche")) el.remove();
+    for (const c of cartes.slice()) if (c.lieu === "part") retirerCarte(c);
+    for (const k of ["a", "b"] as const) reposer(k);
+    if (!GUIDE.fini && GUIDE.etape >= 4) finirLeGuide();
+    if (!E.a || !E.b) {
+      E.a = M_.camp(mainMoi, o.moi.options);
+      E.b = M_.camp(mainLui, o.lui.options);
+      avant.hidden = true;
+    }
+    for (const c of Mn.cartes) if (c.lieu === "table") c.lieu = "main";
+    // la carte d'en face s'en va, comme à la fin d'une manche
+    const cb = E.cb;
+    if (cb) {
+      cb.lieu = "part";
+      cb.vers = [camps.b.x, Lay.yG + Lay.gh * 0.5];
+      apres(520, () => retirerCarte(cb));
+      E.cb = null;
+    }
+    motImpose = mot;
+    finir(v);
+  }
   function finir(v: number): void {
     const a = E.a!;
     const b = E.b!;
@@ -2094,7 +2315,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
     finChute.hidden = !deux;
     if (deux) ecrireEnPixels(finChute, v !== 0 ? `LES DEUX TOMBENT : IL TE MANQUAIT ${-a.vie} DE VIE, À LUI ${-b.vie}` : "LES DEUX TOMBENT D'AUSSI HAUT", "texte", { plie: true });
     const resultat: FinDuDuel = { verdict: v, manches: E.m, vieMoi: Math.max(0, a.vie), vieLui: Math.max(0, b.vie) };
-    const mot = o.motDeFin?.(resultat) ?? null;
+    const mot = motImpose !== undefined ? motImpose : (o.motDeFin?.(resultat) ?? null);
     finMot.hidden = !mot;
     finMot.textContent = mot ?? "";
     majApercu();
@@ -2183,7 +2404,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
       apercu.append(cv);
     }
   }
-  /** La flèche d'un coup pendant qu'il part : de celui qui cogne à sa cible, le temps de l'élan. */
+  /** La flèche d'un coup pendant qu'il part : de celui qui cogne à sa cible, jusqu'à l'impact. */
   function fleche(qui: Camp, role: Role): void {
     if (fige()) return;
     const A = camps[qui];
@@ -2342,6 +2563,10 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   peindreBanniere();
   icEntrer.style.setProperty("--i", urlDeLaPlanche("duel-epees", () => epeesCroisees()));
   preparer(true);
+  if (o.entreeDirecte) {
+    avant.hidden = true;
+    apres(450, entrer);
+  }
   largeurVue = racine.clientWidth;
   hauteurVue = window.innerHeight;
   taille.observe(racine);
@@ -2350,6 +2575,7 @@ export function lancerLeDuel(racine: HTMLElement, o: OptionsDeLaScene): SceneDuD
   return {
     changerCarte,
     main: () => mainMoi.map((c) => c.id),
+    interrompre,
     arreter: () => {
       detruit = true;
       pause = true;

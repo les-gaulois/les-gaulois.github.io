@@ -121,6 +121,11 @@ export interface MoteurDuDuel {
   verdict(a: CampDuMoteur, b: CampDuMoteur): number;
   forceJouee(c: CampDuMoteur, carte: CarteDuMoteur, lui?: CampDuMoteur): number;
   estCoup(role: Role): boolean;
+  /**
+   * Les cartes qu'un camp peut poser : celles qui ne se reposent pas, ou, quand toutes se reposent, celles qui reviennent le
+   * plus tôt. Le serveur refuse selon la même règle.
+   */
+  libres(c: CampDuMoteur): number[];
   fatigueDe(m: number, c?: CampDuMoteur): number;
   prixDeLaMain(main: readonly CarteDuMoteur[]): number;
   panopliesDe(main: readonly CarteDuMoteur[]): string[];
