@@ -3,6 +3,17 @@
     "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "staff",
+    "title": "Le duel, en essai pour le pilote",
+    "body": "Une partie « Le duel » dans Mon Gaulois, visible du seul pilote tant qu'il est fermé : duel de cartes contre la machine en trois niveaux, avec ses vrais objets, main de défense et collection.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "staff",
     "title": "Le duel des Gaulois, côté serveur",
     "body": "Le serveur du duel de cartes est prêt : mains de défense, duels contre un membre ou le boss du jour, duels comptés et pas du pass. Il reste fermé, visible du seul pilote, en attendant son écran."
   },

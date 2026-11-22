@@ -68,6 +68,9 @@ export const FEUILLES: readonly { fichier: string; pages: typeof TOUTES | readon
   // « La vitrine » et « La loterie » de « Mon Gaulois » en écran de jeu, et la démonstration des visiteurs (21 novembre 2026) :
   // les cartes des Gaulois du clan, la rangée des boosters de loterie de la semaine, le booster d'essai.
   { fichier: "21-jeu-vitrine-loterie.css", pages: ["/village", "/direction"] },
+  // « Le duel » de « Mon Gaulois » (22 novembre 2026) : la scène du duel de cartes « Coup pour coup », ses cartes et leurs
+  // finitions, l'accueil du duel, la collection et la main de défense. Tout sous `.duel-jeu`.
+  { fichier: "22-jeu-duel.css", pages: ["/village", "/direction"] },
 ];
 
 /** Les morceaux qu'une page charge, dans l'ordre de la cascade. `route` : le motif de la page (`/membres/[id]`). */

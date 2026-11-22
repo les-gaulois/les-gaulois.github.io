@@ -11,6 +11,7 @@ import type { Issue } from "./BoutiqueDialogue";
 import { feterLObjet } from "./Cases";
 import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RareteEnPixels, ResteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
+import { AussiCarteDeDuel } from "./duel/AussiCarteDeDuel";
 
 /**
  * Le booster surprise, sous l'étal (fiche du kit, `FicheDuBooster`) : son paquet, qui ouvre l'album des objets qu'il peut
@@ -109,6 +110,7 @@ export function DialoguePochette({
         <OuvertureDuBooster sorte="surprise" carte={carte} revelee={etape === "revele"} onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}>
           <ResultatDuBooster nom={objet.nom} detail={<RareteEnPixels rarete={tire.rarete} />} double={tire.double} testid="pochette-tirage">
             <span hidden data-objet={`${tire.emplacement}/${tire.objet}`} />
+            <AussiCarteDeDuel />
           </ResultatDuBooster>
           <ResteEnPixels solde={tirage.solde} />
           {tire.double &&

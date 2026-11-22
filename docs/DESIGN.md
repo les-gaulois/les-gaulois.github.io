@@ -1010,6 +1010,34 @@ bannières, qui sont elles-mêmes des fonds. À ne pas confondre avec les « fon
   l'image à une case près (`DessinSurFond.tsx`, qui mesure la boîte). L'atelier `scripts/atelier-gaulois/fonds.ts` montre
   chaque scène aux tailles des écrans et toutes les choses de chaque scène (`.cache/atelier-fonds/`).
 
+### Le duel « Coup pour coup » (22 novembre 2026)
+
+`/village#duel` (`src/components/village/duel/`, feuille `22-jeu-duel.css`, tout sous `.duel-jeu`) : le duel de cartes
+de « Mon Gaulois », repris de la maquette validée par le pilote (« j'aime beaucoup », Claude Fable 5.2), et les écrans
+dessinés autour par Claude Fable 5.2 (icônes de `dessins-ecran.ts`). Les règles sont au moteur partagé
+(`supabase/functions/code-discord/duel/`) : l'écran ne fait que montrer ce qu'il rend (`moteur-du-site.ts`).
+
+- **Qui le voit** : tout membre quand le serveur dit le duel ouvert ; tant qu'il est fermé, le pilote seul (`acces.ts`).
+  Une adresse `#duel` qu'on n'a pas le droit d'ouvrir ramène à « Ma carte ». Son icône de menu est dessinée dans la page
+  (`image` d'`OngletDuJeu`), sans toucher aux icônes du kit.
+- **La scène** (`SceneDuDuel.ts`) : la maquette telle quelle, sur les outils du kit (`Planche`, écriture, icônes de rareté) :
+  les deux Gaulois devant la bannière du lieu, la main qui vit, l'aperçu avant de poser, la carte d'en face cachée, la
+  révélation, les coups, les mots-clés, la fatigue, la fin ; le premier duel guidé en quatre bulles (`gal-duel-guide`). Les
+  cartes (`dessins-des-cartes.ts`) restent claires à la couleur de leur rareté, avec les finitions holographiques de la
+  maquette ; les sons (`sons-du-duel.ts`) passent par le réglage du son du jeu. Une manche se joue dans la page (machine du
+  navigateur, entraînement) ou au serveur (`jouer`, duel compté) ; une partie reprise rejoue ses manches sans les montrer.
+  Sur téléphone, l'arène prend toute la largeur de l'écran.
+- **L'accueil** (`LeDuel.tsx`) : l'entraînement en trois niveaux (apprenti, guerrier, druide), ma défense (mes cinq cartes,
+  repoussés et fois battu), ma collection (« 21 sur 273 »). Le boss du jour et les défis y paraîtront avec leur contenu.
+- **La collection** (`Recueil.tsx`) : les vraies cartes du membre (son inventaire et les cartes de base). Une carte qu'on n'a
+  pas est grisée (proposition de Claude Fable 5.2 : face pâlie sans couleur, objet en silhouette, bord en pointillé), avec
+  où la trouver (boutique, booster, pass, qui mènent à leur partie ; le divin au booster seul, la saison au pass seul). Le
+  même recueil sert de tiroir pour changer une carte de sa main, sous la bourse.
+- **Ma main de défense** : le Gaulois « chez toi » devant sa bannière, les cinq cartes, la bourse, « Enregistrer » ;
+  l'historique de ceux qui t'ont battu et de ceux que tu as repoussés. Au téléphone, deux boutons dans l'en-tête montrent
+  l'une ou l'autre.
+- **Le badge « carte de duel »** (`AussiCarteDeDuel.tsx`) sous un objet sorti du booster surprise, pour qui voit le duel.
+
 ## Accessibilité
 
 - Lien d'évitement, focus visible partout, navigation entièrement utilisable au clavier.

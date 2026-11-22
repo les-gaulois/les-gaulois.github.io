@@ -14,8 +14,13 @@ import { Etiquette, Icone, Px } from "./Pixels";
  * dessinée, et en toutes lettres aux lecteurs d'écran.
  */
 export interface OngletDuJeu extends TabItem {
-  /** Le dessin de la partie. */
-  dessin: NomDeGrandeIcone;
+  /** Le dessin de la partie, parmi les icônes du kit. */
+  dessin?: NomDeGrandeIcone;
+  /**
+   * Ou son dessin fait dans la page (une adresse d'image pour `--i`) : « Le duel » (22 novembre 2026) a le sien, dessiné
+   * avec ses écrans (`src/components/village/duel/`), sans toucher aux icônes du kit.
+   */
+  image?: string;
   /** Le mot écrit sur son bouton, en capitales du kit. */
   mot: string;
 }
@@ -50,7 +55,7 @@ export function MenuDuJeu({ prefix, onglets, active, onSelect }: { prefix: strin
             onClick={() => onSelect(o.id)}
             onKeyDown={(e) => auClavier(e, i)}
           >
-            <Icone nom={o.dessin} />
+            {o.image ? <i class="jeu-ic" style={`--i:${o.image}`} aria-hidden="true" /> : o.dessin && <Icone nom={o.dessin} />}
             {/* Sur le bouton d'or de la partie ouverte, l'écriture passe à l'encre ; sur les bleus, crème cerné. */}
             <Px t={o.mot} couleur="creme" relief="cerne" muet classe="jeu-onglet-mot-ferme" />
             <Px t={o.mot} couleur="encre" muet classe="jeu-onglet-mot-ouvert" />

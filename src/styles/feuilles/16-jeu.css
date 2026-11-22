@@ -494,7 +494,9 @@
 /* Le pied du jeu : une ligne discrète, mentions légales, confidentialité, code source et la mention d'OpenFront. */
 .jeu-pied {
   position: relative;
-  z-index: 1;
+  /* Au-dessus du paysage (z 0, placé avant lui), au-dessous de #contenu (z 1) : le menu du bas, fixé dans #contenu, reste
+     au-dessus du pied quand une partie courte le fait remonter sous le menu (22 novembre 2026). */
+  z-index: 0;
   margin-bottom: var(--jeu-menu-bas-h);
   /* Aucune marge en bas du pied : le Gaulois compagnon n'y vient pas (src/scripts/compagnon.ts). */
   padding: 10px max(16px, calc(12 * var(--jeu-p))) 0;

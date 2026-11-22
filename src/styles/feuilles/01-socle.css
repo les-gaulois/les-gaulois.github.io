@@ -329,6 +329,18 @@
   display: block;
 }
 
+/* Les cartes du duel de « Mon Gaulois » (22-jeu-duel.css) : la place de la lumière sur la carte, de 0 à 1, et l'angle de
+   l'arc-en-ciel du divin, héritées par les finitions et animées quand la carte se balance. */
+@property --dl-mx {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0.5;
+}
+@property --dl-ang {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
 /* Variables non héritées : les modifier au survol ne recalcule pas tout le contenu d'un bloc. */
 @property --mx {
   syntax: "<length>";

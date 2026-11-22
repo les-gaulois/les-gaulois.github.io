@@ -21,12 +21,16 @@ import AtelierDeLaForge from "./Forge";
 import VestiaireDuJeu from "./VestiaireDuJeu";
 import LeSentier, { objetsQuiAttendent, useSentier } from "./Sentier";
 import VitrineDuJeu from "./VitrineDuJeu";
+import { ANCRE_DUEL, useAccesAuDuel } from "./duel/acces";
+import { iconeDuDuel } from "./duel/dessins-ecran";
+import { urlDeLaPlanche } from "../../lib/jeu/dans-la-page";
 
 /** « Ma carte », la première partie du jeu depuis le 21 novembre 2026 : `/village` s'ouvre sur elle. */
 export const ANCRE_MA_CARTE = "ma-carte";
 
 /**
- * Les huit parties du jeu, dans l'ordre du menu : « Ma carte » (21 novembre 2026, l'écran d'accueil du jeu), puis les sept
+ * Les parties du jeu, dans l'ordre du menu : « Ma carte » (21 novembre 2026, l'écran d'accueil du jeu), « Le duel » (22
+ * novembre 2026, le duel de cartes, visible du seul pilote tant que le serveur le dit fermé), puis les sept
  * d'avant, chacune avec son icône dessinée et le mot de son bouton. Leurs adresses ne changent pas (`#gaulois`, `#sentier`,
  * `#forge`, `#boutique`, `#pochettes`, `#vitrine`, `#loterie`), ni leurs noms internes : seuls leurs noms à l'écran changent,
  * à la demande du pilote (fiche de projet « Mon Gaulois », 20-21 novembre 2026) : « Les pochettes » devient « Les boosters »,
@@ -45,6 +49,9 @@ export const ANCRE_MA_CARTE = "ma-carte";
  */
 const ONGLETS: OngletDuJeu[] = [
   { id: ANCRE_MA_CARTE, label: "Ma carte", mot: "Ma carte", dessin: "ma-carte" },
+  // « Le duel » (22 novembre 2026), le duel de cartes « Coup pour coup » : son icône est dessinée avec ses écrans. Il ne
+  // paraît qu'au pilote tant que le serveur le dit fermé (`useAccesAuDuel`).
+  { id: ANCRE_DUEL, label: "Le duel", mot: "Duel" },
   { id: "gaulois", label: "Le vestiaire", mot: "Vestiaire", dessin: "vestiaire" },
   { id: ANCRE_SENTIER, label: "Le pass", mot: "Pass", dessin: "sentier" },
   { id: "forge", label: "La forge", mot: "Forge", dessin: "forge" },
@@ -69,7 +76,8 @@ function Ecran({ children }: { children: ComponentChildren }) {
  *
  * Un visiteur voit le Gaulois de départ et la porte. Un compte connecté finit d'abord son inscription
  * (src/lib/compte/arrivee.ts, 15 novembre 2026) : le lien de son profil OpenFront, puis son Gaulois, seul au vestiaire ; le
- * reste attend qu'il soit créé. Ensuite, le menu du jeu (MenuDuJeu.tsx) et ses huit parties : « Ma carte », le vestiaire,
+ * reste attend qu'il soit créé. Ensuite, le menu du jeu (MenuDuJeu.tsx) et ses huit parties (neuf pour le pilote, avec « Le
+ * duel ») : « Ma carte », le vestiaire,
  * le pass, la forge, la boutique, les boosters, la vitrine et la loterie. Chaque partie ne lit le serveur qu'à son
  * ouverture ; la forge et la boutique se relisent à chaque retour, et le vestiaire aussi : un objet acheté y paraît
  * aussitôt. Le palier du pass et la bourse sont dans la barre du jeu (RessourcesDuJeu.tsx).
@@ -103,6 +111,24 @@ export default function VillageApp() {
     if (surMaCarte) setRetours((n) => n + 1);
   }, [surMaCarte]);
   const carte = useCarteDuJoueur(gauloisCree, retours);
+
+  // « Le duel » : visible si le serveur le dit ouvert, ou au pilote seul tant qu'il est fermé. Une adresse `#duel` qu'on
+  // n'a pas le droit d'ouvrir ramène à « Ma carte », sans rien dire du duel.
+  const surLeDuel = active === ANCRE_DUEL;
+  const acces = useAccesAuDuel(gauloisCree);
+  const duelVisible = acces.kind === "ouvert";
+  // L'écran du duel (sa scène, le moteur) ne se charge qu'à l'ouverture de sa partie : les autres membres ne le reçoivent pas.
+  const [LeDuel, setLeDuel] = useState<typeof import("./duel/LeDuel").default | null>(null);
+  useEffect(() => {
+    if (!surLeDuel || !duelVisible || LeDuel) return;
+    void import("./duel/LeDuel").then(
+      (mod) => setLeDuel(() => mod.default),
+      () => undefined,
+    );
+  }, [surLeDuel, duelVisible, LeDuel]);
+  useEffect(() => {
+    if (surLeDuel && acces.kind === "ferme") select(ANCRE_MA_CARTE);
+  }, [surLeDuel, acces.kind, select]);
 
   // Les boosters gagnés à la loterie qui restent à ouvrir : leur nombre, sur le bouton « Boosters ». Relu quand on quitte
   // cette partie, où ils s'ouvrent ; tant qu'elle est ouverte, l'étiquette ne paraît pas (son nombre y change à chaque
@@ -162,7 +188,8 @@ export default function VillageApp() {
   const sentierVisible = sentier.etat.kind === "pret" || active === ANCRE_SENTIER;
   // Le tirage du mardi : les jours qui restent, en mots. Le serveur seul tire ; ceci ne fait que compter jusqu'à mardi.
   const avantLeTirage = motsAvantLeTirage(joursAvantLeTirage(new Date()));
-  const onglets = ONGLETS.filter((onglet) => onglet.id !== ANCRE_SENTIER || sentierVisible).map((onglet): OngletDuJeu => {
+  const onglets = ONGLETS.filter((onglet) => (onglet.id !== ANCRE_SENTIER || sentierVisible) && (onglet.id !== ANCRE_DUEL || duelVisible)).map((onglet): OngletDuJeu => {
+    if (onglet.id === ANCRE_DUEL) return { ...onglet, image: urlDeLaPlanche("duel-menu", iconeDuDuel) };
     if (onglet.id === ANCRE_SENTIER && attendent > 0) return { ...onglet, count: { value: attendent, words: `${attendent} ${attendent > 1 ? "objets" : "objet"} à prendre`, tone: "vif" } };
     if (onglet.id === RAYON_POCHETTES && aOuvrir > 0 && !surLesPochettes) return { ...onglet, count: { value: aOuvrir, words: `${aOuvrir} ${aOuvrir > 1 ? "boosters gagnés" : "booster gagné"} à ouvrir`, tone: "vif" } };
     if (onglet.id === ANCRE_LOTERIE) return { ...onglet, count: { value: 1, text: avantLeTirage, words: `tirage ${avantLeTirage === "ce soir" || avantLeTirage === "demain" ? avantLeTirage : `dans ${avantLeTirage}`}` } };
@@ -190,6 +217,12 @@ export default function VillageApp() {
           <Partie prefix={PREFIXE} id={ANCRE_MA_CARTE} active={active} slide={slide}>
             <h2 class="sr-only">Ma carte</h2>
             {surMaCarte && <MaCarte carte={carte} pseudo={me.openfront_username} nom={me.openfront_username ?? me.name ?? null} versLeVestiaire={() => select("gaulois")} />}
+          </Partie>
+        )}
+        {!aCreer && acces.kind === "ouvert" && (
+          <Partie prefix={PREFIXE} id={ANCRE_DUEL} active={active} slide={slide}>
+            <h2 class="sr-only">Le duel</h2>
+            {surLeDuel && (LeDuel ? <LeDuel serveur={acces.serveur} /> : <Loading label="Préparation du duel…" />)}
           </Partie>
         )}
         <Partie prefix={PREFIXE} id="gaulois" active={aCreer ? "gaulois" : active} slide={aCreer ? null : slide}>
