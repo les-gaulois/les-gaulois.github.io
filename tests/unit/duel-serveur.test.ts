@@ -497,7 +497,8 @@ describe("le duel des membres", () => {
 
 describe("le fichier à coller", () => {
   it("s'installe après toutes les autres migrations, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
-    const base = await baseDeTest({ sauf: [...NOMS].map((n) => `${n}.sql`) });
+    // sans les migrations du duel ni celles qui viennent après (les salles en direct ont besoin de ses tables)
+    const base = await baseDeTest({ sauf: migrations().filter((m) => m >= `${NOMS[0]}.sql`) });
     const controle = async (): Promise<string> => {
       const r = await base.exec(texteAColler());
       return (r.at(-1)!.rows[0] as { controle: string }).controle;
