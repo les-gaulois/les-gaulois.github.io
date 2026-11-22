@@ -1,5 +1,16 @@
 [
   {
+    "date": "2026-11-23",
+    "kind": "nouveau",
+    "rank": "top",
+    "title": "Le tableau des duellistes",
+    "body": "Dans le duel, le tableau de la semaine et de la saison : ta note dit si tu fais mieux que prévu. Le premier de la semaine reçoit un insigne ; la cagnotte des salles va aux trois premiers de la saison.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
     "date": "2026-11-22",
     "kind": "ameliore",
     "title": "De vraies cartes partout",
