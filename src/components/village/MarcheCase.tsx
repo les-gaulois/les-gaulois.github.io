@@ -6,6 +6,8 @@ import { RARETES, vignetteDeLObjet } from "../../lib/gaulois";
 import type { ObjetDuMarche } from "../../lib/village/ecran-marche";
 import { Toile } from "./PlaceToile";
 import { IconeDeRarete } from "./IconeDeRarete";
+import { DessinSurFond } from "./DessinSurFond";
+import { cleDeLObjet } from "../../lib/village/fonds-objets";
 
 /** La pièce, en pixels nets : décorative, le mot « statères » est écrit ou dit à côté. */
 export function Piece({ taille = 16, echelle = 1 }: { taille?: TailleStatere; echelle?: number }) {
@@ -35,10 +37,9 @@ const COTE_IMAGE = 80;
 export function CaseObjet({ objet, quantite, mention }: { objet: ObjetDuMarche; quantite?: number; mention?: string }) {
   const vignette = useMemo(() => vignetteDeLObjet(objet.emplacement, objet.objet), [objet.emplacement, objet.objet]);
   const rarete = RARETES[objet.rarete];
-  const echelle = vignette ? Math.max(1, Math.min(3, Math.floor(COTE_IMAGE / Math.max(vignette.largeur, vignette.hauteur)))) : 1;
   return (
     <span class="marche-case" data-rarete={objet.rarete}>
-      <span class="marche-case-image">{vignette && <Toile largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelle} />}</span>
+      <span class="marche-case-image" data-fond={vignette ? "" : undefined}>{vignette && <DessinSurFond dessin={vignette} fond={cleDeLObjet(objet.emplacement, objet.objet)} rarete={objet.rarete} place={COTE_IMAGE} />}</span>
       <span class="marche-case-nom">{objet.nom}</span>
       <span class="marche-case-rarete">
         <span class="marche-case-rang" aria-hidden="true">

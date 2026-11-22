@@ -35,6 +35,7 @@ import {
   versLeSuivant,
 } from "../../lib/village/sentier";
 import { sansCadre } from "../../lib/village/decor-banniere";
+import { cleDeLObjet as fondDeLObjet } from "../../lib/village/fonds-objets";
 import { Etiquette, Icone, Px } from "../jeu/Pixels";
 import { AlbumDePochette } from "./AlbumPochette";
 import { useBannieres } from "./Bannieres";
@@ -42,6 +43,7 @@ import { CaseMontree, DialogueAchat, type Issue } from "./BoutiqueDialogue";
 import { BoutonDuJeu, PrixDuJeu, Ruban } from "./BoutiqueDuJeu";
 import { MarqueDeRarete, Pixels, peindre } from "./BoutiquePixels";
 import { feterLObjet, useJoie } from "./Cases";
+import { DessinSurFond } from "./DessinSurFond";
 import { ImageEnCases, imageEnCases } from "./ImageEnCases";
 import InsigneDeSaison from "./InsigneDeSaison";
 import { BoutonDesBoosters, FenetreDuBooster, RangEnIcone, RareteEnPixels, ResultatDuBooster } from "./KitDesBoosters";
@@ -327,7 +329,7 @@ function Etal({ sentier, onAcheter }: { sentier: MonSentier; onAcheter: () => vo
       </p>
       <div class="pj-etal-corps">
         <div class="pj-etal-case">
-          <CaseMontree objet={ref.fiche} rarete={ref.fiche.rarete} vignette={vignetteDeLObjet(ref.emplacement, ref.objet)} />
+          <CaseMontree objet={ref.fiche} rarete={ref.fiche.rarete} vignette={vignetteDeLObjet(ref.emplacement, ref.objet)} fond={fondDeLObjet(ref.emplacement, ref.objet)} />
           <Etiquette t={`-${sentier.regles.remise} %`} ton="rouge" dit={`${sentier.regles.remise} % moins cher`} classe="pj-remise" />
         </div>
         <div class="pj-etal-prix">
@@ -363,12 +365,15 @@ function Moi({ gaulois }: { gaulois: DessinDuSentier | null }) {
   );
 }
 
-/** Une vignette d'objet, à un nombre entier de pixels par case pour tenir dans `place` pixels. */
-function Vignette({ refObjet, place }: { refObjet: RefObjet; place: number }) {
+/**
+ * Une vignette d'objet, à un nombre entier de pixels par case pour tenir dans `place` pixels. `surSonFond` : posée sur son
+ * fond d'objet, qui remplit la place de l'image de la case.
+ */
+function Vignette({ refObjet, place, surSonFond = false }: { refObjet: RefObjet; place: number; surSonFond?: boolean }) {
   const vignette = vignetteDeLObjet(refObjet.emplacement, refObjet.objet);
   if (!vignette) return null;
-  const echelle = Math.max(1, Math.min(2, Math.floor(place / Math.max(vignette.largeur, vignette.hauteur))));
-  return <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelle} class="case-dessin" />;
+  const fond = surSonFond ? fondDeLObjet(refObjet.emplacement, refObjet.objet) : null;
+  return <DessinSurFond dessin={vignette} fond={fond} rarete={OBJETS[refObjet.emplacement][refObjet.objet]?.rarete ?? null} place={place} maximum={2} class="case-dessin" />;
 }
 
 function Palier({
@@ -423,7 +428,7 @@ function Palier({
       <div class="case pj-case" data-rarete={rarete} title={etat === "pris" && pris ? pris.fiche.nom : deSaison ? `${deSaison.fiche.nom}, l'objet de la saison` : undefined}>
         {etat === "pris" ? (
           <>
-            <span class="case-image">{palier.pris && <Vignette refObjet={palier.pris} place={64} />}</span>
+            <span class="case-image" data-fond={palier.pris ? "" : undefined}>{palier.pris && <Vignette refObjet={palier.pris} place={64} surSonFond />}</span>
             <MarqueDeRarete rarete={rarete} />
             <ImageEnCases cle="pass-sceau" dessin={sceauDuPalier} echelle={2} classe="pj-sceau" />
             <span class="sr-only">{pris ? `${pris.fiche.nom}, pris` : "pris"}</span>
@@ -572,7 +577,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
     if (issue.ok) {
       const recu = issue.valeur;
       const fiche = objetPayant(recu.objet.emplacement, recu.objet.objet);
-      setOuverture({ recu, carte: carteDeRarete(fiche?.fiche.nom ?? "Objet", recu.objet.rarete, vignetteDeLObjet(recu.objet.emplacement, recu.objet.objet)), revele: false });
+      setOuverture({ recu, carte: carteDeRarete(fiche?.fiche.nom ?? "Objet", recu.objet.rarete, vignetteDeLObjet(recu.objet.emplacement, recu.objet.objet), { cle: fondDeLObjet(recu.objet.emplacement, recu.objet.objet) }), revele: false });
       void lireLInventaire();
     } else setProbleme(issue.message);
   };
@@ -688,7 +693,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
                 <div class="pj-fin-corps">
                   {objetDeLaSaison && (
                     <div class="pj-fin-objet">
-                      <CaseMontree objet={objetDeLaSaison.fiche} rarete="saison" vignette={vignetteDeLObjet(objetDeLaSaison.emplacement, objetDeLaSaison.objet)} />
+                      <CaseMontree objet={objetDeLaSaison.fiche} rarete="saison" vignette={vignetteDeLObjet(objetDeLaSaison.emplacement, objetDeLaSaison.objet)} fond={fondDeLObjet(objetDeLaSaison.emplacement, objetDeLaSaison.objet)} />
                     </div>
                   )}
                   <div class="pj-fin-insigne">
@@ -847,6 +852,7 @@ export default function LeSentier({ sentier: s }: { sentier: Sentier }) {
           objet={objetDeLEtal.fiche}
           rarete={objetDeLEtal.fiche.rarete}
           vignette={vignetteDeLObjet(objetDeLEtal.emplacement, objetDeLEtal.objet)}
+          fond={fondDeLObjet(objetDeLEtal.emplacement, objetDeLEtal.objet)}
           prix={sentier.etal.prix}
           solde={sentier.solde}
           acheter={async () => {

@@ -8,6 +8,7 @@ import { modelesPossedes } from "../../lib/village/ecran-modeles";
 import { ANCRE_MODELES, apresLAchat, apresLaPochette, apresLaTenue, lireAchatModele, lireMesModeles, lirePochetteModeles, messageDuRefusDesModeles, tenueAvecModele } from "../../lib/village/modeles";
 import { Problem } from "../compte/common";
 import type { Issue } from "./BoutiqueDialogue";
+import { cleDuModele } from "../../lib/village/fonds-objets";
 import { Case } from "./Cases";
 
 /**
@@ -109,7 +110,7 @@ export function MonCorps({ etat, tenue, vignette, onChange, onRelire }: { etat: 
         <div class="cases" role="group" aria-labelledby="vestiaire-corps">
           <Case objet={HUMAIN} vignette={vignette(null)} portee={porte === null} onClick={() => onChange(tenueAvecModele(tenue, null))} />
           {choix.map((modele) => (
-            <Case key={modele.id} objet={ficheDe(modele.nom, modele.rarete)} vignette={vignette(modele.id)} portee={porte?.id === modele.id} onClick={() => onChange(tenueAvecModele(tenue, modele.id))} />
+            <Case key={modele.id} objet={ficheDe(modele.nom, modele.rarete)} vignette={vignette(modele.id)} fond={cleDuModele(modele.id)} pose="bas" portee={porte?.id === modele.id} onClick={() => onChange(tenueAvecModele(tenue, modele.id))} />
           ))}
         </div>
       )}

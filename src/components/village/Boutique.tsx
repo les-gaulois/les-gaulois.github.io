@@ -61,6 +61,7 @@ import {
 import { estEnRayon, lireTournante, motsDeLaCase, raisonHorsRayon, regleDeLaRotation, retourDe, type TournanteLue } from "../../lib/village/boutique-tournante";
 import { boostersGagnesEnMots, pochetteDOuverture, type PochetteDeLEtal } from "../../lib/village/etal";
 import { familierDe } from "../../lib/village/familiers";
+import { cleDeLObjet as fondDeLObjet } from "../../lib/village/fonds-objets";
 import { lireMaRevente, lireRevente, messageDeLaRevente, type MaRevente, type ObjetRevendable } from "../../lib/village/revente";
 import { demandeLesModeles, messageDuRefusDesModeles, modeleParId, raisonDeLAchat, tenueAvecModele } from "../../lib/village/modeles";
 import { TOUT, choisirFiltre, collectionDuRayon, motsDeLaCollection, type Filtre, type Filtres } from "../../lib/village/vestiaire-rayons";
@@ -937,6 +938,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
           objet={achat.fiche}
           rarete={achat.fiche.rarete}
           vignette={vignetteDeLObjet(achat.emplacement, achat.objet, tenue)}
+          fond={fondDeLObjet(achat.emplacement, achat.objet)}
           prix={fenetre.prix}
           solde={soldeConnu ?? boutique.solde}
           acheter={() => acheter(achat.emplacement, achat.objet, fenetre.prix)}
@@ -1337,6 +1339,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                           key={id}
                           objet={objet}
                           vignette={vignetteDeLObjet(rayonObjets, id, tenue)}
+                          fond={fondDeLObjet(rayonObjets, id)}
                           portee={false}
                           essayee={essayee}
                           nouveau={rayonNeuf}
@@ -1361,6 +1364,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                           key={id}
                           objet={objet}
                           vignette={vignetteDeLObjet(rayonObjets, id, tenue)}
+                          fond={fondDeLObjet(rayonObjets, id)}
                           portee={false}
                           essayee={essayee}
                           vente={{ prix: prixDeLObjet(boutique?.prix, rayonObjets, id), revient: retour ? motsDeLaCase(retour) : null }}
@@ -1770,6 +1774,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                         key={id}
                         objet={objet}
                         vignette={vignetteDeLObjet(rayonObjets, id, tenue)}
+                        fond={fondDeLObjet(rayonObjets, id)}
                         portee={false}
                         essayee={essayee}
                         vente={{ prix: prixDeLObjet(boutique?.prix, rayonObjets, id) }}
@@ -1795,6 +1800,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                         key={id}
                         objet={objet}
                         vignette={vignetteDeLObjet(rayonObjets, id, tenue)}
+                        fond={fondDeLObjet(rayonObjets, id)}
                         portee={false}
                         essayee={essayee}
                         vente={{ prix: prixDeLObjet(boutique?.prix, rayonObjets, id), revient: retour ? motsDeLaCase(retour) : null }}

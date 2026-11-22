@@ -1,5 +1,16 @@
 [
   {
+    "date": "2026-11-22",
+    "kind": "ameliore",
+    "rank": "minor",
+    "title": "Un décor derrière chaque objet",
+    "body": "Chaque objet, familier et Gaulois unique a sa petite scène derrière lui : forge, port, palais, pré des vaches… Au vestiaire, à la boutique, à la forge, au marché et sur les cartes des boosters.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
     "date": "2026-11-21",
     "kind": "ameliore",
     "rank": "minor",

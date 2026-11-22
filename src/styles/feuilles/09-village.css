@@ -120,6 +120,7 @@
   display: grid;
   place-items: center;
   width: 100%;
+  min-width: 0;
   height: 5.5rem;
 }
 .marche-case-nom {
@@ -236,7 +237,7 @@
 .marche-choix-ferme:hover {
   box-shadow: none;
 }
-.marche-choix-ferme .village-pixels {
+.marche-choix-ferme :is(.village-pixels, .dessin-sur-fond) {
   opacity: 0.55;
 }
 .marche-choix-case[aria-pressed="true"] {
@@ -662,10 +663,22 @@
   display: grid;
   place-items: center;
   width: 100%;
+  /* La boîte se mesure pour y ajuster le fond d'objet (DessinSurFond.tsx) : elle ne doit pas s'élargir à sa toile. */
+  min-width: 0;
   height: 5.5rem;
 }
 .case-dessin {
   image-rendering: pixelated;
+}
+/* Le fond d'objet (22 novembre 2026, src/lib/village/fonds-objets/, dessin de Claude Fable 5.2) : la chose posée sur sa
+   petite scène, une seule toile qui remplit la place de l'image (DessinSurFond.tsx). La scène est dans l'image : la case à
+   vendre ne s'estompe plus, son prix suffit à la distinguer. */
+.dessin-sur-fond {
+  display: block;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rarete) 55%, #0a1230);
+}
+.case[data-boutique] .case-image[data-fond] .case-dessin {
+  opacity: 1;
 }
 /* La case « rien » : un rond barré. */
 .case-rien {

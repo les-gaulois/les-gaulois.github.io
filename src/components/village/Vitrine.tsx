@@ -3,7 +3,8 @@ import { GAULOIS as PLACE_DU_GAULOIS, LARGEUR as DECOR_LARGEUR, HAUTEUR as DECOR
 import type { ComponentChildren, JSX } from "preact";
 import { decrireGaulois, vignetteDeLObjet, type RareteDObjet as Rarete } from "../../lib/gaulois";
 import { modeleNu } from "../../lib/village/modeles";
-import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
+import { cleDeLObjet as fondDeLObjet, cleDuFamilier, cleDuModele } from "../../lib/village/fonds-objets";
+import { vignetteDuFamilier } from "../../lib/village/ecran-familiers";
 import { call } from "../../lib/compte/api";
 import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDeLaFinition } from "../../lib/fx/finitions-carte";
 import { finitionParId } from "../../lib/village/cartes";
@@ -17,8 +18,8 @@ import { lireBoutique, quantitePossedee } from "../../lib/village/ecran-boutique
 import { lignesPortees, provenanceDeLObjet, rareteDuCadre, type GauloisVitrine, type Provenance } from "../../lib/village/vitrine";
 import { Dialogue } from "./BoutiqueDialogue";
 import { charger as chargerLesBannieres } from "./Bannieres";
-import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
-import { DessinFamilier } from "./Familiers";
+import { MarqueDeRarete } from "./BoutiquePixels";
+import { DessinSurFond } from "./DessinSurFond";
 import { Toile, peindre } from "./PlaceToile";
 
 /**
@@ -345,6 +346,7 @@ function GauloisEnGrand({ fiche, lib, inventaire, Fenetre, onFermer }: { fiche: 
   const grandEcran = useEcranDe(480);
   const g = fiche.gaulois;
   const familier = familierDe(g.familier);
+  const dessinDuFamilier = familier ? vignetteDuFamilier(familier) : null;
   const banniere = lib?.banniereParId(g.banniere) ?? null;
   const scene = useMemo(() => (lib && banniere ? lib.sceneDeLaBanniere(banniere.id, g.tenue, familier) : null), [lib, banniere, g.tenue, familier]);
   const lignes = useMemo(() => lignesPortees(g.tenue), [g.tenue]);
@@ -367,13 +369,22 @@ function GauloisEnGrand({ fiche, lib, inventaire, Fenetre, onFermer }: { fiche: 
           const dessin = ligne.objet ? vignetteDeLObjet(ligne.objet.emplacement, ligne.objet.id, g.tenue) : ligne.modele ? modeleNu(ligne.modele) : null;
           return (
             <CaseEnGrand key={ligne.partie} partie={ligne.partie} nom={ligne.nom} rarete={ligne.rarete} ou={ligne.objet ? provenance(ligne.objet.emplacement, ligne.objet.id) : lien("Boutique ou booster", "gaulois-uniques")} onAller={onFermer}>
-              {dessin && <Pixels largeur={dessin.largeur} hauteur={dessin.hauteur} cases={dessin.cases} echelle={echelleEntiere(dessin.largeur, dessin.hauteur, COTE_DE_CASE, 3)} class="case-dessin" />}
+              {dessin && (
+                <DessinSurFond
+                  dessin={dessin}
+                  fond={ligne.objet ? fondDeLObjet(ligne.objet.emplacement, ligne.objet.id) : ligne.modele ? cleDuModele(ligne.modele) : null}
+                  rarete={ligne.rarete}
+                  place={COTE_DE_CASE}
+                  pose={ligne.objet ? "centre" : "sol"}
+                  class="case-dessin"
+                />
+              )}
             </CaseEnGrand>
           );
         })}
         {familier && (
           <CaseEnGrand partie="Familier" nom={familier.nom} rarete={familier.rarete} ou={lien("Booster des familiers", "familiers")} onAller={onFermer}>
-            <DessinFamilier familier={familier} place={COTE_DE_CASE} maximum={3} class="case-dessin" />
+            {dessinDuFamilier && <DessinSurFond dessin={dessinDuFamilier} fond={cleDuFamilier(familier.id)} rarete={familier.rarete} place={COTE_DE_CASE} pose="sol" class="case-dessin" />}
           </CaseEnGrand>
         )}
         {banniere && vignette && (

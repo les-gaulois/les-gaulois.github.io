@@ -13,6 +13,7 @@ import { Planche, R, grille, lireCouleur, rr, tresse } from "./planche";
 import { ecrire, enCapitales, largeurDuTexte, lignesDuTexte, nombreEcrit } from "./ecriture";
 import { COTE_DES_ICONES_DE_RARETE, iconeDeRarete, rareteDuRang } from "./icones-de-rarete";
 import { paquetDuBooster, type SorteDeBooster } from "./boosters-dessins";
+import { accentDuDessin, fondSeul, type PoseDeLaChose } from "../village/fonds-objets";
 
 export type { SorteDeBooster } from "./boosters-dessins";
 
@@ -105,7 +106,25 @@ export interface FaceDeCarte {
   rang: number;
   /** Le mot du bas : le nom de la rareté, ou ce qui en tient lieu. */
   mot: string;
+  /**
+   * Le fond d'objet derrière l'image (`src/lib/village/fonds-objets/`, 22 novembre 2026) : sa clé, la rareté de la chose et
+   * où la poser. Sans fond, l'image est posée sur la face nue, comme avant.
+   */
+  fond?: FondDeLaFace | null;
 }
+
+/** Le fond d'objet d'une face : la clé de la chose (`cleDeLObjet`, `cleDuFamilier`, `cleDuModele`), sa rareté et sa pose. */
+export interface FondDeLaFace {
+  cle: string;
+  rarete: string;
+  pose?: PoseDeLaChose;
+}
+
+/**
+ * La fenêtre du fond d'objet sur une face : 62 × 34 cases sous le filet clair du haut, encadrée d'une case du bord de la
+ * rareté, qui s'arrête au-dessus du nom. Une image plus haute en sort, par-dessus le cadre.
+ */
+export const FENETRE_DU_FOND = { x: 3, y: 3, largeur: 62, hauteur: 34 } as const;
 
 /** La carte qu'une scène d'ouverture montre : ce que le serveur a tiré, prêt à dessiner. */
 export interface CarteDeScene {
@@ -125,12 +144,16 @@ export interface CarteDeScene {
   lumiere: readonly [number, number, number];
 }
 
-/** La carte d'une chose qui a une rareté : un objet, un familier, une bannière, un Gaulois unique. */
-export function carteDeRarete(nom: string, rarete: string, image: DessinEnCases | null): CarteDeScene {
+/**
+ * La carte d'une chose qui a une rareté : un objet, un familier, une bannière, un Gaulois unique. `fond` : la clé de son
+ * fond d'objet et sa pose (pas pour une bannière, qui est elle-même un fond).
+ */
+export function carteDeRarete(nom: string, rarete: string, image: DessinEnCases | null, fond: { cle: string; pose?: PoseDeLaChose } | null = null): CarteDeScene {
   const r = rareteDeCarte(rarete);
   const rang = rangDe(r);
   const mot = NOMS_DES_RARETES[r];
-  return { face: faceDeCarte({ nom, image, tons: TONS[r], rang, mot }), rarete: r, rang, nom, mot, tons: TONS[r], lumiere: LUMIERES[r] };
+  const face = faceDeCarte({ nom, image, tons: TONS[r], rang, mot, fond: fond && image ? { ...fond, rarete } : null });
+  return { face, rarete: r, rang, nom, mot, tons: TONS[r], lumiere: LUMIERES[r] };
 }
 
 /** Les couleurs d'une carte de statères rendus : l'ardoise que le site donnait déjà au rendu, qu'aucune rareté ne porte. */
@@ -223,6 +246,22 @@ export function placeDeLImage(largeur: number, hauteur: number): { largeur: numb
   return { largeur: Math.max(1, Math.round(largeur / k)), hauteur: Math.max(1, Math.round(hauteur / k)) };
 }
 
+/**
+ * Le fond d'objet dans sa fenêtre, encadré d'une case du bord de la rareté. `place` : où l'image sera posée sur la face ; la
+ * scène garde calme cette place et pose son sol sous elle.
+ */
+function poserLeFond(g: Planche, fond: FondDeLaFace, image: DessinEnCases, bord: string, place: { x: number; y: number; largeur: number; hauteur: number }): void {
+  const { x: fx, y: fy, largeur, hauteur } = FENETRE_DU_FOND;
+  const zone = { x: place.x - fx, y: place.y - fy, largeur: place.largeur, hauteur: place.hauteur };
+  const posee = fond.pose === "sol" || fond.pose === "bas";
+  const sol = Math.max(0, Math.min(hauteur - 1, zone.y + zone.hauteur + (posee ? 0 : 1)));
+  const dessin = fondSeul(fond.cle, { largeur, hauteur, rarete: fond.rarete, accent: accentDuDessin(image), zone, sol });
+  R(g, fx - 1, fy - 1, largeur + 2, hauteur + 2, bord);
+  dessin.cases.forEach((c, i) => {
+    if (c) R(g, fx + (i % largeur), fy + Math.floor(i / largeur), 1, 1, c);
+  });
+}
+
 /** La face d'une carte : la case claire du site, comme dans la maquette validée (68 × 88). */
 export function faceDeCarte(f: FaceDeCarte): Planche {
   const W = CARTE_LARGEUR;
@@ -239,7 +278,10 @@ export function faceDeCarte(f: FaceDeCarte): Planche {
   R(g, 2, 1, W - 4, 1, "#ffffff");
   if (f.image) {
     const place = placeDeLImage(f.image.largeur, f.image.hauteur);
-    g.drawImage(plancheDuDessin(f.image), Math.round(W / 2 - place.largeur / 2), Math.round(21 - place.hauteur / 2), place.largeur, place.hauteur);
+    const x = Math.round(W / 2 - place.largeur / 2);
+    const y = Math.round(21 - place.hauteur / 2);
+    if (f.fond) poserLeFond(g, f.fond, f.image, bord, { x, y, largeur: place.largeur, hauteur: place.hauteur });
+    g.drawImage(plancheDuDessin(f.image), x, y, place.largeur, place.hauteur);
   }
   const ls = lignesDuTexte(enCapitales(f.nom), W - 8, 3);
   // Sur une carte à rareté, le nom monte de deux cases pour laisser sa place à l'icône ; s'il tient sur trois lignes, elles

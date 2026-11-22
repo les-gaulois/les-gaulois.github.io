@@ -2,9 +2,10 @@ import { createContext, type ComponentChildren } from "preact";
 import { useContext, useEffect, useRef, useState } from "preact/hooks";
 import { RARETES_DES_OBJETS, type Objet, type RareteDObjet as Rarete, type Vignette } from "../../lib/gaulois";
 import { stateres } from "../../lib/village/ecran-boutique";
-import { MarqueDeRarete, Pixels, Prix } from "./BoutiquePixels";
+import { MarqueDeRarete, Prix } from "./BoutiquePixels";
 import { carillonSiVoulu, preparerLeSonSiVoulu } from "./Carillon";
 import { feterLObjet } from "./Cases";
+import { DessinSurFond } from "./DessinSurFond";
 
 /** Ce que rend un achat : le résultat du serveur, ou les mots de son refus. */
 export type Issue<T> = { ok: true; valeur: T } | { ok: false; message: string };
@@ -49,11 +50,12 @@ export function Dialogue({ titre, etape, occupe, onFermer, testid, children }: {
 }
 
 /** Une case montrée dans une fenêtre : la même que celles du vestiaire, sans être un bouton. */
-export function CaseMontree({ objet, rarete, vignette }: { objet: Objet; rarete: Rarete; vignette: Vignette | null }) {
-  const echelle = vignette ? Math.max(1, Math.min(3, Math.floor(80 / Math.max(vignette.largeur, vignette.hauteur)))) : 1;
+export function CaseMontree({ objet, rarete, vignette, fond = null }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; fond?: string | null }) {
   return (
     <div class="case case-montree" data-rarete={rarete}>
-      <span class="case-image">{vignette && <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelle} class="case-dessin" />}</span>
+      <span class="case-image" data-fond={vignette && fond ? "" : undefined}>
+        {vignette && <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} class="case-dessin" />}
+      </span>
       <span class="case-nom">{objet.nom}</span>
       <MarqueDeRarete rarete={rarete} />
     </div>
@@ -66,14 +68,14 @@ export function CaseMontree({ objet, rarete, vignette }: { objet: Objet; rarete:
  * palier du sentier ; les boosters ont leur ouverture, la fusion son moule. Les rayons tournent très lentement, et pas du
  * tout quand les animations sont coupées. Décoratifs : le nom et la rareté sont écrits dans la case.
  */
-export function ObjetRecu({ objet, rarete, vignette, palier = false }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; palier?: boolean }) {
+export function ObjetRecu({ objet, rarete, vignette, fond = null, palier = false }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; fond?: string | null; palier?: boolean }) {
   useEffect(() => carillonSiVoulu(RARETES_DES_OBJETS[rarete].rang), [rarete]);
   // Quand la fenêtre se ferme, le Gaulois de la page saute de joie : pour un objet épique ou plus, ou un palier du sentier.
   useEffect(() => () => feterLObjet(rarete, palier), [rarete, palier]);
   return (
     <div class="objet-recu" data-rarete={rarete} data-testid="objet-recu">
       <span class="objet-recu-rayons" aria-hidden="true" />
-      <CaseMontree objet={objet} rarete={rarete} vignette={vignette} />
+      <CaseMontree objet={objet} rarete={rarete} vignette={vignette} fond={fond} />
     </div>
   );
 }
@@ -143,7 +145,7 @@ export function Refus({ message }: { message: string | null }) {
  * se porte tout de suite si le membre le veut. Si le serveur refuse, le compte de l'ouverture s'efface : il ne reste que
  * l'objet, les mots du refus et « Fermer ».
  */
-export function DialogueAchat({ objet, rarete, vignette, prix, solde, acheter, onPorter, onFermer }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; prix: number; solde: number; acheter: () => Promise<Issue<number>>; onPorter: () => void; onFermer: () => void }) {
+export function DialogueAchat({ objet, rarete, vignette, fond = null, prix, solde, acheter, onPorter, onFermer }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; fond?: string | null; prix: number; solde: number; acheter: () => Promise<Issue<number>>; onPorter: () => void; onFermer: () => void }) {
   const [etape, setEtape] = useState<"confirmer" | "envoi" | "fait">("confirmer");
   const [refus, setRefus] = useState<string | null>(null);
   const [reste, setReste] = useState<number | null>(null);
@@ -165,7 +167,7 @@ export function DialogueAchat({ objet, rarete, vignette, prix, solde, acheter, o
   };
   return (
     <Dialogue titre={etape === "fait" ? `${objet.nom} est à vous` : refus ? "Achat impossible" : `Acheter ${objet.nom} ?`} etape={etape === "fait" ? "fait" : "confirmer"} occupe={etape === "envoi"} onFermer={onFermer} testid="dialogue-achat">
-      {etape === "fait" ? <ObjetRecu objet={objet} rarete={rarete} vignette={vignette} /> : <CaseMontree objet={objet} rarete={rarete} vignette={vignette} />}
+      {etape === "fait" ? <ObjetRecu objet={objet} rarete={rarete} vignette={vignette} fond={fond} /> : <CaseMontree objet={objet} rarete={rarete} vignette={vignette} fond={fond} />}
       {etape === "fait" ? (
         <>
           {reste !== null && <p class="boutique-dialogue-texte">Il vous reste {stateres(reste)}.</p>}

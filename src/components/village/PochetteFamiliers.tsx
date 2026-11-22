@@ -1,5 +1,6 @@
 import { useCallback, useState } from "preact/hooks";
 import { carteDeRarete, type CarteDeScene } from "../../lib/jeu/boosters";
+import { cleDuFamilier } from "../../lib/village/fonds-objets";
 import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import { albumDeLaMenagerie } from "../../lib/village/album-pochette";
 import type { MesFamiliers, PochetteFamiliersReponse } from "../../lib/village/contrat";
@@ -67,7 +68,7 @@ export function DialogueFamiliers({ prix, solde, village, ouvrir, dejaMontre, on
     const issue = await ouvrir();
     const familier = issue.ok ? familierDe(issue.valeur.familier.familier) : null;
     if (issue.ok && familier) {
-      setCarte(carteDeRarete(familier.nom, familier.rarete, vignetteDuFamilier(familier)));
+      setCarte(carteDeRarete(familier.nom, familier.rarete, vignetteDuFamilier(familier), { cle: cleDuFamilier(familier.id), pose: "sol" }));
       setTirage(issue.valeur);
       setEtape("ouvre");
     } else if (issue.ok) {

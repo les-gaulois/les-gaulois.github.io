@@ -8,7 +8,9 @@ import { decrireLApercu, tailleDeLApercu } from "../../lib/village/ecran-familie
 import { motsDeLaPlaque } from "../../lib/village/ecran-forge";
 import { apercuAvecFamilier, type Familier } from "../../lib/village/familiers";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
-import { MarqueDeRarete, PetitePlaque, Pixels, Prix, peindre } from "./BoutiquePixels";
+import type { PoseDeLaChose } from "../../lib/village/fonds-objets";
+import { MarqueDeRarete, PetitePlaque, Prix, peindre } from "./BoutiquePixels";
+import { DessinSurFond } from "./DessinSurFond";
 
 /**
  * Les pièces que partagent le vestiaire de « Mon Gaulois » (`/village`) et son onglet « La boutique » (`#boutique`) : le
@@ -202,10 +204,11 @@ const RAYON_LARGE = 96;
 
 /**
  * L'image d'une case : décorative, le nom de la case est écrit dessous. Une case du dessin vaut 1, 2 ou 3 pixels dans
- * `place` ; un gros plan du visage, jusqu'à 4.
+ * `place` ; un gros plan du visage, jusqu'à 4. Avec `fond`, la chose est posée sur son fond d'objet, qui remplit la place
+ * de l'image (`DessinSurFond`).
  */
-function ImageDeCase({ vignette, place = COTE_IMAGE, maximum = 3 }: { vignette: Vignette; place?: number; maximum?: number }) {
-  return <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelleEntiere(vignette.largeur, vignette.hauteur, place, maximum)} class="case-dessin" />;
+function ImageDeCase({ vignette, place = COTE_IMAGE, maximum = 3, fond = null, rarete = null, pose = "centre" }: { vignette: Vignette; place?: number; maximum?: number; fond?: string | null; rarete?: string | null; pose?: PoseDeLaChose }) {
+  return <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} place={place} maximum={maximum} pose={pose} class="case-dessin" />;
 }
 
 /**
@@ -252,6 +255,8 @@ export function Case({
   visage = false,
   plaque = null,
   nouveau = false,
+  fond = null,
+  pose = "centre",
   onClick,
 }: {
   objet: Objet;
@@ -266,13 +271,19 @@ export function Case({
   plaque?: string | null;
   /** Arrivé depuis la dernière visite, pas encore essayé : la case porte « Nouveau ». */
   nouveau?: boolean;
+  /** La clé de son fond d'objet (`cleDeLObjet`, `cleDuFamilier`, `cleDuModele`) : la chose y est posée. Sans clé, sur la case nue. */
+  fond?: string | null;
+  /** Où poser la chose sur son fond : au milieu (un objet), au sol (un familier), contre le bas (un buste). */
+  pose?: PoseDeLaChose;
   onClick: () => void;
 }) {
   const aVendre = vente && "prix" in vente ? vente : null;
   const possede = vente && "possede" in vente ? vente.possede : 0;
   return (
     <button type="button" class="case" data-rarete={objet.rarete ?? "aucune"} data-boutique={aVendre ? "" : undefined} data-etat={essayee ? "essayee" : portee ? "portee" : "libre"} aria-pressed={portee || essayee} data-grave={plaque ? "" : undefined} data-nouveau={nouveau ? "" : undefined} title={plaque ? motsDeLaPlaque(plaque) : undefined} onClick={onClick}>
-      <span class="case-image">{vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} /> : <span class="case-rien" aria-hidden="true" />}</span>
+      <span class="case-image" data-fond={vignette && fond && !visage ? "" : undefined}>
+        {vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} fond={fond} rarete={objet.rarete} pose={pose} /> : <span class="case-rien" aria-hidden="true" />}
+      </span>
       <span class="case-nom">{objet.nom}</span>
       {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
       {possede > 0 && (

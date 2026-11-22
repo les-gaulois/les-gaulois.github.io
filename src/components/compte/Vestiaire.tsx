@@ -43,6 +43,7 @@ import { LivreDeLaCollection } from "../village/Collection";
 import { MonFamilier, useFamiliers } from "../village/Familiers";
 import { MonCorps, useModeles } from "../village/Modeles";
 import { TenuesGardees } from "../village/TenuesGardees";
+import { cleDeLObjet as fondDeLObjet } from "../../lib/village/fonds-objets";
 import { CodeLogin, DiscordButton, Loading, Problem, Success, codeLoginShown, messageOf, useMe } from "./common";
 
 /** Le cadre des gros plans du visage, calculé une fois d'après les dessins du catalogue. */
@@ -186,6 +187,7 @@ function Objets(props: Choix & { emplacement: Emplacement }) {
             key={id}
             objet={objet}
             vignette={vignetteDeLObjet(emplacement, id, tenue)}
+            fond={fondDeLObjet(emplacement, id)}
             {...etatDeLaCase(props, emplacement, id)}
             vente={objet.gratuit ? undefined : { possede: possede(id) }}
             plaque={plaqueDe(plaques, { emplacement, objet: id })}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { type Rarete, type Tenue } from "../../lib/gaulois";
 import { carteDUnRendu, carteDeRarete, type CarteDeScene } from "../../lib/jeu/boosters";
+import { cleDuModele } from "../../lib/village/fonds-objets";
 import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import type { AchatModeleReponse, MesModeles, PochetteModelesReponse } from "../../lib/village/contrat";
 import { nombre, pourcent, stateres } from "../../lib/village/ecran-boutique";
@@ -338,7 +339,7 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
       setTirage(issue.valeur);
       setEtape("ouvre");
     } else if (issue.ok && modele) {
-      setCarte(carteDeRarete(modele.nom, modele.rarete, nuDe(modele.id)));
+      setCarte(carteDeRarete(modele.nom, modele.rarete, nuDe(modele.id), { cle: cleDuModele(modele.id), pose: "sol" }));
       setTirage(issue.valeur);
       setEtape("ouvre");
     } else {

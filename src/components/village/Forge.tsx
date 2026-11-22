@@ -24,14 +24,15 @@ import {
   rangerLesObjets,
 } from "../../lib/village/ecran-forge";
 import { stateres } from "../../lib/village/ecran-boutique";
+import { cleDeLObjet as fondDeLObjet } from "../../lib/village/fonds-objets";
 import { MESSAGES_DE_LA_FORGE, lireMaForge, messageDeLaForge } from "../../lib/village/forge";
-import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import { CodeLogin, DiscordButton, Loading, Problem, codeLoginShown, useMe } from "../compte/common";
 import { Etiquette, Icone, Px } from "../jeu/Pixels";
 import { MarqueDeRarete, PetitePlaque, Pixels } from "./BoutiquePixels";
 import { BoutonDuJeu, PrixDuJeu, Ruban, SousTitre } from "./BoutiqueDuJeu";
 import { useDecorDuGaulois } from "./Bannieres";
 import { ApercuGaulois } from "./Cases";
+import { DessinSurFond } from "./DessinSurFond";
 import { Fusion } from "./Fusion";
 import { BoutonDesBoosters, CompteDuBooster, FenetreDuBooster, RefusDuBooster, ResteEnPixels } from "./KitDesBoosters";
 
@@ -88,7 +89,7 @@ function CaseDeLaForge({ objet, onChoisir }: { objet: ObjetGravable; onChoisir: 
   const plaque = objet.gravure?.texte ?? null;
   return (
     <button type="button" class="case forge-case" data-rarete={fiche?.rarete ?? "aucune"} data-cle={cleDeLObjet(objet)} data-grave={plaque ? "" : undefined} title={plaque ? motsDeLaPlaque(plaque) : undefined} onClick={onChoisir} data-testid="forge-objet">
-      <span class="case-image">{vignette && <Pixels largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} echelle={echelleEntiere(vignette.largeur, vignette.hauteur, 80, 3)} class="case-dessin" />}</span>
+      <span class="case-image" data-fond={vignette ? "" : undefined}>{vignette && <DessinSurFond dessin={vignette} fond={fondDeLObjet(objet.emplacement, objet.objet)} rarete={fiche?.rarete ?? null} class="case-dessin" />}</span>
       <span class="case-nom">{nomDeLObjet(objet)}</span>
       {fiche?.rarete && <MarqueDeRarete rarete={fiche.rarete} />}
       {objet.porte && (

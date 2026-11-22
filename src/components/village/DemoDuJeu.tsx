@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 import { OBJETS, vignetteDeLObjet } from "../../lib/gaulois";
 import { carteDeRarete, type CarteDeScene } from "../../lib/jeu/boosters";
+import { cleDeLObjet } from "../../lib/village/fonds-objets";
 import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import { tirageDEssai } from "../../lib/village/demo-booster";
 import { Px } from "../jeu/Pixels";
@@ -47,7 +48,7 @@ export default function DemoDuJeu({ rejoindre, connexion }: { rejoindre: string;
     if (!tire) return;
     const nom = OBJETS[tire.emplacement][tire.objet]?.nom ?? "Objet";
     setRevelee(false);
-    setEssai((avant) => ({ n: (avant?.n ?? 0) + 1, nom, rarete: tire.rarete, carte: carteDeRarete(nom, tire.rarete, vignetteDeLObjet(tire.emplacement, tire.objet)) }));
+    setEssai((avant) => ({ n: (avant?.n ?? 0) + 1, nom, rarete: tire.rarete, carte: carteDeRarete(nom, tire.rarete, vignetteDeLObjet(tire.emplacement, tire.objet), { cle: cleDeLObjet(tire.emplacement, tire.objet) }) }));
   };
   const fermer = () => setEssai(null);
 

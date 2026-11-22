@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { Objet, RareteDObjet as Rarete, Vignette } from "../../lib/gaulois";
 import { carteDeRarete, type CarteDeScene } from "../../lib/jeu/boosters";
+import { cleDeLObjet } from "../../lib/village/fonds-objets";
 import { reveillerLeSon } from "../../lib/jeu/sons-des-boosters";
 import { albumDeLaPochetteSurprise, nombreDansLaPochetteSurprise } from "../../lib/village/album-pochette";
 import type { MaBoutique, PochetteReponse } from "../../lib/village/contrat";
@@ -81,7 +82,7 @@ export function DialoguePochette({
     const issue = await ouvrir();
     if (issue.ok) {
       const tire = issue.valeur.objet;
-      setCarte(carteDeRarete(objetDe(tire)?.nom ?? "Objet", tire.rarete, vignetteDe(tire)));
+      setCarte(carteDeRarete(objetDe(tire)?.nom ?? "Objet", tire.rarete, vignetteDe(tire), { cle: cleDeLObjet(tire.emplacement, tire.objet) }));
       setTirage(issue.valeur);
       setEtape("ouvre");
     } else {
