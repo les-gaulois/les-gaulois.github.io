@@ -118,6 +118,9 @@ export interface ProprietesDuCorps {
   sous?: string | null;
   /** Où poser la chose : au milieu (un objet), au sol (un familier), contre le bas (un buste). */
   pose?: PoseDansLaCarte;
+  /** La carte de poche (`CarteDePoche.tsx`) : sa tête à la place du nom, et son bas à la place du rang et du pied. */
+  tete?: ComponentChildren;
+  bas?: ComponentChildren;
 }
 
 /* ---------- En petit, dans les cases ---------- */
@@ -125,7 +128,7 @@ export interface ProprietesDuCorps {
 const P_PETIT = 2;
 
 /** La pleine image en petit : la scène sur toute la carte, le nom et l'icône de rareté en haut, le rang du duel en bas. */
-export function PetitePleine({ nom, rarete, cle, dessin, effets, marques, pied, pose = "centre" }: ProprietesDuCorps) {
+export function PetitePleine({ nom, rarete, cle, dessin, effets, marques, pied, pose = "centre", tete, bas }: ProprietesDuCorps) {
   const p = P_PETIT;
   const [fond, boiteFond] = useBoite<HTMLSpanElement>();
   const [zone, boiteZone] = useBoite<HTMLSpanElement>();
@@ -143,24 +146,32 @@ export function PetitePleine({ nom, rarete, cle, dessin, effets, marques, pied, 
       <Joyaux rarete={rarete} />
       <span class="co-feuille-cadre" aria-hidden="true" />
       <span class="co-bande" data-bord="haut">
-        <span class="case-nom co-nom">{nom}</span>
-        <IconeDeRarete rarete={rarete} />
-        <span class="sr-only">, {nomDeLaRarete(rarete)}</span>
+        {tete ?? (
+          <>
+            <span class="case-nom co-nom">{nom}</span>
+            <IconeDeRarete rarete={rarete} />
+            <span class="sr-only">, {nomDeLaRarete(rarete)}</span>
+          </>
+        )}
       </span>
       <span ref={zone} class="case-image co-zone">
         {place && <Chose dessin={dessin} place={place} />}
         {marques}
       </span>
       <span class="co-bande" data-bord="bas">
-        {effets?.duel ? (
-          <RangDuDuel duel={effets.duel} />
-        ) : (
-          <span class="co-bande-mot">
-            <span class="sr-only">, </span>
-            {motDeLaChose(cle) || nomDeLaRarete(rarete)}
-          </span>
+        {bas ?? (
+          <>
+            {effets?.duel ? (
+              <RangDuDuel duel={effets.duel} />
+            ) : (
+              <span class="co-bande-mot">
+                <span class="sr-only">, </span>
+                {motDeLaChose(cle) || nomDeLaRarete(rarete)}
+              </span>
+            )}
+            {pied}
+          </>
         )}
-        {pied}
       </span>
     </>
   );
@@ -176,13 +187,13 @@ function useDebordement(cle: string, dessin: ImageEnCases, p: number, dessus: nu
 }
 
 /** Le débordement en petit : le cadre en cases, le nom devant, la chose qui sort de la fenêtre par le haut. */
-export function PetiteDeborde({ nom, rarete, cle, dessin, effets, marques, pied, pose = "centre" }: ProprietesDuCorps) {
+export function PetiteDeborde({ nom, rarete, cle, dessin, effets, marques, pied, pose = "centre", tete, bas }: ProprietesDuCorps) {
   const p = P_PETIT;
   const { fenetre, boite, accent, place, dansLaScene } = useDebordement(cle, dessin, p, 4, pose, [2, 1.5, 1]);
   return (
     <>
       <HabitDeCarte rarete={rarete} />
-      <span class="case-nom co-nom co-nom-devant">{nom}</span>
+      {tete ?? <span class="case-nom co-nom co-nom-devant">{nom}</span>}
       <span ref={fenetre} class="case-image co-fenetre">
         <span class="co-fenetre-fond" aria-hidden="true">
           {dansLaScene && <Scene cle={cle} rarete={rarete} l={boite.l} h={boite.h} p={p} accent={accent} place={dansLaScene} />}
@@ -191,9 +202,13 @@ export function PetiteDeborde({ nom, rarete, cle, dessin, effets, marques, pied,
         {place && <Chose dessin={dessin} place={place} />}
         {marques}
       </span>
-      <MarqueDeRarete rarete={rarete as Parameters<typeof MarqueDeRarete>[0]["rarete"]} />
-      {effets?.duel && <RangDuDuel duel={effets.duel} />}
-      {pied}
+      {bas ?? (
+        <>
+          <MarqueDeRarete rarete={rarete as Parameters<typeof MarqueDeRarete>[0]["rarete"]} />
+          {effets?.duel && <RangDuDuel duel={effets.duel} />}
+          {pied}
+        </>
+      )}
     </>
   );
 }

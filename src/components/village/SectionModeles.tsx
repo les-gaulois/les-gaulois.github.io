@@ -16,7 +16,6 @@ import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster
 import type { EtatDesModeles } from "./Modeles";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 import { CarteDeStateres } from "./CarteDeStateres";
-import { LOTS_DESSINES } from "../../lib/jeu/cartes-de-stateres";
 import { CarteDeSortie } from "./CarteDeSortie";
 
 /**
@@ -367,7 +366,6 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
           revelee={revele}
           onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
           carteFinale={<CarteDeStateres rang={0} gain={rendu.rendu} pourcent={rendu.pourcent} testid="uniques-rendu" />}
-          rayon={LOTS_DESSINES[0].rayon}
         >
           {/* Un remboursement : la carte dit ce qui revient et la part du prix ; dessous, la bourse. */}
           <span hidden data-pourcent={rendu.pourcent} />

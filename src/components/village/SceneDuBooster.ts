@@ -8,6 +8,12 @@
  * La scène ne tire rien : le serveur a déjà tiré, elle reçoit la carte à montrer (`CarteDeScene`). Ce que la démonstration
  * avait en plus (la main de cartes, la boîte, la carte en grand, les puces de rareté) ne vient pas sur le site.
  *
+ * La vraie carte (22 novembre 2026, demande du pilote : « tu peux virer la peu détaillée et qu'il n'y ait qu'une seule carte
+ * en ouvrant le booster ») : quand la fenêtre la donne (`vraie`), la carte qui sort du paquet garde son dos dessiné, mais
+ * dès qu'elle passe la tranche au retournement, c'est la carte détaillée de la chose (celle des cartes des cosmétiques) qui
+ * se montre, avec le même mouvement, et qui reste. Le paquet, la déchirure, la sortie, la fête, les lumières et les sons ne
+ * changent pas.
+ *
  * Mouvement coupé (bouton pause du jeu, `fx-off`, ou « réduire les animations ») : rien ne bouge ; un appui sur le paquet
  * pose la carte retournée, sans mouvement. Une pause en cours de route montre la carte tout de suite. Les sons
  * (`src/lib/jeu/sons-des-boosters.ts`) suivent le réglage du son du jeu. La scène est décorative pour un lecteur d'écran :
@@ -29,6 +35,11 @@ export interface OptionsDeScene {
   carte: CarteDeScene;
   /** La carte vient d'être retournée : la fenêtre peut écrire le résultat. Appelé une fois. */
   onRevelee: () => void;
+  /**
+   * La vraie carte de la chose, déjà dessinée par la fenêtre dans cet élément : elle prend la place de la face dessinée
+   * dès que la carte passe la tranche, et suit son mouvement. Sans elle, la face dessinée (`carte.face`).
+   */
+  vraie?: HTMLElement;
 }
 
 export interface Scene {
@@ -186,6 +197,13 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
   const elRar = $(".bst-rarete");
   const elTampon = $(".bst-tampon");
   const ondes: Onde[] = [...scene.querySelectorAll<HTMLElement>(".bst-onde")].map((el) => ({ el, t: -1, d: 1, x: 0, y: 0, k: 1 }));
+  /** La vraie carte : son enveloppe dans la scène, sa taille, sa réduction pour tenir dans la scène, sa dernière place. */
+  const vraie = o.vraie
+    ? { el: document.createElement("div"), corps: o.vraie, l: 0, h: 0, k: 1, vue: false, place: null as null | readonly [number, number, number, number, number, number] }
+    : null;
+  let tailleDeLaVraie: ResizeObserver | null = null;
+  /** La demi-largeur et la demi-hauteur de la carte à l'écran : la fête se pose autour d'elle. */
+  const demi = { l: 102, h: 132 };
   const segs: HTMLElement[] = [];
   const charn = [0, 1, 2, 3].map(() => res(260, 11));
   const geo = { L: 0, H: 0, cx: 0, yP: 0, yC: 0, sol: 0 };
@@ -300,7 +318,33 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
   }
   const lire = (nom: string): string => getComputedStyle(scene).getPropertyValue(nom).trim();
 
+  /**
+   * La hauteur de la scène pour que la vraie carte y tienne en entier, à sa taille (réduite seulement si elle est plus large
+   * que la scène) : au-dessus et au-dessous du milieu de la carte (43 % de la hauteur), sans mordre le nom écrit en bas.
+   * Jamais moins que la hauteur de la feuille, au plus 1 100 pixels.
+   */
+  function hauteurPourLaVraie(base: number): number {
+    if (!vraie) return base;
+    const l = vraie.corps.offsetWidth;
+    const h = vraie.corps.offsetHeight;
+    if (!l || !h) return base;
+    const k = Math.min(1, Math.max(60, scene.clientWidth - 24) / l);
+    const hv = h * k;
+    const besoin = Math.ceil(Math.max((hv / 2 + margeDuHaut(scene.clientWidth, l * k)) / 0.43, (hv / 2 + 88) / 0.57));
+    // Pas plus haute que l'écran (moins le haut de la fenêtre) : au-delà, la carte se réduit plutôt que de sortir de l'écran.
+    const plafond = Math.max(base, Math.min(1100, (typeof window === "undefined" ? 900 : window.innerHeight) - 140));
+    return Math.min(Math.max(base, besoin), plafond);
+  }
+  /** L'air au-dessus de la carte : celui des boutons de la scène (son, pause) quand la carte arrive sous eux. */
+  const margeDuHaut = (largeurScene: number, largeurCarte: number): number => ((largeurScene - largeurCarte) / 2 < 110 ? 58 : 12);
   function mesurer(): void {
+    if (vraie) {
+      // La scène grandit pour la vraie carte, plutôt que la carte ne rapetisse : le paquet et son mouvement restent les mêmes.
+      scene.style.height = "";
+      const base = scene.clientHeight;
+      const voulue = hauteurPourLaVraie(base);
+      if (voulue > base) scene.style.height = `${voulue}px`;
+    }
     geo.L = scene.clientWidth;
     geo.H = scene.clientHeight;
     geo.cx = geo.L / 2;
@@ -313,6 +357,7 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
     elFais.style.height = `${geo.yP + 24}px`;
     elOmbre.style.top = `${geo.yP + 152}px`;
     peindreFond();
+    if (vraie && S.carte) mesurerLaVraie();
   }
   function peindreFond(): void {
     const c = $<HTMLCanvasElement>(".bst-fond");
@@ -415,6 +460,11 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
     const c: CarteVue = { el, corps: el.querySelector<HTMLElement>(".bst-c-corps")!, rang: rangCarte, dec: Math.random() * 6.283, a: 0, mx: 0.5, my: 0.5, z: -1, vol: 0, devant: false, x: res(210, 20), y: res(210, 20), rz: res(160, 16), sc: res(230, 17, 1), rx: res(170, 14), ry: res(170, 14), tour: res(190, 15) };
     c.tour.v = c.tour.c = 180;
     S.carte = c;
+    // La vraie carte passe juste après la carte dessinée : par-dessus son aura. La carte dessinée prend sa taille.
+    if (vraie) {
+      el.after(vraie.el);
+      mesurerLaVraie();
+    }
     el.addEventListener("pointerdown", (e) => {
       if (e.button > 0 || S.phase !== "dos" || calme() || pause) return;
       S.prise = { x0: e.clientX, y0: e.clientY, bouge: false };
@@ -433,7 +483,7 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
       if (!q.bouge && Math.hypot(dx, e.clientY - q.y0) > 7) q.bouge = true;
       if (!q.bouge) return;
       S.sens = dx > 0 ? -1 : 1;
-      const ang = borne(180 - (Math.abs(dx) / 204) * 190, 0, 180);
+      const ang = borne(180 - (Math.abs(dx) / (demi.l * 2)) * 190, 0, 180);
       c.tour.v = c.tour.c = ang;
       c.tour.vit = 0;
       if (ang < 104) {
@@ -460,6 +510,60 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
       else if (calme()) reveler();
     });
     return c;
+  }
+
+  /* ---------- La vraie carte ---------- */
+  /**
+   * Sa taille, et sa réduction pour tenir dans la scène : au-dessus et au-dessous du milieu de la carte, sans mordre le nom
+   * écrit en bas de la scène, ni ses bords. La carte dessinée prend la même taille, pour que son aura l'entoure.
+   */
+  function mesurerLaVraie(): void {
+    const v = vraie;
+    const c = S.carte;
+    if (!v || !c) return;
+    v.l = v.corps.offsetWidth;
+    v.h = v.corps.offsetHeight;
+    if (!v.l || !v.h) return;
+    const haut = 2 * Math.max(60, Math.min(geo.yC - margeDuHaut(geo.L, Math.min(v.l, geo.L - 24)), geo.H - 88 - geo.yC));
+    v.k = Math.min(1, haut / v.h, Math.max(60, geo.L - 24) / v.l);
+    v.el.style.width = `${v.l}px`;
+    v.el.style.height = `${v.h}px`;
+    v.el.style.margin = `${(-v.h / 2).toFixed(1)}px 0 0 ${(-v.l / 2).toFixed(1)}px`;
+    // La carte dessinée a la taille de la vraie dès sa sortie du paquet : son dos est dessiné à cette taille, une case pour
+    // trois pixels, et son aura l'entoure. C'est une seule carte, du paquet à la fête.
+    const w = v.l * v.k;
+    const h = v.h * v.k;
+    demi.l = w / 2;
+    demi.h = h / 2;
+    c.el.classList.add("bst-a-la-vraie");
+    c.el.style.width = `${w.toFixed(1)}px`;
+    c.el.style.height = `${h.toFixed(1)}px`;
+    c.el.style.margin = `${(-h / 2).toFixed(1)}px 0 0 ${(-w / 2).toFixed(1)}px`;
+    const cl = Math.max(20, Math.round(w / CASE));
+    const ch = Math.max(20, Math.round(h / CASE));
+    const dos = c.el.querySelector<HTMLCanvasElement>(".bst-c-dos");
+    if (dos && (dos.width !== cl || dos.height !== ch)) peindre(dos, dosDeCarte(cl, ch));
+    if (v.place) poserLaVraie(c, ...v.place);
+  }
+  /** La vraie carte suit la carte dessinée : la même place, la même inclinaison, une fois passée la tranche. */
+  function poserLaVraie(c: CarteVue, x: number, y: number, sc: number, rx: number, ry: number, rz: number): void {
+    const v = vraie;
+    if (!v) return;
+    v.place = [x, y, sc, rx, ry, rz];
+    const face = c.tour.v <= 90 && (S.phase === "tourne" || S.phase === "main");
+    if (face !== v.vue) {
+      v.vue = face;
+      v.el.classList.toggle("bst-vu", face);
+      c.el.classList.toggle("bst-avec-vraie", face);
+      if (face) mesurerLaVraie();
+    }
+    v.el.toggleAttribute("data-active", S.phase === "main");
+    // Ses boutons ne s'atteignent, au clavier comme au pointeur, qu'une fois la carte posée.
+    if (v.el.inert !== (S.phase !== "main")) v.el.inert = S.phase !== "main";
+    if (!face) return;
+    v.el.style.zIndex = c.el.style.zIndex;
+    v.el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) rotate(${rz.toFixed(2)}deg) scale(${(sc * v.k).toFixed(3)})`;
+    v.corps.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
   }
 
   /* ---------- Le déroulé ---------- */
@@ -551,7 +655,7 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
     secouer(f);
     son.sonChoc(f);
     if (rf >= 5) sauter(0.8);
-    onde(geo.cx, geo.yC + 110, 0.4, 0.5);
+    onde(geo.cx, geo.yC + demi.h - 22, 0.4, 0.5);
     c.el.tabIndex = 0;
     c.el.setAttribute("aria-label", "Carte face cachée : la retourner");
     if (document.activeElement === elPaquet || document.activeElement === scene) c.el.focus({ preventScroll: true });
@@ -642,7 +746,7 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
     for (let i = 0; i < n; i++) {
       const an = Math.random() * 6.283;
       const v = 50 + Math.random() * (120 + r * 30);
-      grain(geo.cx + Math.cos(an) * 104, geo.yC + Math.sin(an) * 134, Math.cos(an) * v, Math.sin(an) * v, 0.7 + Math.random() * (0.6 + r * 0.15), Math.random() < 0.15 ? 2 : 1, teinte(rangCarte || 0), { f: 2, plus: Math.random() < 0.15 + r * 0.03, sc: r >= 5 ? 6 : 0 });
+      grain(geo.cx + Math.cos(an) * (demi.l + 2), geo.yC + Math.sin(an) * (demi.h + 2), Math.cos(an) * v, Math.sin(an) * v, 0.7 + Math.random() * (0.6 + r * 0.15), Math.random() < 0.15 ? 2 : 1, teinte(rangCarte || 0), { f: 2, plus: Math.random() < 0.15 + r * 0.03, sc: r >= 5 ? 6 : 0 });
     }
     const od = (d: number, k: number, dd = 1): void => apres(d, () => onde(geo.cx, geo.yC, k, dd));
     onde(geo.cx, geo.yC, 0.5 + r * 0.18, 0.9);
@@ -1055,6 +1159,7 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
         c.mx = vers(c.mx, mx, 10, dt);
         c.my = vers(c.my, my, 10, dt);
         poserCarte(c, c.x.v, g.yC + c.y.v, c.sc.v, c.rx.v, c.ry.v + c.tour.v * S.sens, c.rz.v);
+        poserLaVraie(c, c.x.v, g.yC + c.y.v, c.sc.v, c.rx.v, c.ry.v + c.tour.v * S.sens, c.rz.v);
         matiere(c, c.a, c.mx, c.my, h);
       }
     }
@@ -1096,7 +1201,7 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
       while (S.semis > cadence) {
         S.semis -= cadence;
         const an = al() * 6.283;
-        grain(g.cx + Math.cos(an) * 110, g.yC + Math.sin(an) * 140, Math.cos(an) * 10, -14 - al() * 24, 1.2 + al(), 1, teinte(rangCarte), { f: 0.3, sc: 4 });
+        grain(g.cx + Math.cos(an) * (demi.l + 8), g.yC + Math.sin(an) * (demi.h + 8), Math.cos(an) * 10, -14 - al() * 24, 1.2 + al(), 1, teinte(rangCarte), { f: 0.3, sc: 4 });
       }
     } else if (S.phase === "main") {
       const f = 0.35 + 0.65 * S.fete;
@@ -1105,11 +1210,11 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
         const cadence = 1 / taux;
         while (S.semis > cadence) {
           S.semis -= cadence;
-          if (r === 4) grain(g.cx + (al() - 0.5) * 240, g.yC + 120 + al() * 50, (al() - 0.5) * 24, -40 - al() * 60, 1.5 + al(), 1, teinte(4), { f: 0.3, sc: 4 });
+          if (r === 4) grain(g.cx + (al() - 0.5) * (demi.l * 2 + 36), g.yC + demi.h - 12 + al() * 50, (al() - 0.5) * 24, -40 - al() * 60, 1.5 + al(), 1, teinte(4), { f: 0.3, sc: 4 });
           else if (r === 6) grain(al() * g.L, g.H * (0.35 + al() * 0.65), (al() - 0.5) * 10, -14 - al() * 26, 2.2 + al() * 1.6, 1, teinte(6), { f: 0, sc: 3, plus: al() < 0.2 });
           else {
             const an = al() * 6.283;
-            grain(g.cx + Math.cos(an) * 120, g.yC + Math.sin(an) * 150, Math.cos(an) * 8, -12 - al() * 20, 1.4 + al(), 1, teinte(rangCarte), { f: 0.3, sc: 4 });
+            grain(g.cx + Math.cos(an) * (demi.l + 18), g.yC + Math.sin(an) * (demi.h + 18), Math.cos(an) * 8, -12 - al() * 20, 1.4 + al(), 1, teinte(rangCarte), { f: 0.3, sc: 4 });
           }
         }
       } else S.semis = 0;
@@ -1157,10 +1262,10 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
       });
       for (let i = 0; i < 9; i++) {
         const an = T * 0.7 + (i * 6.283) / 9;
-        const x = geo.cx + Math.cos(an) * 168;
+        const x = geo.cx + Math.cos(an) * (demi.l + 66);
         const y = geo.yC + Math.sin(an) * 48 - Math.cos(an) * 22;
         const derriere = Math.sin(an) < 0;
-        if (derriere && Math.abs(x - geo.cx) < 106 && Math.abs(y - geo.yC) < 140) continue;
+        if (derriere && Math.abs(x - geo.cx) < demi.l + 4 && Math.abs(y - geo.yC) < demi.h + 8) continue;
         const cl = teinte(6, (i * 0.37) % 1);
         const uu = derriere ? 2 : CASE;
         g.fillStyle = `rgba(${cl[0]},${cl[1]},${cl[2]},${((derriere ? 0.5 : 0.95) * S.aurore).toFixed(3)})`;
@@ -1256,7 +1361,14 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
       pasScene(dt);
       pasGrains(S.gel > 0 ? 0 : dt);
     } catch {
-      // Un dessin qui échoue arrête la scène, jamais la fenêtre : la carte est montrée.
+      // Un dessin qui échoue arrête la scène, jamais la fenêtre : la carte est montrée, posée au milieu.
+      if (vraie) {
+        vraie.el.classList.add("bst-vu");
+        vraie.el.inert = false;
+        vraie.el.setAttribute("data-active", "");
+        vraie.el.style.transform = `translate3d(0,${geo.yC}px,0) scale(${vraie.k.toFixed(3)})`;
+        vraie.corps.style.transform = "";
+      }
       if (!revelee) annoncer();
       return;
     }
@@ -1327,15 +1439,34 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
     const r = scene.getBoundingClientRect();
     const dx = e.clientX - r.left - geo.cx;
     const dy = e.clientY - r.top - geo.yC;
-    S.survol = e.pointerType === "mouse" && Math.abs(dx) < 150 && Math.abs(dy) < 185;
-    S.hx = borne(dx / 110, -1, 1);
-    S.hy = borne(dy / 140, -1, 1);
+    S.survol = e.pointerType === "mouse" && Math.abs(dx) < demi.l + 48 && Math.abs(dy) < demi.h + 53;
+    S.hx = borne(dx / (demi.l + 8), -1, 1);
+    S.hy = borne(dy / (demi.h + 8), -1, 1);
   });
   scene.addEventListener("pointerleave", () => {
     S.survol = false;
   });
 
   /* ---------- Le départ ---------- */
+  // La vraie carte est posée tout de suite, cachée : sa taille règle celle de la scène. Elle change quand ses effets
+  // arrivent, ou quand l'écran change : on remesure.
+  if (vraie) {
+    vraie.el.className = "bst-vraie";
+    vraie.corps.classList.add("bst-vraie-corps");
+    vraie.el.append(vraie.corps);
+    scene.insertBefore(vraie.el, elPaquet);
+    if (typeof ResizeObserver === "function") {
+      let avant = "";
+      tailleDeLaVraie = new ResizeObserver(() => {
+        const t = `${vraie.corps.offsetWidth}x${vraie.corps.offsetHeight}`;
+        if (t === avant || detruit) return;
+        avant = t;
+        mesurer();
+        if (!doitTourner()) rendreFixe();
+      });
+      tailleDeLaVraie.observe(vraie.corps);
+    }
+  }
   const lireTheme = (): void => {
     estSombre = document.documentElement.dataset.mode === "sombre";
   };
@@ -1436,6 +1567,7 @@ export function lancerLaScene(racine: HTMLElement, o: OptionsDeScene): Scene {
       veilleur.disconnect();
       vue.disconnect();
       taille.disconnect();
+      tailleDeLaVraie?.disconnect();
       reduit.removeEventListener("change", surReduit);
       scene.removeEventListener("pointerdown", surAppui, true);
       scene.removeEventListener("keydown", surTouche, true);

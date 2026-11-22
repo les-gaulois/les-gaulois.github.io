@@ -181,7 +181,7 @@ function Objets(props: Choix & { emplacement: Emplacement }) {
       <p id={`vestiaire-${emplacement}`} class="sr-only">
         {NOMS_EMPLACEMENTS[emplacement]}
       </p>
-      <div class="cases" role="group" aria-labelledby={`vestiaire-${emplacement}`}>
+      <div class="cases co-grille" role="group" aria-labelledby={`vestiaire-${emplacement}`}>
         {rangerLeRayon(OBJETS[emplacement], possede).aMoi.map(([id, objet]) => (
           <Case
             key={id}

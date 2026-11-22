@@ -303,10 +303,11 @@ export function faceDeCarte(f: FaceDeCarte): Planche {
   return g;
 }
 
-/** Le dos de la carte, au torque, celui de la maquette validée (68 × 88). */
-export function dosDeCarte(): Planche {
-  const W = CARTE_LARGEUR;
-  const H = CARTE_HAUTEUR;
+/**
+ * Le dos d'une carte : 68 × 88 cases, ou la taille d'une vraie carte de chose (22 novembre 2026 : la carte détaillée qui
+ * sort du booster a son dos à sa taille), le torque toujours au milieu.
+ */
+export function dosDeCarte(W: number = CARTE_LARGEUR, H: number = CARTE_HAUTEUR): Planche {
   const g = new Planche(W, H);
   rr(g, 0, 0, W, H, 3, PAL.k);
   rr(g, 1, 1, W - 2, H - 2, 2, PAL.o);
@@ -322,12 +323,14 @@ export function dosDeCarte(): Planche {
   R(g, 8, H - 19, W - 16, 10, PAL.k);
   R(g, 9, H - 18, W - 18, 8, "#0b1238");
   tresse(g, 10, H - 17, W - 20, 6, [PAL.y, PAL.O], [PAL.O, PAL.o], "#0b1238");
-  rr(g, 12, 28, 44, 32, 6, PAL.k);
-  rr(g, 13, 29, 42, 30, 5, PAL.y);
-  rr(g, 15, 31, 38, 26, 4, PAL.k);
-  rr(g, 16, 32, 36, 24, 3, "#0b1238");
+  const ex = Math.floor((W - 44) / 2);
+  const ey = Math.floor((H - 32) / 2);
+  rr(g, ex, ey, 44, 32, 6, PAL.k);
+  rr(g, ex + 1, ey + 1, 42, 30, 5, PAL.y);
+  rr(g, ex + 3, ey + 3, 38, 26, 4, PAL.k);
+  rr(g, ex + 4, ey + 4, 36, 24, 3, "#0b1238");
   const t = grille(TORQUE, PAL);
-  g.drawImage(t, 15, 35, t.width * 2, t.height * 2);
+  g.drawImage(t, ex + 3, ey + 7, t.width * 2, t.height * 2);
   return g;
 }
 

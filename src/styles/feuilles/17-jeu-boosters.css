@@ -5,9 +5,8 @@
    règles sont celles de la démonstration, préfixées « bst- ». Ne pas changer le mouvement ni les lumières sans sa demande.
    Le blanc des lumières est un blanc chaud (255, 253, 245) : la feuille n'écrit jamais un blanc pur. */
 
-/* Le ciel de la scène, que reprend la grande carte de la fin (.bst-finale, plus bas). */
-.bst-scene,
-.bst-finale {
+/* Le ciel de la scène. */
+.bst-scene {
   --bst-ciel-a: #86a5ec;
   --bst-ciel-b: #d9e5fb;
 }
@@ -29,7 +28,7 @@
   -webkit-user-select: none;
   outline: none;
 }
-:root[data-mode="sombre"] :is(.bst-scene, .bst-finale) {
+:root[data-mode="sombre"] .bst-scene {
   --bst-ciel-a: #060a20;
   --bst-ciel-b: #152262;
   --bst-etoile: #f6f1e3;
@@ -1047,90 +1046,62 @@
   justify-self: center;
 }
 
-/* ---------- La grande carte de la fin (22 novembre 2026) ---------- */
-/* Demande du pilote : « je préfère qu'on voie la carte en gros avec toute la description contenue dans la carte ». Après la
-   fête de la carte retournée (la scène n'a pas changé), la carte de la chose reçue, en grand et au dessin des cartes des
-   cosmétiques (24-cartes.css), prend la place de la scène, sur le même ciel, devant des rayons lents de la couleur de sa
-   rareté. Dessous, seulement la bourse et les boutons. */
-.bst-finale {
-  --bst-rayon: 255, 242, 200;
-  position: relative;
+/* ---------- La vraie carte (22 novembre 2026) ---------- */
+/* Demandes du pilote : « je préfère qu'on voie la carte en gros avec toute la description contenue dans la carte », puis
+   « tu peux virer la peu détaillée et qu'il n'y ait qu'une seule carte en ouvrant le booster ». La carte qui sort du paquet
+   garde son dos ; passé la tranche, c'est la carte détaillée de la chose (24-cartes.css) qui se montre et qui reste, posée
+   et inclinée par la scène (SceneDuBooster.ts, `vraie`), réduite seulement si elle ne tient pas dans la scène. De la carte
+   dessinée ne restent que son aura et son ombre. Le mouvement, les lumières et les sons de la scène ne changent pas. */
+.bst-scene .bst-vraie {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  perspective: 900px;
+  visibility: hidden;
+  pointer-events: none;
+  will-change: transform;
+}
+.bst-scene .bst-vraie.bst-vu {
+  visibility: visible;
+}
+/* La carte posée se touche : sa fiche des effets s'ouvre. */
+.bst-scene .bst-vraie[data-active] {
+  pointer-events: auto;
+}
+.bst-vraie-corps {
+  width: max-content;
+  will-change: transform;
+}
+/* Le texte de la carte posée se sélectionne, même dans la scène. */
+.bst-scene .bst-vraie[data-active] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+/* Sans scène : la carte dans la fenêtre, au milieu. */
+.bst-sans-scene {
   display: grid;
   place-items: center;
-  min-height: 360px;
-  padding: 22px 12px;
-  overflow: hidden;
-  isolation: isolate;
-  background: linear-gradient(180deg, var(--bst-ciel-a), var(--bst-ciel-b));
+  padding: 16px 0;
 }
-.bst-finale[data-rarete="commun"] {
-  --bst-rayon: 156, 194, 255;
+.bst-carte.bst-avec-vraie .bst-c-corps {
+  visibility: hidden;
 }
-.bst-finale[data-rarete="peu-commun"] {
-  --bst-rayon: 169, 182, 255;
+/* À la taille de la vraie carte, le dos dessiné a ses propres coins : pas de découpe faite pour 68 × 88 cases. */
+.bst-carte.bst-a-la-vraie .bst-c-corps {
+  clip-path: none;
 }
-.bst-finale[data-rarete="epique"] {
-  --bst-rayon: 216, 201, 255;
-}
-.bst-finale[data-rarete="mystique"] {
-  --bst-rayon: 255, 160, 172;
-}
-.bst-finale[data-rarete="legendaire"] {
-  --bst-rayon: 255, 216, 74;
-}
-.bst-finale[data-rarete="divin"] {
-  --bst-rayon: 174, 240, 234;
-}
-.bst-finale-rayons {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: -1;
-  width: 1200px;
-  height: 1200px;
-  margin: -600px 0 0 -600px;
-  background: repeating-conic-gradient(rgba(var(--bst-rayon), 0.5) 0deg 7deg, transparent 7deg 16deg);
-  -webkit-mask-image: radial-gradient(circle, #000 0, #000 18%, transparent 52%);
-  mask-image: radial-gradient(circle, #000 0, #000 18%, transparent 52%);
-  animation: bst-finale-tourne 90s linear infinite;
-  pointer-events: none;
-}
-@keyframes bst-finale-tourne {
-  to {
-    transform: rotate(360deg);
-  }
-}
-/* Grande, mais toujours dans l'écran : l'image se resserre sur un écran bas. */
-.bst-finale .co-carte.co-grande {
+.bst-vraie .co-carte.co-grande {
   --co-p: 4px;
-  /* L'image prend ce que la hauteur de l'écran laisse au texte de la carte, à la bourse et aux boutons. */
-  --co-image-h: clamp(7rem, calc(100dvh - 42rem), 14rem);
-  width: min(23rem, 100%);
+  --co-image-h: 11rem;
+  width: 23rem;
 }
-.bst-finale .co-carte.co-grande .co-nom {
+.bst-vraie .co-carte.co-grande .co-nom {
   font-size: 1.375rem;
 }
-.bst-finale .co-carte.co-grande.co-paysage {
+.bst-vraie .co-carte.co-grande.co-paysage {
   width: max-content;
 }
-@media (max-width: 30rem) {
-  .bst-finale .co-carte.co-grande {
-    --co-p: 3px;
-  }
-  /* Le bouton de pause, en haut à droite, ne mord pas la carte. */
-  .bst-finale {
-    padding-top: 58px;
-  }
-}
-/* La pause de la fenêtre arrête les rayons et la lumière de la carte, là où ils sont. */
-.bst-finale[data-pause] :is(.bst-finale-rayons, .co-carte) {
+/* La pause de la fenêtre arrête aussi la lumière de la carte, là où elle est. */
+.bst-fige .co-carte {
   animation-play-state: paused;
-}
-:root.fx-off .bst-finale-rayons {
-  animation: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .bst-finale-rayons {
-    animation: none;
-  }
 }

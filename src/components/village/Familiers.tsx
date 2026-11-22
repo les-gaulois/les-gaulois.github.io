@@ -124,7 +124,7 @@ export function MonFamilier({ etat, occupe, probleme, annonce, onChoisir, onReli
   };
   const contenu = (
     <>
-      <div class="cases" role="group" aria-labelledby="familier-choix-titre" aria-busy={occupe}>
+      <div class="cases co-grille" role="group" aria-labelledby="familier-choix-titre" aria-busy={occupe}>
         <Case objet={AUCUN} vignette={null} portee={montre === null} onClick={() => choisir(null)} />
         {possedes.map((familier) => (
           <Case key={familier.id} objet={ficheDe(familier.nom, familier.rarete)} vignette={vignetteDuFamilier(familier)} fond={cleDuFamilier(familier.id)} pose="sol" portee={montre?.id === familier.id} onClick={() => choisir(familier.id)} />

@@ -10,9 +10,9 @@ import { apercuAvecFamilier, type Familier } from "../../lib/village/familiers";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import type { PoseDeLaChose } from "../../lib/village/fonds-objets";
 import { MarqueDeRarete, PetitePlaque, Prix, peindre } from "./BoutiquePixels";
-import { CocheDeCarte, HabitDeCarte, RangDuDuel, RefletDeCarte, suivreLePointeur, variablesDeLaCarte, useBulleDesEffets } from "./CarteDObjet";
+import { suivreLePointeur, variablesDeLaCarte } from "./CarteDObjet";
 import { faconDeLaCarte, styleDeCarte } from "../../lib/jeu/cartes-d-objets";
-import { PetiteDeborde, PetitePleine } from "./CartesRares";
+import { CorpsDePoche, EmplacementDePoche } from "./CarteDePoche";
 import { DessinSurFond } from "./DessinSurFond";
 import { useEffetsDeLaChose } from "./effets-des-cartes";
 
@@ -288,7 +288,6 @@ export function Case({
   const carte = !visage && !!fond && !!vignette;
   const style = carte ? styleDeCarte(objet.rarete) : null;
   const effets = useEffetsDeLaChose(carte ? fond : null);
-  const bulle = useBulleDesEffets(objet.nom, effets);
   const suivre = style && style !== "lisse" ? suivreLePointeur() : null;
   // Les marques posées sur la case (« à vous », « en vente », « Nouveau », « essai », la plaque) : sur une carte, dans les
   // coins de son image, pour ne jamais couvrir son nom ni se couvrir entre elles.
@@ -346,69 +345,96 @@ export function Case({
       <span class="sr-only">, à essayer</span>
     </>
   );
-  const facon = carte ? faconDeLaCarte(objet.rarete) : "simple";
-  const rare = facon !== "simple";
-  const CorpsRare = facon === "pleine" ? PetitePleine : PetiteDeborde;
-  return (
-    <button
-      type="button"
-      class={carte ? `case case-carte co-carte${rare ? ` co-${facon}` : ""}` : "case"}
-      data-carte={style ?? undefined}
-      style={carte ? variablesDeLaCarte(objet.rarete) : undefined}
-      data-rarete={objet.rarete ?? "aucune"}
-      data-boutique={aVendre ? "" : undefined}
-      data-etat={essayee ? "essayee" : portee ? "portee" : "libre"}
-      aria-pressed={portee || essayee}
-      data-grave={plaque ? "" : undefined}
-      data-nouveau={nouveau ? "" : undefined}
-      title={plaque ? motsDeLaPlaque(plaque) : undefined}
-      onClick={onClick}
-      onPointerMove={suivre?.onPointerMove}
-      onPointerLeave={(e) => {
-        suivre?.onPointerLeave(e);
-        bulle.onPointerLeave();
-      }}
-      onPointerCancel={suivre?.onPointerCancel}
-      onPointerEnter={bulle.onPointerEnter}
-      onFocus={bulle.onFocus}
-      onBlur={bulle.onBlur}
-    >
-      {rare && vignette && fond ? (
-        <CorpsRare
-          nom={objet.nom}
-          rarete={objet.rarete ?? "commun"}
-          cle={fond}
-          dessin={vignette}
-          effets={effets}
-          marques={
-            <>
-              {marquesDuHaut}
-              {marquesDuBas}
-              {portee && <CocheDeCarte />}
-            </>
-          }
-          pied={prixDeLaCase}
-          pose={pose}
-        />
-      ) : (
-        <>
-          {carte && <HabitDeCarte rarete={objet.rarete} />}
-          {carte && <span class="case-nom co-nom">{objet.nom}</span>}
-          <span class="case-image" data-fond={vignette && fond && !visage ? "" : undefined}>
-            {vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} fond={fond} rarete={objet.rarete} pose={pose} /> : <span class="case-rien" aria-hidden="true" />}
-            {carte && <RefletDeCarte rarete={objet.rarete} />}
-            {carte && marquesDuHaut}
-            {carte && marquesDuBas}
-            {carte && portee && <CocheDeCarte />}
+  const attributs = {
+    type: "button" as const,
+    "data-rarete": objet.rarete ?? "aucune",
+    "data-boutique": aVendre ? "" : undefined,
+    "data-etat": essayee ? "essayee" : portee ? "portee" : "libre",
+    "aria-pressed": portee || essayee,
+    "data-grave": plaque ? "" : undefined,
+    "data-nouveau": nouveau ? "" : undefined,
+    title: plaque ? motsDeLaPlaque(plaque) : undefined,
+    onClick,
+  };
+  // Une chose sur son fond : la carte de poche (22 novembre 2026, « des véritables cartes avec les infos dessus »), les
+  // effets du duel écrits dessus. Ses marques dans les coins de l'image ; « À vous » ou « Porté » à la place du prix.
+  if (carte && vignette && fond) {
+    const rarete = objet.rarete ?? "commun";
+    const facon = faconDeLaCarte(rarete);
+    const marques = (
+      <>
+        {nouveau && !essayee && !portee && (
+          <span class="case-nouveau" data-testid="case-nouveau">
+            <span class="sr-only">, </span>Nouveau
           </span>
-          {!carte && <span class="case-nom">{objet.nom}</span>}
-          {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
-          {effets?.duel && <RangDuDuel duel={effets.duel} />}
-          {!carte && marquesDuHaut}
-          {prixDeLaCase}
-          {!carte && marquesDuBas}
-        </>
-      )}
+        )}
+        {/* Mis en vente par le membre : il ne s'achète pas à la boutique tant que l'offre est ouverte. */}
+        {enVente ? (
+          <span class="case-marque" data-testid="case-en-vente">
+            <span class="sr-only">, </span>en vente{possede > 1 && `, ${exemplaires(possede)}`}
+          </span>
+        ) : (
+          possede > 1 && (
+            <span class="case-marque">
+              <span class="sr-only">, </span>
+              {exemplaires(possede)}
+            </span>
+          )
+        )}
+        {essayee && (
+          <span class="case-essai">
+            <span class="sr-only">, en </span>essai
+          </span>
+        )}
+        {plaque && (
+          <>
+            <PetitePlaque />
+            <span class="sr-only" data-testid="case-plaque">
+              . {motsDeLaPlaque(plaque)}
+            </span>
+          </>
+        )}
+      </>
+    );
+    const etat = portee ? (
+      <span class="co-porte" data-testid="case-portee">
+        <span class="co-coche" aria-hidden="true" />
+        <span class="sr-only">, </span>Porté
+      </span>
+    ) : prixDeLaCase ? (
+      prixDeLaCase
+    ) : possede > 0 ? (
+      <span class="co-avous" data-testid="case-a-vous">
+        <span class="sr-only">, </span>À vous
+      </span>
+    ) : null;
+    return (
+      <EmplacementDePoche nom={objet.nom} rarete={rarete} effets={effets}>
+        <button
+          {...attributs}
+          class={`case case-carte co-carte co-poche${facon !== "simple" ? ` co-${facon}` : ""}`}
+          data-carte={style ?? undefined}
+          style={variablesDeLaCarte(rarete)}
+          onPointerMove={suivre?.onPointerMove}
+          onPointerLeave={suivre?.onPointerLeave}
+          onPointerCancel={suivre?.onPointerCancel}
+        >
+          <CorpsDePoche nom={objet.nom} rarete={rarete} cle={fond} dessin={vignette} effets={effets} pose={pose} image={<ImageDeCase vignette={vignette} fond={fond} rarete={rarete} pose={pose} />} marques={marques} etat={etat} />
+        </button>
+      </EmplacementDePoche>
+    );
+  }
+  // Un trait du visage, une coupe, « rien », « Aucun » : la case d'avant.
+  return (
+    <button {...attributs} class="case">
+      <span class="case-image">
+        {vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} fond={fond} rarete={objet.rarete} pose={pose} /> : <span class="case-rien" aria-hidden="true" />}
+      </span>
+      <span class="case-nom">{objet.nom}</span>
+      {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
+      {marquesDuHaut}
+      {prixDeLaCase}
+      {marquesDuBas}
     </button>
   );
 }

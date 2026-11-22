@@ -1028,12 +1028,16 @@ des cartes « jolies mais pas en pixel art et non holographiques ». Ne pas chan
   `BoutiqueDialogue.tsx`, `grande`), qui s'inclinent vers le pointeur. La face des cartes qui sortent des boosters prend le
   même cadre, dessiné sous les mots (`habillerUnePlanche`, posé par `faceDeCarte` de `src/lib/jeu/boosters.ts`) ; le
   mouvement, les lumières et les sons de l'animation n'ont pas changé. Le corps, le visage, les coupes et « rien » gardent la
-  case d'avant ; la vitrine aussi. À la fin d'un booster d'objet, de familier ou de Gaulois unique, d'un palier du pass
-  et du booster d'essai des visiteurs, la grande carte prend la place de la scène une fois la fête de la carte retournée
-  passée (`carteFinale` d'`OuvertureDuBooster.tsx`, `.bst-finale` de `17-jeu-boosters.css`), avec toute sa description ;
-  dessous, la bourse et les boutons seulement (demande du pilote : « je préfère qu'on voie la carte en gros avec toute la
-  description contenue dans la carte »). Les boosters de statères, de bannières et de loterie gardent leur scène. Les marques (« à vous », « porté », « Nouveau », « essai », la coche, la plaque) sont
-  dans les coins de l'image, jamais sur le nom ; l'intérieur de la carte prend les jetons du thème clair, la carte garde ceux
+  case d'avant ; la vitrine aussi. Dans un booster d'objet, de familier, de Gaulois unique, de bannières ou de statères,
+  d'un palier du pass et dans le booster d'essai, la carte qui sort du paquet **est** la grande carte de la chose, avec
+  toute sa description (demandes du pilote : « je préfère qu'on voie la carte en gros avec toute la description contenue
+  dans la carte », puis, le soir du 22 novembre 2026, « tu peux virer la peu détaillée et qu'il n'y ait qu'une seule carte
+  en ouvrant le booster ») : son dos est dessiné à sa taille (`dosDeCarte(l, h)`), et passé la tranche au retournement,
+  c'est elle qui se montre et qui reste dans sa fête (`vraie` de `SceneDuBooster.ts`, `carteFinale`
+  d'`OuvertureDuBooster.tsx`, `.bst-vraie` de `17-jeu-boosters.css`). La scène grandit à sa hauteur plutôt que la carte ne
+  rapetisse, et garde l'air de ses boutons au-dessus d'elle ; le paquet, la déchirure, la sortie, la fête, les lumières et
+  les sons n'ont pas changé, la fête se pose autour de la carte à sa taille. Le booster de loterie garde sa face dessinée. Au marché, à la forge et dans les fenêtres, les marques (« à vous », « porté », « Nouveau », « essai », la coche,
+  la plaque) sont dans les coins de l'image, jamais sur le nom ; l'intérieur de la carte prend les jetons du thème clair, la carte garde ceux
   de la page, pour que ses anneaux d'état se voient dans les deux thèmes.
 - **Trois façons** (`styleDeCarte` de `src/lib/jeu/cartes-d-objets.ts`, `data-carte` sur la carte) : « lisse » (de base,
   commun, peu commun : cadre net, coins arrondis, un filet de plus au peu commun, aucun reflet) ; « entre » (épique : quatre
@@ -1078,9 +1082,22 @@ des cartes « jolies mais pas en pixel art et non holographiques ». Ne pas chan
   les boutons restent dans l'écran. La somme et la part,
   écrites en grands chiffres de cases, sont celles de la réponse du serveur, et la carte se lit d'un seul nom pour les
   lecteurs d'écran (« 640 statères rendus, 40 % du prix »). Dessins `src/lib/jeu/cartes-de-stateres.ts` (les pièces de
-  `statere.ts` du robot), carte `CarteDeStateres.tsx`, classes `cs-…` de `24-cartes.css` ; les rayons derrière elle
-  prennent la couleur du lot (`rayon` d'`OuvertureDuBooster`). Le booster de loterie n'en a pas : il donne des billets,
-  pas des statères.
+  `statere.ts` du robot), carte `CarteDeStateres.tsx`, classes `cs-…` de `24-cartes.css` ; c'est elle qui sort du booster
+  et se retourne. Le booster de loterie n'en a pas : il donne des billets, pas des statères.
+- **La carte de poche** (soir du 22 novembre 2026, demande du pilote : « le même affichage pour la boutique et les
+  vestiaires : des véritables cartes avec les infos dessus » ; dessin de Claude Fable 5.2) : dans les grilles de la
+  boutique et du vestiaire (rayons d'objets, familiers, Gaulois uniques), la grande carte en plus serré, 80 cases de
+  2 pixels (160 pixels, 152 au plus étroit), deux de front sur un téléphone, quatre dans le panneau de la boutique
+  (`.cases.co-grille`). De haut en bas : le prix en énergie, le nom, la tuile du rôle et la force ; l'image sur son fond,
+  ses marques dans les coins (« Nouveau », « en vente », « 2 exemplaires », « essai », la plaque) ; la rareté (icône et
+  mot) et le repos ; les effets du duel écrits à 11 pixels (l'effet unique, les mots-clés, la phrase du rôle ; une ligne
+  entière ou rien, `lignesDePoche` de `src/lib/village/carte-de-poche.ts`) ; la panoplie ; l'état (prix, cadenas,
+  « Revient… », « À vous », « Porté »). « Tout lire » retourne la carte : son dos porte toute la fiche et le numéro, Échap
+  le referme. Le bouton de la carte reste `button.case` (le glisser du vestiaire le prend) ; le pli et le dos sont à côté,
+  dans l'emplacement (`CarteDePoche.tsx`, classes `co-poche`, `co-emplacement`, `co-pli`, `co-dos` de `24-cartes.css`). Les
+  trois façons et les deux mises en page rares sont gardées (`PetitePleine`, `PetiteDeborde` prennent sa tête et son
+  bas). Le marché, la forge et les fenêtres gardent la petite carte d'avant ; un trait du visage, une coupe, « Aucun »
+  gardent leur case.
 - **Le défilé des cartes** (22 novembre 2026, à la place du livre des bannières, à la demande du pilote ; maquette de
   Claude Fable 5.2, choix faits par Claude à sa demande) : les bannières, les finitions et les cadres en grandes cartes
   (`DefileDeCartes.tsx`, calculs dans `src/lib/village/defile.ts`, classes `dc-…` de `24-cartes.css`), à la boutique et

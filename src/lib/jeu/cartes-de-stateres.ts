@@ -15,21 +15,20 @@ import { Planche, R } from "./planche";
 /** Le rang d'une carte de statères : 0 pour des statères rendus, 1 à 6 pour les lots du booster de statères. */
 export type RangDeStateres = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-/** Ce que chaque rang montre : son nom, sa façon de carte, l'encre de ses chiffres, la couleur des rayons derrière lui. */
+/** Ce que chaque rang montre : son nom, sa façon de carte, l'encre de ses chiffres. */
 export interface LotDessine {
   nom: string;
   carte: "lisse" | "entre" | "pixel";
   encre: "marine" | "or" | "orVif";
-  rayon: string;
 }
 export const LOTS_DESSINES: Readonly<Record<RangDeStateres, LotDessine>> = {
-  0: { nom: "Statères rendus", carte: "lisse", encre: "marine", rayon: "226, 233, 250" },
-  1: { nom: "Quelques pièces", carte: "lisse", encre: "marine", rayon: "255, 241, 200" },
-  2: { nom: "La petite pile", carte: "lisse", encre: "marine", rayon: "255, 236, 170" },
-  3: { nom: "La bourse", carte: "entre", encre: "or", rayon: "255, 228, 130" },
-  4: { nom: "Le coffret", carte: "pixel", encre: "orVif", rayon: "255, 222, 100" },
-  5: { nom: "Le grand coffre", carte: "pixel", encre: "orVif", rayon: "255, 216, 74" },
-  6: { nom: "Le trésor", carte: "pixel", encre: "orVif", rayon: "255, 216, 74" },
+  0: { nom: "Statères rendus", carte: "lisse", encre: "marine" },
+  1: { nom: "Quelques pièces", carte: "lisse", encre: "marine" },
+  2: { nom: "La petite pile", carte: "lisse", encre: "marine" },
+  3: { nom: "La bourse", carte: "entre", encre: "or" },
+  4: { nom: "Le coffret", carte: "pixel", encre: "orVif" },
+  5: { nom: "Le grand coffre", carte: "pixel", encre: "orVif" },
+  6: { nom: "Le trésor", carte: "pixel", encre: "orVif" },
 };
 /** Un rang lu ramené entre 1 et 6 (un lot), ou 0 (un rendu). */
 export const rangDeStateres = (rang: number): RangDeStateres => Math.min(6, Math.max(0, Math.round(rang))) as RangDeStateres;

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-22",
+    "kind": "ameliore",
+    "title": "De vraies cartes partout",
+    "body": "Un booster ne montre plus qu'une seule carte, la carte détaillée, qui sort du paquet et se retourne. À la boutique et au vestiaire, chaque objet est une vraie carte avec ses effets écrits dessus.",
+    "link": {
+      "href": "/village#gaulois",
+      "label": "Le vestiaire"
+    }
+  },
+  {
+    "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "top",
     "title": "Le duel des Gaulois est ouvert",

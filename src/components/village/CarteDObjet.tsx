@@ -89,11 +89,6 @@ export function useCaseQuiTient(cases: number): number {
   return p;
 }
 
-/** La coche d'une carte portée, dans le coin de son image : la case d'avant la posait sur le nom. */
-export function CocheDeCarte() {
-  return <span class="co-coche" aria-hidden="true" />;
-}
-
 /** Le reflet posé sur l'image : la feuille holographique d'une carte en pixels, le reflet doux de l'épique, rien sinon. */
 export function RefletDeCarte({ rarete }: { rarete: string | null | undefined }) {
   const style = styleDeCarte(rarete);

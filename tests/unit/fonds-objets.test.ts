@@ -17,6 +17,7 @@ import {
   imageSurFond,
   rangDeLaRarete,
   sceneDe,
+  tailleBornee,
   tailleDuFond,
 } from "../../src/lib/village/fonds-objets";
 import { LUMINANCE_MIN, TAILLE_MAX, TAILLE_MIN, graineDe, luminanceMoyenne } from "../../src/lib/village/fonds-objets/socle";
@@ -100,6 +101,14 @@ const CHOSES: Chose[] = [
     return dessin ? [{ cle: cleDuModele(m.id), rarete: m.rarete, dessin, pose: "sol" }] : [];
   }),
 ];
+
+describe("une boîte pas encore mesurée", () => {
+  it("donne la plus petite taille, jamais une planche impossible (la vraie carte d'un booster, dessinée avant d'être posée)", () => {
+    expect(tailleBornee(Number.NaN, Number.NaN)).toEqual({ largeur: TAILLE_MIN.largeur, hauteur: TAILLE_MIN.hauteur });
+    expect(tailleDuFond(Number.NaN, 40, 2, null)).toEqual({ largeur: TAILLE_MIN.largeur, hauteur: TAILLE_MIN.hauteur });
+    expect(imageSurFond(cleDuFamilier("chat-tigre"), null, { largeur: Number.NaN, hauteur: Number.NaN }).cases).toHaveLength(TAILLE_MIN.largeur * TAILLE_MIN.hauteur);
+  });
+});
 
 describe("les fonds des vraies choses", () => {
   it("donnent à chaque chose d'une même scène un fond à elle, aux tailles des cases", () => {

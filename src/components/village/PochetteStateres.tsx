@@ -19,7 +19,6 @@ import type { Issue } from "./BoutiqueDialogue";
 import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 import { CarteDeStateres } from "./CarteDeStateres";
-import { LOTS_DESSINES, rangDeStateres } from "../../lib/jeu/cartes-de-stateres";
 import { casesDeLaPochette } from "./PochetteDessin";
 
 const ILLISIBLE = "La réponse du serveur est illisible. Rechargez la page.";
@@ -180,7 +179,6 @@ export function DialogueStateres({ ma, solde, ouvrir, onFermer }: { ma: MaPochet
           revelee={revele}
           onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
           carteFinale={<CarteDeStateres rang={tirage.lot.rang} gain={tirage.lot.gain} total={lots.length} testid="pochette-stateres-tirage" />}
-          rayon={LOTS_DESSINES[rangDeStateres(tirage.lot.rang)].rayon}
         >
           {/* La carte dit le lot et son montant : dessous, la bourse, la chance du lot et les boutons. */}
           <span hidden data-rang={tirage.lot.rang} />

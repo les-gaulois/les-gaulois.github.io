@@ -99,10 +99,9 @@ export const accentDeLaChose = (cle: string, dessin: DessinEnCases | null): stri
 
 /** Une taille de fond ramenée entre la plus petite et la plus grande qu'une scène sait dessiner. */
 export function tailleBornee(largeur: number, hauteur: number): { largeur: number; hauteur: number } {
-  return {
-    largeur: Math.max(TAILLE_MIN.largeur, Math.min(TAILLE_MAX.largeur, Math.round(largeur))),
-    hauteur: Math.max(TAILLE_MIN.hauteur, Math.min(TAILLE_MAX.hauteur, Math.round(hauteur))),
-  };
+  // Une mesure qui n'est pas un nombre donne la plus petite taille, jamais une planche impossible.
+  const borne = (v: number, min: number, max: number): number => (Number.isFinite(v) ? Math.max(min, Math.min(max, Math.round(v))) : min);
+  return { largeur: borne(largeur, TAILLE_MIN.largeur, TAILLE_MAX.largeur), hauteur: borne(hauteur, TAILLE_MIN.hauteur, TAILLE_MAX.hauteur) };
 }
 
 /**

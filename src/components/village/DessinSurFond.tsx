@@ -97,7 +97,8 @@ function useBoiteDuParent(toile: { current: HTMLCanvasElement | null }): { large
       const style = getComputedStyle(parent);
       const largeur = Math.floor(parent.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
       const hauteur = Math.floor(parent.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom));
-      if (largeur <= 0 || hauteur <= 0) return;
+      // Une boîte pas encore dans la page (la vraie carte d'un booster, dessinée avant d'être posée) ne se mesure pas.
+      if (!(largeur > 0) || !(hauteur > 0)) return;
       setBoite((avant) => (avant.largeur === largeur && avant.hauteur === hauteur ? avant : { largeur, hauteur }));
     };
     mesurer();

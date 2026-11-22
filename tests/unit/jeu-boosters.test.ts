@@ -62,6 +62,16 @@ describe("la carte", () => {
     expect(face.couleur(34, 0)).toEqual([155, 77, 255, 1]);
   });
 
+  it("a un dos à la taille de la vraie carte qui sort du booster, le torque au milieu", () => {
+    const dos = dosDeCarte(93, 155);
+    expect([dos.width, dos.height]).toEqual([93, 155]);
+    // Le cadre jusqu'aux bords, le torque au milieu : la case du centre de son cartouche est la même qu'à 68 × 88.
+    expect(dos.couleur(46, 0)?.[3]).toBe(1);
+    expect(dos.couleur(46, 154)?.[3]).toBe(1);
+    const petit = dosDeCarte();
+    expect(dos.couleur(Math.floor((93 - 44) / 2) + 22, Math.floor((155 - 32) / 2) + 2)).toEqual(petit.couleur(12 + 22, 28 + 2));
+  });
+
   it("réduit une image trop grande d'un facteur entier, sans jamais l'agrandir", () => {
     expect(placeDeLImage(34, 12)).toEqual({ largeur: 34, hauteur: 12 });
     expect(placeDeLImage(100, 56)).toEqual({ largeur: 50, hauteur: 28 });

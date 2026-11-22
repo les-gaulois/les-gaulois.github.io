@@ -10,7 +10,6 @@ import { CarteDeBanniere } from "./CarteDObjet";
 import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RefusDuBooster, ResteEnPixels, type LigneDeChance } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 import { CarteDeStateres } from "./CarteDeStateres";
-import { LOTS_DESSINES } from "../../lib/jeu/cartes-de-stateres";
 
 /**
  * Ouvrir un booster des bannières : la fenêtre dit le prix et ce qu'il restera, demande au serveur, puis le joueur ouvre le
@@ -72,7 +71,6 @@ export function DialoguePochetteBannieres({ lib, prix, solde, ouvrir, montrer, d
           revelee={revelee}
           onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
           carteFinale={recue ? <CarteDeLaBanniereRecue lib={lib} banniere={recue} /> : rendu ? <CarteDeStateres rang={0} gain={rendu.rendu} pourcent={rendu.pourcent} testid="bannieres-pochette-rendu-recu" /> : undefined}
-          rayon={!recue && rendu ? LOTS_DESSINES[0].rayon : undefined}
         >
           {recue ? (
             <>

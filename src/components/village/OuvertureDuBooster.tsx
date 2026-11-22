@@ -1,4 +1,5 @@
 import type { ComponentChildren } from "preact";
+import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { motionAllowed } from "../../lib/fx/motion";
 import { paquet, type CarteDeScene, type SorteDeBooster } from "../../lib/jeu/boosters";
@@ -7,9 +8,6 @@ import { SON_CHANGE, basculerLeSon, sonVoulu } from "../../lib/jeu/sons";
 import { sonRemis } from "../../lib/jeu/sons-des-boosters";
 import { PetiteIcone, Px } from "../jeu/Pixels";
 import { lancerLaScene, type Scene } from "./SceneDuBooster";
-
-/** Le temps laissé à la fête de la carte retournée avant la grande carte, en millisecondes. */
-const DELAI_DE_LA_FETE = 1800;
 
 /** Le nom de chaque booster, pour le paquet et la scène. */
 export const NOMS_DES_BOOSTERS: Readonly<Record<SorteDeBooster, string>> = {
@@ -43,8 +41,9 @@ function useSon(): [boolean, () => void] {
  * L'ouverture d'un booster dans sa fenêtre (21 novembre 2026) : la scène validée par le pilote (`SceneDuBooster.ts`), où
  * le joueur ouvre lui-même le paquet et retourne la carte que le serveur a déjà tirée, et ses trois boutons : passer,
  * le son du jeu, la pause (la page derrière la fenêtre est inerte, sa pause ne s'atteint pas). Une fois la carte retournée,
- * `children` (la bourse et les actions) paraît dessous. Avec `carteFinale` (22 novembre 2026), la grande carte de la chose
- * reçue prend la place de la scène après sa fête, avec la pause ; sans elle, la scène reste, la carte flotte dans sa fête.
+ * `children` (la bourse et les actions) paraît dessous. Avec `carteFinale`, la carte détaillée de la chose reçue est la
+ * carte même qui sort du paquet et se retourne (22 novembre 2026, demande du pilote : « qu'il n'y ait qu'une seule carte en
+ * ouvrant le booster ») : la scène la pose à la place de sa face dessinée, et elle reste dans sa fête.
  */
 export function OuvertureDuBooster({
   sorte,
@@ -53,7 +52,6 @@ export function OuvertureDuBooster({
   onRevelee,
   autre,
   carteFinale,
-  rayon,
   children,
 }: {
   sorte: SorteDeBooster;
@@ -63,14 +61,12 @@ export function OuvertureDuBooster({
   /** Un autre paquet que celui de `sorte`, de la même anatomie (60 × 88 cases), et son nom : le booster d'un palier du pass. */
   autre?: { paquet: Planche; nom: string };
   /**
-   * La carte de la chose reçue, en grand, avec toute sa description (22 novembre 2026, demande du pilote : « je préfère
-   * qu'on voie la carte en gros avec toute la description contenue dans la carte », « avec le design fait pour ») : une fois
-   * la carte retournée et sa fête passée, elle prend la place de la scène. Sans elle (le booster de loterie, qui donne des
-   * billets), la scène reste, comme avant.
+   * La carte de la chose reçue, en grand, avec toute sa description (22 novembre 2026, demandes du pilote : « je préfère
+   * qu'on voie la carte en gros avec toute la description contenue dans la carte », puis « qu'il n'y ait qu'une seule
+   * carte ») : c'est elle qui se retourne dans la scène. Sans elle (le booster de loterie, qui donne des billets), la face
+   * dessinée, comme avant.
    */
   carteFinale?: ComponentChildren;
-  /** La couleur des rayons derrière la grande carte (« r, v, b ») ; sinon celle de la rareté de la carte. */
-  rayon?: string;
   children: ComponentChildren;
 }) {
   const nomDuPaquet = autre?.nom ?? NOMS_DES_BOOSTERS[sorte];
@@ -80,44 +76,35 @@ export function OuvertureDuBooster({
   rappel.current = onRevelee;
   const [son, basculerSon] = useSon();
   const [pause, setPause] = useState(false);
+  const avecCarte = carteFinale !== undefined && carteFinale !== null;
+  // La place de la vraie carte : la fenêtre y dessine la carte de la chose, la scène l'emporte dans son mouvement.
+  const [vraie] = useState<HTMLDivElement | null>(() => (avecCarte && typeof document !== "undefined" ? document.createElement("div") : null));
+  // Sans scène (elle n'a pas pu se lancer), la carte paraît quand même, dans la fenêtre.
+  const [sansScene, setSansScene] = useState(false);
   useEffect(() => {
     const el = racine.current;
     try {
       if (!el) throw new Error("scène absente");
-      scene.current = lancerLaScene(el, { paquet: autre?.paquet ?? paquet(sorte), nomDuPaquet, carte, onRevelee: () => rappel.current() });
+      scene.current = lancerLaScene(el, { paquet: autre?.paquet ?? paquet(sorte), nomDuPaquet, carte, onRevelee: () => rappel.current(), ...(vraie ? { vraie } : {}) });
     } catch {
-      // Sans scène, la fenêtre passe tout de suite au résultat : elle ne reste jamais bloquée.
+      // Sans scène, la fenêtre passe tout de suite au résultat, avec la carte : elle ne reste jamais bloquée.
+      setSansScene(true);
       rappel.current();
     }
     return () => scene.current?.arreter();
     // La scène se lance une fois : la carte ne change pas pendant une ouverture.
   }, []);
-  // La grande carte : elle paraît après la fête de la carte retournée (le mouvement, les lumières et les sons de la scène ne
-  // changent pas), tout de suite quand les animations sont coupées. La scène s'arrête alors : elle n'est plus vue.
-  const [fini, setFini] = useState(false);
-  const avecCarte = carteFinale !== undefined && carteFinale !== null;
-  useEffect(() => {
-    if (!revelee || !avecCarte) return;
-    // En pause, ou les animations coupées : la grande carte paraît tout de suite.
-    const id = window.setTimeout(() => setFini(true), pause || !motionAllowed() ? 0 : DELAI_DE_LA_FETE);
-    return () => window.clearTimeout(id);
-  }, [revelee, avecCarte, pause]);
-  useEffect(() => {
-    if (fini) scene.current?.arreter();
-  }, [fini]);
-  const montre = revelee && (!avecCarte || fini);
-  // La carte retournée : le résultat paraît sous la scène (ou sous la grande carte) ; la fenêtre y descend, et le focus
-  // passe à sa première action s'il était dans la scène (le paquet, la carte), comme dans la démonstration.
+  const montre = revelee;
+  // La carte retournée : le résultat paraît sous la scène ; la fenêtre y descend, et le focus passe à sa première action s'il
+  // était dans la scène (le paquet, la carte), comme dans la démonstration.
   const resultat = useRef<HTMLDivElement>(null);
-  const finale = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!montre) return;
     const id = requestAnimationFrame(() => {
       const el = resultat.current;
       if (!el) return;
-      // Avec la grande carte, la fenêtre montre d'abord son haut (le nom de la carte) ; sinon, elle descend au résultat.
-      const voir = (avecCarte ? finale.current : null) ?? el;
-      voir.scrollIntoView({ block: "nearest", behavior: motionAllowed() ? "smooth" : "auto" });
+      // La carte d'abord : la fenêtre la garde en vue (son nom, son prix, sa force), le résultat est dessous.
+      (vraie?.isConnected ? vraie : el).scrollIntoView({ block: "nearest", behavior: motionAllowed() ? "smooth" : "auto" });
       const actif = document.activeElement;
       // Le focus était dans la scène ou ses outils (masqués avec elle) : il passe à la première action.
       if (!actif || actif === document.body || actif.closest(".bst-cadre") !== null || actif.closest("dialog") === null) el.querySelector<HTMLElement>("button, a[href]")?.focus({ preventScroll: true });
@@ -126,8 +113,7 @@ export function OuvertureDuBooster({
   }, [montre]);
   const basculerPause = (): void => {
     const oui = !pause;
-    // La scène arrêtée (la grande carte a pris sa place) ne se relance pas : la pause ne règle plus que la carte.
-    if (!fini) scene.current?.mettreEnPause(oui);
+    scene.current?.mettreEnPause(oui);
     setPause(oui);
   };
   const boutonPause = (
@@ -137,15 +123,9 @@ export function OuvertureDuBooster({
   );
   return (
     <div class="bst-ouverture" data-revelee={revelee ? "" : undefined}>
-      {avecCarte && fini && (
-        <div ref={finale} class="bst-cadre bst-finale" data-rarete={carte.rarete} data-pause={pause ? "" : undefined} style={rayon ? { "--bst-rayon": rayon } : undefined}>
-          <span class="bst-finale-rayons" aria-hidden="true" />
-          {carteFinale}
-          {/* La pause de la fenêtre reste à portée : la page derrière est inerte. */}
-          <div class="bst-outils">{boutonPause}</div>
-        </div>
-      )}
-      <div class="bst-cadre" hidden={avecCarte && fini}>
+      {/* La vraie carte, dessinée ici et posée par la scène. */}
+      {vraie && createPortal(<>{carteFinale}</>, vraie)}
+      <div class="bst-cadre">
         <div ref={racine} class="bst-scene" tabIndex={-1} role="group" aria-label={`Ouverture du ${nomDuPaquet.toLowerCase()}`} data-testid="booster-scene" data-rarete={carte.rarete} />
         <div class="bst-outils">
           {!revelee && (
@@ -156,13 +136,21 @@ export function OuvertureDuBooster({
           <button type="button" class="jeu-btn jeu-btn-bleu jeu-btn-ic jeu-n9" aria-pressed={son} aria-label="Son" title={son ? "Couper le son" : "Remettre le son"} onClick={basculerSon} data-testid="booster-son">
             <PetiteIcone nom={son ? "son" : "muet"} />
           </button>
-          {!fini && boutonPause}
+          {boutonPause}
         </div>
       </div>
       {/* La carte retournée, dite aux lecteurs d'écran : la région est là dès le début de la scène, vide, puis remplie. */}
       <p class="sr-only" aria-live="polite" data-testid="booster-annonce">
         {revelee ? `${carte.nom}, ${carte.mot.toLowerCase()}.` : ""}
       </p>
+      {sansScene && vraie && (
+        <div
+          class="bst-sans-scene"
+          ref={(n) => {
+            if (n && vraie.parentElement !== n) n.append(vraie);
+          }}
+        />
+      )}
       {montre && (
         <div ref={resultat} class="bst-resultat">
           {children}

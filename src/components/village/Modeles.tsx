@@ -107,7 +107,7 @@ export function MonCorps({ etat, tenue, vignette, onChange, onRelire }: { etat: 
         Corps
       </p>
       {choix.length > 0 && (
-        <div class="cases" role="group" aria-labelledby="vestiaire-corps">
+        <div class="cases co-grille" role="group" aria-labelledby="vestiaire-corps">
           <Case objet={HUMAIN} vignette={vignette(null)} portee={porte === null} onClick={() => onChange(tenueAvecModele(tenue, null))} />
           {choix.map((modele) => (
             <Case key={modele.id} objet={ficheDe(modele.nom, modele.rarete)} vignette={vignette(modele.id)} fond={cleDuModele(modele.id)} pose="bas" portee={porte?.id === modele.id} onClick={() => onChange(tenueAvecModele(tenue, modele.id))} />
