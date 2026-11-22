@@ -4,8 +4,11 @@ import { RARETES_DES_OBJETS, type Objet, type RareteDObjet as Rarete, type Vigne
 import { stateres } from "../../lib/village/ecran-boutique";
 import { MarqueDeRarete, Prix } from "./BoutiquePixels";
 import { carillonSiVoulu, preparerLeSonSiVoulu } from "./Carillon";
+import { FicheDesEffets, HabitDeCarte, RangDuDuel, RefletDeCarte, suivreLePointeur, useBulleDesEffets, variablesDeLaCarte } from "./CarteDObjet";
+import { styleDeCarte } from "../../lib/jeu/cartes-d-objets";
 import { feterLObjet } from "./Cases";
 import { DessinSurFond } from "./DessinSurFond";
+import { useEffetsDeLaChose } from "./effets-des-cartes";
 
 /** Ce que rend un achat : le résultat du serveur, ou les mots de son refus. */
 export type Issue<T> = { ok: true; valeur: T } | { ok: false; message: string };
@@ -49,8 +52,44 @@ export function Dialogue({ titre, etape, occupe, onFermer, testid, children }: {
   );
 }
 
-/** Une case montrée dans une fenêtre : la même que celles du vestiaire, sans être un bouton. */
-export function CaseMontree({ objet, rarete, vignette, fond = null }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; fond?: string | null }) {
+/**
+ * Une case montrée dans une fenêtre : la même que celles du vestiaire, sans être un bouton. Posée sur son fond, c'est une
+ * carte (22 novembre 2026) ; `grande` : la carte en grand d'une fenêtre (achat, objet reçu), qui s'incline vers le pointeur
+ * et porte, pour qui voit le duel, toutes les phrases de ses effets.
+ */
+export function CaseMontree({ objet, rarete, vignette, fond = null, grande = false }: { objet: Objet; rarete: Rarete; vignette: Vignette | null; fond?: string | null; grande?: boolean }) {
+  const carte = !!fond && !!vignette;
+  const effets = useEffetsDeLaChose(carte ? fond : null);
+  const bulle = useBulleDesEffets(objet.nom, grande ? null : effets);
+  if (carte && vignette) {
+    const style = styleDeCarte(rarete);
+    const suivre = grande || style !== "lisse" ? suivreLePointeur(grande ? 12 : 0) : null;
+    return (
+      <div
+        class={`case case-montree case-carte co-carte${grande ? " co-grande" : ""}`}
+        data-carte={style}
+        data-rarete={rarete}
+        style={variablesDeLaCarte(rarete)}
+        onPointerMove={suivre?.onPointerMove}
+        onPointerLeave={(e) => {
+          suivre?.onPointerLeave(e);
+          bulle.onPointerLeave();
+        }}
+        onPointerCancel={suivre?.onPointerCancel}
+        onPointerEnter={bulle.onPointerEnter}
+      >
+        <HabitDeCarte rarete={rarete} />
+        <span class="case-nom co-nom">{objet.nom}</span>
+        <span class="case-image" data-fond="">
+          <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} place={grande ? 168 : 80} maximum={grande ? 4 : 3} class="case-dessin" />
+          <RefletDeCarte rarete={rarete} />
+        </span>
+        <MarqueDeRarete rarete={rarete} />
+        {effets?.duel && <RangDuDuel duel={effets.duel} />}
+        {grande && effets && <FicheDesEffets effets={effets} />}
+      </div>
+    );
+  }
   return (
     <div class="case case-montree" data-rarete={rarete}>
       <span class="case-image" data-fond={vignette && fond ? "" : undefined}>
@@ -75,7 +114,7 @@ export function ObjetRecu({ objet, rarete, vignette, fond = null, palier = false
   return (
     <div class="objet-recu" data-rarete={rarete} data-testid="objet-recu">
       <span class="objet-recu-rayons" aria-hidden="true" />
-      <CaseMontree objet={objet} rarete={rarete} vignette={vignette} fond={fond} />
+      <CaseMontree objet={objet} rarete={rarete} vignette={vignette} fond={fond} grande />
     </div>
   );
 }
@@ -167,7 +206,7 @@ export function DialogueAchat({ objet, rarete, vignette, fond = null, prix, sold
   };
   return (
     <Dialogue titre={etape === "fait" ? `${objet.nom} est à vous` : refus ? "Achat impossible" : `Acheter ${objet.nom} ?`} etape={etape === "fait" ? "fait" : "confirmer"} occupe={etape === "envoi"} onFermer={onFermer} testid="dialogue-achat">
-      {etape === "fait" ? <ObjetRecu objet={objet} rarete={rarete} vignette={vignette} fond={fond} /> : <CaseMontree objet={objet} rarete={rarete} vignette={vignette} fond={fond} />}
+      {etape === "fait" ? <ObjetRecu objet={objet} rarete={rarete} vignette={vignette} fond={fond} /> : <CaseMontree objet={objet} rarete={rarete} vignette={vignette} fond={fond} grande />}
       {etape === "fait" ? (
         <>
           {reste !== null && <p class="boutique-dialogue-texte">Il vous reste {stateres(reste)}.</p>}

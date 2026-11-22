@@ -10,7 +10,10 @@ import { apercuAvecFamilier, type Familier } from "../../lib/village/familiers";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import type { PoseDeLaChose } from "../../lib/village/fonds-objets";
 import { MarqueDeRarete, PetitePlaque, Prix, peindre } from "./BoutiquePixels";
+import { CocheDeCarte, HabitDeCarte, RangDuDuel, RefletDeCarte, suivreLePointeur, variablesDeLaCarte, useBulleDesEffets } from "./CarteDObjet";
+import { styleDeCarte } from "../../lib/jeu/cartes-d-objets";
 import { DessinSurFond } from "./DessinSurFond";
+import { useEffetsDeLaChose } from "./effets-des-cartes";
 
 /**
  * Les pièces que partagent le vestiaire de « Mon Gaulois » (`/village`) et son onglet « La boutique » (`#boutique`) : le
@@ -279,13 +282,17 @@ export function Case({
 }) {
   const aVendre = vente && "prix" in vente ? vente : null;
   const possede = vente && "possede" in vente ? vente.possede : 0;
-  return (
-    <button type="button" class="case" data-rarete={objet.rarete ?? "aucune"} data-boutique={aVendre ? "" : undefined} data-etat={essayee ? "essayee" : portee ? "portee" : "libre"} aria-pressed={portee || essayee} data-grave={plaque ? "" : undefined} data-nouveau={nouveau ? "" : undefined} title={plaque ? motsDeLaPlaque(plaque) : undefined} onClick={onClick}>
-      <span class="case-image" data-fond={vignette && fond && !visage ? "" : undefined}>
-        {vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} fond={fond} rarete={objet.rarete} pose={pose} /> : <span class="case-rien" aria-hidden="true" />}
-      </span>
-      <span class="case-nom">{objet.nom}</span>
-      {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
+  // Une chose posée sur son fond (objet, familier, Gaulois unique) est une carte (22 novembre 2026) ; un trait du visage,
+  // une coupe ou « rien » gardent la case d'avant.
+  const carte = !visage && !!fond && !!vignette;
+  const style = carte ? styleDeCarte(objet.rarete) : null;
+  const effets = useEffetsDeLaChose(carte ? fond : null);
+  const bulle = useBulleDesEffets(objet.nom, effets);
+  const suivre = style && style !== "lisse" ? suivreLePointeur() : null;
+  // Les marques posées sur la case (« à vous », « en vente », « Nouveau », « essai », la plaque) : sur une carte, dans les
+  // coins de son image, pour ne jamais couvrir son nom ni se couvrir entre elles.
+  const marquesDuHaut = (
+    <>
       {possede > 0 && (
         <span class="case-marque" data-testid="case-a-vous">
           {/* Des mots, pas de signe (règle du pilote) : « à vous, 2 exemplaires », le nombre collé à son mot. */}
@@ -298,21 +305,10 @@ export function Case({
           <span class="sr-only">, </span>en vente
         </span>
       )}
-      {aVendre && (
-        <>
-          <span class="sr-only">, à la boutique, </span>
-          {aVendre.revient ? (
-            <span class="case-revient" data-testid="case-revient">
-              {aVendre.revient}
-            </span>
-          ) : aVendre.prix === null ? (
-            <Cadenas />
-          ) : (
-            <Prix montant={aVendre.prix} class="case-prix" />
-          )}
-          <span class="sr-only">, à essayer</span>
-        </>
-      )}
+    </>
+  );
+  const marquesDuBas = (
+    <>
       {nouveau && !essayee && !portee && (
         <span class="case-nouveau" data-testid="case-nouveau">
           <span class="sr-only">, </span>Nouveau
@@ -331,6 +327,61 @@ export function Case({
           </span>
         </>
       )}
+    </>
+  );
+  return (
+    <button
+      type="button"
+      class={carte ? "case case-carte co-carte" : "case"}
+      data-carte={style ?? undefined}
+      style={carte ? variablesDeLaCarte(objet.rarete) : undefined}
+      data-rarete={objet.rarete ?? "aucune"}
+      data-boutique={aVendre ? "" : undefined}
+      data-etat={essayee ? "essayee" : portee ? "portee" : "libre"}
+      aria-pressed={portee || essayee}
+      data-grave={plaque ? "" : undefined}
+      data-nouveau={nouveau ? "" : undefined}
+      title={plaque ? motsDeLaPlaque(plaque) : undefined}
+      onClick={onClick}
+      onPointerMove={suivre?.onPointerMove}
+      onPointerLeave={(e) => {
+        suivre?.onPointerLeave(e);
+        bulle.onPointerLeave();
+      }}
+      onPointerCancel={suivre?.onPointerCancel}
+      onPointerEnter={bulle.onPointerEnter}
+      onFocus={bulle.onFocus}
+      onBlur={bulle.onBlur}
+    >
+      {carte && <HabitDeCarte rarete={objet.rarete} />}
+      {carte && <span class="case-nom co-nom">{objet.nom}</span>}
+      <span class="case-image" data-fond={vignette && fond && !visage ? "" : undefined}>
+        {vignette ? visage ? <ImageDeCase vignette={vignette} place={COTE_VISAGE} maximum={4} /> : <ImageDeCase vignette={vignette} fond={fond} rarete={objet.rarete} pose={pose} /> : <span class="case-rien" aria-hidden="true" />}
+        {carte && <RefletDeCarte rarete={objet.rarete} />}
+        {carte && marquesDuHaut}
+        {carte && marquesDuBas}
+        {carte && portee && <CocheDeCarte />}
+      </span>
+      {!carte && <span class="case-nom">{objet.nom}</span>}
+      {objet.rarete && <MarqueDeRarete rarete={objet.rarete} />}
+      {effets?.duel && <RangDuDuel duel={effets.duel} />}
+      {!carte && marquesDuHaut}
+      {aVendre && (
+        <>
+          <span class="sr-only">, à la boutique, </span>
+          {aVendre.revient ? (
+            <span class="case-revient" data-testid="case-revient">
+              {aVendre.revient}
+            </span>
+          ) : aVendre.prix === null ? (
+            <Cadenas />
+          ) : (
+            <Prix montant={aVendre.prix} class="case-prix" />
+          )}
+          <span class="sr-only">, à essayer</span>
+        </>
+      )}
+      {!carte && marquesDuBas}
     </button>
   );
 }

@@ -341,6 +341,18 @@
   inherits: true;
   initial-value: 0;
 }
+/* Le reflet des cartes des cosmétiques (24-cartes.css, 22 novembre 2026) : la place du pointeur sur la carte, de 0 à 1,
+   que la lumière d'une grande carte en cases parcourt aussi seule, lentement. */
+@property --co-mx {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0.5;
+}
+@property --co-my {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0.5;
+}
 /* Variables non héritées : les modifier au survol ne recalcule pas tout le contenu d'un bloc. */
 @property --mx {
   syntax: "<length>";

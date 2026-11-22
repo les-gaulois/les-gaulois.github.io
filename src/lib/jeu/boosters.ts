@@ -8,6 +8,7 @@
  * 15 colonnes qui s'ouvrent l'un après l'autre (les coutures) ; lignes 10 à 77, le corps ; lignes 78 à 87, le bas serti.
  */
 import { casesDuStatere } from "../../../supabase/functions/code-discord/statere";
+import { habillerUnePlanche } from "./cartes-d-objets";
 import { PAL } from "./palette";
 import { Planche, R, grille, lireCouleur, rr, tresse } from "./planche";
 import { ecrire, enCapitales, largeurDuTexte, lignesDuTexte, nombreEcrit } from "./ecriture";
@@ -111,6 +112,11 @@ export interface FaceDeCarte {
    * où la poser. Sans fond, l'image est posée sur la face nue, comme avant.
    */
   fond?: FondDeLaFace | null;
+  /**
+   * La rareté de la chose (22 novembre 2026, les cartes des cosmétiques) : en pixels (mystique à divin), la face prend son
+   * cadre en cases et ses écussons ; épique, ses quatre coins en cases. Sans elle, la face d'avant.
+   */
+  rarete?: string | null;
 }
 
 /** Le fond d'objet d'une face : la clé de la chose (`cleDeLObjet`, `cleDuFamilier`, `cleDuModele`), sa rareté et sa pose. */
@@ -152,7 +158,7 @@ export function carteDeRarete(nom: string, rarete: string, image: DessinEnCases 
   const r = rareteDeCarte(rarete);
   const rang = rangDe(r);
   const mot = NOMS_DES_RARETES[r];
-  const face = faceDeCarte({ nom, image, tons: TONS[r], rang, mot, fond: fond && image ? { ...fond, rarete } : null });
+  const face = faceDeCarte({ nom, image, tons: TONS[r], rang, mot, fond: fond && image ? { ...fond, rarete } : null, rarete });
   return { face, rarete: r, rang, nom, mot, tons: TONS[r], lumiere: LUMIERES[r] };
 }
 
@@ -283,6 +289,8 @@ export function faceDeCarte(f: FaceDeCarte): Planche {
     if (f.fond) poserLeFond(g, f.fond, f.image, bord, { x, y, largeur: place.largeur, hauteur: place.hauteur });
     g.drawImage(plancheDuDessin(f.image), x, y, place.largeur, place.hauteur);
   }
+  // Le cadre de la carte (22 novembre 2026), sous les mots : un nom long reste entier, posé sur la bande.
+  habillerUnePlanche(g, f.rarete);
   const ls = lignesDuTexte(enCapitales(f.nom), W - 8, 3);
   // Sur une carte à rareté, le nom monte de deux cases pour laisser sa place à l'icône ; s'il tient sur trois lignes, elles
   // se serrent en plus d'une case chacune.

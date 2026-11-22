@@ -1,0 +1,632 @@
+/* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
+@reference "./01-socle.css";
+/* ---------- Les cartes des cosmétiques (22 novembre 2026) ---------- */
+/* Chaque cosmétique posé sur son fond (objet, familier, Gaulois unique) est une carte, partout où il paraît : vestiaire,
+   boutique, marché, forge, pass, fenêtres d'achat et objet reçu. Modèles de Claude Fable 5.2, acceptés par le pilote :
+   - « lisse » (de base, commun, peu commun) : un cadre net aux coins arrondis, sans reflet ;
+   - « entre » (épique) : le même cadre, quatre coins en cases, un pointillé, un reflet doux qui suit le pointeur ;
+   - « pixel » (mystique, légendaire, saison, divin) : un cadre en cases posé en neuf parts, ses écussons, et une feuille
+     holographique masquée par le motif de sa rareté.
+   Les dessins viennent de src/lib/jeu/cartes-d-objets.ts (variables posées par CarteDObjet.tsx). Les cartes restent claires
+   dans les deux thèmes (choix du pilote) : leurs couleurs d'écriture sont celles du thème clair. Le reflet ne change
+   aucune valeur ; il s'arrête avec la pause et « réduire les animations ». Ne pas changer les couleurs des cadres sans la
+   demande du pilote. */
+
+.co-carte {
+  /* La case du dessin, en pixels : un nombre entier, pour des cases nettes. */
+  --co-p: 2px;
+  /* La marge du contenu : la bande du cadre en pixels (quatre cases) et une case d'air ; plus étroite sur un cadre lisse. */
+  --co-pad: 0.4375rem;
+  --co-nom-h: 1.8rem;
+  --co-image-h: 4.5rem;
+  --co-coin-e: 1px;
+  /* Le blanc des cartes, pour leurs lumières : celui qui se pose sur une couleur, le même dans les deux thèmes. */
+  --co-lumiere: var(--sur-couleur);
+  color: #0a1230;
+}
+/* L'intérieur de la carte prend les jetons du thème clair : ses marques et sa rareté se lisent sur son papier clair. La
+   carte elle-même garde ceux de la page, pour que ses anneaux (portée, essayée, focus) se voient autour d'elle, sur une page
+   blanche comme sur une page marine. */
+.co-carte > *,
+.co-bulle-hote {
+  --ecriture: #0a1230;
+  --color-navy: #ffffff;
+  --color-muted: #4a5677;
+  --stage-muted: #4a5677;
+  --color-line-strong: #7a88b4;
+  --rarete-commun-texte: #0b5cad;
+  --rarete-peu-commun-texte: #2a3bc4;
+  --rarete-epique-texte: #6a1fd0;
+  --rarete-mystique-texte: #a50f24;
+  --rarete-legendaire-texte: #7d5900;
+  --rarete-divin-texte: #00706a;
+}
+.co-carte[data-carte="pixel"] {
+  --co-pad: calc(5 * var(--co-p));
+}
+
+/* ---------- La petite carte : case du vestiaire, de la boutique, du marché, de la forge, du pass ---------- */
+
+.co-carte.case-carte {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.25rem;
+  padding: var(--co-pad);
+  border: 0;
+  border-image: none;
+  border-radius: 0.625rem;
+  background: none;
+  color: #0a1230;
+  text-align: center;
+}
+.co-carte.case-carte[data-carte="pixel"] {
+  border-radius: 0;
+}
+
+/* Le nom en haut de la carte, en gras ; un nom de trois lignes pousse la carte : il se lit en entier, jamais coupé. */
+.co-carte .co-nom {
+  display: block;
+  min-height: var(--co-nom-h);
+  align-content: normal;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #0a1230;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+/* L'image : la chose sur sa scène, dans sa fenêtre ; le reflet se pose dessus. */
+.co-carte.case-carte :is(.case-image, .marche-case-image) {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  height: var(--co-image-h);
+  overflow: hidden;
+  border-radius: 0.375rem;
+  box-shadow: 0 0 0 1px var(--co-bord);
+  background: color-mix(in srgb, var(--co-lumiere) 60%, transparent);
+}
+.co-carte.case-carte[data-carte="pixel"] :is(.case-image, .marche-case-image) {
+  border-radius: 0;
+  box-shadow: 0 0 0 var(--co-p) var(--co-filet, #0a1230);
+}
+.co-carte .dessin-sur-fond {
+  box-shadow: none;
+}
+
+/* La rareté, en une ligne sous l'image : son icône et son nom, à l'encre de la carte. */
+.co-carte.case-carte :is(.case-rarete, .marche-case-rarete) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1875rem 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--co-encre);
+}
+.co-carte.case-carte :is(.case-prix, .case-revient, .marche-case-nombre) {
+  align-self: center;
+}
+
+/* Les marques posées sur la carte (« à vous », « en vente », « porté », « Nouveau », « essai », la coche, la plaque) : dans
+   les coins de son image, en haut ce qu'on a, en bas ce qu'on fait ; jamais sur le nom, jamais l'une sur l'autre. */
+.co-carte.case-carte .case-image > :is(.case-marque, .case-essai, .case-nouveau, .co-coche, .plaque-coin) {
+  position: absolute;
+  z-index: 2;
+}
+.co-carte.case-carte .case-image > .case-marque {
+  top: 0.1875rem;
+  right: 0.1875rem;
+  left: auto;
+}
+.co-carte.case-carte .case-image > :is(.case-nouveau, .co-coche) {
+  top: 0.1875rem;
+  left: 0.1875rem;
+}
+.co-carte.case-carte .case-image > .case-essai {
+  top: auto;
+  bottom: 0.1875rem;
+  left: 0.1875rem;
+}
+.co-carte.case-carte .case-image > .plaque-coin {
+  top: auto;
+  right: 0.1875rem;
+  bottom: 0.1875rem;
+}
+/* La coche de la carte portée : un rond marine et sa coche blanche, dans le coin de l'image (la case d'avant la posait dans
+   le coin de la case, sur le nom). */
+.co-carte.case-carte[data-etat="portee"]::after {
+  content: none;
+}
+.co-coche {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: #0a1230
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23ffffff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 0.875rem no-repeat;
+  box-shadow: 0 0 0 2px var(--co-lumiere);
+}
+/* Le cadenas d'une case dont le prix manque : à la place du prix, plus dans un coin. */
+.co-carte.case-carte .case-cadenas {
+  position: static;
+  align-self: center;
+}
+/* Le reflet de la case légendaire d'avant (09-village.css) ne passe plus : la carte a le sien, qui ne bouge pas seul. */
+.co-carte.case-carte::before {
+  content: none;
+}
+.co-carte.case-carte:is([data-rarete]) {
+  overflow: visible;
+}
+
+/* ---------- L'habit : le cadre et son papier ---------- */
+
+.co-cadre {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(170deg, var(--co-haut), var(--co-bas));
+  box-shadow:
+    inset 0 0 0 2px var(--co-bord),
+    inset 0 0 0 4px color-mix(in srgb, var(--co-lumiere) 85%, transparent),
+    0 2px 6px rgb(10 18 48 / 0.18);
+  pointer-events: none;
+}
+/* Le peu commun : un filet de plus, toujours sans reflet. */
+.co-carte[data-rarete="peu-commun"] > .co-cadre {
+  box-shadow:
+    inset 0 0 0 2px var(--co-bord),
+    inset 0 0 0 4px color-mix(in srgb, var(--co-lumiere) 85%, transparent),
+    inset 0 0 0 5px color-mix(in srgb, var(--co-bord) 45%, transparent),
+    0 2px 6px rgb(10 18 48 / 0.18);
+}
+/* L'épique : un pointillé à l'intérieur du cadre, et ses quatre coins en cases. */
+.co-carte[data-carte="entre"] > .co-cadre {
+  outline: 2px dotted color-mix(in srgb, var(--co-bord) 75%, transparent);
+  outline-offset: -7px;
+}
+.co-coin {
+  position: absolute;
+  z-index: 1;
+  width: calc(11 * var(--co-coin-e));
+  height: calc(11 * var(--co-coin-e));
+  background: var(--co-coin) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.co-coin[data-coin="hg"] {
+  top: 0;
+  left: 0;
+}
+.co-coin[data-coin="hd"] {
+  top: 0;
+  right: 0;
+  transform: scaleX(-1);
+}
+.co-coin[data-coin="bg"] {
+  bottom: 0;
+  left: 0;
+  transform: scaleY(-1);
+}
+.co-coin[data-coin="bd"] {
+  right: 0;
+  bottom: 0;
+  transform: scale(-1, -1);
+}
+/* Le cadre en cases : neuf parts, ses coins de six cases mordent le papier, sa bande en fait quatre. */
+.co-carte[data-carte="pixel"] > .co-cadre {
+  border: calc(4 * var(--co-p)) solid transparent;
+  border-image: var(--co-cadre) 6 / calc(6 * var(--co-p)) / 0 repeat;
+  border-radius: 0;
+  background: linear-gradient(170deg, var(--co-haut), var(--co-bas)) padding-box;
+  box-shadow: none;
+  filter: drop-shadow(0 var(--co-p) 0 rgb(10 18 48 / 0.22));
+  image-rendering: pixelated;
+}
+/* Le papier étoilé du divin. */
+.co-carte[data-rarete="divin"] > .co-cadre {
+  background:
+    var(--co-etoiles) 0 0 / calc(24 * var(--co-p)) repeat padding-box,
+    linear-gradient(175deg, var(--co-haut), #cdeffb 55%, #e6dcff) padding-box;
+}
+.co-ecusson {
+  position: absolute;
+  left: 50%;
+  z-index: 0;
+  width: calc(20 * var(--co-p));
+  height: calc(4 * var(--co-p));
+  margin-left: calc(-10 * var(--co-p));
+  background: var(--co-ecusson) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.co-ecusson[data-bord="haut"] {
+  top: 0;
+}
+.co-ecusson[data-bord="bas"] {
+  bottom: 0;
+  background-image: var(--co-ecusson-bas);
+}
+
+/* ---------- Le reflet ---------- */
+
+/* L'épique : une bande claire qui glisse avec le pointeur. */
+.co-reflet {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(112deg, transparent 30%, color-mix(in srgb, var(--co-lumiere) 75%, transparent) 47%, rgb(226 200 255 / 0.55) 53%, transparent 70%);
+  background-size: 260% 100%;
+  background-position: calc(100% - var(--co-mx) * 100%) 0;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+/* La feuille holographique : une couche masquée par le motif de la rareté, une couche pleine, une lueur sous le pointeur. */
+.co-holo,
+.co-lueur,
+.co-feuille-cadre {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.co-holo[data-couche="a"] {
+  -webkit-mask-image: var(--co-motif);
+  mask-image: var(--co-motif);
+  -webkit-mask-size: calc(var(--co-motif-n) * var(--co-p));
+  mask-size: calc(var(--co-motif-n) * var(--co-p));
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  image-rendering: pixelated;
+}
+.co-lueur {
+  background: radial-gradient(circle at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), color-mix(in srgb, var(--co-lumiere) 38%, transparent), color-mix(in srgb, var(--co-lumiere) 0%, transparent) 45%);
+  mix-blend-mode: soft-light;
+}
+/* La lumière qui passe sur le cadre seul : la carte entière, moins son papier. */
+.co-feuille-cadre {
+  z-index: 0;
+  padding: calc(4 * var(--co-p));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  mix-blend-mode: overlay;
+}
+
+/* Mystique : un arc-en-ciel en rayures de cases. */
+.co-carte[data-rarete="mystique"] .co-holo[data-couche="a"] {
+  background: linear-gradient(115deg, #ff5f86, #ffc61a, #3fce6a, #19b8d3, #8b5cf6, #ff5f86, #ffc61a, #3fce6a, #19b8d3, #8b5cf6, #ff5f86);
+  background-size: 320% 320%;
+  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
+  mix-blend-mode: hard-light;
+  opacity: 0.42;
+}
+/* Sur une petite carte, les rayures laissent mieux voir l'objet. */
+.co-carte:not(.co-grande)[data-rarete="mystique"] .co-holo[data-couche="a"] {
+  opacity: 0.28;
+}
+.co-carte[data-rarete="mystique"] .co-holo[data-couche="b"] {
+  background: linear-gradient(115deg, #ff5f86, #ffc61a, #3fce6a, #19b8d3, #8b5cf6, #ff5f86, #ffc61a, #3fce6a, #19b8d3, #8b5cf6, #ff5f86);
+  background-size: 320% 320%;
+  background-position: calc(100% - var(--co-mx) * 100%) calc(100% - var(--co-my) * 100%);
+  mix-blend-mode: soft-light;
+  opacity: 0.3;
+}
+.co-carte[data-rarete="mystique"] .co-feuille-cadre {
+  background: linear-gradient(115deg, transparent 20%, var(--co-lumiere) 38%, #ffd84a 46%, #9cc2ff 54%, var(--co-lumiere) 62%, transparent 80%);
+  background-size: 300% 300%;
+  background-position: calc(100% - var(--co-mx) * 100%) calc(100% - var(--co-my) * 100%);
+  opacity: 0.85;
+}
+/* Légendaire : une feuille d'or et des paillettes. */
+.co-carte[data-rarete="legendaire"] .co-holo[data-couche="a"] {
+  background: radial-gradient(circle at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), var(--co-lumiere) 0%, #fff6c2 22%, rgb(255 216 74 / 0.55) 45%, rgb(255 216 74 / 0.12) 75%);
+  opacity: 0.8;
+}
+.co-carte[data-rarete="legendaire"] .co-holo[data-couche="b"] {
+  background: linear-gradient(112deg, transparent 22%, rgb(255 241 168 / 0.9) 40%, color-mix(in srgb, var(--co-lumiere) 95%, transparent) 50%, rgb(255 198 26 / 0.8) 60%, transparent 78%);
+  background-size: 280% 100%;
+  background-position: calc(100% - var(--co-mx) * 100%) 0;
+  mix-blend-mode: soft-light;
+  opacity: 0.55;
+}
+.co-carte[data-rarete="legendaire"] .co-feuille-cadre {
+  background: linear-gradient(112deg, transparent 25%, var(--co-lumiere) 45%, #fffbe6 55%, transparent 75%);
+  background-size: 280% 100%;
+  background-position: calc(100% - var(--co-mx) * 100%) 0;
+  opacity: 0.95;
+}
+/* Légendaire de saison : les rayons du solstice. */
+.co-carte[data-rarete="saison"] .co-holo[data-couche="a"] {
+  background: repeating-conic-gradient(from calc(var(--co-mx) * 50deg - 25deg) at 50% -12%, rgb(255 241 168 / 0.95) 0deg 5deg, rgb(196 249 203 / 0.85) 5deg 8deg, rgb(255 198 26 / 0.9) 8deg 12deg, rgb(255 138 143 / 0.6) 12deg 15deg);
+  mix-blend-mode: hard-light;
+  opacity: 0.4;
+}
+.co-carte[data-rarete="saison"] .co-holo[data-couche="b"] {
+  background: repeating-conic-gradient(from calc(var(--co-mx) * 50deg - 25deg) at 50% -12%, color-mix(in srgb, var(--co-lumiere) 0%, transparent) 0deg 6deg, color-mix(in srgb, var(--co-lumiere) 85%, transparent) 6deg 9deg, color-mix(in srgb, var(--co-lumiere) 0%, transparent) 9deg 15deg);
+  mix-blend-mode: soft-light;
+  opacity: 0.45;
+}
+.co-carte[data-rarete="saison"] .co-feuille-cadre {
+  background: linear-gradient(112deg, transparent 25%, var(--co-lumiere) 42%, #c4f9cb 50%, var(--co-lumiere) 58%, transparent 75%);
+  background-size: 280% 100%;
+  background-position: calc(100% - var(--co-mx) * 100%) 0;
+  opacity: 0.95;
+}
+/* Divin : un prisme sur toute la carte. */
+.co-carte[data-rarete="divin"] .co-holo[data-couche="a"] {
+  background: conic-gradient(from calc(var(--co-mx) * 180deg) at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f);
+  opacity: 0.5;
+}
+.co-carte[data-rarete="divin"] .co-holo[data-couche="b"] {
+  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff);
+  background-size: 300% 300%;
+  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
+  mix-blend-mode: soft-light;
+  opacity: 0.18;
+}
+.co-carte[data-rarete="divin"] .co-feuille-cadre {
+  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, var(--co-lumiere), #c4f9cb, #9cc2ff, var(--co-lumiere), #d8c9ff, #ff8a8f, #ffd84a, var(--co-lumiere), #c4f9cb, #9cc2ff);
+  background-size: 300% 300%;
+  background-position: calc(100% - var(--co-mx) * 100%) calc(100% - var(--co-my) * 100%);
+}
+
+/* ---------- Le rang du duel et la fiche des effets (pour qui voit le duel) ---------- */
+
+.co-tuile {
+  display: block;
+  flex: none;
+  width: calc(var(--co-n, 11) * var(--co-icone-e, 1px));
+  height: calc(var(--co-n, 11) * var(--co-icone-e, 1px));
+  background: 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+.co-duel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1875rem 0.25rem;
+  border-radius: 0.3125rem;
+  background: color-mix(in srgb, var(--co-lumiere) 90%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--co-bord) 60%, transparent);
+}
+.co-carte[data-carte="pixel"] .co-duel {
+  border-radius: 0;
+}
+.co-duel > .co-tuile {
+  --co-n: 15;
+}
+.co-force {
+  justify-self: start;
+  font-size: 1.125rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.co-cout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem 0.3125rem 0.125rem 0.25rem;
+  border-radius: 0.375rem;
+  background: #0a1230;
+  color: var(--co-lumiere);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.co-eclair {
+  display: block;
+  width: 5px;
+  height: 7px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 7' shape-rendering='crispEdges'%3E%3Cpath d='M3 0h2v1H3zM2 1h2v1H2zM1 2h2v1H1zM0 3h5v1H0zM2 4h2v1H2zM1 5h2v1H1zM0 6h2v1H0z' fill='%23ffc61a'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+.co-mots {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: center;
+  gap: 0.25rem;
+}
+.co-mots .co-tuile {
+  --co-n: 11;
+}
+
+.co-fiche {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--co-lumiere) 94%, transparent);
+  box-shadow: 0 0 0 1px var(--co-bord);
+  color: #0a1230;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-align: left;
+}
+.co-carte[data-carte="pixel"] .co-fiche {
+  border-radius: 0;
+  box-shadow: 0 0 0 var(--co-p) var(--co-filet, #0a1230);
+}
+.co-ligne-effet {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4375rem;
+}
+.co-ligne-effet .co-tuile {
+  --co-icone-e: 2px;
+}
+.co-tuile-vide {
+  visibility: hidden;
+}
+.co-ligne-effet b {
+  font-weight: 800;
+}
+.co-ligne-effet[data-ton="panoplie"] {
+  padding-top: 0.375rem;
+  border-top: 1px dashed var(--co-bord);
+}
+.co-ligne-effet[data-ton="panoplie"] b {
+  color: var(--co-encre);
+}
+.co-ligne-effet[data-ton="panoplie"] .co-tuile {
+  display: none;
+}
+.co-unique {
+  display: grid;
+  gap: 0.0625rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background: linear-gradient(90deg, #fff1a8, #ffe07a 60%, #fff1a8);
+  box-shadow: inset 0 0 0 1px #d9a21b;
+  color: #3a2606;
+}
+.co-carte[data-carte="pixel"] .co-unique {
+  border-radius: 0;
+}
+.co-unique small {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6e4700;
+}
+.co-unique strong {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.co-pied-fiche {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--co-encre);
+}
+
+/* Sous la carte sortie d'un booster : ses effets, pour qui voit le duel. */
+.co-carte.co-effets-booster {
+  display: block;
+  width: min(20rem, 100%);
+  margin: 0.5rem auto 0;
+}
+
+/* ---------- La grande carte d'une fenêtre (achat, objet reçu) : elle s'incline vers le pointeur ---------- */
+
+.co-carte.co-grande {
+  --co-p: 3px;
+  --co-nom-h: 1.3rem;
+  --co-image-h: 9.5rem;
+  --co-coin-e: 2px;
+  width: min(17.5rem, calc(100vw - 4rem));
+  gap: 0.375rem;
+  cursor: default;
+  transform: perspective(56rem) rotateX(var(--co-rx, 0deg)) rotateY(var(--co-ry, 0deg));
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.co-carte.co-grande[data-tenue] {
+  transition: transform 0.08s linear;
+}
+.co-carte.co-grande .co-nom {
+  display: block;
+  min-height: 0;
+  font-size: 1.125rem;
+  line-height: 1.15;
+}
+.co-carte.co-grande :is(.case-rarete) {
+  font-size: 0.75rem;
+}
+.co-carte.co-grande .co-duel > .co-tuile {
+  --co-icone-e: 2px;
+}
+.co-carte.co-grande .co-force {
+  font-size: 1.5rem;
+}
+.co-carte.co-grande .co-cout {
+  font-size: 0.875rem;
+}
+.co-carte.co-grande .co-mots .co-tuile {
+  --co-icone-e: 2px;
+}
+@media (min-width: 30rem) {
+  .co-carte.co-grande {
+    --co-p: 4px;
+    --co-image-h: 10.5rem;
+  }
+}
+/* Au repos, la lumière d'une grande carte en cases passe lentement d'un bord à l'autre. */
+.co-carte.co-grande[data-carte="pixel"]:not([data-tenue]) {
+  animation: co-balayage 11s ease-in-out infinite alternate;
+}
+@keyframes co-balayage {
+  from {
+    --co-mx: 0.12;
+    --co-my: 0.3;
+  }
+  to {
+    --co-mx: 0.88;
+    --co-my: 0.7;
+  }
+}
+
+/* ---------- La bulle des effets, au survol d'une petite carte ---------- */
+
+.co-bulle-hote {
+  --co-lumiere: var(--sur-couleur);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  width: min(17rem, calc(100vw - 1rem));
+  pointer-events: none;
+}
+.co-bulle {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.625rem;
+  border-radius: 0.625rem;
+  background: linear-gradient(170deg, var(--co-haut), var(--co-bas));
+  box-shadow:
+    0 0 0 2px var(--co-bord),
+    0 0.5rem 1.5rem rgb(10 18 48 / 0.3);
+  color: #0a1230;
+}
+.co-bulle-nom {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* ---------- La pause et « réduire les animations » : plus rien ne bouge, le reflet reste posé ---------- */
+
+:root.fx-off .co-carte.co-grande {
+  transform: none;
+  transition: none;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .co-carte.co-grande {
+    transform: none;
+    transition: none;
+    animation: none;
+  }
+}

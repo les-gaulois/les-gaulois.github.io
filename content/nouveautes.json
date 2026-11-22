@@ -1,6 +1,24 @@
 [
   {
     "date": "2026-11-22",
+    "kind": "ameliore",
+    "rank": "minor",
+    "title": "Les objets en cartes",
+    "body": "Dans Mon Gaulois, chaque objet, familier et Gaulois unique devient une carte : nette jusqu'au peu commun, ornée à l'épique, en pixels et holographique du mystique au divin.",
+    "link": {
+      "href": "/village#boutique",
+      "label": "La boutique"
+    }
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "staff",
+    "title": "Les effets du duel sur les cartes",
+    "body": "Pour le pilote, tant que le duel est fermé : chaque carte d'objet montre son rôle, sa force, son prix et ses mots-clés, et toutes ses phrases au survol et en grand."
+  },
+  {
+    "date": "2026-11-22",
     "kind": "nouveau",
     "rank": "staff",
     "title": "Le duel mène aux salles",

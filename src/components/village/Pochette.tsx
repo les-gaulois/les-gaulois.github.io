@@ -110,7 +110,7 @@ export function DialoguePochette({
         <OuvertureDuBooster sorte="surprise" carte={carte} revelee={etape === "revele"} onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}>
           <ResultatDuBooster nom={objet.nom} detail={<RareteEnPixels rarete={tire.rarete} />} double={tire.double} testid="pochette-tirage">
             <span hidden data-objet={`${tire.emplacement}/${tire.objet}`} />
-            <AussiCarteDeDuel />
+            <AussiCarteDeDuel cle={cleDeLObjet(tire.emplacement, tire.objet)} rarete={tire.rarete} />
           </ResultatDuBooster>
           <ResteEnPixels solde={tirage.solde} />
           {tire.double &&
