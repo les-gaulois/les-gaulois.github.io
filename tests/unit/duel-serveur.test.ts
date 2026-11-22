@@ -389,12 +389,14 @@ describe("le duel des membres", () => {
       expect(x.carte).toEqual({ emplacement: ["arme", "tete", "haut", "pieds", "bas"][i], objet: d.main_a[i] });
     }
     expect(await une("select public.noter_annonces_duel(array[$1]::bigint[]) as r", [id])).toEqual({ ok: true, notees: 1 });
-    // une victoire comptée contre un boss donne ses pas, mais n'entre pas dans la file : l'image montre deux vrais Gaulois
+    // une victoire comptée contre un boss donne ses pas, mais n'entre pas dans la file : l'image montre deux vrais Gaulois.
+    // Un autre boss que celui du jour : le test suivant le veut encore à battre (« loup » écrit en dur le battait le jour du loup).
+    const autreBoss = ORDRE_DES_BOSS.find((b) => b !== bossDuJour(new Date()).id)!;
     const contreBoss = (await lignes<{ id: number }>(
       `insert into internal.duel_parties (user_id, contre, boss, niveau, compte, jour, main_a, main_b, options_a, options_b, cartes_a, cartes_b, atouts_a, atouts_b, etat_a, etat_b, graine)
-       select $1, 'boss', 'loup', 'guerrier', true, internal.duel_jour(now()), d.main_a, d.main_b, d.options_a, d.options_b, d.cartes_a, d.cartes_b, d.atouts_a, d.atouts_b, d.etat_a, d.etat_b, 7
+       select $1, 'boss', $2, 'guerrier', true, internal.duel_jour(now()), d.main_a, d.main_b, d.options_a, d.options_b, d.cartes_a, d.cartes_b, d.atouts_a, d.atouts_b, d.etat_a, d.etat_b, 7
        from internal.duel_parties d where d.user_id = $1 order by d.id limit 1 returning id::integer as id`,
-      [membre],
+      [membre, autreBoss],
     ))[0]!.id;
     await db.query("select internal.duel_finir($1, 1, false)", [contreBoss]);
     expect((await lignes<{ pas: number }>("select pas from internal.duel_parties where id = $1", [contreBoss]))[0]!.pas).toBe(5);
