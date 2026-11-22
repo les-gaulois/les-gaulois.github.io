@@ -39,7 +39,6 @@ export function EntreeDesSalles({ onOuvrir }: { onOuvrir: () => void }) {
     <button
       type="button"
       class="jeu-panneau jeu-n9 dl-p dl-p-lien ds-entree"
-      aria-label={`Ouvrir les salles. ${mot} : ${stateresEnMots(cagnotte.montant)}.${etat.attente ? " Tu attends dans une salle." : ""}`}
       data-testid="salles-entree"
       onClick={() => {
         SON.clic();
@@ -48,8 +47,8 @@ export function EntreeDesSalles({ onOuvrir }: { onOuvrir: () => void }) {
     >
       <span class="dl-p-tete">
         <ImageDesSalles cle="icone" planche={iconeDesSalles} />
-        <Px t="Les salles" couleur="texte" muet />
-        {etat.attente && <Etiquette t="Tu attends" ton="or" />}
+        <Px t="Les salles" couleur="texte" />
+        {etat.attente && <Etiquette t="Tu attends" ton="or" dit="Tu attends dans une salle." />}
         <span class="dl-p-droite ds-entree-droite">
           <span class="ds-frise" aria-hidden="true">
             {SALLES_DU_DUEL.map((mise) => (
@@ -58,7 +57,10 @@ export function EntreeDesSalles({ onOuvrir }: { onOuvrir: () => void }) {
           </span>
           <span class="ds-cagnotte">
             <ImageDesSalles cle="cagnotte" planche={iconeCagnotte} />
-            <PrixDuJeu valeur={cagnotte.montant} />
+            <span class="sr-only">{`${mot} : ${stateresEnMots(cagnotte.montant)}.`}</span>
+            <span aria-hidden="true">
+              <PrixDuJeu valeur={cagnotte.montant} />
+            </span>
           </span>
         </span>
       </span>
