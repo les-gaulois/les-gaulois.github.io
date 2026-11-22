@@ -2,7 +2,7 @@
  * Les règles de l'onglet « Gaulois de la semaine » de la Direction (`DirectionWeeklyPick.tsx`) : la liste des pseudos à
  * choisir, la recherche à chaque lettre, ce que l'écran dit du pseudo tapé, et l'état de la semaine avec sa couleur. Rien
  * n'est décidé ici : le serveur vérifie le rang et le pseudo (`save_weekly_pick`, migration
- * `20261109000200_gaulois_de_la_semaine.sql`). Ces règles ne font qu'annoncer ce qu'il répondra, et ce que l'accueil
+ * `20261109000200_gaulois_de_la_semaine.sql`). Ces règles ne font qu'annoncer ce qu'il répondra, et ce que la gazette
  * montrera (`WeeklyPickCard.tsx`).
  */
 import type { WeeklyPick } from "./news";
@@ -119,8 +119,8 @@ export const TYPED_LABELS: Partial<Record<TypedState, { tone: PickTone; label: s
 export const showsPreview = (state: TypedState): boolean => state === "listed" || state === "free";
 
 /**
- * Le mot tel que l'accueil le montrera : le serveur ôte les espaces des deux bouts (`btrim`) et n'enregistre pas un mot
- * vide ; l'accueil ne montre pas un mot fait seulement de blancs, et pas plus de 300 caractères (`weeklyPickOf`).
+ * Le mot tel que la gazette le montrera : le serveur ôte les espaces des deux bouts (`btrim`) et n'enregistre pas un mot
+ * vide ; la gazette ne montre pas un mot fait seulement de blancs, et pas plus de 300 caractères (`weeklyPickOf`).
  */
 export function previewNote(note: string): string | null {
   const kept = note.replace(/^ +| +$/g, "");
@@ -128,7 +128,7 @@ export function previewNote(note: string): string | null {
 }
 
 /**
- * L'état de la semaine. `chosen` : un Gaulois est choisi pour cette semaine. `previous` : rien pour cette semaine, l'accueil
+ * L'état de la semaine. `chosen` : un Gaulois est choisi pour cette semaine. `previous` : rien pour cette semaine, la gazette
  * montre encore celui de la semaine passée. `none` : rien. `unread` : le serveur n'a pas répondu, on ne sait pas.
  * `thisWeek` est le lundi de la semaine en cours à Paris (`currentPickWeek`). Un choix daté d'après lui (horloge de
  * l'appareil en retard sur celle du serveur, autour de minuit le dimanche) est celui de la semaine en cours du serveur.
@@ -152,7 +152,7 @@ export const WEEK_STATE_LABELS: Record<WeekState, { tone: PickTone; label: strin
 export const weekShort = (week: string) => pickWeekLabel(week).replace(/^la /, "");
 
 /**
- * L'accueil montre-t-il ce choix ? La règle de `WeeklyPickCard`, sur la même liste lue (`readMembersList`) : il le tait
+ * La gazette montre-t-elle ce choix ? La règle de `WeeklyPickCard`, sur la même liste lue (`readMembersList`) : il le tait
  * quand le joueur n'est plus dans la liste publique à l'orthographe exacte (parti, ou pseudo changé), et le montre, sans
  * lien, quand la liste n'a pas pu être lue. Un test fait tourner les deux sur les mêmes cas.
  */

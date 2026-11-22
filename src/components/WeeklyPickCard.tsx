@@ -5,16 +5,18 @@ import { fetchLiveNewsOnce, pickWeekEnding, type WeeklyPick } from "../lib/compt
 type Place = { kind: "link"; href: string } | { kind: "plain" } | { kind: "gone" };
 
 /**
- * Le Gaulois de la semaine sur l'accueil : un membre choisi par l'encadrement depuis l'espace Direction, avec son mot.
+ * Le Gaulois de la semaine, en haut de la gazette depuis le 22 novembre 2026 (sur l'accueil avant, dans « Les Gaulois de la
+ * semaine », retiré ce jour-là ; le pilote l'a voulu dans la gazette) : un membre choisi par l'encadrement depuis l'espace
+ * Direction, avec son mot.
  * Il vient du serveur au chargement de la page, dans la même lecture que les annonces (`fetchLiveNewsOnce`) : rien n'est
  * écrit dans la page publiée. Le nom de qui l'a choisi n'est jamais donné. Le bloc n'existe pas sans choix, si le serveur
- * ne répond pas, ou si le joueur n'est plus dans la liste publique du clan (parti, ou pseudo retiré) : comme la gazette,
- * le site ne nomme plus un joueur qu'il ne trouve plus. Il n'apparaît qu'une fois la liste lue, pour ne pas clignoter.
- * Son titre, « À l'honneur », le distingue du bloc « Les Gaulois de la semaine » qui l'entoure ; il ne dit pas « cette
- * semaine », car le serveur montre encore le choix de la semaine passée tant qu'aucun autre n'est fait : la ligne du dessous
- * donne sa semaine. `class` : sa place dans la grille de ce bloc.
+ * ne répond pas, ou si le joueur n'est plus dans la liste publique du clan (parti, ou pseudo retiré) : comme le reste de la
+ * gazette, le site ne nomme plus un joueur qu'il ne trouve plus. Il n'apparaît qu'une fois la liste lue, pour ne pas clignoter.
+ * Son titre, « À l'honneur », ne dit pas « cette semaine », car le serveur montre encore le choix de la semaine passée tant
+ * qu'aucun autre n'est fait : la ligne du dessous donne sa semaine. `class` : sa place dans la page ; `cadre` : les classes
+ * du bloc (un filet en haut par défaut) ; `niveau` : son titre, `h3` par défaut, `h2` en tête d'une page.
  */
-export default function WeeklyPickCard({ membersSrc, fichesBase, class: placement }: { membersSrc: string; fichesBase: string; class?: string }) {
+export default function WeeklyPickCard({ membersSrc, fichesBase, class: placement, cadre = "panel", niveau = 3 }: { membersSrc: string; fichesBase: string; class?: string; cadre?: string; niveau?: 2 | 3 }) {
   const [pick, setPick] = useState<WeeklyPick | null>(null);
   const [place, setPlace] = useState<Place | null>(null);
 
@@ -43,8 +45,8 @@ export default function WeeklyPickCard({ membersSrc, fichesBase, class: placemen
 
   if (!pick || place === null || place.kind === "gone") return null;
   return (
-    <div class={placement ? `panel ${placement}` : "panel"} data-testid="weekly-pick">
-      <h3 class="text-xl">À l'honneur</h3>
+    <div class={placement ? `${cadre} ${placement}` : cadre} data-testid="weekly-pick">
+      {niveau === 2 ? <h2 class="text-2xl">À l'honneur</h2> : <h3 class="text-xl">À l'honneur</h3>}
       <p class="info-discrete tnum mt-1">Choisi par l'encadrement, pour {pickWeekEnding(pick.week)}</p>
       <p class="mt-3 font-display text-2xl font-extrabold [overflow-wrap:anywhere]">
         {place.kind === "link" ? (

@@ -2,6 +2,16 @@
   {
     "date": "2026-11-22",
     "kind": "ameliore",
+    "title": "Le Gaulois de la semaine dans la gazette",
+    "body": "Le Gaulois que l'équipe gauloise met à l'honneur pour la semaine paraît maintenant en haut de la gazette, avec son mot.",
+    "link": {
+      "href": "/gazette",
+      "label": "La gazette"
+    }
+  },
+  {
+    "date": "2026-11-22",
+    "kind": "ameliore",
     "title": "Les cartes qui défilent",
     "body": "Les bannières, les finitions et les cadres de la carte passent en grandes cartes qui défilent, à la boutique et dans « Ma bannière sur /gaulois », à la place du livre.",
     "link": {

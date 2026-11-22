@@ -154,7 +154,8 @@ export async function fetchLiveNews(fetcher: typeof fetch = fetch): Promise<Live
 let firstRead: Promise<LiveNews | null> | null = null;
 
 /**
- * La première lecture de la page, partagée : les annonces de l'accueil et le Gaulois de la semaine viennent du même appel.
+ * La première lecture de la page, partagée : les annonces de l'accueil et le Gaulois de la semaine, en haut de la gazette,
+ * viennent du même appel ; une page qui montre les deux ne le fait qu'une fois.
  * Après une action, relire avec `fetchLiveNews`.
  */
 export function fetchLiveNewsOnce(): Promise<LiveNews | null> {

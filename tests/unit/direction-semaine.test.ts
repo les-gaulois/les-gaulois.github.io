@@ -22,7 +22,7 @@ import { WEEKLY_PICK_PLAYER_MAX, currentPickWeek, type LiveNews, type WeeklyPick
 
 /**
  * De quoi faire tourner `WeeklyPickCard` sans navigateur : `useState` et `useEffect` réduits à leur plus simple, la lecture
- * du serveur remplacée par le choix du cas. Le composant de l'accueil décide alors lui-même s'il montre le choix, et on
+ * du serveur remplacée par le choix du cas. Le composant de la gazette décide alors lui-même s'il montre le choix, et on
  * compare sa décision à `shownOnHome` sur la même liste.
  */
 const h = vi.hoisted(() => {
@@ -226,7 +226,7 @@ describe("Gaulois de la semaine : la liste à choisir", () => {
     expect(countLabel(1, 311, "Zoé")).toBe("1 sur 311");
   });
 
-  it("montre le mot comme l'accueil le montrera : espaces des bouts ôtés, rien s'il est vide, 300 caractères au plus", () => {
+  it("montre le mot comme la gazette le montrera : espaces des bouts ôtés, rien s'il est vide, 300 caractères au plus", () => {
     expect(previewNote("  Bravo.  ")).toBe("Bravo.");
     expect(previewNote("")).toBeNull();
     expect(previewNote("    ")).toBeNull();
@@ -244,7 +244,7 @@ describe("Gaulois de la semaine : l'état de la semaine", () => {
     expect(weekState(pick("2026-11-02"), "2026-11-09", false)).toBe("previous");
     expect(weekState(null, "2026-11-09", false)).toBe("none");
     expect(weekState(null, "2026-11-09", true)).toBe("unread");
-    // Une lecture en échec ne dit rien de ce que montre l'accueil, même avec un choix gardé d'avant.
+    // Une lecture en échec ne dit rien de ce que montre la gazette, même avec un choix gardé d'avant.
     expect(weekState(pick("2026-11-09"), "2026-11-09", true)).toBe("unread");
   });
 
@@ -281,7 +281,7 @@ describe("Gaulois de la semaine : l'état de la semaine", () => {
   });
 });
 
-describe("Gaulois de la semaine : ce que l'accueil montre, même règle que WeeklyPickCard", () => {
+describe("Gaulois de la semaine : ce que la gazette montre, même règle que WeeklyPickCard", () => {
   const pick = (player: string): WeeklyPick => ({ week: "2026-11-09", player, note: null });
   const roster = (...usernames: unknown[]) => ({ fetchedAt: "2026-11-14T00:00:00Z", members: usernames.map((username, i) => ({ publicId: `id${i}`, username })) });
   const cases: { name: string; player: string; fetcher: Fetcher; shown: boolean }[] = [

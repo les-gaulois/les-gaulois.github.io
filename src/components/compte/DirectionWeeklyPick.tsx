@@ -26,7 +26,7 @@ export interface WeeklyPickDraft {
 }
 export const EMPTY_WEEKLY_PICK: WeeklyPickDraft = { player: "", note: "" };
 
-/** Le bloc tel que l'accueil le montrait (`WeeklyPickCard`) : son titre, sa semaine, le pseudo en grand et le mot. */
+/** Le bloc tel que la gazette le montre (`WeeklyPickCard`) : son titre, sa semaine, le pseudo en grand et le mot. */
 function Honneur({ week, player, note }: { week: string; player: string; note: string | null }) {
   return (
     <div class="dir-semaine-honneur">
@@ -45,13 +45,13 @@ function refocus(target: HTMLElement | null) {
 }
 
 /**
- * Le Gaulois de la semaine : l'encadrement choisit un membre de la liste officielle, avec un mot facultatif. L'accueil le
- * montrait à tous, sans dire qui l'a choisi, jusqu'au 22 novembre 2026, quand le pilote a fait retirer « Les Gaulois de la
- * semaine » : le choix reste gardé par le serveur, en attendant sa nouvelle place. Le serveur vérifie le rang et le pseudo (`save_weekly_pick`) : la liste proposée
+ * Le Gaulois de la semaine : l'encadrement choisit un membre de la liste officielle, avec un mot facultatif. La gazette le
+ * montre à tous, en haut de sa page, sans dire qui l'a choisi (l'accueil jusqu'au 22 novembre 2026, quand le pilote a fait
+ * retirer « Les Gaulois de la semaine » et l'a voulu dans la gazette). Le serveur vérifie le rang et le pseudo (`save_weekly_pick`) : la liste proposée
  * ici n'est qu'une aide à la saisie. `draft` est gardé par l'espace Direction, comme les autres brouillons.
  *
  * L'écran (14 novembre 2026, « comme pour la section Comptes ») : l'état de la semaine en pastille près du titre, la liste
- * des membres à parcourir ou à chercher à chaque lettre, et à côté le choix en cours, puis celui qui sera enregistré. Les règles sont dans `src/lib/compte/direction-semaine.ts`.
+ * des membres à parcourir ou à chercher à chaque lettre, et à côté ce que la gazette montre, puis ce qu'elle montrera une fois le choix enregistré. Les règles sont dans `src/lib/compte/direction-semaine.ts`.
  *
  * Le champ suit le modèle d'une liste à saisie (combobox ARIA) : le focus reste dans le champ, les flèches désignent un nom
  * (`aria-activedescendant`), Entrée le prend, Échap retire la désignation sans toucher au texte ; sans nom désigné, Entrée
@@ -68,7 +68,7 @@ export default function DirectionWeeklyPick({ draft, setDraft }: { draft: Weekly
   const [query, setQuery] = useState(draft.player);
   // Le nom désigné au clavier (flèches), dans la liste filtrée ; -1 : aucun.
   const [active, setActive] = useState(-1);
-  // Ce que donne la dernière action s'écrit près d'elle : le choix sous le formulaire, le retrait sous « Sur l'accueil ».
+  // Ce que donne la dernière action s'écrit près d'elle : le choix sous le formulaire, le retrait sous « Dans la gazette ».
   const [lastAction, setLastAction] = useState<"save" | "delete" | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const saveDone = useRef<HTMLDivElement>(null);
@@ -106,7 +106,7 @@ export default function DirectionWeeklyPick({ draft, setDraft }: { draft: Weekly
   const typedLabel = TYPED_LABELS[typed];
   const state = shown === undefined ? null : weekState(shown, thisWeek, readFailed);
   const chosenNow = state === "chosen" && shown ? shown.player : null;
-  // `null` tant que la liste publique n'est pas lue.
+  // `null` tant que la liste publique n'est pas lue : la gazette, elle non plus, ne montre rien avant.
   const onHome = shown && roster ? shownOnHome(roster.list, shown.player) : null;
   const optionId = (index: number) => `pick-option-${index}`;
   const designated = list && active >= 0 && active < found.length ? active : -1;
@@ -154,7 +154,7 @@ export default function DirectionWeeklyPick({ draft, setDraft }: { draft: Weekly
             if (busy) return;
             setLastAction("save");
             // Le pseudo s'affiche ensuite tel que le serveur l'a enregistré, avec l'orthographe exacte de la liste.
-            void run(() => call("save_weekly_pick", { p_player: player, p_note: draft.note }), "Gaulois de la semaine enregistré.").then((ok) => {
+            void run(() => call("save_weekly_pick", { p_player: player, p_note: draft.note }), "Gaulois de la semaine enregistré : la gazette le montre.").then((ok) => {
               if (ok) {
                 setDraft(EMPTY_WEEKLY_PICK);
                 setQuery("");
@@ -284,14 +284,14 @@ export default function DirectionWeeklyPick({ draft, setDraft }: { draft: Weekly
 
         <div class="dir-semaine-vues">
           <div class="card dir-semaine-vue">
-            <h3 class="text-lg">Le choix en cours</h3>
+            <h3 class="text-lg">Dans la gazette</h3>
             <Problem message={readFailed ? "Le serveur ne répond pas pour l'instant : le choix en cours n'a pas pu être lu." : null} onRetry={() => void read()} />
             {shown ? (
-              // Le choix en cours, de cette semaine ou de la précédente : il se retire d'ici dans les deux cas.
+              // Le choix que la gazette montre, de cette semaine ou de la précédente : il se retire d'ici dans les deux cas.
               <div data-testid="direction-weekly-pick-current">
                 {(onHome !== null || state === "previous") && (
                   <div class="dir-semaine-pastilles">
-                    {onHome === false ? <Pastille ton="danger">Plus dans la liste des membres</Pastille> : onHome ? <Pastille ton="ok">Dans la liste</Pastille> : null}
+                    {onHome === false ? <Pastille ton="danger">Plus dans la liste : la gazette ne le montre pas</Pastille> : onHome ? <Pastille ton="ok">Montré</Pastille> : null}
                     {state === "previous" && <Pastille ton="warn">De la semaine passée</Pastille>}
                   </div>
                 )}
@@ -307,7 +307,7 @@ export default function DirectionWeeklyPick({ draft, setDraft }: { draft: Weekly
                     onConfirm={() => {
                       if (busy) return;
                       setLastAction("delete");
-                      void run(() => call("delete_weekly_pick"), "Choix retiré.").then(() => refocus(deleteDone.current));
+                      void run(() => call("delete_weekly_pick"), "Choix retiré : la gazette ne le montre plus.").then(() => refocus(deleteDone.current));
                     }}
                   />
                 </div>
@@ -337,9 +337,9 @@ export default function DirectionWeeklyPick({ draft, setDraft }: { draft: Weekly
       <details class="fold mt-6">
         <summary class="font-semibold">Comment ça marche</summary>
         <div class="grid gap-3 pb-1 text-muted">
-          <p>Depuis le 22 novembre 2026, l'accueil ne montre plus le Gaulois de la semaine : le choix reste gardé, sans dire qui l'a choisi, en attendant sa nouvelle place.</p>
+          <p>La gazette montre le Gaulois de la semaine à tous, en haut de sa page, sans dire qui l'a choisi.</p>
           <p>Seul un membre de la liste officielle peut être choisi, sous son pseudo exact. Le serveur le vérifie, et refuse un pseudo porté par plusieurs membres.</p>
-          <p>Un choix vaut pour sa semaine, puis la suivante tant qu'aucun autre n'est fait. Si le joueur quitte la liste des membres, le choix n'est plus montré.</p>
+          <p>Un choix reste dans la gazette sa semaine, puis la suivante tant qu'aucun autre n'est fait. Si le joueur quitte la liste des membres, la gazette ne le montre plus.</p>
         </div>
       </details>
     </section>
