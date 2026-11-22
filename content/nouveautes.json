@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-22",
+    "kind": "nouveau",
+    "rank": "top",
+    "title": "Le duel des Gaulois est ouvert",
+    "body": "Dans Mon Gaulois, tes objets deviennent tes cartes : duel contre l'ordinateur à trois niveaux, boss du jour, défis, main de défense, et salles en direct avec mise, de 25 à 1 000 statères.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-22",
     "kind": "ameliore",
     "title": "Le Gaulois de la semaine dans la gazette",
     "body": "Le Gaulois que l'équipe gauloise met à l'honneur pour la semaine paraît maintenant en haut de la gazette, avec son mot.",
