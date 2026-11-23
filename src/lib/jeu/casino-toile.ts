@@ -515,8 +515,8 @@ export function de(a: number, faces: readonly [number, number, number], rp: Ramp
 
 /* ---------- Les pièces peintes des tables, en neuf parts (pierres, feutre, jonc, cadre, halo, reflet) ---------- */
 
-/** Une case du tapis : une pierre taillée, lumière en haut à gauche. Coupe : 3. */
-function caseGemme(rp: Rampe, etat: 0 | 1): Toile {
+/** Une case du tapis : une pierre taillée, lumière en haut à gauche. Coupe : 3. (Aussi les plaques d'argent et de bois de la palissade.) */
+export function caseGemme(rp: Rampe, etat: 0 | 1): Toile {
   const n = 12;
   const Tl = new Toile(n, n);
   Tl.tout((x, y) => {

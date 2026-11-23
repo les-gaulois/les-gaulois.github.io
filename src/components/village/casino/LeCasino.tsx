@@ -12,6 +12,8 @@ import { Bouton, Mots, Peinture } from "./Pieces";
 import LesDes from "./Des";
 import LaMachine from "./Machine";
 import LaRoue from "./Roue";
+import LaCourse from "./Course";
+import LaPalissade from "./Palissade";
 
 /**
  * « Le casino » de « Mon Gaulois » (`/village#casino`, 22 novembre 2026, direction « Le Palais d'or » validée par le pilote,
@@ -25,6 +27,8 @@ const JEUX_OUVERTS: Partial<Record<JeuDuCasino, () => preact.JSX.Element>> = {
   roue: LaRoue,
   machine: LaMachine,
   des: LesDes,
+  course: LaCourse,
+  palissade: LaPalissade,
 };
 
 const PRETS: ReadonlySet<JeuDuCasino> = new Set(Object.keys(JEUX_OUVERTS) as JeuDuCasino[]);

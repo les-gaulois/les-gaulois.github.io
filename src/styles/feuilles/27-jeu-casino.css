@@ -1597,6 +1597,501 @@
   }
 }
 
+/* ---------- La course des familiers ---------- */
+
+.casino-jeu .course-salle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "champ champ"
+    "tapis tapis"
+    "croupier pupitre";
+  gap: 14px 24px;
+  align-items: center;
+}
+.casino-jeu .course-salle > * {
+  min-width: 0;
+}
+.casino-jeu .course-champ {
+  grid-area: champ;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.casino-jeu .course-tapis {
+  grid-area: tapis;
+}
+.casino-jeu .course-croupier {
+  grid-area: croupier;
+  align-self: stretch;
+}
+.casino-jeu .course-pupitre {
+  grid-area: pupitre;
+  align-self: stretch;
+}
+/* La scène : la toile dans son cadre d'or (le cadre est posé autour, il ne mord pas sur l'image). */
+.casino-jeu .course-scene {
+  position: relative;
+  width: 100%;
+  padding: 8px;
+  line-height: 0;
+  overflow: hidden;
+  background: var(--cas-creux);
+  filter: drop-shadow(0 6px 0 var(--cas-ombre));
+}
+.casino-jeu .course-scene .course-toile {
+  margin: 0 auto;
+  transition: opacity 0.35s ease;
+}
+.casino-jeu .course-scene.course-fondu .course-toile {
+  opacity: 0;
+}
+.casino-jeu .course-annonce {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  line-height: normal;
+}
+.casino-jeu .course-annonce.course-arrive {
+  animation: course-annonce 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes course-annonce {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.casino-jeu .course-carton {
+  --src: var(--cas-s-bulle);
+  --bt: 4;
+  --br: 4;
+  --bb: 6;
+  --bl: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+  /* La bulle du kit reste crème dans les deux thèmes : l'encre de la maquette s'y lit toujours. */
+  color: #2a1a05;
+  font-size: 13px;
+  line-height: 1.25;
+  max-width: min(92%, 420px);
+  text-align: left;
+}
+.casino-jeu .course-carton b {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+}
+.casino-jeu .course-vignette {
+  flex: none;
+  line-height: 0;
+}
+.casino-jeu .course-saut {
+  --jeu-p: 4px;
+  animation: cas-saute 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) 0.25s 1 both;
+}
+.casino-jeu .course-encore {
+  pointer-events: auto;
+  margin-top: 2px;
+}
+/* La corde : où en est chaque couloir, de la ligne de départ à l'arrivée. */
+.casino-jeu .course-corde {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  height: 36px;
+}
+.casino-jeu .course-fil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 20px;
+  height: 10px;
+  background: var(--course-fil) 0 0 / 8px 10px repeat-x;
+  image-rendering: pixelated;
+}
+.casino-jeu .course-fin {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.casino-jeu .course-pion {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  will-change: transform;
+}
+/* Les plaques d'or : une par couloir. Elles penchent vers la souris, se lèvent quand on mise dessus. */
+.casino-jeu .course-plaques {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  perspective: 900px;
+  padding: 10px 2px 4px;
+}
+.casino-jeu .course-plaque {
+  --src: var(--course-plaque);
+  --bt: 6;
+  --br: 6;
+  --bb: 8;
+  --bl: 6;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 0 0;
+  text-align: center;
+  color: #2a1a05;
+  cursor: pointer;
+  transform: translateY(calc(var(--ty, 0) * 1px)) rotateX(calc(var(--rx, 0) * 1deg)) rotateY(calc(var(--ry, 0) * 1deg));
+  transition:
+    transform 0.16s ease-out,
+    filter 0.5s ease;
+  will-change: transform;
+}
+.casino-jeu .course-plaque:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+@media (hover: hover) {
+  .casino-jeu .course-plaques:not(.course-joue) .course-plaque:hover {
+    --src: var(--course-plaque-s);
+    --ty: -4;
+  }
+}
+.casino-jeu .course-plaque[aria-pressed="true"] {
+  --src: var(--course-plaque-m);
+  --ty: -8;
+}
+.casino-jeu .course-plaques.course-joue .course-plaque {
+  cursor: default;
+}
+.casino-jeu .course-plaques.course-joue .course-plaque:not([aria-pressed="true"]):not(.cas-sorti) {
+  filter: saturate(0.6) brightness(0.8);
+}
+.casino-jeu .course-dossard {
+  position: absolute;
+  left: -10px;
+  top: -16px;
+  z-index: 2;
+}
+.casino-jeu .course-plaque.cas-halo::after {
+  inset: -18px -18px -22px;
+}
+.casino-jeu .course-portrait {
+  display: block;
+  line-height: 0;
+}
+.casino-jeu .course-texte {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.casino-jeu .course-nom {
+  display: block;
+  font-size: 12px;
+  line-height: 1.2;
+  min-height: 2.4em;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  text-wrap: balance;
+  hyphens: none;
+  overflow-wrap: normal;
+}
+.casino-jeu .course-fois {
+  display: flex;
+  justify-content: center;
+}
+.casino-jeu .course-chance {
+  font-size: 11px;
+  line-height: 1.2;
+  color: #4a2f06;
+  font-weight: 600;
+}
+.casino-jeu .course-plaque > .cas-mise {
+  right: -8px;
+  bottom: auto;
+  top: -14px;
+}
+.casino-jeu .course-plaques.course-rangee .course-plaque {
+  flex-direction: row;
+  align-items: center;
+  text-align: left;
+  gap: 10px;
+  padding: 2px 2px 0;
+}
+.casino-jeu .course-plaques.course-rangee .course-texte {
+  flex: 1 1 0;
+  align-items: flex-start;
+}
+.casino-jeu .course-plaques.course-rangee .course-nom {
+  min-height: 0;
+  font-size: 12.5px;
+}
+.casino-jeu .course-plaques.course-rangee .course-plaque > .cas-mise {
+  top: auto;
+  bottom: -8px;
+  right: -8px;
+}
+.casino-jeu .course-regles {
+  margin-top: 18px;
+}
+@container casino (max-width: 1239px) {
+  .casino-jeu .course-salle {
+    grid-template-columns: minmax(0, 1fr) 392px;
+  }
+}
+@container casino (max-width: 999px) {
+  .casino-jeu .course-salle {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "champ"
+      "croupier"
+      "tapis"
+      "pupitre";
+    gap: 14px;
+  }
+  .casino-jeu .course-plaques {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px 10px;
+    padding-top: 14px;
+  }
+}
+@container casino (max-width: 499px) {
+  .casino-jeu .course-plaques {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 12px;
+  }
+}
+@container casino (max-width: 339px) {
+  .casino-jeu .course-nom {
+    font-size: 10.5px;
+    letter-spacing: -0.5px;
+  }
+}
+@container casino (max-width: 299px) {
+  .casino-jeu .course-nom {
+    font-size: 10px;
+  }
+  .casino-jeu .course-plaques {
+    gap: 20px 8px;
+  }
+  .casino-jeu .course-tapis {
+    padding: 10px 8px;
+  }
+}
+@container casino (max-width: 47.99rem) {
+  .casino-jeu .course-annonce {
+    top: 14px;
+  }
+  .casino-jeu .course-carton {
+    font-size: 12px;
+  }
+  .casino-jeu .course-nom {
+    font-size: 11px;
+    letter-spacing: -0.35px;
+  }
+  .casino-jeu .course-chance {
+    font-size: 10.5px;
+  }
+  .casino-jeu .course-dossard {
+    left: -8px;
+  }
+}
+
+/* ---------- La palissade ---------- */
+
+.casino-jeu .pal-salle {
+  display: grid;
+  grid-template-columns: var(--dp, 552px) minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "cote croupier"
+    "cote pupitre"
+    "cote coupes";
+  gap: 14px 32px;
+  align-items: start;
+}
+.casino-jeu .pal-cote {
+  grid-area: cote;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.casino-jeu .pal-salle > *,
+.casino-jeu .pal-cote > * {
+  min-width: 0;
+}
+.casino-jeu .pal-scene {
+  grid-area: scene;
+}
+.casino-jeu .pal-laches {
+  grid-area: laches;
+}
+.casino-jeu .pal-croupier {
+  grid-area: croupier;
+}
+.casino-jeu .pal-pupitre {
+  grid-area: pupitre;
+}
+.casino-jeu .pal-coupes {
+  grid-area: coupes;
+}
+.casino-jeu .pal-scene {
+  position: relative;
+  width: var(--dp);
+  justify-self: center;
+  cursor: pointer;
+}
+.casino-jeu .pal-scene .pal-toile {
+  position: relative;
+  filter: drop-shadow(0 8px 0 var(--cas-ombre));
+}
+/* La lueur d'or derrière le panneau d'un beau gain : elle monte lentement. */
+.casino-jeu .pal-halo {
+  position: absolute;
+  inset: -5%;
+  background: radial-gradient(closest-side, rgb(255 216 74 / 0.3), rgb(255 216 74 / 0) 74%);
+  opacity: 0;
+  transition: opacity 1.6s ease;
+  pointer-events: none;
+}
+.casino-jeu .pal-scene.pal-gagne .pal-halo {
+  opacity: 1;
+}
+.casino-jeu .pal-laches {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 36px;
+  max-width: 100%;
+}
+.casino-jeu .pal-liste {
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  align-items: center;
+}
+.casino-jeu .pal-liste .cas-gemme {
+  min-width: 40px;
+  height: 32px;
+}
+.casino-jeu .pal-liste .cas-gemme:first-child {
+  min-width: 48px;
+  height: 36px;
+}
+.casino-jeu .pal-liste .pal-vide {
+  opacity: 0.45;
+  min-width: 32px;
+}
+/* Les plaques d'argent et de bois, peintes par l'écran de la palissade. */
+.casino-jeu .cas-gemme.cas-argent {
+  --src: var(--pal-s-argent);
+}
+.casino-jeu .cas-gemme.cas-bois {
+  --src: var(--pal-s-bois);
+}
+.casino-jeu .pal-jeu .cas-resultat .cas-signe {
+  min-width: 84px;
+}
+/* Le pupitre : celui du commun, sans tapis (un seul geste : lâcher le jeton choisi). */
+.casino-jeu .pal-salle .cas-gestes {
+  align-items: center;
+}
+/* Ce que paient les coupes. */
+.casino-jeu .pal-coupes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: stretch;
+}
+.casino-jeu .pal-coupes-titre {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+}
+:root:not([data-mode="sombre"]) .casino-jeu .pal-coupes-titre .jeu-pic {
+  filter: brightness(0.25) sepia(1) hue-rotate(10deg) saturate(3);
+}
+.casino-jeu .pal-rangs {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  flex: 1;
+  align-content: space-evenly;
+}
+.casino-jeu .pal-rang {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+}
+.casino-jeu .pal-rang .cas-gemme {
+  min-width: 52px;
+  height: 34px;
+}
+.casino-jeu .pal-rang-mots {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  min-width: 0;
+}
+.casino-jeu .pal-regles {
+  margin-top: 18px;
+}
+@container casino (max-width: 759px) {
+  .casino-jeu .pal-salle {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      "scene"
+      "pupitre"
+      "croupier"
+      "laches"
+      "coupes";
+    gap: 12px;
+  }
+  .casino-jeu .pal-cote {
+    display: contents;
+  }
+  .casino-jeu .pal-halo {
+    inset: 0;
+  }
+  .casino-jeu .pal-laches {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .casino-jeu .pal-rangs {
+    flex: none;
+  }
+}
+
 /* La pause du jeu et « réduire les animations » : rien ne bouge, le résultat se pose. */
 @media (prefers-reduced-motion: reduce) {
   .casino-jeu *,

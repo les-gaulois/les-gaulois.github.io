@@ -1282,6 +1282,19 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
   faces tirées par le serveur (`jouer_des`), tournés dès le départ pour y finir (`unDe`, `etatDuDe`, testés pour les 36
   tirages) ; la plaque d'or de la somme. Le tapis de quatorze paris, onze de front ou six sur une table étroite ; les cases
   gagnantes se dorent et gardent leur chiffre (les multiples y passent en crème pour rester AA), leur gain écrit dessus.
+- **La course des familiers** (`Course.tsx`, `casino-course.ts`) : six vrais familiers du site (les dessins du dépôt, tournés
+  vers la droite), une plaque d'or par couloir avec sa cote, un seul couloir par course ; le serveur tire le gagnant, puis la
+  course est écrite pour lui (`ecrireLaCourse` des règles du serveur) : il passe la ligne le premier, personne ne recule ni
+  ne saute (testé, image par image). Le champ de courses de trois quarts (pré, gué, forêt, tribune d'or de vrais Gaulois), la
+  caméra qui glisse avec le meneur sans zoomer, la corde où chaque couloir avance, le croupier qui commente à mi-course et
+  dans la dernière ligne droite, le galop, la tribune et le tambour. Au repos, la scène vit lentement (14 images par
+  seconde : nuages, tribune), rien en pause.
+- **La palissade** (`Palissade.tsx`, `casino-palissade.ts`) : le grand panneau de laque, son triangle de velours bordeaux,
+  huit rangées de pieux d'or au-dessus de neuf coupes ; la chute suit pieu par pieu le chemin tiré par le serveur (les pieux
+  frappés s'enfoncent d'un point et s'éclairent) et finit toujours dans sa coupe (testé sur les 256 chemins). Plusieurs
+  lâchers à la suite, 200 au plus en train de tomber ; la barre ne montre jamais un gain avant sa coupe
+  (`bourseDesLachers`). Le panneau « Les coupes » et leurs chances sur 256 ; un rendu partiel reste neutre, jamais en or
+  ni avec un « + ».
 - **Pause et « réduire les animations »** : le résultat se pose sans mouvement (la roue s'arrête où elle est si la pause
   arrive en plein tour), pas de pluie, pas de reflet. Échap ou le bouton de retour ramènent au hall ; un tour quitté en
   plein mouvement se finit sans animation (la bourse reçoit son solde, la partie s'inscrit).
@@ -1296,6 +1309,9 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
 | `src/lib/jeu/casino-hall.ts` | La roue de trois quarts, les six vignettes, la bannière |
 | `src/lib/jeu/casino-roue.ts` | La roue peinte et son mouvement |
 | `src/lib/jeu/casino-machine.ts`, `casino-des.ts` | La machine du forgeron et les dés : dessins de la maquette, mouvement qui finit sur le tirage du serveur, sons |
+| `src/lib/jeu/casino-course.ts` | Le champ de courses : décor, coureurs, tribune, caméra, sons, pièces des couloirs |
+| `src/lib/jeu/casino-palissade.ts` | Le panneau de la palissade, la chute écrite d'après le chemin du serveur, ses sons, la bourse pendant les chutes |
+| `src/lib/jeu/casino-scene.ts` | Ce qu'une scène animée demande à la page (images, surfaces, pinceau) ; la page le donne par `casino/images.ts` |
 | `src/lib/jeu/casino-sons.ts` | Les sons du casino |
 | `src/lib/village/ecran-casino.ts` | Les jeux du hall, la lecture de `get_casino`, les résumés, les mots des refus, le niveau d'un tour, le pupitre |
 | `src/components/village/casino/` | `LeCasino.tsx` (la salle ; les jeux dans `JEUX_OUVERTS`), `Hall.tsx`, `Roue.tsx`, et le commun : `contexte.ts` (`useCasino`), `Pupitre.tsx`, `Croupier.tsx`, `Pieces.tsx`, `commun.ts`, `serveur.ts` et `acces.ts` (la lecture de `get_casino` pour le menu). Les coups passent par `casino.*` de `src/lib/compte/api.ts` ; les règles (numéros rouges, ordre de la roue, paris) viennent de `src/lib/village/casino/` |
