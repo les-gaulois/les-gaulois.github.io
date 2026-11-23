@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-23",
+    "kind": "ameliore",
+    "rank": "minor",
+    "title": "Les finitions du casino",
+    "body": "Au casino, le chiffre d'un numéro perdu se lit mieux, « Vos tours » montre un losange ou un rond, et le jeton de 200 se voit mieux la nuit.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-23",
     "kind": "nouveau",
     "rank": "top",
     "title": "Le casino des Gaulois ouvre",

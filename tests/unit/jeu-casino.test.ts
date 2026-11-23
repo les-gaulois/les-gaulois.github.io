@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { OBJETS, POILS } from "../../supabase/functions/code-discord/gaulois";
 import { CROUPIERS, TENUES_DES_CROUPIERS, VISAGES, gaulois, medaillon, portraitEnPied, statere } from "../../src/lib/jeu/casino-dessins";
 import { banniere, placeDeLaRoue, vignette } from "../../src/lib/jeu/casino-hall";
-import { PETITES_ICONES_DU_CASINO, VARIABLES_DU_CASINO, BORDEAUX_DU_BOUTON, BORDEAUX_DU_RUBAN, MATIERES_DU_PALAIS, reteindre, iconeDuCasino, petiteIconeDuCasino } from "../../src/lib/jeu/casino-pieces";
+import { PETITES_ICONES_DU_CASINO, VARIABLES_DU_CASINO, BORDEAUX_DU_BOUTON, BORDEAUX_DU_RUBAN, MATIERES_DU_PALAIS, MARQUES_DE_LA_ROUE, marqueDeLaRoue, reteindre, iconeDuCasino, petiteIconeDuCasino } from "../../src/lib/jeu/casino-pieces";
 import { CASES, ORDRE_DE_LA_ROUE, ROUGES, RoueEnPoints, angleDeLaCase, caseDuNumero, caseSousLaBille, mouvementDeLaRoue, poseImmobile } from "../../src/lib/jeu/casino-roue";
 import { COUPE_HAUTE, SONS } from "../../src/lib/jeu/casino-sons";
-import { ENCRE, IVOIRE, JETONS, OR, PIECES_DES_TABLES, RUBIS, SAPHIR, Toile, jeton, jetonDeMise, pair, toileDesCases } from "../../src/lib/jeu/casino-toile";
+import { BORDEAUX, ENCRE, IVOIRE, JETONS, OR, PIECES_DES_TABLES, RUBIS, SAPHIR, Toile, hexDe, jeton, jetonDeMise, pair, toileDesCases } from "../../src/lib/jeu/casino-toile";
 import { Planche, R } from "../../src/lib/jeu/planche";
 import { JEUX_DU_CASINO, REFUS_DU_CASINO, type CoupDuCasino } from "../../src/lib/village/contrat-casino";
 import {
@@ -144,6 +144,51 @@ describe("les images du palais", () => {
         expect(ratio(c, MATIERES_DU_PALAIS[theme].page)).toBeGreaterThanOrEqual(4.5);
       }
     for (const corps of ["#8f1f35", "#a3263e", "#7c1a2e", "#7f1a2e"]) expect(ratio("#f6f1e3", corps)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("dit rouge et bleu par une forme crème, losange plein et rond percé, sur 5 cases (revue du 23 novembre 2026)", () => {
+    expect(MARQUES_DE_LA_ROUE).toEqual(["losange", "rond"]);
+    const cases = (forme: (typeof MARQUES_DE_LA_ROUE)[number]): string => {
+      const p = marqueDeLaRoue(forme);
+      expect([p.width, p.height]).toEqual([5, 5]);
+      let s = "";
+      for (let y = 0; y < 5; y++)
+        for (let x = 0; x < 5; x++) {
+          const c = p.couleur(x, y);
+          if (c && c[3]) expect(c.slice(0, 3)).toEqual([0xf6, 0xf1, 0xe3]);
+          s += c && c[3] ? "X" : ".";
+        }
+      return s;
+    };
+    const losange = cases("losange");
+    const rond = cases("rond");
+    expect(losange[12]).toBe("X");
+    expect(rond[12]).toBe(".");
+    expect(losange).not.toBe(rond);
+    for (const forme of MARQUES_DE_LA_ROUE) expect(VARIABLES_DU_CASINO.map((v) => v.nom)).toContain(`--cas-marque-${forme}`);
+  });
+
+  it("peint le jeton de 200 d'un velours qui se détache de la laque de nuit, loin du rubis du 20", () => {
+    const lum = (h: string): number => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const coeur = (v: 20 | 200): string => {
+      const j = jeton(v, 13, false);
+      const n = new Map<string, number>();
+      for (let y = 8; y < 21; y++)
+        for (let x = 8; x < 21; x++) {
+          const i = (y * j.w + x) * 4;
+          const h = hexDe([j.d[i]!, j.d[i + 1]!, j.d[i + 2]!]);
+          n.set(h, (n.get(h) ?? 0) + 1);
+        }
+      return [...n].sort((a, b) => b[1] - a[1])[0]![0];
+    };
+    const c200 = coeur(200);
+    expect(BORDEAUX.c.map(hexDe).indexOf(c200)).toBeGreaterThanOrEqual(5);
+    expect((lum(c200) + 0.05) / (lum(MATIERES_DU_PALAIS.sombre.face) + 0.05)).toBeGreaterThanOrEqual(2);
+    expect(RUBIS.c.map(hexDe)).toContain(coeur(20));
+    expect(RUBIS.c.map(hexDe)).not.toContain(c200);
   });
 });
 

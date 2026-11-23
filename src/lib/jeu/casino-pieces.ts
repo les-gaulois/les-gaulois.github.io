@@ -299,6 +299,24 @@ export function petiteIconeDuCasino(nom: string): Planche {
   return p;
 }
 
+/**
+ * Les marques de la roue, sur 5 cases (23 novembre 2026, dessin de Claude Opus 5.5 à la place de la relecture prévue pour
+ * Claude Fable 5.2, « fini avec opus ») : le losange plein des rouges et le rond percé des bleus, les formes des icônes du
+ * tapis en petit, pour dire la couleur d'un numéro sans la couleur, là où l'icône de 16 cases ne tient pas (« Vos tours »,
+ * les cases étroites du tapis). Crème, comme les petites icônes. Le rond est un anneau épais percé d'un point, comme celui
+ * du tapis : un rond fin, sous un chiffre, se lisait comme un zéro.
+ */
+const MARQUES: Readonly<Record<"losange" | "rond", readonly string[]>> = {
+  losange: ["..X..", ".XXX.", "XXXXX", ".XXX.", "..X.."],
+  rond: [".XXX.", "XXXXX", "XX.XX", "XXXXX", ".XXX."],
+};
+export const MARQUES_DE_LA_ROUE = Object.keys(MARQUES) as (keyof typeof MARQUES)[];
+export function marqueDeLaRoue(forme: keyof typeof MARQUES): Planche {
+  const p = new Planche(5, 5);
+  MARQUES[forme].forEach((ligne, y) => [...ligne].forEach((c, x) => c === "X" && R(p, x, y, 1, 1, "#f6f1e3")));
+  return p;
+}
+
 /** Une variable de `/village/kit.css` pour le casino : son nom entier, si elle change avec le thème, et son image. */
 export interface VariableDuCasino {
   nom: string;
@@ -320,5 +338,6 @@ export const VARIABLES_DU_CASINO: readonly VariableDuCasino[] = [
   { nom: "--cas-s-ruban", theme: false, valeur: () => reteindre(piece("ruban")(JETONS_DES_PIECES.clair), BORDEAUX_DU_RUBAN) },
   ...Object.entries(PIECES_DES_TABLES).map(([nom, dessin]): VariableDuCasino => ({ nom: `--cas-s-${nom}`, theme: false, valeur: () => enPlanche(dessin()) })),
   ...PETITES_ICONES_DU_CASINO.map((nom): VariableDuCasino => ({ nom: `--cas-pic-${nom}`, theme: false, valeur: () => petiteIconeDuCasino(nom) })),
+  ...MARQUES_DE_LA_ROUE.map((forme): VariableDuCasino => ({ nom: `--cas-marque-${forme}`, theme: false, valeur: () => marqueDeLaRoue(forme) })),
   { nom: "--jeu-ic-casino", theme: false, valeur: iconeDuCasino },
 ];

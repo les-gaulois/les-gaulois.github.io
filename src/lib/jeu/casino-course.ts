@@ -137,6 +137,10 @@ export const PALETTE_DU_JOUR: PaletteDeLaCourse = {
   vel: [V(3), V(4), V(5), V(6)],
   lampe: O(4),
 };
+/**
+ * La nuit : la piste, son sable, ses traits et sa poussière sont d'un gris de lune bleuté (revue du 23 novembre 2026) ; le
+ * lavande de la maquette, à même clarté, tirait vers le pourpre écarté au profit du bordeaux.
+ */
 export const PALETTE_DE_LA_NUIT: PaletteDeLaCourse = {
   ciel: ["#060a20", "#0a1230", "#0e1a46", "#14245e", "#1c3078"],
   nuage: "#24389e",
@@ -153,11 +157,11 @@ export const PALETTE_DE_LA_NUIT: PaletteDeLaCourse = {
   herbe: "#1f5a52",
   herbe2: "#2a6e60",
   herbe3: "#174640",
-  terre: "#6a5c78",
-  terre2: "#62546f",
-  grain: "#52465e",
-  grain2: "#7c6e8a",
-  trait: "#b7acd0",
+  terre: "#616076",
+  terre2: "#59586d",
+  grain: "#4a4a5c",
+  grain2: "#737288",
+  trait: "#acb1cb",
   ombre: "rgba(2,4,14,.42)",
   eau: "#1f4f9a",
   eau2: "#3f7ad0",
@@ -171,7 +175,7 @@ export const PALETTE_DE_LA_NUIT: PaletteDeLaCourse = {
   tache: "rgba(150,190,255,.1)",
   feuille: ["#5a4a3a", "#4a3a30", "#6e5c44"],
   fleurs: ["#c8d0e6", "#c9a43a", "#b0606a", "#7a6cc0"],
-  poussiere: "#a79cc0",
+  poussiere: "#9ca1bb",
   etoile: "#f6f1e3",
   nuit: true,
   or: [O(2), O(4), O(5), O(7)],

@@ -171,8 +171,11 @@
 .casino-jeu .cas-halo.cas-sorti::after {
   opacity: 1;
 }
+/* Une case perdante se voile, comme un insigne éteint du kit : moins de couleur, un peu moins de lumière. Le chiffre crème
+   d'une case éteinte passe au-dessus de AA (environ 6 de contraste, 4 avec l'ancien assombrissement) et un rouge éteint
+   tourne à la brique (revue du 23 novembre 2026). */
 .casino-jeu .cas-eteint {
-  filter: brightness(0.55) saturate(0.8);
+  filter: brightness(0.72) saturate(0.5);
   transition: filter 0.8s ease;
 }
 
@@ -967,13 +970,31 @@
   min-width: 0;
   max-width: 100%;
 }
+/* « Vos tours » : le chiffre et, dessous, la marque de sa couleur, comme l'index d'une carte. */
 .casino-jeu .roue-liste .cas-gemme {
+  flex-direction: column;
+  gap: 2px;
   min-width: 32px;
-  height: 32px;
+  height: 40px;
 }
 .casino-jeu .roue-liste .cas-gemme:first-child {
   min-width: 40px;
-  height: 36px;
+  height: 44px;
+}
+.casino-jeu .roue-marque {
+  display: block;
+  flex: none;
+  width: calc(5 * var(--jeu-p));
+  height: calc(5 * var(--jeu-p));
+  background: var(--m) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.casino-jeu .roue-marque-losange {
+  --m: var(--cas-marque-losange);
+}
+.casino-jeu .roue-marque-rond {
+  --m: var(--cas-marque-rond);
 }
 .casino-jeu .roue-liste .roue-vide {
   opacity: 0.45;
@@ -1009,6 +1030,13 @@
 .casino-jeu .roue-case.roue-num {
   justify-content: flex-start;
   padding-left: 4px;
+}
+/* Cases étroites : l'icône du coin chevauchait le chiffre ; la petite marque passe dessous, centrée. */
+.casino-jeu .roue-tapis.roue-petit .roue-case.roue-num {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding-left: 0;
 }
 .casino-jeu .roue-case .roue-coin {
   position: absolute;
@@ -1227,8 +1255,10 @@
   flex: 1;
   min-width: 0;
 }
-.casino-jeu .machine-ligne.cas-eteint {
-  filter: brightness(0.6) saturate(0.8);
+/* Comme aux dés : chaque ligne de mots à la hauteur de ses cases, loin du halo d'une ligne gagnée. Une ligne perdue se voile
+   comme toute case perdue du casino (`cas-eteint`). */
+.casino-jeu .machine-mots > span {
+  line-height: 0;
 }
 .casino-jeu .machine-court {
   display: none;
@@ -1470,7 +1500,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: calc(3 * var(--jeu-p));
+}
+/* Une ligne de mots en pixels a la hauteur de ses cases, comme dans le kit : avec la hauteur de ligne du site, les deux
+   lignes d'une grande case touchaient le biseau clair de la case d'or (revue du 23 novembre 2026). */
+.casino-jeu .des-mots > span {
+  line-height: 0;
 }
 .casino-jeu .des-case .jeu-px,
 .casino-jeu .des-case canvas {

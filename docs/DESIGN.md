@@ -1240,9 +1240,20 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
 - **Le bordeaux** (soir du 22 novembre 2026) : le pourpre de la maquette est devenu le bordeaux d'un velours de théâtre
   (rampes `BORDEAUX` et `ROSE`, `JOUR` réchauffé en ivoire rosé, bouton et ruban reteints couleur à couleur par
   `BORDEAUX_DU_BOUTON` et `BORDEAUX_DU_RUBAN`, panneaux de nuit en laque bordeaux presque noire). Tons posés par Claude Opus
-  5.5 sur la réponse du pilote (« Opus maintenant ») pendant que Claude Fable 5.2 était à sa limite : à faire relire à Fable.
-  Toute écriture garde AA dans les deux thèmes (test dans `jeu-casino.test.ts`). Un jeu ne recopie jamais une couleur :
-  il passe par les rampes et les jetons `--cas-*`.
+  5.5 sur la réponse du pilote (« Opus maintenant ») pendant que Claude Fable 5.2 était à sa limite. La relecture prévue pour
+  Fable n'a plus lieu : le pilote a tranché « fini avec opus », et Opus a fait les finitions le 23 novembre 2026, sur
+  captures avant et après de chaque jeu : le lustre du velours (tons 5 à 8 de `BORDEAUX`) remonté vers la clarté du pourpre
+  de la maquette, le feutre (tons 2 à 4) inchangé ; la laque `NOIR` passée du bleu nuit à un noir à peine chaud aux reflets
+  gris froid ; le jeton de 200 en velours des tons 5 et 6, qui se détache de la laque de nuit et du rubis du 20 ; une case
+  perdue se voile (`cas-eteint` : moins de couleur, un peu moins de lumière, comme un insigne éteint du kit) au lieu de
+  s'assombrir, et son chiffre crème passe au-dessus de AA (environ 6 de contraste, 4 avant) ; la piste de nuit de la course
+  en gris de lune, plus en lavande ; les mots des grandes cases des dés et de la table des gains de la machine à la hauteur
+  de leurs cases (avec la hauteur de ligne du site, ils touchaient le biseau ou le halo d'une case gagnée), et une ligne
+  perdue de la machine voilée comme toute case perdue. Sans autre changement que la rampe : `ROSE`, `JOUR`, le bouton et le
+  ruban bordeaux, la palissade (argent, bois, étiquette neutre d'un rendu partiel), les multiples en crème des dés et le
+  vingt-et-un (son dos de cartes, ses enseignes tissées et le jeton de sa caisse prennent les nouveaux tons 5 et 6). Toute
+  écriture garde AA dans les deux thèmes (test dans `jeu-casino.test.ts`). Un jeu ne recopie jamais une couleur : il passe
+  par les rampes et les jetons `--cas-*`.
 - **Dans le vrai cadre du jeu** : la barre, le menu (une entrée de plus, « Le casino », icône d'un dé d'os sur un statère,
   « Nouveau » jusqu'à la première ouverture sur l'appareil), le paysage. L'onglet ne paraît que si le serveur répond à
   `get_casino` (`casino/acces.ts`), et, mise en ligne en deux temps (23 novembre 2026), au seul pilote tant que
@@ -1267,7 +1278,12 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
 - **La roue du charron** (`Roue.tsx`, `casino-roue.ts`) : la roue peinte point par point, sa lumière fixe pendant que les
   cases tournent dessous, la bille qui court, descend, tinte contre les cloisons et tombe dans la case que le serveur a tirée
   (`mouvementDeLaRoue`, testé : elle finit toujours sur ce numéro) ; le tapis en long sur une table large, en hauteur sur une
-  table étroite ; « Vos tours » ; les jetons gagnants qui restent un instant, les autres qui s'effacent.
+  table étroite ; « Vos tours » ; les jetons gagnants qui restent un instant, les autres qui s'effacent. Rouge et bleu se
+  disent aussi par une forme : l'icône du coin (losange, rond) sur une case large ; sur une case étroite, où cette icône
+  chevauchait le chiffre, et dans « Vos tours », qui n'avait que la couleur, une marque de 5 cases sous le chiffre, comme
+  l'index d'une carte : losange plein, anneau percé (`--cas-marque-losange`, `--cas-marque-rond` de `casino-pieces.ts`,
+  dessin de Claude Opus 5.5, 23 novembre 2026). Une case étroite du tapis en hauteur (38 px) tient tout juste le chiffre,
+  l'écart et la marque : n'y rien ajouter.
 - **Le vingt-et-un** (`VingtEtUn.tsx`, sa table `scene-vingt-et-un.ts`, dessins `casino-vingt-et-un.ts`, sons
   `casino-vingt-et-un-sons.ts`, mots `src/lib/village/ecran-vingt-et-un.ts`) : le jeu de cartes gaulois (torques, flammes,
   épées, chênes ; valet, dame et roi en vrais Gaulois du site, habillés de la garde-robe, identiques point par point à la

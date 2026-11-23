@@ -58,12 +58,17 @@ export function rampe(liste: readonly string[]): Rampe {
 export const OR = rampe(["#140b02", "#2e1c04", "#553608", "#8a5a0a", "#b9820f", "#e0ac22", "#ffd84a", "#fff1a8", "#fffbe6"]);
 /**
  * Le bordeaux, velours de théâtre (choix du pilote, soir du 22 novembre 2026 : « Rouge bordeaux et or : le velours de
- * théâtre, plus chaud »), à la place du pourpre de la maquette ; tons posés par Claude Opus 5.5 en l'absence de Claude Fable
- * 5.2 (« Opus maintenant »), à faire relire à Fable. Le feutre du tapis (tons 2 à 4) reste sombre et vineux, loin du rubis
- * vif des numéros rouges.
+ * théâtre, plus chaud »), à la place du pourpre de la maquette ; tons posés par Claude Opus 5.5, puis revus par lui le 23
+ * novembre 2026 à la place de la relecture prévue pour Claude Fable 5.2 (« fini avec opus ») : les tons 5 à 8, le lustre du
+ * velours (plis des rideaux, tentures, médaillons de nuit, jeton de 200), remontés vers la clarté du pourpre de la maquette
+ * à indice égal ; le feutre du tapis (tons 2 à 4) reste sombre et vineux, loin du rubis vif des numéros rouges.
  */
-export const BORDEAUX = rampe(["#0b0306", "#18060b", "#260912", "#350c19", "#481022", "#61172e", "#7f213b", "#a1324d", "#c96478", "#efbcc6"]);
-export const NOIR = rampe(["#030308", "#07070f", "#0c0c18", "#131424", "#1c1d33", "#282a45", "#3a3d5e", "#565a80"]);
+export const BORDEAUX = rampe(["#0b0306", "#18060b", "#260912", "#350c19", "#481022", "#6a1a33", "#8c2643", "#ad3a55", "#cc6878", "#efbcc6"]);
+/**
+ * La laque noire : un noir à peine chaud dans l'ombre, d'un gris froid dans ses reflets ; elle n'est plus bleu nuit sous les
+ * rideaux bordeaux (revue du 23 novembre 2026).
+ */
+export const NOIR = rampe(["#040306", "#08070c", "#0d0c14", "#15141e", "#1e1d2b", "#2a2a3c", "#3c3d54", "#575a72"]);
 export const RUBIS = rampe(["#1c0206", "#3d0610", "#6e0b18", "#a8101f", "#d21f33", "#f04a58", "#ff8a8f", "#ffd0d0"]);
 export const SAPHIR = rampe(["#020a2a", "#051a5c", "#0b2f9c", "#0b3fc4", "#2f6bff", "#6a98ff", "#9cc2ff", "#dbe8ff"]);
 export const EMERAUDE = rampe(["#021a0e", "#06361c", "#0d5a2e", "#1f8a47", "#3fce6a", "#8beda4", "#c4f9cb"]);
@@ -302,7 +307,9 @@ export function jeton(valeur: ValeurDeJeton, R = 13, ecrit = true, texte: string
   const clair = valeur === 10;
   const cx = R + 1;
   const cy = R + 1;
-  const base = clair ? 0.82 : valeur === 200 ? 0.42 : 0.52;
+  // Le 200, bordeaux et or : un velours au ton 5 qui se détache de la laque de nuit et du rubis du 20 (revue du 23 novembre
+  // 2026 ; même clarté que le jeton bordeaux de la caisse du vingt-et-un).
+  const base = clair ? 0.82 : valeur === 200 ? 0.56 : 0.52;
   // la tranche, une rangée plus bas : l'épaisseur du jeton
   disque(Tl, cx, cy + 2, R, (_r, _a, x, y) => rp.t(base - 0.36, x, y, 0));
   disque(Tl, cx, cy, R, (r, a, x, y) => {

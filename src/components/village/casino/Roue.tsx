@@ -65,6 +65,14 @@ function placeDuPari(id: string, vertical: boolean): string {
   return z(1, 1 + k6 * 2, 1, 2);
 }
 
+/**
+ * La marque d'un numéro, sous son chiffre : le losange plein des rouges, le rond percé des bleus (`--cas-marque-*` de
+ * `casino-pieces.ts`), pour qu'une couleur ne soit jamais seule à dire quelque chose là où l'icône du coin ne tient pas.
+ */
+function Marque({ rouge }: { rouge: boolean }) {
+  return <i class={`roue-marque ${rouge ? "roue-marque-losange" : "roue-marque-rond"}`} aria-hidden="true" />;
+}
+
 /** Ce qui reste sur le tapis après un tour : les mises du tour, ce qui a rendu, et si tous les jetons sont partis. */
 interface ApresLeTour {
   mises: Mises;
@@ -345,6 +353,7 @@ export default function LaRoue() {
               {tours.map((n, i) => (
                 <span key={`${i}-${n}`} class={`cas-gemme jeu-n9 ${ROUGES.has(n) ? "cas-rouge" : "cas-bleue"}`} role="listitem" aria-label={`${n}, ${couleurDuNumero(n)}`}>
                   <Mots t={String(n)} couleur="creme" muet />
+                  <Marque rouge={ROUGES.has(n)} />
                 </span>
               ))}
               {Array.from({ length: 10 - tours.length }, (_, i) => (
@@ -355,16 +364,19 @@ export default function LaRoue() {
         </section>
         <PanneauDuCroupier croupier={crou} classe="roue-croupier" />
         <div class="cas-tapis roue-plateau" role="group" aria-label="Le tapis" ref={feutre}>
-          <div class={`roue-tapis ${tapisFerme ? "roue-ferme" : ""}`} style={`grid-template-columns:${grille.cols};grid-template-rows:${grille.rows}`}>
+          <div class={`roue-tapis ${tapisFerme ? "roue-ferme" : ""} ${grille.petit ? "roue-petit" : ""}`} style={`grid-template-columns:${grille.cols};grid-template-rows:${grille.rows}`}>
             {NUMEROS.map((n) => {
               const r = ROUGES.has(n);
               const id = `n${n}`;
               return (
                 <button key={id} class={`roue-case roue-num jeu-n9 cas-halo ${r ? "cas-rouge" : "cas-bleue"} ${marque(id, 1)}`} type="button" style={`grid-area:${placeDuPari(id, vertical)}`} aria-label={`Le ${n}, ${r ? "rouge" : "bleu"}. Paie 36 fois la mise.${miseDite(id)}`} onClick={() => surCase(id)}>
-                  <span class="roue-coin">
-                    <Pic nom={r ? "losange" : "rond"} />
-                  </span>
+                  {!grille.petit && (
+                    <span class="roue-coin">
+                      <Pic nom={r ? "losange" : "rond"} />
+                    </span>
+                  )}
                   <Mots t={String(n)} couleur="creme" muet />
+                  {grille.petit && <Marque rouge={r} />}
                   {jetonSur(id)}
                 </button>
               );
