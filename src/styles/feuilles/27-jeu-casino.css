@@ -172,10 +172,10 @@
   opacity: 1;
 }
 /* Une case perdante se voile, comme un insigne éteint du kit : moins de couleur, un peu moins de lumière. Le chiffre crème
-   d'une case éteinte passe au-dessus de AA (environ 6 de contraste, 4 avec l'ancien assombrissement) et un rouge éteint
-   tourne à la brique (revue du 23 novembre 2026). */
+   et les multiples d'or d'une case éteinte restent au-dessus de AA (test dans jeu-casino.test.ts, qui lit ce filtre) et un
+   rouge éteint tourne à la brique (revue du 23 novembre 2026). */
 .casino-jeu .cas-eteint {
-  filter: brightness(0.72) saturate(0.5);
+  filter: brightness(0.75) saturate(0.5);
   transition: filter 0.8s ease;
 }
 

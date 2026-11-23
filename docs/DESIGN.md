@@ -1254,6 +1254,10 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
   vingt-et-un (son dos de cartes, ses enseignes tissées et le jeton de sa caisse prennent les nouveaux tons 5 et 6). Toute
   écriture garde AA dans les deux thèmes (test dans `jeu-casino.test.ts`). Un jeu ne recopie jamais une couleur : il passe
   par les rampes et les jetons `--cas-*`.
+- **Les pierres du tapis et leur écriture** (23 novembre 2026) : survolée, une pierre (rouge, bleue, verte) s'entoure d'or et
+  son biseau s'éclaire, mais son cœur garde son ton : il s'éclaircissait et faisait tomber le chiffre crème et les multiples
+  d'or sous AA (jusqu'à 1,5 sur l'émeraude). L'émeraude a un cœur plus profond (ton 2) que le rubis et le saphir (ton 3).
+  Un test vérifie le crème et l'or sur chaque pierre, au repos, survolée et voilée (`cas-eteint`, filtre lu dans la feuille).
 - **Dans le vrai cadre du jeu** : la barre, le menu (une entrée de plus, « Le casino », icône d'un dé d'os sur un statère,
   « Nouveau » jusqu'à la première ouverture sur l'appareil), le paysage. L'onglet ne paraît que si le serveur répond à
   `get_casino` (`casino/acces.ts`), et, mise en ligne en deux temps (23 novembre 2026), au seul pilote tant que

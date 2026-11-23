@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { COULEURS_D_ECRITURE } from "../../src/lib/jeu/dans-la-page";
 import { OBJETS, POILS } from "../../supabase/functions/code-discord/gaulois";
 import { CROUPIERS, TENUES_DES_CROUPIERS, VISAGES, gaulois, medaillon, portraitEnPied, statere } from "../../src/lib/jeu/casino-dessins";
 import { banniere, placeDeLaRoue, vignette } from "../../src/lib/jeu/casino-hall";
@@ -189,6 +191,44 @@ describe("les images du palais", () => {
     expect((lum(c200) + 0.05) / (lum(MATIERES_DU_PALAIS.sombre.face) + 0.05)).toBeGreaterThanOrEqual(2);
     expect(RUBIS.c.map(hexDe)).toContain(coeur(20));
     expect(RUBIS.c.map(hexDe)).not.toContain(c200);
+  });
+
+  it("garde AA pour le chiffre crème et les multiples d'or sur les pierres du tapis, au repos, survolées et voilées", () => {
+    const lin = (c: number): number => (c / 255 <= 0.03928 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
+    const lum = ([r, g, b]: readonly number[]): number => 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
+    const ratio = (a: readonly number[], b: readonly number[]): number => {
+      const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+      return (x! + 0.05) / (y! + 0.05);
+    };
+    // Le voile d'une case perdue, lu dans la feuille : la même matrice que le filtre CSS (luminosité puis saturation).
+    const feuille = readFileSync("src/styles/feuilles/27-jeu-casino.css", "utf8");
+    const [, br, sa] = /\.casino-jeu \.cas-eteint \{[^}]*filter: brightness\(([\d.]+)\) saturate\(([\d.]+)\)/.exec(feuille)!.map(Number);
+    const voile = ([r, g, b]: readonly number[]): number[] => {
+      const s = sa!;
+      return [
+        ((0.213 + 0.787 * s) * r! + (0.715 - 0.715 * s) * g! + (0.072 - 0.072 * s) * b!) * br!,
+        ((0.213 - 0.213 * s) * r! + (0.715 + 0.285 * s) * g! + (0.072 - 0.072 * s) * b!) * br!,
+        ((0.213 - 0.213 * s) * r! + (0.715 - 0.715 * s) * g! + (0.072 + 0.928 * s) * b!) * br!,
+      ].map((v) => Math.min(255, v));
+    };
+    // Les couleurs d'écriture du kit, les mêmes dans les deux thèmes.
+    const rvb = (h: string): number[] => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const creme = rvb(COULEURS_D_ECRITURE.creme);
+    const orvif = rvb(COULEURS_D_ECRITURE.orvif);
+    const coeur = (nom: string): number[] => {
+      const t = PIECES_DES_TABLES[nom]!();
+      const i = (6 * t.w + 6) * 4;
+      return [t.d[i]!, t.d[i + 1]!, t.d[i + 2]!];
+    };
+    for (const nom of ["case-rouge", "case-rouge-s", "case-bleue", "case-bleue-s", "case-verte", "case-verte-s"])
+      for (const ecrit of [creme, orvif]) {
+        expect(ratio(ecrit, coeur(nom)), nom).toBeGreaterThanOrEqual(4.5);
+        expect(ratio(voile(ecrit), voile(coeur(nom))), `${nom} voilée`).toBeGreaterThanOrEqual(4.5);
+      }
+    // Une case dorée (gagnante) n'est jamais voilée ; on y écrit en crème.
+    expect(ratio(creme, coeur("case-or"))).toBeGreaterThanOrEqual(4.5);
+    // Survolée, la pierre garde son cœur : l'or du cadre et le biseau disent le survol.
+    for (const c of ["rouge", "bleue", "verte"]) expect(coeur(`case-${c}-s`)).toEqual(coeur(`case-${c}`));
   });
 });
 

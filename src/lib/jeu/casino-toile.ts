@@ -522,8 +522,13 @@ export function de(a: number, faces: readonly [number, number, number], rp: Ramp
 
 /* ---------- Les pièces peintes des tables, en neuf parts (pierres, feutre, jonc, cadre, halo, reflet) ---------- */
 
-/** Une case du tapis : une pierre taillée, lumière en haut à gauche. Coupe : 3. (Aussi les plaques d'argent et de bois de la palissade.) */
-export function caseGemme(rp: Rampe, etat: 0 | 1): Toile {
+/**
+ * Une case du tapis : une pierre taillée, lumière en haut à gauche. Coupe : 3. (Aussi les plaques d'argent et de bois de la
+ * palissade.) Survolée (`etat` 1), elle s'entoure d'or et son biseau s'éclaire ; son cœur, où s'écrivent le chiffre crème et
+ * les multiples d'or, garde son ton `coeur` (23 novembre 2026 : le cœur qui s'éclaircissait au survol faisait tomber ces
+ * écritures sous AA, jusqu'à 1,5 sur l'émeraude).
+ */
+export function caseGemme(rp: Rampe, etat: 0 | 1, coeur = 3): Toile {
   const n = 12;
   const Tl = new Toile(n, n);
   Tl.tout((x, y) => {
@@ -531,7 +536,7 @@ export function caseGemme(rp: Rampe, etat: 0 | 1): Toile {
     if (m === 0) return etat ? ton(OR, 6) : ENCRE;
     if (m === 1) return rp.t(x + y < n - 1 ? 0.78 : 0.2, x, y, 0);
     if (m === 2) return rp.t(x + y < n - 1 ? (etat ? 0.62 : 0.5) : 0.3, x, y, 0);
-    return ton(rp, etat ? 4 : 3);
+    return ton(rp, coeur);
   });
   return Tl;
 }
@@ -612,8 +617,9 @@ export const PIECES_DES_TABLES: Readonly<Record<string, () => Toile>> = {
   "case-rouge-s": () => caseGemme(RUBIS, 1),
   "case-bleue": () => caseGemme(SAPHIR, 0),
   "case-bleue-s": () => caseGemme(SAPHIR, 1),
-  "case-verte": () => caseGemme(EMERAUDE, 0),
-  "case-verte-s": () => caseGemme(EMERAUDE, 1),
+  // l'émeraude au cœur plus profond (ton 2) : au ton 3, l'écriture crème n'y faisait que 3,9 de contraste
+  "case-verte": () => caseGemme(EMERAUDE, 0, 2),
+  "case-verte-s": () => caseGemme(EMERAUDE, 1, 2),
   "case-or": () => caseGemme(OR, 0),
   "case-feutre": () => caseFeutre(0),
   "case-feutre-s": () => caseFeutre(1),

@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-23",
+    "kind": "corrige",
+    "rank": "minor",
+    "title": "Les cases du casino lisibles au survol",
+    "body": "Au casino, le chiffre et les multiples d'une case rouge, bleue ou verte restent lisibles quand on la survole, et la case verte des dés est d'un vert plus profond.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-23",
     "kind": "ameliore",
     "rank": "minor",
     "title": "Les finitions du casino",
