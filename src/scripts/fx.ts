@@ -166,7 +166,15 @@ function init(): void {
   let tilesDrawn = false;
   let seed = 1;
 
+  // La taille de la toile n'est relue que quand elle a changé : la lire à chaque image forçait le navigateur à recalculer la
+  // mise en page à chaque image, ce qui pesait sur les pages très animées (« Mon Gaulois », 23 novembre 2026).
+  let tailleALire = true;
+  if (typeof ResizeObserver === "function") new ResizeObserver(() => (tailleALire = true)).observe(territory);
+  else window.addEventListener("resize", () => (tailleALire = true));
+
   function resize(): void {
+    if (!tailleALire) return;
+    tailleALire = false;
     const w = territory.clientWidth;
     const h = territory.clientHeight;
     if (w === width && h === height) return;

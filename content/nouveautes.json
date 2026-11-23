@@ -2,6 +2,17 @@
   {
     "date": "2026-11-23",
     "kind": "ameliore",
+    "rank": "minor",
+    "title": "Mon Gaulois plus léger à faire tourner",
+    "body": "Les effets du site ne recalculent plus la mise en page à chaque image : le jeu et les pages animées demandent moins au processeur, surtout sur téléphone.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-23",
+    "kind": "ameliore",
     "title": "Des pages qui s'affichent plus vite",
     "body": "Juste après chaque mise à jour du site, une page pouvait rester vide plusieurs secondes. Elle s'affiche maintenant dès son arrivée, et ses scripts se chargent tous ensemble."
   },
