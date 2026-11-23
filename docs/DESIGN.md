@@ -1268,6 +1268,19 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
   cases tournent dessous, la bille qui court, descend, tinte contre les cloisons et tombe dans la case que le serveur a tirée
   (`mouvementDeLaRoue`, testé : elle finit toujours sur ce numéro) ; le tapis en long sur une table large, en hauteur sur une
   table étroite ; « Vos tours » ; les jetons gagnants qui restent un instant, les autres qui s'effacent.
+- **La machine du forgeron** (`Machine.tsx`, `casino-machine.ts`) : la machine de laque et d'or peinte à deux tailles (le
+  forgeron sur son socle à partir de 1 240 pixels de table), sa table des gains peinte et en grand sur le feutre. Le levier
+  s'attrape et se tire (il résiste, cède, remonte en ressort), ou un clic, Entrée, Espace ; en bas, la mise part et le serveur
+  tire le résultat et les neuf cases (`jouer_machine`), puis les rouleaux tournent et s'arrêtent de gauche à droite, avec un
+  rebond, sur ces cases (`bandeDuRouleau`, `posDuRouleau`, testés). Les statères tombent dans le bac, un par dizaine gagnée ;
+  la fête des 20 et 100 fois (fanion, lueur, deux pluies pour 100). La mise est le jeton choisi : le pupitre n'a ni
+  « reprendre » ni « mêmes mises » (son double `usePupitreDeLaMachine` prévient comme celui du commun). « Voir chaque gain » :
+  des coups d'essai tirés dans le navigateur, sans appel au serveur, « Rien n'est compté ».
+- **Les dés** (`Des.tsx`, `casino-des.ts`) : la piste de velours vue de trois quarts, le croupier, son renardeau et son
+  cornet de cuir et d'or ; le cornet secoué puis versé, les deux dés d'ivoire qui tombent, se cognent et basculent vers les
+  faces tirées par le serveur (`jouer_des`), tournés dès le départ pour y finir (`unDe`, `etatDuDe`, testés pour les 36
+  tirages) ; la plaque d'or de la somme. Le tapis de quatorze paris, onze de front ou six sur une table étroite ; les cases
+  gagnantes se dorent et gardent leur chiffre (les multiples y passent en crème pour rester AA), leur gain écrit dessus.
 - **Pause et « réduire les animations »** : le résultat se pose sans mouvement (la roue s'arrête où elle est si la pause
   arrive en plein tour), pas de pluie, pas de reflet. Échap ou le bouton de retour ramènent au hall ; un tour quitté en
   plein mouvement se finit sans animation (la bourse reçoit son solde, la partie s'inscrit).
@@ -1281,6 +1294,7 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
 | `src/lib/jeu/casino-pieces.ts` | Les images fixes dans `/village/kit.css` : pièces du palais, des tables, icônes `--cas-pic-*`, icône du menu |
 | `src/lib/jeu/casino-hall.ts` | La roue de trois quarts, les six vignettes, la bannière |
 | `src/lib/jeu/casino-roue.ts` | La roue peinte et son mouvement |
+| `src/lib/jeu/casino-machine.ts`, `casino-des.ts` | La machine du forgeron et les dés : dessins de la maquette, mouvement qui finit sur le tirage du serveur, sons |
 | `src/lib/jeu/casino-sons.ts` | Les sons du casino |
 | `src/lib/village/ecran-casino.ts` | Les jeux du hall, la lecture de `get_casino`, les résumés, les mots des refus, le niveau d'un tour, le pupitre |
 | `src/components/village/casino/` | `LeCasino.tsx` (la salle ; les jeux dans `JEUX_OUVERTS`), `Hall.tsx`, `Roue.tsx`, et le commun : `contexte.ts` (`useCasino`), `Pupitre.tsx`, `Croupier.tsx`, `Pieces.tsx`, `commun.ts`, `serveur.ts` et `acces.ts` (la lecture de `get_casino` pour le menu). Les coups passent par `casino.*` de `src/lib/compte/api.ts` ; les règles (numéros rouges, ordre de la roue, paris) viennent de `src/lib/village/casino/` |

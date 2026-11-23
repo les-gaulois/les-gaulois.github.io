@@ -1069,6 +1069,521 @@
   }
 }
 
+/* ---------- La machine du forgeron ---------- */
+
+.casino-jeu .machine-salle {
+  display: grid;
+  grid-template-columns: var(--dr, 500px) minmax(0, 1fr);
+  gap: 14px 32px;
+  align-items: center;
+}
+.casino-jeu .machine-salle > * {
+  min-width: 0;
+}
+.casino-jeu .machine-cote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  overflow-x: clip;
+}
+.casino-jeu .machine-droite {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.casino-jeu .machine-boite {
+  position: relative;
+  width: var(--dr);
+  line-height: 0;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.casino-jeu .machine-scene {
+  position: relative;
+  filter: drop-shadow(0 8px 0 var(--cas-ombre));
+}
+/* La lueur d'or derrière la machine : elle monte lentement quand on gagne, plus fort pour la fête. */
+.casino-jeu .machine-halo {
+  position: absolute;
+  left: var(--hx, 50%);
+  top: 46%;
+  width: 130%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 216 74 / 0.36), rgb(255 216 74 / 0) 72%);
+  opacity: 0;
+  transition: opacity 1.8s ease;
+  pointer-events: none;
+}
+.casino-jeu .machine-boite.machine-gagne .machine-halo {
+  opacity: 0.55;
+}
+.casino-jeu .machine-boite.machine-fete .machine-halo {
+  opacity: 1;
+}
+.casino-jeu .machine-levier {
+  position: absolute;
+  z-index: 3;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+  border-radius: 16px;
+}
+.casino-jeu .machine-levier.machine-prise {
+  cursor: grabbing;
+}
+.casino-jeu .machine-levier[aria-disabled="true"] {
+  cursor: default;
+}
+/* Le fanion des 20 et des 100 fois, au-dessus de la machine. */
+.casino-jeu .machine-fanion {
+  position: absolute;
+  z-index: 4;
+  left: var(--fx, 0);
+  width: var(--fw, 100%);
+  top: -6px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-12px);
+  transition:
+    opacity 1.1s ease,
+    transform 1.1s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.casino-jeu .machine-fanion.machine-vu {
+  opacity: 1;
+  transform: none;
+}
+.casino-jeu .machine-tours {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  max-width: 100%;
+}
+.casino-jeu .machine-liste {
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  align-items: center;
+  max-width: 100%;
+}
+.casino-jeu .machine-liste .cas-gemme {
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+}
+.casino-jeu .machine-liste .cas-gemme:first-child {
+  min-width: 40px;
+  height: 36px;
+}
+.casino-jeu .machine-liste .machine-vide {
+  opacity: 0.45;
+}
+/* Le pupitre : sur la machine, la mise est le jeton choisi ; rien à reprendre ni à reposer. */
+.casino-jeu .machine-pupitre .cas-annuler,
+.casino-jeu .machine-pupitre .cas-effacer,
+.casino-jeu .machine-pupitre .cas-memes {
+  display: none;
+}
+/* La table des gains, sur le feutre : la ligne gagnée s'entoure d'or. */
+.casino-jeu .machine-tapis {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.casino-jeu .machine-ligne {
+  --bt: 3;
+  --br: 3;
+  --bb: 3;
+  --bl: 3;
+  --src: var(--cas-s-case-feutre);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px 16px;
+  min-width: 0;
+  min-height: 60px;
+  padding: 0 10px 0 6px;
+  border-style: solid;
+}
+.casino-jeu .machine-trio {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+.casino-jeu .machine-mots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex: 1;
+  min-width: 0;
+}
+.casino-jeu .machine-ligne.cas-eteint {
+  filter: brightness(0.6) saturate(0.8);
+}
+.casino-jeu .machine-court {
+  display: none;
+}
+.casino-jeu .machine-regles {
+  margin-top: 18px;
+}
+.casino-jeu .machine-regles + .machine-regles {
+  margin-top: 10px;
+}
+.casino-jeu .machine-mot {
+  margin: 12px 0 0;
+  color: var(--cas-doux);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+/* Les coups d'essai : un bouton par gain, sur le feutre. */
+.casino-jeu .machine-essais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+.casino-jeu .machine-essai {
+  --bt: 3;
+  --br: 3;
+  --bb: 3;
+  --bl: 3;
+  --src: var(--cas-s-case-feutre);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 92px;
+  padding: 6px 8px 8px;
+  border-style: solid;
+  transition: transform 0.15s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+@media (hover: hover) {
+  .casino-jeu .machine-essai:hover:not([disabled]) {
+    --src: var(--cas-s-case-feutre-s);
+    transform: translateY(-4px);
+  }
+}
+.casino-jeu .machine-essai:active {
+  transform: translateY(2px);
+}
+.casino-jeu .machine-essai[disabled] {
+  filter: brightness(0.6);
+  cursor: default;
+  transform: none;
+}
+@container casino (max-width: 1239px) {
+  .casino-jeu .machine-mots {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 8px;
+  }
+}
+@container casino (max-width: 759px) {
+  .casino-jeu .machine-salle {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .casino-jeu .machine-cote {
+    gap: 10px;
+  }
+  .casino-jeu .machine-tours {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .casino-jeu .machine-ligne {
+    min-height: 56px;
+    gap: 8px 10px;
+    padding: 0 6px 0 4px;
+  }
+  .casino-jeu .machine-mots {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .casino-jeu .machine-essai {
+    min-width: 0;
+    flex: 1 1 28%;
+  }
+  .casino-jeu .machine-long {
+    display: none;
+  }
+  .casino-jeu .machine-court {
+    display: block;
+  }
+  .casino-jeu .machine-liste {
+    gap: 2px;
+  }
+  .casino-jeu .machine-liste .cas-gemme {
+    min-width: 26px;
+    height: 28px;
+  }
+  .casino-jeu .machine-liste .cas-gemme:first-child {
+    min-width: 30px;
+    height: 32px;
+  }
+  .casino-jeu .machine-trio {
+    gap: 0;
+  }
+  .casino-jeu .machine-trio canvas {
+    margin-right: -4px;
+  }
+}
+
+/* ---------- Les dés ---------- */
+
+.casino-jeu .des-salle {
+  display: grid;
+  grid-template-columns: var(--ds, 616px) minmax(0, 1fr);
+  grid-template-areas:
+    "piste croupier"
+    "piste tapis"
+    "piste pupitre";
+  gap: 14px 32px;
+  align-items: center;
+}
+.casino-jeu .des-salle > * {
+  min-width: 0;
+}
+.casino-jeu .des-cote {
+  grid-area: piste;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.casino-jeu .des-croupier {
+  grid-area: croupier;
+}
+.casino-jeu .des-plateau {
+  grid-area: tapis;
+}
+.casino-jeu .des-pupitre {
+  grid-area: pupitre;
+}
+.casino-jeu .des-scene {
+  position: relative;
+  overflow: hidden;
+  width: var(--ds);
+  height: var(--dh);
+  line-height: 0;
+  filter: drop-shadow(0 8px 0 var(--cas-ombre));
+}
+.casino-jeu .des-scene.des-pret {
+  cursor: pointer;
+}
+.casino-jeu .des-tours {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  max-width: 100%;
+}
+.casino-jeu .des-liste {
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  align-items: center;
+}
+.casino-jeu .des-liste .cas-gemme {
+  min-width: 32px;
+  height: 32px;
+}
+.casino-jeu .des-liste .cas-gemme:first-child {
+  min-width: 40px;
+  height: 36px;
+}
+.casino-jeu .des-liste .des-vide {
+  opacity: 0.45;
+}
+.casino-jeu .des-tapis {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(11, var(--cw, 64px));
+  grid-template-rows: 60px 76px;
+  gap: 2px;
+  justify-content: center;
+}
+.casino-jeu .des-case {
+  --bt: 3;
+  --br: 3;
+  --bb: 3;
+  --bl: 3;
+  --src: var(--cas-s-case-feutre);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  border-style: solid;
+  cursor: pointer;
+}
+.casino-jeu .des-case.cas-rouge {
+  --src: var(--cas-s-case-rouge);
+}
+.casino-jeu .des-case.cas-bleue {
+  --src: var(--cas-s-case-bleue);
+}
+.casino-jeu .des-case.cas-verte {
+  --src: var(--cas-s-case-verte);
+}
+.casino-jeu .des-moins,
+.casino-jeu .des-plus {
+  grid-column: span 4;
+}
+.casino-jeu .des-double {
+  grid-column: span 3;
+}
+.casino-jeu .des-large {
+  flex-direction: row;
+  gap: 14px;
+}
+.casino-jeu .des-large .des-mots {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.casino-jeu .des-case .jeu-px,
+.casino-jeu .des-case canvas {
+  pointer-events: none;
+}
+.casino-jeu .des-court {
+  display: none;
+}
+.casino-jeu .des-n {
+  display: inline-flex;
+  --jeu-p: 3px;
+}
+.casino-jeu .des-tapis.des-grand {
+  grid-template-rows: 68px 96px;
+}
+.casino-jeu .des-grand .des-n {
+  --jeu-p: 4px;
+}
+.casino-jeu .des-grand .des-case {
+  gap: 12px;
+}
+.casino-jeu .des-grand .des-large {
+  gap: 18px;
+}
+@media (hover: hover) {
+  .casino-jeu .des-tapis:not(.des-ferme) .des-case:not(.cas-sorti):hover {
+    --src: var(--cas-s-case-feutre-s);
+  }
+  .casino-jeu .des-tapis:not(.des-ferme) .des-case.cas-rouge:not(.cas-sorti):hover {
+    --src: var(--cas-s-case-rouge-s);
+  }
+  .casino-jeu .des-tapis:not(.des-ferme) .des-case.cas-bleue:not(.cas-sorti):hover {
+    --src: var(--cas-s-case-bleue-s);
+  }
+  .casino-jeu .des-tapis:not(.des-ferme) .des-case.cas-verte:not(.cas-sorti):hover {
+    --src: var(--cas-s-case-verte-s);
+  }
+}
+.casino-jeu .des-tapis.des-ferme .des-case {
+  cursor: default;
+}
+/* La case gagnante se dore : la pierre devient d'or, le halo monte lentement, le chiffre reste écrit. */
+.casino-jeu .des-tapis .des-case.cas-sorti {
+  --src: var(--cas-s-case-or);
+}
+.casino-jeu .des-gain {
+  position: absolute;
+  left: 50%;
+  top: -20px;
+  z-index: 3;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: des-gain 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) 1 both;
+}
+@keyframes des-gain {
+  0% {
+    transform: translate(-50%, 10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+.casino-jeu .des-note {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+.casino-jeu .des-regles {
+  margin-top: 18px;
+}
+/* Six cases de front sur une table étroite : moins et plus, les sommes en deux rangs, le double au bout. */
+.casino-jeu .des-tapis.des-etroit {
+  grid-template-columns: repeat(6, var(--cw, 52px));
+  grid-template-rows: 60px 68px 68px;
+  gap: 2px;
+}
+.casino-jeu .des-etroit .des-case {
+  order: var(--om);
+}
+.casino-jeu .des-etroit .des-moins,
+.casino-jeu .des-etroit .des-plus {
+  grid-column: span 3;
+}
+.casino-jeu .des-etroit .des-double {
+  grid-column: span 1;
+  flex-direction: column;
+  gap: 2px;
+}
+.casino-jeu .des-etroit .des-double .des-mot,
+.casino-jeu .des-etroit .des-double .des-long {
+  display: none;
+}
+.casino-jeu .des-etroit .des-double .des-court {
+  display: inline-flex;
+}
+@container casino (max-width: 1239px) {
+  .casino-jeu .des-salle {
+    grid-template-areas:
+      "piste croupier"
+      "piste pupitre"
+      "tapis tapis";
+    gap: 14px 24px;
+  }
+}
+@container casino (max-width: 759px) {
+  .casino-jeu .des-salle {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "piste"
+      "croupier"
+      "tapis"
+      "pupitre";
+    gap: 14px;
+  }
+}
+@container casino (max-width: 47.99rem) {
+  .casino-jeu .des-tours {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
 /* La pause du jeu et « réduire les animations » : rien ne bouge, le résultat se pose. */
 @media (prefers-reduced-motion: reduce) {
   .casino-jeu *,
