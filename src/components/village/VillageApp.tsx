@@ -140,7 +140,8 @@ export default function VillageApp() {
   // d'un jeu. Une adresse `#casino` sans casino ramène à « Ma carte ».
   const surLeCasino = active === ANCRE_CASINO;
   const casinoServeur = useCasinoDuServeur(gauloisCree);
-  const casinoVisible = !!casinoServeur.etat;
+  // Comme le duel : seulement un compte qui peut jouer (validé, avec son Gaulois) ; un compte en attente ou un allié invité ne le voit pas.
+  const casinoVisible = !!casinoServeur.etat && casinoServeur.etat.peut_jouer;
   const [LeCasino, setLeCasino] = useState<typeof import("./casino/LeCasino").default | null>(null);
   useEffect(() => {
     if (!surLeCasino || !casinoVisible || LeCasino) return;
@@ -150,8 +151,8 @@ export default function VillageApp() {
     );
   }, [surLeCasino, casinoVisible, LeCasino]);
   useEffect(() => {
-    if (surLeCasino && casinoServeur.etat === null) select(ANCRE_MA_CARTE);
-  }, [surLeCasino, casinoServeur.etat, select]);
+    if (surLeCasino && casinoServeur.etat !== undefined && !casinoVisible) select(ANCRE_MA_CARTE);
+  }, [surLeCasino, casinoServeur.etat, casinoVisible, select]);
   // « Nouveau » sur son onglet, tant que le casino n'a pas été ouvert sur cet appareil.
   const [casinoNouveau, setCasinoNouveau] = useState(false);
   useEffect(() => setCasinoNouveau(!casinoDejaVu()), []);

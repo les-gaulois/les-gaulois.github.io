@@ -2,6 +2,17 @@
   {
     "date": "2026-11-23",
     "kind": "nouveau",
+    "rank": "top",
+    "title": "Le casino des Gaulois ouvre",
+    "body": "Dans Mon Gaulois, en statères : roue du charron, vingt-et-un, machine du forgeron, course des familiers, palissade et dés. Ils rendent la mise en moyenne, le vingt-et-un 99,4 % bien joué.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-23",
+    "kind": "nouveau",
     "rank": "staff",
     "title": "Le vingt-et-un au casino",
     "body": "Au casino de Mon Gaulois, encore visible du seul pilote : le vingt-et-un, avec son jeu de cartes gaulois et le conseil du druide.",
