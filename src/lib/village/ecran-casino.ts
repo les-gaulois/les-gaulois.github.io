@@ -165,6 +165,8 @@ export function resumeDuCoup(coup: CoupDuCasino & Record<string, unknown>): Resu
       return typeof coup["coupe"] === "number" ? { jeu: "palissade", coupe: coup["coupe"] } : null;
     case "des":
       return Array.isArray(coup["faces"]) && coup["faces"].length === 2 ? { jeu: "des", faces: coup["faces"] as [number, number] } : null;
+    case "vingt-et-un":
+      return Array.isArray(coup["issues"]) && coup["issues"].length ? { jeu: "vingt-et-un", issues: coup["issues"] as IssueDuVingtEtUn[] } : null;
     default:
       return null;
   }

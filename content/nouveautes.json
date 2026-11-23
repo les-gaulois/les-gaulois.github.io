@@ -3,6 +3,17 @@
     "date": "2026-11-23",
     "kind": "nouveau",
     "rank": "staff",
+    "title": "Le vingt-et-un au casino",
+    "body": "Au casino de Mon Gaulois, encore visible du seul pilote : le vingt-et-un, avec son jeu de cartes gaulois et le conseil du druide.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-23",
+    "kind": "nouveau",
+    "rank": "staff",
     "title": "La course des familiers et la palissade au casino",
     "body": "Au casino de Mon Gaulois, encore visible du seul pilote : la course des familiers et la palissade, où le statère tombe de pieu en pieu, se jouent.",
     "link": {

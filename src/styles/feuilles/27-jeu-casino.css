@@ -2105,3 +2105,303 @@
     transition-duration: 0.01s !important;
   }
 }
+
+/* ---------- Le vingt-et-un ---------- */
+/* La table et sa couche de cartes (src/components/village/casino/scene-vingt-et-un.ts) : tout y bouge par transform, en
+   pixels pairs ; le croupier, les gestes et le pupitre à côté, puis dessous quand la table est étroite. */
+
+.casino-jeu .vu-salle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "table croupier"
+    "table gestes"
+    "table pupitre";
+  gap: 14px 32px;
+  align-items: center;
+}
+.casino-jeu .vu-salle > * {
+  min-width: 0;
+}
+.casino-jeu .vu-table {
+  grid-area: table;
+  padding: 0;
+  height: var(--vu-h, 498px);
+  overflow: hidden;
+  filter: drop-shadow(0 8px 0 var(--cas-ombre));
+}
+.casino-jeu .vu-croupier {
+  grid-area: croupier;
+}
+.casino-jeu .vu-gestes {
+  grid-area: gestes;
+}
+.casino-jeu .vu-pupitre {
+  grid-area: pupitre;
+}
+.casino-jeu .vu-decor,
+.casino-jeu .vu-lueur,
+.casino-jeu .vu-couche,
+.casino-jeu .vu-ronds {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+.casino-jeu .vu-couche,
+.casino-jeu .vu-ronds {
+  width: 100%;
+  height: 100%;
+}
+.casino-jeu .vu-lueur {
+  opacity: 0;
+  transition: opacity 1.8s ease;
+}
+.casino-jeu .vu-lueur.vu-vue {
+  opacity: 0.9;
+}
+.casino-jeu .vu-mini {
+  position: absolute;
+  left: 18px;
+  top: 22px;
+  display: none;
+  pointer-events: none;
+  filter: drop-shadow(2px 4px 0 rgb(3 2 10 / 0.42));
+}
+.casino-jeu .vu-etroit .vu-mini {
+  display: block;
+}
+/* Les cartes : tout y bouge par transform. */
+.casino-jeu .vu-carte {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 90px;
+  height: 128px;
+  transition:
+    transform 0.32s cubic-bezier(0.2, 0.8, 0.3, 1),
+    filter 0.3s;
+  will-change: transform;
+}
+.casino-jeu .vu-carte canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  filter: drop-shadow(2px 4px 0 rgb(3 2 10 / 0.42));
+}
+.casino-jeu .vu-carte.vu-attend {
+  filter: brightness(0.66);
+}
+@media (hover: hover) {
+  .casino-jeu .vu-carte.vu-vive {
+    pointer-events: auto;
+  }
+  .casino-jeu .vu-carte.vu-vive canvas {
+    transition:
+      translate 0.16s cubic-bezier(0.3, 1.5, 0.5, 1),
+      rotate 0.16s;
+  }
+  .casino-jeu .vu-carte.vu-vive:hover canvas {
+    translate: 0 -8px;
+    rotate: -2deg;
+  }
+}
+.casino-jeu .vu-total {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 6px;
+  translate: -50% 0;
+  transition: left 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.casino-jeu .vu-ruban {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  translate: -50% 0;
+  opacity: 0;
+  scale: 0.8;
+  transition:
+    opacity 0.5s ease,
+    scale 0.5s cubic-bezier(0.3, 1.5, 0.5, 1);
+  filter: drop-shadow(0 4px 0 rgb(3 2 10 / 0.45));
+}
+.casino-jeu .vu-ruban.vu-vu {
+  opacity: 1;
+  scale: 1;
+}
+/* Le rond de la mise et ses jetons. */
+.casino-jeu .vu-rond {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 0;
+  background: var(--vu-s-rond) 0 0 / 64px 64px no-repeat;
+  image-rendering: pixelated;
+  transition: left 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.casino-jeu button.vu-rond {
+  cursor: pointer;
+}
+.casino-jeu .vu-rond:disabled {
+  cursor: default;
+}
+.casino-jeu .vu-jeton {
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  z-index: 2;
+  pointer-events: none;
+  transition:
+    transform 0.5s cubic-bezier(0.3, 0.9, 0.3, 1),
+    opacity 0.5s ease;
+  filter: drop-shadow(1px 3px 0 rgb(3 2 10 / 0.45));
+}
+.casino-jeu .vu-jeton.vu-double {
+  left: 37px;
+  top: -4px;
+}
+.casino-jeu .vu-jeton.vu-gain {
+  left: -37px;
+  top: -4px;
+}
+.casino-jeu .vu-jeton.vu-arrive {
+  transform: translateY(-70px);
+  opacity: 0;
+}
+.casino-jeu .vu-jeton.vu-rentre {
+  transform: translateY(46px);
+  opacity: 0;
+}
+.casino-jeu .vu-jeton.vu-perd {
+  transform: translateY(-90px);
+  opacity: 0;
+}
+.casino-jeu .vu-fige .vu-carte,
+.casino-jeu .vu-fige .vu-carte canvas,
+.casino-jeu .vu-fige .vu-jeton,
+.casino-jeu .vu-fige .vu-rond,
+.casino-jeu .vu-fige .vu-total,
+.casino-jeu .vu-fige .vu-ruban,
+.casino-jeu .vu-fige .vu-lueur {
+  transition: none !important;
+}
+/* Les gestes. */
+.casino-jeu .vu-gestes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+.casino-jeu .vu-coups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 10px;
+  align-items: flex-start;
+}
+.casino-jeu .vu-geste {
+  padding: 0 calc(4 * var(--jeu-p)) 0 calc(2 * var(--jeu-p));
+  gap: calc(3 * var(--jeu-p));
+}
+.casino-jeu .vu-geste .jeu-pic {
+  margin: calc(-2 * var(--jeu-p)) 0 calc(-6 * var(--jeu-p)) calc(-2 * var(--jeu-p));
+}
+.casino-jeu .vu-geste:disabled .jeu-px,
+.casino-jeu .vu-geste:disabled .jeu-pic {
+  opacity: 0.6;
+}
+.casino-jeu .vu-geste.cas-halo::after {
+  inset: -12px -12px -10px;
+}
+.casino-jeu .vu-suite {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+}
+.casino-jeu .vu-druide-dit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  translate: 0 6px;
+  transition:
+    opacity 0.5s ease,
+    translate 0.5s ease;
+  min-width: 0;
+}
+/* Caché, le mot du druide s'efface sur place sans tenir de place : « Rejouer » garde la sienne. */
+.casino-jeu .vu-druide-dit:not(.vu-vu) {
+  position: absolute;
+  left: 52px;
+  top: 0;
+  pointer-events: none;
+}
+.casino-jeu .vu-druide-dit.vu-vu {
+  opacity: 1;
+  translate: 0 0;
+}
+.casino-jeu .vu-regles {
+  margin-top: 18px;
+}
+@container casino (max-width: 1239px) {
+  .casino-jeu .vu-salle {
+    grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
+    gap: 14px 24px;
+  }
+  .casino-jeu .vu-coups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .casino-jeu .vu-geste {
+    justify-content: center;
+  }
+}
+@container casino (max-width: 759px) {
+  .casino-jeu .vu-salle {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "table"
+      "gestes"
+      "croupier"
+      "pupitre";
+    gap: 14px;
+  }
+}
+/* Sur un téléphone : la mise juste sous la table (les gestes ne paraissent qu'à la première main), le croupier en bas, son
+   médaillon sur la table. */
+@container casino (max-width: 459px) {
+  .casino-jeu .vu-salle {
+    grid-template-areas:
+      "table"
+      "gestes"
+      "pupitre"
+      "croupier";
+  }
+  .casino-jeu .vu-salle.vu-debut .vu-gestes {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .casino-jeu .vu-carte.vu-vive:hover canvas {
+    translate: none;
+    rotate: none;
+  }
+}
+:root.fx-off .casino-jeu .vu-carte.vu-vive:hover canvas {
+  translate: none;
+  rotate: none;
+}
+:root.fx-off .casino-jeu .vu-table *,
+:root.fx-off .casino-jeu .vu-druide-dit {
+  transition: none !important;
+}

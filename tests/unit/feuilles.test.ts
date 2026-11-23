@@ -50,6 +50,11 @@ const PAS_DES_CLASSES: PasUneClasse[] = [
   { fichier: "src/components/compte/QgApp.tsx", mots: ["outils"], raison: "ce que le QG relit après une action (« qg », « outils » ou « tout »)" },
   { fichier: "src/pages/boutique.astro", mots: ["village"], raison: "l'adresse /village, où l'ancienne page de la boutique renvoie" },
   { fichier: "src/pages/membres/[id].astro", mots: ["bannieres"], raison: "le dossier des images des bannières, /bannieres/, dans l'adresse du fond des scènes" },
+  {
+    fichier: "src/components/village/casino/scene-vingt-et-un.ts",
+    mots: ["carte", "bilan"],
+    raison: "les sortes des faits du vingt-et-un envoyés par le serveur (« carte », « bilan »), comparées à f.t",
+  },
 ];
 
 /** Les pages du site (les .astro de src/pages) et leur route, comme `Astro.routePattern`. */

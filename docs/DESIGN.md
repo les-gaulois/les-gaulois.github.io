@@ -1268,6 +1268,16 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
   cases tournent dessous, la bille qui court, descend, tinte contre les cloisons et tombe dans la case que le serveur a tirée
   (`mouvementDeLaRoue`, testé : elle finit toujours sur ce numéro) ; le tapis en long sur une table large, en hauteur sur une
   table étroite ; « Vos tours » ; les jetons gagnants qui restent un instant, les autres qui s'effacent.
+- **Le vingt-et-un** (`VingtEtUn.tsx`, sa table `scene-vingt-et-un.ts`, dessins `casino-vingt-et-un.ts`, sons
+  `casino-vingt-et-un-sons.ts`, mots `src/lib/village/ecran-vingt-et-un.ts`) : le jeu de cartes gaulois (torques, flammes,
+  épées, chênes ; valet, dame et roi en vrais Gaulois du site, habillés de la garde-robe, identiques point par point à la
+  maquette ; dos de velours bordeaux), le donneur et ses visages, la carte cachée qu'il soulève sur un as ou un 10, les
+  totaux en pastille (« 7 ou 17 »), l'étiquette de chaque main, les jetons qui arrivent sur le rond et en repartent, la
+  lueur d'or et la pluie lente du 21 d'entrée. Le serveur tire chaque carte au moment de la donner ; l'écran montre ses
+  faits dans l'ordre, et chaque carte montrée est celle du serveur. Doubler et séparer se ferment quand le complément
+  dépasse la bourse ou le reste du jour (sauf en essai GOD). Le druide conseille d'après les seules cartes visibles. Une
+  main laissée ouverte (jeu quitté, page rechargée) se pose d'un coup et reprend où elle était (`lire_vingt_et_un`).
+  Au clavier, le focus va à « Tirer » après la donne et à « Rejouer » après la main.
 - **La machine du forgeron** (`Machine.tsx`, `casino-machine.ts`) : la machine de laque et d'or peinte à deux tailles (le
   forgeron sur son socle à partir de 1 240 pixels de table), sa table des gains peinte et en grand sur le feutre (une seule colonne sous 920 pixels de table, où la grande machine
   écraserait le pupitre). Le levier
@@ -1308,13 +1318,14 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
 | `src/lib/jeu/casino-pieces.ts` | Les images fixes dans `/village/kit.css` : pièces du palais, des tables, icônes `--cas-pic-*`, icône du menu |
 | `src/lib/jeu/casino-hall.ts` | La roue de trois quarts, les six vignettes, la bannière |
 | `src/lib/jeu/casino-roue.ts` | La roue peinte et son mouvement |
+| `src/lib/jeu/casino-vingt-et-un.ts` | Le jeu de cartes gaulois, la table du vingt-et-un et sa mise en page, les icônes des gestes, le druide (et ses sons dans `casino-vingt-et-un-sons.ts`) |
 | `src/lib/jeu/casino-machine.ts`, `casino-des.ts` | La machine du forgeron et les dés : dessins de la maquette, mouvement qui finit sur le tirage du serveur, sons |
 | `src/lib/jeu/casino-course.ts` | Le champ de courses : décor, coureurs, tribune, caméra, sons, pièces des couloirs |
 | `src/lib/jeu/casino-palissade.ts` | Le panneau de la palissade, la chute écrite d'après le chemin du serveur, ses sons, la bourse pendant les chutes |
 | `src/lib/jeu/casino-scene.ts` | Ce qu'une scène animée demande à la page (images, surfaces, pinceau) ; la page le donne par `casino/images.ts` |
 | `src/lib/jeu/casino-sons.ts` | Les sons du casino |
 | `src/lib/village/ecran-casino.ts` | Les jeux du hall, la lecture de `get_casino`, les résumés, les mots des refus, le niveau d'un tour, le pupitre |
-| `src/components/village/casino/` | `LeCasino.tsx` (la salle ; les jeux dans `JEUX_OUVERTS`), `Hall.tsx`, les jeux (`Roue.tsx`, `Machine.tsx`, `Des.tsx`, `Course.tsx`, `Palissade.tsx`, avec `images.ts` pour les images de leurs scènes), et le commun : `contexte.ts` (`useCasino`), `Pupitre.tsx`, `Croupier.tsx`, `Pieces.tsx`, `commun.ts`, `serveur.ts` et `acces.ts` (la lecture de `get_casino` pour le menu). Les coups passent par `casino.*` de `src/lib/compte/api.ts` ; les règles (numéros rouges, ordre de la roue, paris) viennent de `src/lib/village/casino/` |
+| `src/components/village/casino/` | `LeCasino.tsx` (la salle ; les jeux dans `JEUX_OUVERTS`), `Hall.tsx`, les jeux (`Roue.tsx`, `VingtEtUn.tsx` et sa table `scene-vingt-et-un.ts`, `Machine.tsx`, `Des.tsx`, `Course.tsx`, `Palissade.tsx`, avec `images.ts` pour les images de leurs scènes), et le commun : `contexte.ts` (`useCasino`), `Pupitre.tsx`, `Croupier.tsx`, `Pieces.tsx`, `commun.ts`, `serveur.ts` et `acces.ts` (la lecture de `get_casino` pour le menu). Les coups passent par `casino.*` de `src/lib/compte/api.ts` ; les règles (numéros rouges, ordre de la roue, paris) viennent de `src/lib/village/casino/` |
 | `src/styles/feuilles/27-jeu-casino.css` | Tout sous `.casino-jeu`, classes `cas-…` (commun et hall) et `<jeu>-…` |
 
 **Ajouter un jeu** : un composant dans `src/components/village/casino/` (racine `cas-jeu <jeu>-jeu`, `useCasino`,
