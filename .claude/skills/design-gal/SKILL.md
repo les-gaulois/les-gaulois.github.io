@@ -100,7 +100,7 @@ Titres en lignes équilibrées, `.page-title` pour le H1 (jusqu'à 96 px), `.sec
 ## Mouvement
 
 - Les effets (`src/scripts/fx.ts`, logique dans `src/lib/fx/`) sont décoratifs : ils n'affichent aucune donnée et ne changent jamais une valeur. Une barre ne grandit pas au survol ; une onde ne fait qu'éclairer.
-- Un effet ne masque jamais du contenu : un bloc apparaît au plus tard après 0,4 s, et sans script après 1,5 s.
+- Un effet ne masque jamais du contenu : un bloc apparaît au plus tard après 0,4 s, et l'entrée de la page n'attend jamais un script (`fx-entree`).
 - Trois façons de tout couper, à garder : bouton pause de l'en-tête (choix mémorisé dans `localStorage` sous `gal-fx`), réglage système « réduire les animations », absence de JavaScript. Dans ces trois cas le contenu reste complet et les valeurs finales sont dans le HTML.
 - Clic droit : menu natif conservé sur les liens, boutons, champs, images autres que le logo, texte sélectionné, et partout avec Maj.
 - Rien ne clignote, sauf le pavé rouge au bout des invites « gal@… » et celui de la bulle du guerrier : ils clignotent comme un terminal, à la demande du pilote (14 novembre 2026, `console-clignote`), et la pause les arrête. La boucle s'arrête quand l'onglet est masqué.

@@ -114,6 +114,14 @@ function init(): void {
     ? ".stage, [data-tilt], main .card:not(:has(table, input, select, canvas))"
     : ".stage, [data-tilt]";
   let enabled = !root.classList.contains("fx-off");
+  // La page est peinte depuis un moment quand le script arrive : juste après une publication, le cache de GitHub Pages est
+  // vide et les scripts arrivent après la page. Ce qui est déjà sous les yeux reste alors tel quel.
+  const peinture = performance.getEntriesByName("first-contentful-paint")[0];
+  const arriveTard = peinture !== undefined && performance.now() - peinture.startTime > 300;
+  const aLEcran = (el: Element): boolean => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.bottom > 0 && r.top < innerHeight;
+  };
 
   /* ---------- Éléments créés par le script ---------- */
 
@@ -141,7 +149,7 @@ function init(): void {
   const tileCtx = territory.getContext("2d");
   const sparkCtx = sparksCanvas.getContext("2d");
   if (!tileCtx || !sparkCtx) {
-    root.classList.remove("fx-wait");
+    finirLEntree();
     return;
   }
 
@@ -768,6 +776,8 @@ function init(): void {
 
   for (const heading of document.querySelectorAll<HTMLElement>("main h1, main h2.section-title")) {
     if (heading.closest("astro-island")) continue;
+    // Le script arrive tard et le titre est déjà sous les yeux : il ne disparaît pas pour revenir mot à mot.
+    if (arriveTard && aLEcran(heading)) continue;
     let i = 0;
     const fragment = document.createDocumentFragment();
     (heading.textContent ?? "").split(/(\s+)/).forEach((part) => {
@@ -804,6 +814,27 @@ function init(): void {
     { rootMargin: "0px 0px -6% 0px" },
   );
 
+  /**
+   * Retire `fx-entree` à la fin prévue du fondu d'entrée des blocs déjà à l'écran : un bloc révélé plus tard entre par sa
+   * propre transition (`.fx-in`), sans rejouer l'entrée de la page. L'heure vient du minutage de chaque fondu, pas de son
+   * signal de fin : un fondu dans un volet fermé n'est jamais joué, et son signal ne viendrait pas (vu sur /classement).
+   */
+  function finirLEntree(): void {
+    if (!root.classList.contains("fx-entree")) return;
+    const maintenant = document.timeline.currentTime;
+    let reste = 0;
+    if (typeof document.getAnimations === "function" && typeof maintenant === "number") {
+      for (const a of document.getAnimations()) {
+        if (!("animationName" in a) || a.animationName !== "fx-entree") continue;
+        // Pas encore d'heure de départ : la page n'a pas encore été peinte, le fondu partira à la prochaine image.
+        const debut = typeof a.startTime === "number" ? a.startTime : maintenant;
+        const fin = debut + Number(a.effect?.getComputedTiming().endTime ?? 0);
+        reste = Math.max(reste, fin - maintenant);
+      }
+    }
+    window.setTimeout(() => root.classList.remove("fx-entree"), Math.min(Math.ceil(reste), 1000));
+  }
+
   function revealAll(): void {
     for (const el of hiddenBlocks) {
       revealObserver.unobserve(el);
@@ -814,7 +845,10 @@ function init(): void {
 
   function prepareReveal(): void {
     for (const el of document.querySelectorAll<HTMLElement>(REVEALED)) {
-      if (el.getBoundingClientRect().width === 0) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0) continue;
+      // Déjà à l'écran : il est entré en fondu avec la page (`.fx-entree`, 01-socle.css), il ne disparaît pas pour revenir.
+      if (r.bottom > 0 && r.top < innerHeight) continue;
       // Un graphique posé dans une scène ou une carte apparaît avec elle : pas de second fondu.
       if (el.matches(".fx-block") && el.parentElement?.closest(BLOCKS)) continue;
       // Le contenu d'un volet fermé n'entre jamais à l'écran : il resterait caché une fois le volet ouvert.
@@ -962,7 +996,7 @@ function init(): void {
   }
   // Après les blocs : un chiffre dans un bloc qui attend d'apparaître n'a pas encore été vu.
   prepareCounters();
-  root.classList.remove("fx-wait");
+  finirLEntree();
   start();
 
   // Sur l'accueil, une première conquête montre l'effet avant tout clic.

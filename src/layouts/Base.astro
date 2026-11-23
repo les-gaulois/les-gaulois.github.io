@@ -161,11 +161,11 @@ const feuilles = feuillesDeLaPage(Astro.routePattern).map((fichier) => {
       }
     </script>
     <script is:inline>
-      // Avant le premier affichage : un visiteur ayant mis en pause ne voit aucune animation,
-      // et les autres ne voient pas les blocs s'afficher puis disparaître avant leur apparition en fondu.
+      // Avant le premier affichage : un visiteur ayant mis en pause ne voit aucune animation, et les autres voient les
+      // blocs entrer en fondu dès le premier affichage, sans attendre le script des effets (`.fx-entree`, 01-socle.css).
       try {
         if (localStorage.getItem("gal-fx") === "off") document.documentElement.classList.add("fx-off");
-        else if (!matchMedia("(prefers-reduced-motion: reduce)").matches) document.documentElement.classList.add("fx-wait");
+        else if (!matchMedia("(prefers-reduced-motion: reduce)").matches) document.documentElement.classList.add("fx-entree");
       } catch {
         // Stockage indisponible : les animations restent actives, le bouton pause fonctionne.
       }

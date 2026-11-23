@@ -681,7 +681,7 @@ for (const path of PAGES) {
       )
       .toEqual([]);
     expect(errors).toEqual([]);
-    await expect(page.locator("html")).not.toHaveClass(/fx-wait/);
+    await expect(page.locator("html")).not.toHaveClass(/fx-entree/);
   });
 }
 
@@ -689,9 +689,67 @@ test("si le script échoue, les blocs s'affichent quand même", async ({ page },
   test.skip(testInfo.project.name !== "desktop", "Testé une seule fois.");
   await page.route("**/_astro/*script*", (route) => route.abort());
   await page.goto("/");
-  await expect(page.locator("html")).toHaveClass(/fx-wait/);
-  await expect(page.locator(".stage-blue")).toHaveCSS("opacity", "1", { timeout: 4000 });
+  await expect(page.locator("html")).toHaveClass(/fx-entree/);
+  await expect(page.locator(".stage-blue")).toHaveCSS("opacity", "1", { timeout: 1000 });
+  // Un bloc sans entrée à lui entre par le fondu de la page, sans script.
+  await page.goto("/gazette");
+  const bloc = page.getByTestId("gazette-now");
+  await expect(bloc).toHaveCSS("animation-name", "fx-entree");
+  await expect(bloc).toHaveCSS("opacity", "1", { timeout: 1000 });
 });
+
+/** Note, image par image, tout bloc à l'écran qui repasse sous la moitié de son opacité après avoir été visible. */
+const suivreLesClignotements = (page: Page) =>
+  page.addInitScript(() => {
+    const vus = new Map<Element, number>();
+    const notes: string[] = [];
+    (window as unknown as { __clignotements: string[] }).__clignotements = notes;
+    const image = () => {
+      for (const el of document.querySelectorAll(".stage, main .card, main .fx-block, main h1")) {
+        const r = el.getBoundingClientRect();
+        if (!(r.width > 0 && r.top < innerHeight && r.bottom > 0)) continue;
+        const o = Number(getComputedStyle(el).opacity);
+        const avant = vus.get(el) ?? 0;
+        if (avant > 0.9 && o < 0.5) notes.push(`${el.tagName.toLowerCase()}.${el.className}`);
+        vus.set(el, Math.max(avant, o));
+      }
+      if (performance.now() < 9000) requestAnimationFrame(image);
+    };
+    requestAnimationFrame(image);
+  });
+const clignotements = (page: Page) => page.evaluate(() => [...new Set((window as unknown as { __clignotements: string[] }).__clignotements)]);
+
+// Juste après une publication, le cache de GitHub Pages est vide : les scripts arrivent 2 à 4 s après la page (mesuré le
+// 23 novembre 2026). Les blocs entrent pourtant dès le premier affichage, sans les attendre, et ce qui est déjà sous les
+// yeux à l'arrivée du script ne disparaît pas pour revenir : ni bloc, ni titre redécoupé mot à mot.
+test("les blocs n'attendent pas un script lent, et ne disparaissent pas à son arrivée", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "Testé une seule fois.");
+  await suivreLesClignotements(page);
+  await page.route("**/_astro/*.js", async (route) => {
+    await new Promise((fin) => setTimeout(fin, 3000));
+    await route.continue().catch(() => undefined);
+  });
+  await page.goto("/gazette", { waitUntil: "commit" });
+  const bloc = page.getByTestId("gazette-now");
+  await expect(bloc).toHaveCSS("opacity", "1", { timeout: 1500 });
+  await expect(page.locator("html")).not.toHaveClass(/fx-ready/);
+  await expect(page.locator("html")).toHaveClass(/fx-ready/, { timeout: 15_000 });
+  await page.waitForTimeout(1200);
+  await expect(page.locator("html")).not.toHaveClass(/fx-entree/);
+  await expect(bloc).toHaveCSS("opacity", "1");
+  await expect(page.locator("main h1 .fx-word")).toHaveCount(0);
+  expect(await clignotements(page)).toEqual([]);
+});
+
+for (const path of PAGES) {
+  test(`aucun bloc à l'écran ne disparaît pour revenir : ${path}`, async ({ page }) => {
+    await suivreLesClignotements(page);
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(1200);
+    expect(await clignotements(page)).toEqual([]);
+  });
+}
 
 test("si le script du relief ne se charge pas, le guerrier reste à plat et suit le curseur comme les autres logos", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "La souris est testée sur desktop.");
@@ -775,7 +833,7 @@ test("avec « réduire les animations », aucun effet n'est lancé", async ({ pa
   await expect(page.locator("#fx-progress")).toHaveCount(0);
   await expect(page.locator("[data-fx-toggle]")).toBeHidden();
   await expect(page.locator(".fx-hidden")).toHaveCount(0);
-  await expect(page.locator("html")).not.toHaveClass(/fx-wait/);
+  await expect(page.locator("html")).not.toHaveClass(/fx-entree/);
   await watchContextMenu(page);
   await page.mouse.click(BACKGROUND.x, BACKGROUND.y, { button: "right" });
   expect(await menuPrevented(page)).toBe(false);

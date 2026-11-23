@@ -1,6 +1,7 @@
 import { defineConfig } from "astro/config";
 import preact from "@astrojs/preact";
 import tailwindcss from "@tailwindcss/vite";
+import prechargeDesModules from "./src/integrations/precharge-modules.ts";
 
 // SITE_URL : URL publique complète. BASE_PATH : préfixe pour GitHub Pages
 // (par exemple /mon-depot). Voir .env.example.
@@ -9,7 +10,8 @@ export default defineConfig({
   site: process.env.SITE_URL || "http://localhost:4321",
   base: process.env.BASE_PATH || "/",
   trailingSlash: "ignore",
-  integrations: [preact()],
+  // Chaque page annonce d'un coup tous les modules qu'elle demandera (src/lib/precharge-modules.ts).
+  integrations: [preact(), prechargeDesModules()],
   // Les pages sont statiques et légères : la suivante se charge au survol de son lien, et la navigation paraît instantanée.
   prefetch: { prefetchAll: true, defaultStrategy: "hover" },
   // Les guides n'affichent que des formules : ni coloration, ni défilement dans les blocs de code.

@@ -1,6 +1,12 @@
 [
   {
     "date": "2026-11-23",
+    "kind": "ameliore",
+    "title": "Des pages qui s'affichent plus vite",
+    "body": "Juste après chaque mise à jour du site, une page pouvait rester vide plusieurs secondes. Elle s'affiche maintenant dès son arrivée, et ses scripts se chargent tous ensemble."
+  },
+  {
+    "date": "2026-11-23",
     "kind": "corrige",
     "rank": "minor",
     "title": "Les cases du casino lisibles au survol",

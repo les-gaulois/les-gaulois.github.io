@@ -814,7 +814,7 @@ Ma place, sur l'accueil, donne le rang d'un membre, le prochain joueur à dépas
 
 **Les animations ne touchent jamais aux valeurs.** Une barre ne change pas de hauteur au survol, et l'onde d'un clic ne fait que l'éclairer. Les nouvelles jauges (taux de victoire, créneaux, scores du classement) ont une longueur calculée à partir des données.
 
-**Un effet ne peut pas masquer du contenu.** La conquête d'un bloc couvre toutes ses cases, ce que des tests vérifient. Un bloc très haut ou une longue liste apparaît en fondu, et un bloc n'attend jamais plus de 0,4 s avant d'apparaître. Si le script ne se charge pas, les blocs s'affichent seuls au bout de 1,5 s.
+**Un effet ne peut pas masquer du contenu.** La conquête d'un bloc couvre toutes ses cases, ce que des tests vérifient. Un bloc très haut ou une longue liste apparaît en fondu, et un bloc n'attend jamais plus de 0,4 s avant d'apparaître. Les blocs entrent en fondu dès le premier affichage, en 0,4 s, sans attendre le script des effets (classe `fx-entree`, posée en tête de page) : jusqu'au 23 novembre 2026, ils restaient transparents jusqu'à son arrivée, et juste après chaque publication, cache de GitHub Pages vide, les pages paraissaient vides 2 à 4 s. Le script ne masque ensuite que les blocs hors de l'écran, qui entrent en fondu quand on y arrive.
 
 Le code est dans `src/scripts/fx.ts`, et sa logique testable dans `src/lib/fx/territory.ts`. Les composants Preact utilisent `src/lib/fx/motion.ts` pour savoir si les animations sont permises. Le script pèse environ 16 Ko (plus 12 Ko pour le guerrier en relief, sur l'accueil et sur Rejoindre seulement) et la boucle d'animation s'arrête quand l'onglet est masqué.
 

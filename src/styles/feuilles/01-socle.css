@@ -2019,12 +2019,16 @@ main .fx-in,
     --spot 0.35s ease,
     border-color 0.25s ease;
 }
-/* Évite un bloc visible puis masqué au chargement. Sécurité : il s'affiche seul si le script échoue. */
-.fx-wait .stage,
-.fx-wait main .card,
-.fx-wait main .fx-block {
-  opacity: 0;
-  animation: fx-guard 0.2s linear 1.5s forwards;
+/*
+ * Les blocs entrent en fondu dès le premier affichage, sans attendre le script des effets (23 novembre 2026). Avant, ils
+ * restaient transparents jusqu'à son arrivée : juste après chaque publication, quand le cache de GitHub Pages est vide, il
+ * arrive 2 à 4 s après la page, et les pages paraissaient ne pas charger. Le script ne masque ensuite que les blocs hors de
+ * l'écran, qui entreront en fondu à leur tour (`prepareReveal` de fx.ts), puis retire `fx-entree` (`finirLEntree`). Un
+ * bloc `.reveal` ou `.fx-row` (les cartes de la liste des membres sur téléphone) a déjà son entrée, en CSS aussi : la
+ * remplacer la ferait rejouer au retrait de `fx-entree`.
+ */
+.fx-entree :is(.stage, main .card, main .fx-block):not(.fx-hidden, .reveal, .fx-row) {
+  animation: fx-entree 0.4s ease both;
 }
 /* Les animations d'un bloc attendent qu'il entre à l'écran. */
 .fx-hidden .fx-grow,
@@ -2093,9 +2097,9 @@ main .fx-in,
   }
 }
 
-@keyframes fx-guard {
-  to {
-    opacity: 1;
+@keyframes fx-entree {
+  from {
+    opacity: 0;
   }
 }
 @keyframes sweep {
