@@ -253,8 +253,11 @@ function usePupitreDeLaMachine(casino: Casino, crou: CroupierDuJeu, occupe: () =
         setJeton(v);
         SONS.jeton(JETONS.indexOf(v));
         const o = r.current.occupe();
-        if (trop(v)) r.current.crou.refus("Faites vos jeux", "La bourse ne suffit pas");
-        else if (!o.enCours && !o.tourne) r.current.crou.dit(...REPOS);
+        // Pendant un tour, le croupier garde son annonce : le jeton vaut pour le tirage suivant.
+        if (!o.enCours && !o.tourne) {
+          if (trop(v)) r.current.crou.refus("Faites vos jeux", "La bourse ne suffit pas");
+          else r.current.crou.dit(...REPOS);
+        }
         regle();
       },
       annuler: (): void => undefined,
@@ -648,7 +651,7 @@ export default function LaMachine() {
     const NOTE = coup ? undefined : "Rien n'est compté";
     if (res < 0) {
       cr.dit("Pas de trio", coup ? "" : ESSAI);
-      cr.resultat({ signe: "", rendu: 0, mise, note: NOTE });
+      cr.resultat({ signe: "", rendu: gain, mise, note: NOTE });
       e.vis = "Clin";
       e.lueurCible = 0.18;
     } else {

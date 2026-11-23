@@ -521,11 +521,11 @@ export default function LesDes() {
       <div class="des-salle" ref={salle}>
         <section class="des-cote" aria-label="La piste">
           <div
-            class={`des-scene cas-cadre ${pup.total > 0 && !enCours ? "des-pret" : ""}`}
+            class={`des-scene cas-cadre ${pup.total > 0 && !enCours && !pup.ferme ? "des-pret" : ""}`}
             ref={scene}
             onClick={() => {
               // un clic sur la piste lance aussi les dés (le bouton d'or reste le geste du clavier)
-              if (!enCours && pup.total) void lancerLesDes();
+              if (!enCours && !pup.ferme && pup.total) void lancerLesDes();
             }}
           >
             <canvas ref={toile} role="img" aria-label="La piste de velours : le croupier, son cornet de cuir et deux dés d'ivoire" />

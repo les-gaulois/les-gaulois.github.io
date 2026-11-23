@@ -1269,7 +1269,8 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
   (`mouvementDeLaRoue`, testé : elle finit toujours sur ce numéro) ; le tapis en long sur une table large, en hauteur sur une
   table étroite ; « Vos tours » ; les jetons gagnants qui restent un instant, les autres qui s'effacent.
 - **La machine du forgeron** (`Machine.tsx`, `casino-machine.ts`) : la machine de laque et d'or peinte à deux tailles (le
-  forgeron sur son socle à partir de 1 240 pixels de table), sa table des gains peinte et en grand sur le feutre. Le levier
+  forgeron sur son socle à partir de 1 240 pixels de table), sa table des gains peinte et en grand sur le feutre (une seule colonne sous 920 pixels de table, où la grande machine
+  écraserait le pupitre). Le levier
   s'attrape et se tire (il résiste, cède, remonte en ressort), ou un clic, Entrée, Espace ; en bas, la mise part et le serveur
   tire le résultat et les neuf cases (`jouer_machine`), puis les rouleaux tournent et s'arrêtent de gauche à droite, avec un
   rebond, sur ces cases (`bandeDuRouleau`, `posDuRouleau`, testés). Les statères tombent dans le bac, un par dizaine gagnée ;

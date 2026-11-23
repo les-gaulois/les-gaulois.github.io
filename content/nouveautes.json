@@ -3,6 +3,17 @@
     "date": "2026-11-23",
     "kind": "nouveau",
     "rank": "staff",
+    "title": "La machine du forgeron et les dés au casino",
+    "body": "Au casino de Mon Gaulois, encore visible du seul pilote, la machine du forgeron et les dés sont jouables.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-23",
+    "kind": "nouveau",
+    "rank": "staff",
     "title": "Le casino, d'abord pour le pilote",
     "body": "Dans Mon Gaulois, « Le casino » ne paraît d'abord qu'au pilote, pour essayer la roue du charron avec son vrai compte ; les autres jeux y disent « Bientôt ».",
     "link": {

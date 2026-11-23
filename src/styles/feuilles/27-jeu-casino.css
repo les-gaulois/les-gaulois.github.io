@@ -1281,6 +1281,19 @@
   cursor: default;
   transform: none;
 }
+/* Le focus des pièces de la machine et des dés : l’anneau d’or du casino. */
+.casino-jeu .machine-levier:focus-visible,
+.casino-jeu .machine-essai:focus-visible,
+.casino-jeu .des-case:focus-visible {
+  outline: var(--jeu-p) solid var(--jeu-or-focus);
+  outline-offset: var(--jeu-p);
+}
+/* Sous 920 pixels de table, la grande machine (512 pixels) ne laisse plus assez de place au pupitre et à la table des gains : une colonne. */
+@container casino (max-width: 919px) {
+  .casino-jeu .machine-salle {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 @container casino (max-width: 1239px) {
   .casino-jeu .machine-mots {
     flex-direction: column;
