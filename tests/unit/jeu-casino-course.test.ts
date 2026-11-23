@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { OBJETS, POILS } from "../../supabase/functions/code-discord/gaulois";
 import {
+  CHAMPS_DES_PLAQUES,
   ChampDeCourses,
+  ENCRES_DES_PLAQUES,
   DEPART_X,
   FAMILIERS_DE_LA_COURSE,
   TENUES_DE_LA_TRIBUNE,
@@ -10,7 +12,9 @@ import {
   familierQuiCourt,
   fanionDeLaCorde,
   gauloisDeLaTribune,
+  chanceDuCouloir,
   mesuresDeLaScene,
+  motsDuPari,
   nomDuCouloir,
   placeSurLaCorde,
   plaqueDOr,
@@ -121,7 +125,21 @@ describe("les pièces des couloirs", () => {
       expect(couleur(p, 1, 1)).toBe(COULEURS_DES_RARETES[f.rarete as keyof typeof COULEURS_DES_RARETES]);
       expect(p.a(0, 0)).toBe(0);
     }
-    expect(nomDuCouloir(5, "Licorne", "mystique")).toBe("Couloir 6, Licorne, mystique : paie 24 fois la mise, gagne une fois sur 24");
+    expect(motsDuPari(2, 70)).toEqual(["Couloir 3", "70 misés, 420 pour la victoire"]);
+    expect(motsDuPari(5, 200)).toEqual(["Couloir 6", "200 misés, 4 800 pour la victoire"]);
+    expect(nomDuCouloir(5, "Licorne", "mystique")).toBe("Licorne, couloir 6, mystique : paie 24 fois la mise, gagne une fois sur 24");
+    expect(chanceDuCouloir(0)).toBe("une fois sur 3");
+  });
+
+  it("écrivent leurs mots en AA sur l'or des plaques et la bulle crème de l'arrivée, dans les deux thèmes", () => {
+    const lum = (h: string): number => {
+      const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!;
+    };
+    const contraste = (a: string, b: string): number => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+    // La bulle du kit (`pieces.ts`) est crème dans les deux thèmes.
+    for (const fond of [...CHAMPS_DES_PLAQUES, "#fff7dc"]) expect(contraste(ENCRES_DES_PLAQUES.encre, fond), fond).toBeGreaterThanOrEqual(4.5);
+    for (const fond of CHAMPS_DES_PLAQUES) expect(contraste(ENCRES_DES_PLAQUES.douce, fond), fond).toBeGreaterThanOrEqual(4.5);
   });
 
   it("tiennent la scène et la corde dans leur place, en points entiers", () => {

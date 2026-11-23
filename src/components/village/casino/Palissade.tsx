@@ -10,8 +10,11 @@ import {
   SceneDeLaPalissade,
   bourseDesLachers,
   chancesDuRang,
+  chancesEnMots,
+  coupesEnMots,
   dixiemesDe,
   enPhrase,
+  lacherPermis,
   mesurerLaPalissade,
   placesDesLachers,
   type DixiemesDUneCoupe,
@@ -37,8 +40,7 @@ import { Bouton, Mots, Peinture, Pic } from "./Pieces";
  */
 
 const REPOS: [string, string] = ["Lâchez un statère", "Choisissez un jeton, puis lâchez-le"];
-const AIDE_DE_LA_SCENE =
-  "La palissade : huit rangées de pieux à tête d'or au-dessus de neuf coupes. De gauche à droite, elles paient 19 fois la mise, 4 fois, une fois et demie, la moitié, le cinquième, la moitié, une fois et demie, 4 fois, 19 fois.";
+const AIDE_DE_LA_SCENE = `La palissade : huit rangées de pieux à tête d'or au-dessus de neuf coupes. De gauche à droite, elles paient ${coupesEnMots()}.`;
 
 /** La plaque d'un rang : sa pierre, son chiffre (les plaques d'argent et de bois sont peintes par l'écran, `--pal-s-*`). */
 function Gemme({ d, classe = "" }: { d: DixiemesDUneCoupe; classe?: string }) {
@@ -79,6 +81,8 @@ export default function LaPalissade() {
   const etat = useRef({
     attente: false,
     dernierLacher: 0,
+    /** Les heures des lâchers envoyés dans la dernière minute (la cadence du serveur, `lacherPermis`). */
+    heures: [] as number[],
     monte: true,
     actif: false,
     stop: () => undefined as void,
@@ -229,6 +233,10 @@ export default function LaPalissade() {
     const reste = b.dernier && b.enRoute.length ? Math.min(limites.reste ?? Infinity, b.dernier.reste_du_jour) : limites.reste;
     const r = refusDuJeton(0, m, { ...limites, reste });
     if (r) return refus(...motsDuRefus(r, reste ?? undefined));
+    // Pas plus de lâchers par minute que le serveur n'en accepte pour tout le site : rien n'est envoyé, rien n'est pris.
+    b.heures = b.heures.filter((h) => t - h < 60_000);
+    if (!lacherPermis(b.heures, t)) return refus(...motsDuRefus("rate_limited"));
+    b.heures.push(t);
     b.attente = true;
     b.dernierLacher = t;
     let coup: CoupDeLaPalissade;
@@ -249,7 +257,7 @@ export default function LaPalissade() {
     b.dernier = coup;
     b.enVol += m;
     setEnVol(b.enVol);
-    if (!coup.god) annoncerLeSolde(bourseDesLachers(coup, b.enRoute));
+    annoncerLeSolde(bourseDesLachers(coup, b.enRoute));
     if (premier && W < 760) montrer(salle.current);
     if (premier) crou.efface();
     setGagne(false);
@@ -356,8 +364,8 @@ export default function LaPalissade() {
         <ul>
           <li>Choisissez un jeton de 10, 20, 50, 100 ou 200 statères, puis lâchez-le. Vous pouvez en lâcher plusieurs à la suite, tant qu'il n'y a pas plus de 200 statères en train de tomber.</li>
           <li>Huit rangées de pieux : à chaque pieu, le statère part à gauche ou à droite, une chance sur deux.</li>
-          <li>Les neuf coupes paient, mise comprise, de gauche à droite : 19 fois la mise, 4 fois, une fois et demie, la moitié, le cinquième, la moitié, une fois et demie, 4 fois, 19 fois.</li>
-          <li>Sur 256 lâchers, le statère tombe en moyenne 1 fois, 8 fois, 28 fois, 56 fois, 70 fois, 56 fois, 28 fois, 8 fois et 1 fois dans chacune, de gauche à droite.</li>
+          <li>Les neuf coupes paient, mise comprise, de gauche à droite : {coupesEnMots()}.</li>
+          <li>Sur 256 lâchers, le statère tombe en moyenne {chancesEnMots()} dans chacune, de gauche à droite.</li>
           <li>La palissade rend en moyenne exactement la mise : elle ne crée aucun statère.</li>
           <li>Le chemin est tiré avant la chute : l'animation ne change jamais le résultat.</li>
         </ul>

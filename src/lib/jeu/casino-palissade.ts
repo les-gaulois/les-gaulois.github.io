@@ -844,10 +844,36 @@ export interface CoupALaBourse {
 }
 /**
  * La bourse que montre la barre pendant que des statères tombent : le solde du dernier coup du serveur (les mises de tous
- * les lâchers déjà prises, leurs gains déjà comptés), moins ce que rendent les statères pas encore arrivés dans leur coupe.
- * Ainsi la barre ne montre jamais un gain avant sa coupe. En essai GOD, rien n'est pris ni rendu : le solde ne bouge pas.
+ * les lâchers déjà prises, leurs gains déjà comptés), moins ce que rendent les vrais statères pas encore arrivés dans leur
+ * coupe. Ainsi la barre ne montre jamais un gain avant sa coupe. Un essai GOD ne prend ni ne rend rien : il ne compte pas,
+ * même mêlé à de vrais lâchers (le mode allumé ou éteint pendant que des statères tombent).
  */
-export function bourseDesLachers(dernier: CoupALaBourse, enRoute: readonly { rendu: number }[]): number {
-  if (dernier.god) return dernier.solde_apres;
-  return dernier.solde_apres - enRoute.reduce((a, c) => a + c.rendu, 0);
+export function bourseDesLachers(dernier: Pick<CoupALaBourse, "solde_apres">, enRoute: readonly Pick<CoupALaBourse, "rendu" | "god">[]): number {
+  return dernier.solde_apres - enRoute.reduce((a, c) => a + (c.god ? 0 : c.rendu), 0);
+}
+
+/* ---------- La cadence des lâchers ---------- */
+
+/**
+ * Les lâchers permis par minute. Le serveur compte toutes les actions d'un compte sur le site, 30 par minute au plus
+ * (`internal.limit_exceeded`) : la palissade en garde 5 pour le reste (la boutique, le marché…). Une chute dure environ
+ * 3,5 secondes ; sans cette limite, des jetons lâchés à la suite épuiseraient la minute de tout le site.
+ */
+export const LACHERS_PAR_MINUTE = 25;
+/** Un lâcher est-il permis à l'instant `maintenant` (ms), d'après les heures des lâchers déjà envoyés ? */
+export function lacherPermis(heures: readonly number[], maintenant: number): boolean {
+  return heures.filter((h) => maintenant - h < 60_000).length < LACHERS_PAR_MINUTE;
+}
+
+/* ---------- Les règles en mots, d'après celles du serveur ---------- */
+
+const FOIS_EN_MOTS: Readonly<Record<DixiemesDUneCoupe, string>> = { 190: "19 fois", 40: "4 fois", 15: "une fois et demie", 5: "la moitié", 2: "le cinquième" };
+/** Ce que paient les neuf coupes, de gauche à droite : « 19 fois la mise, 4 fois, une fois et demie, … ». */
+export function coupesEnMots(): string {
+  return DIXIEMES_DES_COUPES.map((d, k) => FOIS_EN_MOTS[d as DixiemesDUneCoupe] + (k === 0 ? " la mise" : "")).join(", ");
+}
+/** Combien de fois le statère tombe dans chaque coupe sur 256 lâchers : « 1 fois, 8 fois, … et 1 fois ». */
+export function chancesEnMots(): string {
+  const m = CHANCES_DES_COUPES.map((c) => `${c} fois`);
+  return `${m.slice(0, -1).join(", ")} et ${m[m.length - 1]}`;
 }

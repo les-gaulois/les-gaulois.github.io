@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { casino as appels } from "../../../lib/compte/api";
-import { ChampDeCourses, H, TONS_DES_COULOIRS, dossard, fanionDeLaCorde, filDeLaCorde, mesuresDeLaScene, nomDuCouloir, placeSurLaCorde, plaqueDOr, portraitDuFamilier, type FamilierQuiCourt } from "../../../lib/jeu/casino-course";
+import { ChampDeCourses, ENCRES_DES_PLAQUES, H, TONS_DES_COULOIRS, motsDuPari, dossard, fanionDeLaCorde, filDeLaCorde, mesuresDeLaScene, chanceDuCouloir, detailDuCouloir, placeSurLaCorde, plaqueDOr, portraitDuFamilier, type FamilierQuiCourt } from "../../../lib/jeu/casino-course";
 import { SONS, cor } from "../../../lib/jeu/casino-sons";
 import { poseToile } from "../../../lib/jeu/casino-toile";
 import { nombreEcrit } from "../../../lib/jeu/ecriture";
 import { SON_CHANGE, sonVoulu } from "../../../lib/jeu/sons";
-import { COULOIRS } from "../../../lib/village/casino/course";
+import { COULOIRS, TOTAL_DES_PARTS } from "../../../lib/village/casino/course";
 import type { CoupDeLaCourse } from "../../../lib/village/contrat-casino";
 import { Etiquette } from "../../jeu/Pixels";
 import { anime, montrer, sansMouvement, useJour, useLargeurDuJeu } from "./commun";
@@ -72,7 +72,8 @@ export default function LaCourse() {
   const gestes = useRef<{ arrivee: () => void; commente: (titre: string, sous: string) => void }>({ arrivee: () => undefined, commente: () => undefined });
   const champ = useRef<ChampDeCourses | null>(null);
   champ.current ??= new ChampDeCourses(FABRIQUE_DE_LA_PAGE, { arrivee: () => gestes.current.arrivee(), commente: (t, s) => gestes.current.commente(t, s) }, { sansMouvement });
-  const etat = useRef({ attente: false, fondu: false, departVoulu: false, monte: true, voie: -1, enRoute: false, avant: 0, repos: 0, stop: () => undefined as void });
+  const etat = useRef({ total: 0, attente: false, fondu: false, departVoulu: false, monte: true, voie: -1, enRoute: false, avant: 0, repos: 0, stop: () => undefined as void });
+  etat.current.total = pup.total;
   const enCours = useRef<{ coup: CoupDeLaCourse; mises: Mises; total: number } | null>(null);
 
   const dessiner = (): void => {
@@ -161,7 +162,8 @@ export default function LaCourse() {
       dessiner();
       lancerLaBoucle();
       const v = etat.current.voie;
-      if (!premiere && v >= 0) crou.dit(`Couloir ${v + 1}`, `${nombreEcrit(pup.total)} misés, ${nombreEcrit(pup.total * (COULOIRS[v]?.fois ?? 0))} pour la victoire`);
+      // Le total du moment : des jetons ont pu tomber pendant le fondu.
+      if (!premiere && v >= 0) crou.dit(...motsDuPari(v, etat.current.total));
       if (etat.current.departVoulu) {
         etat.current.departVoulu = false;
         void depart();
@@ -194,6 +196,8 @@ export default function LaCourse() {
   useLayoutEffect(() => {
     const el = racine.current;
     if (!el) return;
+    el.style.setProperty("--course-encre", ENCRES_DES_PLAQUES.encre);
+    el.style.setProperty("--course-encre-douce", ENCRES_DES_PLAQUES.douce);
     el.style.setProperty("--course-plaque", urlDeLaToile(plaqueDOr(0)));
     el.style.setProperty("--course-plaque-s", urlDeLaToile(plaqueDOr(1)));
     el.style.setProperty("--course-plaque-m", urlDeLaToile(plaqueDOr(2)));
@@ -250,7 +254,7 @@ export default function LaCourse() {
     etat.current.voie = v;
     ch.voie = v;
     setVoie(v);
-    if (v >= 0 && !etat.current.fondu) crou.dit(`Couloir ${v + 1}`, `${nombreEcrit(pup.total)} misés, ${nombreEcrit(pup.total * (COULOIRS[v]?.fois ?? 0))} pour la victoire`);
+    if (v >= 0 && !etat.current.fondu) crou.dit(...motsDuPari(v, pup.total));
     else if (v < 0) crou.dit(...REPOS);
     majDeLaCorde();
     dessiner();
@@ -419,7 +423,6 @@ export default function LaCourse() {
                   class={`course-plaque jeu-n9 cas-halo ${sorti ? "cas-sorti" : ""}`}
                   type="button"
                   aria-pressed={voie === v}
-                  aria-label={(f ? nomDuCouloir(v, f.nom, f.rarete) : `Couloir ${v + 1} : paie ${r.fois} fois la mise`) + (s.montant ? `. Misé : ${s.montant} statères.` : "")}
                   title={f ? `${f.nom} : paie ${r.fois} fois la mise, mise comprise` : undefined}
                   onClick={() => surPlaque(v)}
                   onPointerMove={pencher}
@@ -433,15 +436,14 @@ export default function LaCourse() {
                     <Peinture toile={portraits[v] ?? null} />
                   </span>
                   <span class="course-texte">
-                    <span class="course-nom" aria-hidden="true">
-                      {f?.nom ?? ""}
-                    </span>
+                    {/* Le nom lu vient de ce que la plaque écrit, complété pour les lecteurs d'écran (`nomDuCouloir`). */}
+                    <span class="course-nom">{f?.nom ?? ""}</span>
+                    <span class="sr-only">{f ? `, ${detailDuCouloir(v, f.rarete)} ` : `${detailDuCouloir(v, null)} `}</span>
                     <span class="course-fois">
                       <Mots t={`${r.fois} fois`} couleur="encre" muet />
                     </span>
-                    <span class="course-chance" aria-hidden="true">
-                      une fois sur {r.fois}
-                    </span>
+                    <span class="course-chance">{chanceDuCouloir(v)}</span>
+                    {s.montant ? <span class="sr-only">{`. Misé : ${s.montant} statères.`}</span> : null}
                   </span>
                   {s.montant ? <JetonPose montant={s.montant} nouveau={s.nouveau} part={s.part} /> : null}
                 </button>
@@ -462,12 +464,11 @@ export default function LaCourse() {
         </summary>
         <ul>
           <li>Six familiers courent. Un pari par course : vos jetons sur un seul couloir.</li>
-          <li>Couloir 1 : paie 3 fois la mise, gagne une fois sur 3.</li>
-          <li>Couloir 2 : paie 4 fois la mise, gagne une fois sur 4.</li>
-          <li>Couloir 3 : paie 6 fois la mise, gagne une fois sur 6.</li>
-          <li>Couloir 4 : paie 8 fois la mise, gagne une fois sur 8.</li>
-          <li>Couloir 5 : paie 12 fois la mise, gagne une fois sur 12.</li>
-          <li>Couloir 6 : paie 24 fois la mise, gagne une fois sur 24.</li>
+          {COULOIRS.map((r, v) => (
+            <li key={v}>
+              Couloir {v + 1} : paie {r.fois} fois la mise, gagne une fois sur {TOTAL_DES_PARTS / r.parts}.
+            </li>
+          ))}
           <li>Les gains comptent la mise. Seul le premier compte : les autres places ne paient pas.</li>
           <li>La rareté d'un familier ne change rien à ses chances : seul son couloir compte.</li>
           <li>200 statères au plus sur la table. Jetons de 10, 20, 50, 100 et 200.</li>

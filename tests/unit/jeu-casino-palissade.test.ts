@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  LACHERS_PAR_MINUTE,
   ORDRE_DES_RANGS,
   RANGS_DES_COUPES,
   SceneDeLaPalissade,
   avancerLaChute,
   bourseDesLachers,
   chancesDuRang,
+  chancesEnMots,
+  coupesEnMots,
+  lacherPermis,
   dansVelours,
   ecrireLaChute,
   etiquetteDeGain,
@@ -207,6 +211,29 @@ describe("la scène", () => {
   });
 });
 
+describe("la cadence et les règles en mots", () => {
+  it("ne lâche pas plus vite que le serveur ne l'accepte pour tout le site", () => {
+    expect(LACHERS_PAR_MINUTE).toBeLessThan(30);
+    const heures: number[] = [];
+    let t = 0;
+    let permis = 0;
+    // Un lâcher toutes les 300 ms pendant deux minutes : jamais plus de 25 dans une même minute.
+    for (; t < 120_000; t += 300)
+      if (lacherPermis(heures, t)) {
+        heures.push(t);
+        permis++;
+        expect(heures.filter((h) => t - h < 60_000).length).toBeLessThanOrEqual(LACHERS_PAR_MINUTE);
+      }
+    expect(permis).toBe(2 * LACHERS_PAR_MINUTE);
+    for (let m = 0; m < 2; m++) expect(heures.filter((h) => h >= m * 60_000 && h < (m + 1) * 60_000).length).toBeLessThanOrEqual(LACHERS_PAR_MINUTE);
+  });
+
+  it("disent les coupes et leurs chances comme la maquette, d'après les règles du serveur", () => {
+    expect(coupesEnMots()).toBe("19 fois la mise, 4 fois, une fois et demie, la moitié, le cinquième, la moitié, une fois et demie, 4 fois, 19 fois");
+    expect(chancesEnMots()).toBe("1 fois, 8 fois, 28 fois, 56 fois, 70 fois, 56 fois, 28 fois, 8 fois et 1 fois");
+  });
+});
+
 describe("la bourse pendant les chutes", () => {
   it("ne montre jamais un gain avant sa coupe, et finit sur le solde du serveur", () => {
     // Le serveur : 1 000 statères ; A mise 10 et rend 2 ; B mise 50 et rend 200.
@@ -217,6 +244,15 @@ describe("la bourse pendant les chutes", () => {
     expect(bourseDesLachers(B, [B])).toBe(942);
     expect(bourseDesLachers(B, [])).toBe(1142);
     // En essai GOD, rien n'est pris ni rendu.
-    expect(bourseDesLachers({ rendu: 200, god: true, solde_apres: 1000 }, [{ rendu: 200 }])).toBe(1000);
+    const E = { rendu: 200, god: true, solde_apres: 1000 };
+    expect(bourseDesLachers(E, [E])).toBe(1000);
+    // Le mode GOD allumé pendant qu'un vrai statère tombe : son gain ne paraît toujours pas avant sa coupe.
+    const V = { rendu: 380, god: false, solde_apres: 1180 };
+    const E2 = { rendu: 40, god: true, solde_apres: 1180 };
+    expect(bourseDesLachers(E2, [V, E2])).toBe(800);
+    expect(bourseDesLachers(E2, [E2])).toBe(1180);
+    // Éteint pendant qu'un essai tombe : la mise du vrai lâcher est prise, l'essai ne compte pas.
+    const V2 = { rendu: 5, god: false, solde_apres: 995 };
+    expect(bourseDesLachers(V2, [E, V2])).toBe(990);
   });
 });

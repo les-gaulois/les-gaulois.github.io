@@ -1608,6 +1608,7 @@
     "croupier pupitre";
   gap: 14px 24px;
   align-items: center;
+  overflow-x: clip;
 }
 .casino-jeu .course-salle > * {
   min-width: 0;
@@ -1683,8 +1684,8 @@
   align-items: center;
   gap: 10px;
   padding: 0 6px;
-  /* La bulle du kit reste crème dans les deux thèmes : l'encre de la maquette s'y lit toujours. */
-  color: #2a1a05;
+  /* La bulle du kit reste crème dans les deux thèmes : l'encre des plaques s'y lit toujours. */
+  color: var(--course-encre);
   font-size: 13px;
   line-height: 1.25;
   max-width: min(92%, 420px);
@@ -1758,7 +1759,7 @@
   min-width: 0;
   padding: 2px 0 0;
   text-align: center;
-  color: #2a1a05;
+  color: var(--course-encre);
   cursor: pointer;
   transform: translateY(calc(var(--ty, 0) * 1px)) rotateX(calc(var(--rx, 0) * 1deg)) rotateY(calc(var(--ry, 0) * 1deg));
   transition:
@@ -1825,7 +1826,7 @@
 .casino-jeu .course-chance {
   font-size: 11px;
   line-height: 1.2;
-  color: #4a2f06;
+  color: var(--course-encre-douce);
   font-weight: 600;
 }
 .casino-jeu .course-plaque > .cas-mise {
@@ -1877,6 +1878,24 @@
     padding-top: 14px;
   }
 }
+@container casino (max-width: 47.99rem) {
+  .casino-jeu .course-annonce {
+    top: 14px;
+  }
+  .casino-jeu .course-carton {
+    font-size: 12px;
+  }
+  .casino-jeu .course-nom {
+    font-size: 11px;
+    letter-spacing: -0.35px;
+  }
+  .casino-jeu .course-chance {
+    font-size: 10.5px;
+  }
+  .casino-jeu .course-dossard {
+    left: -8px;
+  }
+}
 @container casino (max-width: 499px) {
   .casino-jeu .course-plaques {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1900,24 +1919,6 @@
     padding: 10px 8px;
   }
 }
-@container casino (max-width: 47.99rem) {
-  .casino-jeu .course-annonce {
-    top: 14px;
-  }
-  .casino-jeu .course-carton {
-    font-size: 12px;
-  }
-  .casino-jeu .course-nom {
-    font-size: 11px;
-    letter-spacing: -0.35px;
-  }
-  .casino-jeu .course-chance {
-    font-size: 10.5px;
-  }
-  .casino-jeu .course-dossard {
-    left: -8px;
-  }
-}
 
 /* ---------- La palissade ---------- */
 
@@ -1931,6 +1932,7 @@
     "cote coupes";
   gap: 14px 32px;
   align-items: start;
+  overflow-x: clip;
 }
 .casino-jeu .pal-cote {
   grid-area: cote;

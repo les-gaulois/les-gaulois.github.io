@@ -12,11 +12,13 @@
 import { FAMILIER_LARGEUR, casesDuFamilier } from "../../../supabase/functions/code-discord/familiers/familier";
 import { familierDe } from "../../../supabase/functions/code-discord/familiers/index";
 import { GAULOIS_LARGEUR, TENUE_DE_DEPART, casesDuGaulois, type Tenue } from "../gaulois";
-import { COULOIRS, avancee, ecrireLaCourse, heureDArrivee, type Coureur } from "../village/casino/course";
+import { COULOIRS, TOTAL_DES_PARTS, avancee, ecrireLaCourse, heureDArrivee, type Coureur } from "../village/casino/course";
 import { SONS, peau, souffle, timbale, type Roulement } from "./casino-sons";
 import type { FabriqueDImages, ImageDeLaScene, Pinceau, SurfaceDeLaScene } from "./casino-scene";
 import { AMBRE, BAYER, BORDEAUX, EMERAUDE, ENCRE, IVOIRE, JOUR, NOIR, OR, RUBIS, SAPHIR, Toile, borne, cadreOr, ecrisSur, hex, hexDe, largeurDuTexte, pair, toileDesCases, ton, type Rampe, type Rvb } from "./casino-toile";
 import { COULEURS_DES_RARETES } from "./icones-de-rarete";
+import { MATIERES_DU_PALAIS } from "./casino-pieces";
+import { nombreEcrit } from "./ecriture";
 
 /* ---------- La géométrie de la scène, en points ---------- */
 
@@ -308,11 +310,19 @@ export function plaqueDuDepart(): Toile {
   ecrisSur(T, t, 5, 4, ton(OR, 6));
   return T;
 }
+/**
+ * Les encres sur l'or des plaques et sur la bulle de l'arrivée (crème) : les mêmes dans les deux thèmes, comme l'or et la
+ * bulle. L'encre est le trait du palais de jour ; la douce, celle des chances (maquette). Contraste AA testé.
+ */
+export const ENCRES_DES_PLAQUES = { encre: MATIERES_DU_PALAIS.clair.trait, douce: "#4a2f06" } as const;
+/** Le champ d'or d'une plaque : au repos, survolée, misée. */
+export const CHAMPS_DES_PLAQUES: readonly [string, string, string] = ["#d7a41e", "#ecbb30", hexDe(ton(OR, 6))];
+
 /** La plaque d'or d'un couloir, en neuf parts (6, 6, 8, 6) : biseau clair, filet gravé, quatre rivets, une tranche. `etat` : 0 repos, 1 survol, 2 misée. */
 export function plaqueDOr(etat: 0 | 1 | 2): Toile {
   const n = 24;
   const T = new Toile(n, n + 2);
-  const champ = etat === 2 ? ton(OR, 6) : etat === 1 ? hex("#ecbb30") : hex("#d7a41e");
+  const champ = hex(CHAMPS_DES_PLAQUES[etat]);
   T.f(0, 0, n, n, (x, y) => {
     const m = Math.min(x, y, n - 1 - x, n - 1 - y);
     const hg = x + y < n - 1;
@@ -389,11 +399,24 @@ export const placeSurLaCorde = (part: number, large: number): number => Math.rou
 
 /* ---------- Ce qui se dit ---------- */
 
-/** Ce que dit un couloir aux lecteurs d'écran : son numéro, son familier, sa rareté, sa cote. */
-export function nomDuCouloir(v: number, nom: string, rarete: string): string {
-  const r = COULOIRS[v];
+/** Ce que dit le croupier d'un pari posé : le couloir, la mise, ce que rapporterait la victoire (mise comprise). */
+export function motsDuPari(v: number, total: number): [string, string] {
+  return [`Couloir ${v + 1}`, `${nombreEcrit(total)} misés, ${nombreEcrit(total * (COULOIRS[v]?.fois ?? 0))} pour la victoire`];
+}
+
+/** Les chances d'un couloir, celles que la plaque écrit : « une fois sur 6 ». */
+export const chanceDuCouloir = (v: number): string => `une fois sur ${COULOIRS[v] ? TOTAL_DES_PARTS / COULOIRS[v].parts : 0}`;
+/** Ce qu'un lecteur d'écran entend de plus que ce que la plaque écrit : le couloir, la rareté du familier, ce qu'il paie. */
+export function detailDuCouloir(v: number, rarete: string | null): string {
   const mots: Readonly<Record<string, string>> = { commun: "commun", "peu-commun": "peu commun", epique: "épique", mystique: "mystique", legendaire: "légendaire" };
-  return `Couloir ${v + 1}, ${nom}, ${mots[rarete] ?? ""} : paie ${r?.fois ?? 0} fois la mise, gagne une fois sur ${r?.fois ?? 0}`;
+  return `couloir ${v + 1}${rarete ? `, ${mots[rarete] ?? ""}` : ""} : paie ${COULOIRS[v]?.fois ?? 0} fois la mise, gagne`;
+}
+/**
+ * Ce que dit une plaque aux lecteurs d'écran, tiré de son contenu : le familier et ses chances écrits sur la plaque, avec,
+ * entre les deux, le couloir, la rareté et ce qu'il paie. Le nom lu contient ainsi tout ce qui est écrit (WCAG 2.5.3).
+ */
+export function nomDuCouloir(v: number, nom: string, rarete: string): string {
+  return `${nom}, ${detailDuCouloir(v, rarete)} ${chanceDuCouloir(v)}`;
 }
 
 /* ---------- Le champ de courses ---------- */

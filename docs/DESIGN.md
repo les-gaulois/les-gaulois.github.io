@@ -1314,7 +1314,7 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
 | `src/lib/jeu/casino-scene.ts` | Ce qu'une scène animée demande à la page (images, surfaces, pinceau) ; la page le donne par `casino/images.ts` |
 | `src/lib/jeu/casino-sons.ts` | Les sons du casino |
 | `src/lib/village/ecran-casino.ts` | Les jeux du hall, la lecture de `get_casino`, les résumés, les mots des refus, le niveau d'un tour, le pupitre |
-| `src/components/village/casino/` | `LeCasino.tsx` (la salle ; les jeux dans `JEUX_OUVERTS`), `Hall.tsx`, `Roue.tsx`, et le commun : `contexte.ts` (`useCasino`), `Pupitre.tsx`, `Croupier.tsx`, `Pieces.tsx`, `commun.ts`, `serveur.ts` et `acces.ts` (la lecture de `get_casino` pour le menu). Les coups passent par `casino.*` de `src/lib/compte/api.ts` ; les règles (numéros rouges, ordre de la roue, paris) viennent de `src/lib/village/casino/` |
+| `src/components/village/casino/` | `LeCasino.tsx` (la salle ; les jeux dans `JEUX_OUVERTS`), `Hall.tsx`, les jeux (`Roue.tsx`, `Machine.tsx`, `Des.tsx`, `Course.tsx`, `Palissade.tsx`, avec `images.ts` pour les images de leurs scènes), et le commun : `contexte.ts` (`useCasino`), `Pupitre.tsx`, `Croupier.tsx`, `Pieces.tsx`, `commun.ts`, `serveur.ts` et `acces.ts` (la lecture de `get_casino` pour le menu). Les coups passent par `casino.*` de `src/lib/compte/api.ts` ; les règles (numéros rouges, ordre de la roue, paris) viennent de `src/lib/village/casino/` |
 | `src/styles/feuilles/27-jeu-casino.css` | Tout sous `.casino-jeu`, classes `cas-…` (commun et hall) et `<jeu>-…` |
 
 **Ajouter un jeu** : un composant dans `src/components/village/casino/` (racine `cas-jeu <jeu>-jeu`, `useCasino`,
