@@ -1160,7 +1160,9 @@ dessinés autour par Claude Fable 5.2 (icônes de `dessins-ecran.ts`). Les règl
   l'historique de ceux qui t'ont battu et de ceux que tu as repoussés. Au téléphone, deux boutons dans l'en-tête montrent
   l'une ou l'autre. Une défense enregistrée, ici ou sur un autre appareil, devient aussi la main de jeu (boss,
   entraînement, salles), gardée sur l'appareil (`gal-duel-main`) ; une carte changée dans l'arène ne change qu'elle
-  (24 novembre 2026, `choisirLaMainDeJeu` d'`ecran-duel.ts`).
+  (24 novembre 2026, `choisirLaMainDeJeu` d'`ecran-duel.ts`). Quand « Enregistrer » est grisé, la carte qui n'est plus
+  dans la garde-robe est cerclée de rouge (une ombre : le contour reste au focus), « Plus à toi » dessous si la carte est
+  assez large, et la raison s'écrit en clair sous le bouton (`phraseDuRefus`).
 - **Le badge « carte de duel »** sous un objet sorti du booster surprise : retiré le 22 novembre 2026, la grande carte de la fin du booster porte ses effets (« Les cartes des cosmétiques »).
 
 

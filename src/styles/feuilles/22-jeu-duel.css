@@ -16,6 +16,7 @@
   --dl-filet: rgb(10 18 48 / 0.35);
   --dl-ombre: rgb(10 18 48 / 0.28);
   --dl-page: var(--color-navy);
+  --dl-alerte: #c2182b;
   position: relative;
   color: var(--dl-texte);
   font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -28,6 +29,7 @@
   --dl-trait: #040716;
   --dl-filet: rgb(170 182 232 / 0.4);
   --dl-ombre: rgb(2 4 14 / 0.5);
+  --dl-alerte: #ff8a8f;
 }
 .duel-jeu *,
 .duel-jeu *::before,
@@ -324,11 +326,8 @@
   font-weight: 650;
 }
 .dl-f-alerte {
-  color: #c2182b;
+  color: var(--dl-alerte);
   font-weight: 600;
-}
-:root[data-mode="sombre"] .dl-f-alerte {
-  color: #ff8a8f;
 }
 .dl-f-panoplie {
   padding-top: 5px;
@@ -1050,6 +1049,27 @@
 }
 .dl-enregistrer {
   margin-left: auto;
+}
+/*
+ * Ce qui empêche d'enregistrer (24 novembre 2026) : la carte qui n'est plus dans la garde-robe, cerclée de rouge par une
+ * ombre (le contour reste au focus du clavier), « Plus à toi » dessous quand la carte est assez large pour le mot (102 px),
+ * et la raison en clair sous le bouton.
+ */
+.dl-defense-place {
+  container-type: inline-size;
+}
+.dl-defense-manque {
+  box-shadow: 0 0 0 3px var(--dl-alerte);
+}
+.dl-defense-alerte {
+  color: var(--dl-alerte);
+  font-size: 15px;
+  font-weight: 600;
+}
+@container (max-width: 105px) {
+  .dl-defense-manque-mot {
+    display: none;
+  }
 }
 .dl-historique-liste {
   display: grid;

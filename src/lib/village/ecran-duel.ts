@@ -155,6 +155,23 @@ export function refusDeLaMain(main: readonly string[], catalogue: Catalogue, aMo
   return null;
 }
 
+/**
+ * Ce qui empêche d'enregistrer une main, dit en clair à côté du bouton grisé (24 novembre 2026 : la raison, en petit et
+ * sans la carte en cause, passait inaperçue). `manquantes` : les noms des cartes qui ne sont plus dans la garde-robe.
+ */
+export function phraseDuRefus(refus: RefusDeLaMain, manquantes: readonly string[], pris: number, bourse: number): string {
+  if (refus === "bourse") return `Cette main coûte ${pris} points pour une bourse de ${bourse} : change une carte pour l'enregistrer.`;
+  if (refus === "pas-a-moi" && manquantes.length > 0) {
+    const noms = manquantes.map((n) => `« ${n} »`);
+    const liste = noms.length === 1 ? noms[0]! : `${noms.slice(0, -1).join(", ")} et ${noms[noms.length - 1]!}`;
+    return noms.length === 1
+      ? `${liste} n'est plus dans ta garde-robe : touche cette carte pour la changer, puis enregistre.`
+      : `${liste} ne sont plus dans ta garde-robe : touche ces cartes pour les changer, puis enregistre.`;
+  }
+  if (refus === "pas-a-moi") return "Une de ces cartes n'est plus dans ta garde-robe : change-la, puis enregistre.";
+  return "Une carte n'est pas à sa place : change-la, puis enregistre.";
+}
+
 /** La marque d'une main, pour savoir si la défense a changé depuis la dernière fois que l'appareil l'a vue. */
 export const marqueDeLaMain = (main: readonly string[]): string => main.join("|");
 

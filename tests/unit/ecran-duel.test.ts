@@ -14,6 +14,7 @@ import {
   lireLEtatDuServeur,
   mainParDefaut,
   marqueDeLaMain,
+  phraseDuRefus,
   ouTrouver,
   refusDeLaMain,
   resteDeLaBourse,
@@ -192,5 +193,18 @@ describe("la main de jeu du duel", () => {
     expect(choisirLaMainDeJeu({ ...base, actuelle: ANCIENNE, gardee: ANCIENNE, defense: vendue, defenseVue: null })).toBeNull();
     expect(choisirLaMainDeJeu({ ...base, actuelle: null, gardee: vendue, defense: NEUVE, defenseVue: marqueDeLaMain(NEUVE) })).toEqual({ main: NEUVE, adoptee: false });
     expect(choisirLaMainDeJeu({ ...base, actuelle: null, gardee: null, defense: null, defenseVue: null })).toEqual({ main: DEFAUT, adoptee: false });
+  });
+});
+
+describe("la raison d'un refus d'enregistrer", () => {
+  it("nomme la carte qui n'est plus dans la garde-robe, ou les cartes", () => {
+    expect(phraseDuRefus("pas-a-moi", ["Fronde"], 1, 12)).toBe("« Fronde » n'est plus dans ta garde-robe : touche cette carte pour la changer, puis enregistre.");
+    expect(phraseDuRefus("pas-a-moi", ["Fronde", "Casque", "Cape"], 3, 12)).toBe("« Fronde », « Casque » et « Cape » ne sont plus dans ta garde-robe : touche ces cartes pour les changer, puis enregistre.");
+    expect(phraseDuRefus("pas-a-moi", [], 1, 12)).toBe("Une de ces cartes n'est plus dans ta garde-robe : change-la, puis enregistre.");
+  });
+
+  it("dit le prix de la main quand elle dépasse la bourse", () => {
+    expect(phraseDuRefus("bourse", [], 14, 12)).toBe("Cette main coûte 14 points pour une bourse de 12 : change une carte pour l'enregistrer.");
+    expect(phraseDuRefus("emplacement", [], 0, 12)).toBe("Une carte n'est pas à sa place : change-la, puis enregistre.");
   });
 });

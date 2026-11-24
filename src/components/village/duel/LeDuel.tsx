@@ -20,6 +20,7 @@ import {
   NIVEAUX_AVEC_ARTICLE,
   lireLEtatDuServeur,
   marqueDeLaMain,
+  phraseDuRefus,
   type PartieEnCours,
   mainParDefaut,
   nomDeLObjet,
@@ -827,6 +828,9 @@ function MainDeDefense({
   const garde = m.P.BOURSE - pris;
   const vie = m.vieDeLaMain(cartes, opts);
   const refus = refusDeLaMain(main, m.catalogue, aMoi, m.prix, m.P.BOURSE);
+  // Les cartes qui ne sont plus dans la garde-robe : marquées sur la main, et nommées à côté du bouton.
+  const manque = (id: string): boolean => refus === "pas-a-moi" && !aMoi.has(id);
+  const manquantes = main.flatMap((id, i) => (manque(id) ? [nomDeLObjet(EMPLACEMENTS_DE_LA_MAIN[i]!, id)] : []));
   const tenue = main.reduce((t, id, i) => changerObjet(t, EMPLACEMENTS_DE_LA_MAIN[i]!, id), gaulois.tenue);
   const decor = useMemo(() => {
     const v = gaulois.banniere && lib ? lib.vignetteDeLaBanniere(gaulois.banniere) : null;
@@ -904,14 +908,15 @@ function MainDeDefense({
           <div class="dl-defense-cartes" role="group" aria-label="Les cinq cartes de ta défense">
             {main.map((id, i) => {
               const e = EMPLACEMENTS_DE_LA_MAIN[i]!;
+              const partie = manque(id);
               return (
                 <div key={e} class="dl-defense-place">
                   <Px t={NOMS_DES_EMPLACEMENTS[e]} couleur="texte" muet />
                   <button
                     type="button"
-                    class="dl-defense-carte"
+                    class={`dl-defense-carte ${partie ? "dl-defense-manque" : ""}`}
                     data-testid={`duel-defense-${e}`}
-                    aria-label={`${NOMS_DES_EMPLACEMENTS[e].charAt(0)}${NOMS_DES_EMPLACEMENTS[e].slice(1).toLowerCase()} : ${nomDeLObjet(e, id)}. Changer cette carte`}
+                    aria-label={`${NOMS_DES_EMPLACEMENTS[e].charAt(0)}${NOMS_DES_EMPLACEMENTS[e].slice(1).toLowerCase()} : ${nomDeLObjet(e, id)}${partie ? ", plus dans ta garde-robe" : ""}. Changer cette carte`}
                     onClick={() => {
                       SON.clic();
                       setTiroir(i);
@@ -919,6 +924,11 @@ function MainDeDefense({
                   >
                     <PetiteCarte m={m} id={id} classe="dl-grande-petite" />
                   </button>
+                  {partie && (
+                    <span class="dl-defense-manque-mot" aria-hidden="true">
+                      <Mot t="Plus à toi" {...ROUGE} />
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -936,12 +946,10 @@ function MainDeDefense({
               <Px t={envoi.kind === "envoi" ? "Envoi…" : "Enregistrer"} couleur="encre" />
             </button>
           </div>
-          <p class="dl-p-mot" role="status">
+          <p class={`dl-p-mot ${refus || envoi.kind === "erreur" ? "dl-defense-alerte" : ""}`} role="status" data-testid="duel-defense-statut">
             {envoi.kind === "fait" && "Ta main de défense est enregistrée."}
             {envoi.kind === "erreur" && (serveur ? envoi.message : "Le serveur n'a pas encore le duel : ta main de défense ne peut pas encore s'enregistrer.")}
-            {refus === "bourse" && "Cette main dépasse la bourse."}
-            {refus === "pas-a-moi" && "Une de ces cartes n'est plus dans ta garde-robe : change-la."}
-            {refus === "emplacement" && "Une carte n'est pas à sa place : change-la."}
+            {refus && phraseDuRefus(refus, manquantes, pris, m.P.BOURSE)}
           </p>
         </div>
       </div>

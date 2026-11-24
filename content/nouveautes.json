@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-24",
+    "kind": "ameliore",
+    "rank": "minor",
+    "title": "La défense dit ce qui bloque",
+    "body": "Quand « Enregistrer » est grisé, la carte qui n'est plus dans ta garde-robe est cerclée de rouge et la raison s'écrit en clair sous le bouton.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-24",
     "kind": "corrige",
     "rank": "minor",
     "title": "Le casino ne se fige plus",
