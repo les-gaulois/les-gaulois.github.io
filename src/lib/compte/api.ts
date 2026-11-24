@@ -265,6 +265,30 @@ export const salles = {
   quitter: (match: number | null = null): Promise<EtatDesSalles> => call<EtatDesSalles>("quitter_salle_duel", { p_match: match }),
 };
 
+/** Ce qu'un coup du casino attend au plus la réponse du serveur, en millisecondes. */
+export const DELAI_DU_CASINO = 20_000;
+/**
+ * Un appel du casino sans réponse au bout de `DELAI_DU_CASINO` devient un refus `delai` : un jeu ne reste jamais suspendu
+ * à une réponse qui ne vient pas (réseau coupé, session bloquée), il rouvre ses boutons et le dit. Le serveur, lui, a pu
+ * jouer le coup entre-temps : c'est lui qui fait foi, et « Vos dernières parties » comme la bourse le montrent à la
+ * relecture suivante (le vingt-et-un relit sa main aussitôt).
+ */
+export function avecDelai<T>(p: Promise<T>, ms = DELAI_DU_CASINO): Promise<T> {
+  return new Promise<T>((ok, ko) => {
+    const minuteur = setTimeout(() => ko(new ServerError("delai")), ms);
+    p.then(
+      (v) => {
+        clearTimeout(minuteur);
+        ok(v);
+      },
+      (e: unknown) => {
+        clearTimeout(minuteur);
+        ko(e);
+      },
+    );
+  });
+}
+
 /**
  * Le casino des Gaulois (migration `20261123000100_casino_des_gaulois`, formes des réponses :
  * `src/lib/village/contrat-casino.ts`). Le serveur tire tout, d'abord, prend la mise et rend le gain ; l'écran ne fait que
@@ -273,23 +297,23 @@ export const salles = {
  */
 export const casino = {
   /** Tout l'écran du casino, et la main du vingt-et-un laissée ouverte. */
-  etat: (): Promise<EtatDuCasino> => call<EtatDuCasino>("get_casino"),
+  etat: (): Promise<EtatDuCasino> => avecDelai(call<EtatDuCasino>("get_casino")),
   /** Un tour de roue avec les paris de la table. */
-  roue: (paris: MisesDeLaRoue): Promise<CoupDeLaRoue> => call<CoupDeLaRoue>("jouer_roue", { p_paris: paris }),
+  roue: (paris: MisesDeLaRoue): Promise<CoupDeLaRoue> => avecDelai(call<CoupDeLaRoue>("jouer_roue", { p_paris: paris })),
   /** Un tirage de la machine. */
-  machine: (mise: number): Promise<CoupDeLaMachine> => call<CoupDeLaMachine>("jouer_machine", { p_mise: mise }),
+  machine: (mise: number): Promise<CoupDeLaMachine> => avecDelai(call<CoupDeLaMachine>("jouer_machine", { p_mise: mise })),
   /** Une course, sur le couloir `couloir` (0 à 5). */
-  course: (couloir: number, mise: number): Promise<CoupDeLaCourse> => call<CoupDeLaCourse>("jouer_course", { p_couloir: couloir, p_mise: mise }),
+  course: (couloir: number, mise: number): Promise<CoupDeLaCourse> => avecDelai(call<CoupDeLaCourse>("jouer_course", { p_couloir: couloir, p_mise: mise })),
   /** Un lâcher de statère à la palissade. */
-  palissade: (mise: number): Promise<CoupDeLaPalissade> => call<CoupDeLaPalissade>("jouer_palissade", { p_mise: mise }),
+  palissade: (mise: number): Promise<CoupDeLaPalissade> => avecDelai(call<CoupDeLaPalissade>("jouer_palissade", { p_mise: mise })),
   /** Un lancer de dés avec les paris de la table. */
-  des: (paris: MisesDesDes): Promise<CoupDesDes> => call<CoupDesDes>("jouer_des", { p_paris: paris }),
+  des: (paris: MisesDesDes): Promise<CoupDesDes> => avecDelai(call<CoupDesDes>("jouer_des", { p_paris: paris })),
   /** Une main du vingt-et-un commence avec la mise `mise`. */
-  distribuer: (mise: number): Promise<ReponseDuVingtEtUn> => call<ReponseDuVingtEtUn>("distribuer_vingt_et_un", { p_mise: mise }),
+  distribuer: (mise: number): Promise<ReponseDuVingtEtUn> => avecDelai(call<ReponseDuVingtEtUn>("distribuer_vingt_et_un", { p_mise: mise })),
   /** Un coup sur la main `partie`, vue au tour `tour` (celui de la dernière réponse). */
-  jouer: (partie: number, tour: number, coup: CoupDuVingtEtUn): Promise<ReponseDuVingtEtUn> => call<ReponseDuVingtEtUn>("jouer_vingt_et_un", { p_partie: partie, p_tour: tour, p_coup: coup }),
+  jouer: (partie: number, tour: number, coup: CoupDuVingtEtUn): Promise<ReponseDuVingtEtUn> => avecDelai(call<ReponseDuVingtEtUn>("jouer_vingt_et_un", { p_partie: partie, p_tour: tour, p_coup: coup })),
   /** La main laissée ouverte, à reprendre, ou `null`. */
-  lire: (): Promise<LectureDuVingtEtUn> => call<LectureDuVingtEtUn>("lire_vingt_et_un"),
+  lire: (): Promise<LectureDuVingtEtUn> => avecDelai(call<LectureDuVingtEtUn>("lire_vingt_et_un")),
 };
 
 /**

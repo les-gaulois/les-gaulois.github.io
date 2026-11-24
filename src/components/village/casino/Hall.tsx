@@ -5,10 +5,11 @@ import { SONS } from "../../../lib/jeu/casino-sons";
 import { pair } from "../../../lib/jeu/casino-toile";
 import { nombreEcrit } from "../../../lib/jeu/ecriture";
 import type { EtatDuCasino, JeuDuCasino } from "../../../lib/village/contrat-casino";
-import { CATEGORIES_DU_CASINO, JEUX_DU_HALL, jeuDuHall, jeuxDeLaCategorie, netDeLaPartie, resumeDeLaPartie, type CategorieDuCasino, type JeuDuHall } from "../../../lib/village/ecran-casino";
+import { CATEGORIES_DU_CASINO, JEUX_DU_HALL, etatDuPlafond, jeuDuHall, jeuxDeLaCategorie, netDeLaPartie, resumeDeLaPartie, type CategorieDuCasino, type JeuDuHall } from "../../../lib/village/ecran-casino";
 import { Etiquette } from "../../jeu/Pixels";
 import { useJour } from "./commun";
 import { Bouton, Mots, Peinture, Pic } from "./Pieces";
+import { BandeauDuPlafond } from "./Plafond";
 
 /**
  * Le hall du Palais d'or (maquette de Claude Fable 5.2, validée par le pilote le 22 novembre 2026) : les catégories, la
@@ -119,6 +120,7 @@ function etatDuJour(etat: EtatDuCasino): string {
   if (!etat.ouvert) return "Le casino est fermé pour l'instant";
   if (!etat.peut_jouer) return "Votre compte attend sa validation";
   if (etat.god) return "Essai : rien n'est misé";
+  if (etatDuPlafond(etat)?.niveau === "atteint") return `Plafond du jour atteint : ${nombreEcrit(etat.mise_du_jour)} statères misés`;
   return `Misé aujourd'hui : ${nombreEcrit(etat.mise_du_jour)} sur ${nombreEcrit(etat.plafond)}`;
 }
 
@@ -189,6 +191,7 @@ export function Hall({ etat, prets, ouvrir }: { etat: EtatDuCasino; prets: Reado
           );
         })}
       </nav>
+      <BandeauDuPlafond />
       <Affiche largeur={largeur} ouvrir={ouvrir} />
       <div class="cas-rang">
         <span class="jeu-ruban jeu-ruban-bleu jeu-n9">

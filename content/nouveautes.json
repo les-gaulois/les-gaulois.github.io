@@ -3,6 +3,17 @@
     "date": "2026-11-24",
     "kind": "corrige",
     "rank": "minor",
+    "title": "Le casino ne se fige plus",
+    "body": "Plafond du jour atteint : un bandeau du casino dit quand il rouvre, et chaque pupitre s'éteint avec sa phrase. Un jeu ne reste plus bloqué si le serveur tarde ou si une animation échoue.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-24",
+    "kind": "corrige",
+    "rank": "minor",
     "title": "Le duel prend ta nouvelle défense",
     "body": "Une défense enregistrée devient aussi ta main contre le boss, à l'entraînement et dans les salles : le duel gardait la main d'avant. Une carte se change toujours avant la première manche.",
     "link": {

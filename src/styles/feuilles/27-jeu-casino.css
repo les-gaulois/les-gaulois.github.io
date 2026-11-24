@@ -2440,3 +2440,80 @@
 :root.fx-off .casino-jeu .vu-druide-dit {
   transition: none !important;
 }
+
+/* ---------- Le plafond du jour ---------- */
+/* Lisible d'un coup d'œil (demande du pilote, 24 novembre 2026) : le bandeau du hall avec le compte à rebours jusqu'à
+   minuit, et dans chaque pupitre la phrase à côté des jetons éteints (src/components/village/casino/Plafond.tsx). */
+
+.casino-jeu .cas-plafond {
+  flex-basis: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.casino-jeu .cas-plafond .jeu-pic {
+  flex: none;
+}
+/* Le jour, l'icône crème se lirait mal sur l'ivoire : elle prend l'or brun des autres icônes du hall. */
+:root:not([data-mode="sombre"]) .casino-jeu .cas-plafond .jeu-pic,
+:root:not([data-mode="sombre"]) .casino-jeu .cas-plafond-tete .jeu-pic {
+  filter: brightness(0.25) sepia(1) hue-rotate(10deg) saturate(3);
+}
+.casino-jeu .cas-plafond-mots {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.casino-jeu .cas-pupitre-eteint .cas-jeton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.casino-jeu .cas-pupitre-eteint .cas-jeton[aria-pressed="true"]:disabled {
+  transform: none;
+}
+.casino-jeu .cas-pupitre-eteint .cas-jeton[aria-pressed="true"]:disabled::after {
+  transform: rotate(45deg) scale(0);
+}
+.casino-jeu .cas-plafond-bandeau {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 28px;
+  margin-bottom: calc(8 * var(--jeu-p));
+}
+.casino-jeu .cas-plafond-tete {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 280px;
+}
+.casino-jeu .cas-plafond-titre {
+  margin: 0;
+}
+.casino-jeu .cas-plafond-compte {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+.casino-jeu .cas-plafond-chiffres {
+  display: flex;
+  gap: 18px;
+  margin: 0;
+}
+.casino-jeu .cas-plafond-case {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+@container casino (max-width: 47.99rem) {
+  .casino-jeu .cas-plafond-compte {
+    align-items: flex-start;
+  }
+}

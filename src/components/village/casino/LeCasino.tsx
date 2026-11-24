@@ -5,7 +5,7 @@ import { pair } from "../../../lib/jeu/casino-toile";
 import type { CoupDuCasino, EtatDuCasino, JeuDuCasino, PartieDuCasino } from "../../../lib/village/contrat-casino";
 import { jeuDuHall, resumeDuCoup, type LimitesDuPupitre } from "../../../lib/village/ecran-casino";
 import { Etiquette } from "../../jeu/Pixels";
-import { useBourse, useEveilDuSon, useJour } from "./commun";
+import { PANNE_DU_CASINO, useBourse, useEveilDuSon, useJour } from "./commun";
 import { ContexteDuCasino, gestesDeFinDeTour, type Casino } from "./contexte";
 import { Hall } from "./Hall";
 import { Bouton, Mots, Peinture } from "./Pieces";
@@ -77,6 +77,33 @@ export default function LeCasino({ etatDuServeur, relire }: { etatDuServeur: Eta
     // Le hall relit le serveur : « Vos dernières parties » et le reste du jour sont ceux du serveur.
     relire();
   };
+  // Une animation en panne (`PANNE_DU_CASINO`) : le jeu ouvert repart. En se démontant, il finit son tour sans mouvement (la
+  // bourse reçoit le solde du serveur, la partie s'inscrit) ; il revient au repos, et le hall relit le serveur. Une fois
+  // toutes les 5 secondes au plus, pour qu'une panne qui se répète ne le fasse pas repartir sans fin ; une panne pendant ces
+  // 5 secondes attend la fin de la fenêtre (une seule reprise en attente), elle n'est jamais oubliée.
+  const [reprise, setReprise] = useState(0);
+  const derniereReprise = useRef(0);
+  const repriseEnAttente = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const relireRef = useRef(relire);
+  relireRef.current = relire;
+  useEffect(() => {
+    const reprendre = (): void => {
+      repriseEnAttente.current = null;
+      derniereReprise.current = Date.now();
+      setReprise((n) => n + 1);
+      relireRef.current();
+    };
+    const panne = (): void => {
+      const attente = derniereReprise.current + 5000 - Date.now();
+      if (attente <= 0) return reprendre();
+      repriseEnAttente.current ??= setTimeout(reprendre, attente);
+    };
+    window.addEventListener(PANNE_DU_CASINO, panne);
+    return () => {
+      window.removeEventListener(PANNE_DU_CASINO, panne);
+      if (repriseEnAttente.current) clearTimeout(repriseEnAttente.current);
+    };
+  }, []);
   // Échap ramène au hall, comme le bouton de retour.
   useEffect(() => {
     if (!ouvert) return;
@@ -108,7 +135,7 @@ export default function LeCasino({ etatDuServeur, relire }: { etatDuServeur: Eta
         return { ...e, mise_du_jour: coup.mise_du_jour, reste_du_jour: coup.reste_du_jour, parties: partie ? [partie, ...e.parties.filter((p) => p.partie !== coup.partie)].slice(0, 10) : e.parties };
       });
     };
-    return { etat, bourse, limites, retour: fermer, ...gestesDeFinDeTour(surCoup) };
+    return { etat, bourse, limites, retour: fermer, relire: () => relireRef.current(), ...gestesDeFinDeTour(surCoup) };
   }, [etat, bourse]);
 
   const jeu = ouvert ? jeuDuHall(ouvert) : null;
@@ -127,7 +154,7 @@ export default function LeCasino({ etatDuServeur, relire }: { etatDuServeur: Eta
               <Etiquette t={jeu.rend} ton="or" dit={jeu.rend} />
               {etat.god && <Etiquette t="Essai" ton="rouge" dit="Essai : rien n'est misé ni rendu" />}
             </div>
-            {Jeu ? <Jeu /> : <Bientot id={jeu.id} retour={fermer} />}
+            {Jeu ? <Jeu key={`${ouvert}-${reprise}`} /> : <Bientot id={jeu.id} retour={fermer} />}
           </div>
         )}
       </section>

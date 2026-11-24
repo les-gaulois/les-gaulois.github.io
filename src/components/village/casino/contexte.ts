@@ -20,6 +20,8 @@ export interface Casino {
   limites: LimitesDuPupitre;
   /** Revenir au hall. */
   retour(): void;
+  /** Relire l'état du casino au serveur (`get_casino`) : le reste du jour, le plafond, les parties, la bourse. */
+  relire(): void;
   /** Le serveur a répondu : la barre montre la bourse sans la mise (le gain attend la fin de l'animation). */
   prendreLaMise(coup: CoupDuCasino): void;
   /**

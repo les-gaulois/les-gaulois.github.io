@@ -1327,6 +1327,19 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
   lâchers à la suite, 200 au plus en train de tomber ; la barre ne montre jamais un gain avant sa coupe
   (`bourseDesLachers`). Le panneau « Les coupes » et leurs chances sur 256 ; un rendu partiel reste neutre, jamais en or
   ni avec un « + ».
+- **Le plafond du jour, lisible d'un coup d'œil** (24 novembre 2026, demande du pilote : « que ce soit mieux lisible quand on
+  dépasse ce montant ») : atteint, un bandeau en tête du hall (« Plafond du jour atteint », ce qui a été misé, le compte à
+  rebours jusqu'à minuit, heure de Paris, en grands chiffres) et, dans chaque pupitre, les jetons et le bouton d'or éteints
+  avec la même phrase à côté des jetons ; il reste moins qu'une table pleine, « Encore n statères aujourd'hui », discrètement
+  (`Plafond.tsx`, `etatDuPlafond` et `avantMinuitAParis` d'`ecran-casino.ts`). Les nombres sont ceux de `get_casino`
+  (`plafond`, `reste_du_jour`) : aucun écran n'écrit le plafond. Un refus du plafond par le serveur fait relire le casino ; à
+  minuit, il se relit seul. Au vingt-et-un, doubler et séparer éteints disent pourquoi (bulle et lecteur d'écran).
+- **Rien ne se fige** (24 novembre 2026) : une animation qui lève est retirée seule de la boucle (`anime`), et le jeu ouvert
+  repart (`PANNE_DU_CASINO`) en finissant son tour sans mouvement ; tout appel du casino sans réponse au bout de 20 secondes
+  devient un refus (« Le serveur ne répond pas · Si cela dure, rechargez la page », `avecDelai` d'`api.ts`), et le vingt-et-un
+  relit alors sa main ; le refus de cadence (30 actions par minute) dit dans combien de secondes on rejoue. Le vingt-et-un
+  ne se fie qu'au serveur pour le mode GOD (une vraie main pendant un essai : refus `mode_god`, dit par le croupier), et une
+  table qui échoue pose la main sans mouvement au lieu de s'arrêter.
 - **Pause et « réduire les animations »** : le résultat se pose sans mouvement (la roue s'arrête où elle est si la pause
   arrive en plein tour), pas de pluie, pas de reflet. Échap ou le bouton de retour ramènent au hall ; un tour quitté en
   plein mouvement se finit sans animation (la bourse reçoit son solde, la partie s'inscrit).

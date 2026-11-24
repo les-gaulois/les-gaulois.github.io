@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ServerError } from "../../../lib/compte/api";
 import { SONS } from "../../../lib/jeu/casino-sons";
 import { JETONS, jeton, type ValeurDeJeton } from "../../../lib/jeu/casino-toile";
-import { motsDuRefus, refusDesMemesMises, refusDuJeton } from "../../../lib/village/ecran-casino";
+import { etatDuPlafond, motsDuRefus, refusDesMemesMises, refusDuJeton, secondesAvantLaMinute } from "../../../lib/village/ecran-casino";
 import { useCasino } from "./contexte";
 import { Bouton, Mots, Peinture } from "./Pieces";
+import { LigneDuPlafond } from "./Plafond";
 
 /**
  * Le pupitre de mise du casino (maquette « Le Palais d'or ») : les jetons de 10 à 200, « Sur la table n sur 200 », reprendre
@@ -52,14 +53,17 @@ export function usePupitre({ surRefus }: { surRefus?: (titre: string, sous: stri
   const [dernier, setDernier] = useState<{ id: string; fois: number } | null>(null);
   const total = Object.values(mises).reduce((a, b) => a + b, 0);
   // Les gestes lisent l'état du moment, même appelés d'une promesse ou d'un écouteur posé plus tôt.
-  const etat = useRef({ mises, piles, total, jeton: jetonChoisi, dernieres, ferme, limites: casino.limites, surRefus });
-  etat.current = { mises, piles, total, jeton: jetonChoisi, dernieres, ferme, limites: casino.limites, surRefus };
+  const etat = useRef({ mises, piles, total, jeton: jetonChoisi, dernieres, ferme, limites: casino.limites, plafondDuJour: casino.etat.plafond, relire: casino.relire, surRefus });
+  etat.current = { mises, piles, total, jeton: jetonChoisi, dernieres, ferme, limites: casino.limites, plafondDuJour: casino.etat.plafond, relire: casino.relire, surRefus };
 
   const actions = useMemo(() => {
     const refus = (code: string): false => {
       SONS.refus();
       const l = etat.current.limites;
-      const [titre, sous] = motsDuRefus(code, l.reste ?? undefined);
+      const [titre, sous] = motsDuRefus(code, { reste: l.reste ?? undefined, plafond: etat.current.plafondDuJour, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined });
+      // Le serveur dit le plafond atteint, ou n'a pas répondu à temps (le coup a pu partir) : le casino relit son état (la
+      // bourse, le reste du jour, les dernières parties), et le bandeau du plafond paraît partout s'il le faut.
+      if (code === "casino_plafond" || code === "delai") etat.current.relire();
       etat.current.surRefus?.(titre, sous);
       return false;
     };
@@ -159,7 +163,9 @@ export function usePupitre({ surRefus }: { surRefus?: (titre: string, sous: stri
  * seul dans une place étroite (jetons plus petits sous 330 pixels, gestes qui passent à la ligne).
  */
 export function Pupitre({ pupitre, action, nomAction, surAction, classe = "" }: { pupitre: PupitreDuJeu; action: string; nomAction?: string; surAction: () => void; classe?: string }) {
-  const { limites } = useCasino();
+  const { limites, etat } = useCasino();
+  // Le plafond du jour atteint : le pupitre s'éteint, et la phrase le dit à côté des jetons (`LigneDuPlafond`).
+  const eteint = etatDuPlafond(etat)?.niveau === "atteint";
   const ref = useRef<HTMLDivElement>(null);
   const [rayon, setRayon] = useState(13);
   useEffect(() => {
@@ -183,14 +189,15 @@ export function Pupitre({ pupitre, action, nomAction, surAction, classe = "" }: 
   }, [ferme]);
   const vide = ferme || !total;
   return (
-    <div class={`cas-pupitre cas-panneau jeu-n9 ${rayon === 11 ? "cas-pupitre-etroit" : ""} ${classe}`} ref={ref}>
+    <div class={`cas-pupitre cas-panneau jeu-n9 ${rayon === 11 ? "cas-pupitre-etroit" : ""} ${eteint ? "cas-pupitre-eteint" : ""} ${classe}`} ref={ref}>
       <div class="cas-jetons" role="group" aria-label="Choisir un jeton">
         {JETONS.map((v, i) => (
-          <button key={v} class="cas-jeton" type="button" aria-pressed={pupitre.jeton === v} aria-label={`Jeton de ${v} statères`} title={`Jeton de ${v}`} onClick={() => pupitre.choisir(v)}>
+          <button key={v} class="cas-jeton" type="button" aria-pressed={pupitre.jeton === v} aria-label={`Jeton de ${v} statères`} title={`Jeton de ${v}`} disabled={eteint} onClick={() => pupitre.choisir(v)}>
             <Peinture toile={jetons[i]!} />
           </button>
         ))}
       </div>
+      <LigneDuPlafond />
       <div class="cas-compte">
         <Mots t="Sur la table" couleur="doux" />
         <span class="cas-total">
@@ -210,13 +217,13 @@ export function Pupitre({ pupitre, action, nomAction, surAction, classe = "" }: 
             SONS.ramasse();
           }}
         />
-        <Bouton icone="rejouer" nom="Reposer les mêmes mises" classe="cas-memes" disabled={ferme || !dernieres} onClick={() => pupitre.memes()} />
+        <Bouton icone="rejouer" nom="Reposer les mêmes mises" classe="cas-memes" disabled={ferme || !dernieres || eteint} onClick={() => pupitre.memes()} />
         <Bouton
           ton="or"
           mot={action}
           nom={nomAction ?? action}
           classe="cas-action"
-          disabled={vide}
+          disabled={vide || eteint}
           onClick={(e) => {
             focusAuLancer.current = document.activeElement === e.currentTarget;
             surAction();

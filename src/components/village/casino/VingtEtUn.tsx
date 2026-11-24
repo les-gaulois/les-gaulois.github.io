@@ -5,8 +5,8 @@ import { rond as rondDeLaMise, druide, iconesDesGestes, GESTES_DU_VINGT_ET_UN } 
 import { SONS_DU_VINGT_ET_UN } from "../../../lib/jeu/casino-vingt-et-un-sons";
 import { versLaToile, type Toile } from "../../../lib/jeu/casino-toile";
 import { conseil } from "../../../lib/village/casino/vingt-et-un";
-import type { CoupDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn } from "../../../lib/village/contrat-casino";
-import { motsDuRefus, refusDesMemesMises } from "../../../lib/village/ecran-casino";
+import type { CoupDuVingtEtUn, FaitDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn } from "../../../lib/village/contrat-casino";
+import { etatDuPlafond, motsDuRefus, refusDesMemesMises } from "../../../lib/village/ecran-casino";
 import { MOTS_DU_DRUIDE, NOMS_DES_GESTES, REPOS_DU_VINGT_ET_UN, cartesDites, coupDuVingtEtUn, finDeLaMain, gestesPermis, motsDeLaSuite, motsDuRefusEnMain, nomDuGeste, type GestesPermis } from "../../../lib/village/ecran-vingt-et-un";
 import { montrer, useJour, useLargeurDuJeu } from "./commun";
 import { useCasino } from "./contexte";
@@ -114,11 +114,11 @@ export default function LeVingtEtUn() {
   };
 
   /* --- Les gestes permis : les règles du serveur, puis la bourse et le reste du jour pour doubler et séparer --- */
-  const limites = { bourse: casino.bourse, reste, god: casino.etat.god };
-  const permis: GestesPermis = phase === "joueur" ? gestesPermis(table, limites) : gestesPermis(null, limites);
-  // Une vraie main ne se continue pas pendant un essai du mode GOD : elle attend la fin de l'essai.
-  const attendLEssai = phase === "joueur" && !!table && casino.etat.god && !table.god;
-  const gestes = attendLEssai ? gestesPermis(null, limites) : permis;
+  // Le mode de la main (`table.god`) décide de ce qui est pris, comme au serveur : jamais l'essai GOD lu à l'ouverture du
+  // casino, qui a pu finir ou commencer depuis dans un autre onglet. Une vraie main pendant un essai : le serveur refuse
+  // (`mode_god`) et le croupier le dit ; aucun bouton n'est éteint d'avance.
+  const limites = { bourse: casino.bourse, reste, god: false };
+  const gestes: GestesPermis = phase === "joueur" ? gestesPermis(table, limites) : gestesPermis(null, limites);
 
   const cacherConseil = (): void => {
     setConseille(null);
@@ -174,18 +174,51 @@ export default function LeVingtEtUn() {
     if (rep.table.phase === "fini") c.finDeTour({ coup: coupDuVingtEtUn(rep), muet: true });
   };
 
+  /** Tous les faits de la main en cours, depuis la donne : de quoi tout reposer d'un coup si la table a échoué. */
+  const faitsDeLaMain = useRef<FaitDuVingtEtUn[]>([]);
+
+  /**
+   * Montre des faits sur la table. Si la scène lève une erreur, la main se pose d'un coup, sans mouvement, depuis la donne ;
+   * si cela échoue encore, le jeu continue sans les cartes : la phase est rendue, les boutons reviennent. Une panne d'écran
+   * ne bloque jamais une main, et ne change rien à l'argent (le serveur a tout décidé).
+   */
+  async function montrerSurLaTable(faits: readonly FaitDuVingtEtUn[], vite = false): Promise<void> {
+    const s = scene.current;
+    if (!s) return;
+    try {
+      await s.montrer(faits, vite);
+    } catch (err) {
+      console.error("Vingt-et-un : la table n'a pas pu montrer les cartes ; elles se posent sans mouvement.", err);
+      const t = tableRef.current;
+      try {
+        s.nettoyer();
+        if (t) {
+          s.debut(t.mise);
+          s.montreMise(t.mise, false);
+          await s.montrer(faitsDeLaMain.current, true);
+        }
+      } catch (err2) {
+        console.error("Vingt-et-un : la table reste vide, la main continue.", err2);
+      }
+    }
+  }
+
   async function lancer(): Promise<void> {
     if (phaseRef.current !== "mise") return;
     envoi.current = true;
     const pris = await pup.engager((_m, total) => appels.distribuer(total)).finally(() => (envoi.current = false));
     if (!pris.ok) {
-      // Une main attend déjà (laissée ouverte ailleurs) : on la reprend.
-      if (pris.code === "main_en_cours" && arret.current.monte) void reprendre();
+      if (!arret.current.monte) return;
+      // Une main attend déjà (laissée ouverte ailleurs) : on la reprend. Le serveur n'a pas répondu à temps : il a pu
+      // distribuer quand même ; on relit, et la main reprend si elle existe.
+      if (pris.code === "main_en_cours") void reprendre();
+      else if (pris.code === "delai" || pris.code === "network") void verifierLaMain();
       return;
     }
     const rep = pris.valeur;
     if (!arret.current.monte) return quitte(rep);
     recu(rep);
+    faitsDeLaMain.current = [...rep.table.faits];
     setPhase("anime");
     setDebut(false);
     cacherConseil();
@@ -193,7 +226,7 @@ export default function LeVingtEtUn() {
     crou.dit("Rien ne va plus", "Les cartes sortent");
     crou.visage("");
     if (W < 760) montrer(salle.current);
-    await scene.current?.montrer(rep.table.faits);
+    await montrerSurLaTable(rep.table.faits);
     if (arret.current.monte) suite(rep.table, rep);
   }
 
@@ -208,77 +241,118 @@ export default function LeVingtEtUn() {
     } catch (err) {
       if (!arret.current.monte) return;
       const code = err instanceof ServerError ? err.code : "network";
-      // La main a changé ailleurs (un double clic, un autre onglet) : on la relit.
-      if (code === "main_changee" || code === "pas_de_main") return void reprendre();
+      // La main a changé ailleurs (un double clic, un autre onglet), ou le serveur n'a pas répondu à temps et a pu jouer le
+      // coup : on la relit.
+      // Sans réponse, le coup a pu être joué (le complément d'un double pris) : la bourse se relit aussi.
+      if (code === "delai") casino.relire();
+      if (code === "main_changee" || code === "pas_de_main" || code === "delai") return void reprendre();
       setPhase("joueur");
-      crou.refus(...motsDuRefusEnMain(code, reste ?? undefined));
+      if (code === "casino_plafond") casino.relire();
+      crou.refus(...motsDuRefusEnMain(code, { reste: reste ?? undefined, plafond: casino.etat.plafond }));
       return;
     }
     if (!arret.current.monte) return quitte(rep);
     recu(rep);
-    await scene.current?.montrer(rep.table.faits);
+    faitsDeLaMain.current = [...faitsDeLaMain.current, ...rep.table.faits];
+    await montrerSurLaTable(rep.table.faits);
     if (arret.current.monte) suite(rep.table, rep);
   }
 
-  /** Après les cartes : la main suivante à jouer, ou la fin. */
+  /** Après les cartes : la main suivante à jouer, ou la fin. La phase est toujours rendue, même si un mot échoue. */
   function suite(t: TableDuVingtEtUn, rep: ReponseDuVingtEtUn | null): void {
     if (t.phase !== "joueur") {
       if (rep) fin(rep);
+      else setPhase("mise");
       return;
     }
     setPhase("joueur");
-    scene.current?.attenuer(t.mains.length > 1 ? t.courante : -1);
-    if (casinoRef.current.etat.god && !t.god) crou.dit(...motsDuRefus("mode_god"));
-    else {
+    try {
+      scene.current?.attenuer(t.mains.length > 1 ? t.courante : -1);
       crou.dit(...motsDeLaSuite(t));
       dire(cartesDites(t));
+    } catch (err) {
+      console.error("Vingt-et-un : l'annonce du croupier a échoué ; la main continue.", err);
     }
   }
 
-  /** La fin de la main : l'annonce du croupier, la plaque, et le casino qui rend le gain, une seule fois. */
+  /**
+   * La fin de la main : l'annonce du croupier, la plaque, et le casino qui rend le gain, une seule fois. Quoi qu'il arrive à
+   * l'écran, la bourse reçoit le solde du serveur, la partie s'inscrit, et le pupitre se rouvre.
+   */
   function fin(rep: ReponseDuVingtEtUn): void {
     arret.current.aFinir = null;
     const t = rep.table;
-    const f = finDeLaMain(t);
-    crou.dit(f.titre, f.sous);
-    dire(f.dire);
-    crou.resultat({ signe: f.signe, ton: f.ton, rendu: t.rendu, mise: t.misee });
-    // La pluie lente : le 21 d'entrée seulement ; ni fête ni reproche quand on ne gagne rien.
-    casino.finDeTour({ coup: coupDuVingtEtUn(rep), grand: f.fete, croupier: crou, scene: tableEl.current });
-    setPhase("fini");
-    pup.finir();
+    try {
+      const f = finDeLaMain(t);
+      crou.dit(f.titre, f.sous);
+      dire(f.dire);
+      crou.resultat({ signe: f.signe, ton: f.ton, rendu: t.rendu, mise: t.misee });
+      // La pluie lente : le 21 d'entrée seulement ; ni fête ni reproche quand on ne gagne rien.
+      casino.finDeTour({ coup: coupDuVingtEtUn(rep), grand: f.fete, croupier: crou, scene: tableEl.current });
+    } catch (err) {
+      console.error("Vingt-et-un : la fin de la main n'a pas pu se montrer ; elle est comptée.", err);
+      // `finDeTour` est sans risque deux fois : la bourse reçoit le même solde, la partie n'est inscrite qu'une fois.
+      casino.finDeTour({ coup: coupDuVingtEtUn(rep), muet: true });
+    } finally {
+      setPhase("fini");
+      pup.finir();
+    }
+  }
+
+  /**
+   * Le serveur n'a pas répondu à une donne : s'il a distribué quand même, la main reprend ; sinon le pupitre reste tel quel. Dans
+   * les deux cas, le casino relit son état : une main finie dès la donne (un 21 d'entrée) a déjà été payée.
+   */
+  async function verifierLaMain(): Promise<void> {
+    casino.relire();
+    try {
+      const r = await appels.lire();
+      if (r.table && arret.current.monte && phaseRef.current === "mise" && !envoi.current) await reprendre(r.table);
+    } catch {
+      // Toujours rien : le pupitre a déjà rouvert, le croupier l'a dit.
+    }
   }
 
   /**
    * Reprend la main laissée ouverte : `depart` si on l'a déjà, sinon relue au serveur. Les cartes se posent d'un coup, la main
-   * continue où elle était. Sans main ouverte, la table attend une mise.
+   * continue où elle était. Sans main ouverte, la table attend une mise. Si le serveur ne répond pas, rien n'est effacé : on
+   * revient où l'on était.
    */
   async function reprendre(depart?: TableDuVingtEtUn | null): Promise<void> {
+    const avant = phaseRef.current === "anime" || phaseRef.current === "lecture" ? (tableRef.current?.phase === "joueur" ? "joueur" : "mise") : phaseRef.current;
     setPhase("lecture");
     pup.verrou(true);
     let t = depart;
     if (t === undefined) {
       try {
         t = (await appels.lire()).table;
-      } catch {
-        t = null;
+      } catch (err) {
+        if (!arret.current.monte) return;
+        const code = err instanceof ServerError ? err.code : "network";
+        // Rien de relu : la main (s'il y en a une) reste à l'écran, telle que le serveur l'a montrée en dernier.
+        setPhase(avant === "joueur" && tableRef.current?.phase === "joueur" ? "joueur" : avant === "fini" ? "fini" : "mise");
+        if (phaseRef.current !== "joueur") pup.verrou(false);
+        crou.refus(...motsDuRefus(code));
+        return;
       }
     }
     if (!arret.current.monte) return;
     nettoyer();
     if (!t || t.phase !== "joueur") {
-      // Plus de main ouverte (finie ailleurs) : le pupitre se vide, et la barre relit la bourse au serveur (get_casino).
+      // Plus de main ouverte (finie ailleurs, ou au serveur pendant qu'il ne répondait pas) : le pupitre se vide, et le casino
+      // relit son état (la bourse, le reste du jour, les dernières parties).
       pup.finir();
-      if (depart === undefined) void appels.etat().catch(() => undefined);
+      if (depart === undefined) casino.relire();
       setPhase("mise");
       crou.dit(...REPOS_DU_VINGT_ET_UN);
       return;
     }
     setTable(t);
     setDebut(false);
+    faitsDeLaMain.current = [...t.faits];
     scene.current?.debut(t.mise);
     scene.current?.montreMise(t.mise, false);
-    await scene.current?.montrer(t.faits, true);
+    await montrerSurLaTable(t.faits, true);
     if (arret.current.monte) suite(t, null);
   }
 
@@ -354,7 +428,9 @@ export default function LeVingtEtUn() {
   }, [phase]);
 
   const d = pup.dernieres ? Object.values(pup.dernieres).reduce((a, b) => a + b, 0) : 0;
-  const montreRejouer = d > 0 && phase === "fini";
+  // Le plafond du jour atteint : « Rejouer » et le rond de la mise s'éteignent avec le pupitre.
+  const auPlafond = etatDuPlafond(casino.etat)?.niveau === "atteint";
+  const montreRejouer = d > 0 && phase === "fini" && !auPlafond;
 
   return (
     <div class="cas-jeu vu-jeu" ref={racine} style={images}>
@@ -363,7 +439,7 @@ export default function LeVingtEtUn() {
           <canvas class="vu-decor" ref={decorEl} aria-hidden="true" />
           <canvas class="vu-lueur" ref={lueurEl} aria-hidden="true" />
           <Peinture toile={mini} classe="vu-mini" />
-          <button class="vu-rond" type="button" ref={rond0} aria-label="Poser le jeton choisi sur la mise" disabled={phase !== "mise" && phase !== "fini"} onClick={surRond} />
+          <button class="vu-rond" type="button" ref={rond0} aria-label="Poser le jeton choisi sur la mise" disabled={(phase !== "mise" && phase !== "fini") || auPlafond} onClick={surRond} />
           <div class="vu-ronds" ref={ronds} aria-hidden="true" />
           <div class="vu-couche" ref={couche} aria-hidden="true" />
         </section>
@@ -385,7 +461,7 @@ export default function LeVingtEtUn() {
             ))}
           </div>
           <div class="vu-suite">
-            <button type="button" class="jeu-btn jeu-n9 jeu-btn-bleu jeu-btn-ic vu-druide" aria-label="Le conseil du druide : le meilleur coup" title="Le conseil du druide : le meilleur coup" disabled={phase !== "joueur" || attendLEssai} onClick={demanderConseil}>
+            <button type="button" class="jeu-btn jeu-n9 jeu-btn-bleu jeu-btn-ic vu-druide" aria-label="Le conseil du druide : le meilleur coup" title="Le conseil du druide : le meilleur coup" disabled={phase !== "joueur"} onClick={demanderConseil}>
               <Peinture toile={tete} />
             </button>
             <span class={`vu-druide-dit ${druideVu ? "vu-vu" : ""}`} aria-hidden="true">

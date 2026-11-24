@@ -384,7 +384,13 @@ describe("l'écran du casino", () => {
   it("dit chaque refus du serveur avec ses mots", () => {
     const parDefaut = motsDuRefus("inconnu");
     for (const code of REFUS_DU_CASINO) expect(motsDuRefus(code), code).not.toEqual(parDefaut);
-    expect(motsDuRefus("casino_plafond", 120)[1]).toBe("Encore 120 aujourd'hui");
+    expect(motsDuRefus("plafond_du_jour", { reste: 120 })[1]).toBe("Encore 120 aujourd'hui");
+    // Atteint : le plafond est celui du serveur, jamais une valeur écrite dans l'écran.
+    expect(motsDuRefus("plafond_du_jour", { reste: 0, plafond: 12500 })).toEqual(["Plafond du jour atteint", "12 500 misés aujourd'hui, le casino rouvre à minuit"]);
+    expect(motsDuRefus("plafond_du_jour", { reste: 0, plafond: 7000 })[1]).toBe("7 000 misés aujourd'hui, le casino rouvre à minuit");
+    expect(motsDuRefus("plafond_du_jour")).toEqual(["Plafond du jour atteint", "Le casino rouvre à minuit"]);
+    // Le refus du serveur ne répète pas un reste que l'écran croyait : le casino le relit, la ligne du plafond le dit.
+    expect(motsDuRefus("casino_plafond", { reste: 3500, plafond: 12500 })).toEqual(["Plafond du jour", "La mise dépasse ce qu'il reste à miser aujourd'hui"]);
   });
 
   it("donne à chaque tour son niveau : l'or et le « + » seulement pour un vrai gain", () => {

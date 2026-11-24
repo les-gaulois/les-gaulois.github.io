@@ -24,12 +24,13 @@ import { SONS } from "../../../lib/jeu/casino-sons";
 import { JETONS, caseGemme, jeton, type ValeurDeJeton } from "../../../lib/jeu/casino-toile";
 import { nombreEcrit } from "../../../lib/jeu/ecriture";
 import type { CoupDeLaPalissade } from "../../../lib/village/contrat-casino";
-import { motsDuRefus, refusDuJeton } from "../../../lib/village/ecran-casino";
+import { etatDuPlafond, motsDuRefus, refusDuJeton, secondesAvantLaMinute } from "../../../lib/village/ecran-casino";
 import { anime, annoncerLeSolde, montrer, sansMouvement, useJour, useLargeurDuJeu } from "./commun";
 import { useCasino } from "./contexte";
 import { PanneauDuCroupier, useCroupier, type TonDeLaPlaque } from "./Croupier";
 import { FABRIQUE_DE_LA_PAGE, urlDeLaToile } from "./images";
 import { Bouton, Mots, Peinture, Pic } from "./Pieces";
+import { LigneDuPlafond } from "./Plafond";
 
 /**
  * La palissade (maquette « Le Palais d'or » de Claude Fable 5.2, validée par le pilote le 22 novembre 2026, portée telle
@@ -87,6 +88,8 @@ export default function LaPalissade() {
     actif: false,
     stop: () => undefined as void,
     enRoute: [] as CoupDeLaPalissade[],
+    /** Une relecture du casino attend que le dernier statère soit tombé. */
+    relireApres: false,
     dernier: null as CoupDeLaPalissade | null,
     enVol: 0,
     mise: 10 as ValeurDeJeton,
@@ -195,6 +198,10 @@ export default function LaPalissade() {
     if (i < 0) return coup.rendu;
     b.enRoute.splice(i, 1);
     b.enVol -= coup.mise;
+    if (b.relireApres && !b.enRoute.length) {
+      b.relireApres = false;
+      setTimeout(() => casino.relire(), 0);
+    }
     setEnVol(b.enVol);
     const d = dixiemesDe(coup.coupe);
     const rg = RANGS_DES_COUPES[d];
@@ -232,7 +239,7 @@ export default function LaPalissade() {
     // La table compte ce qui tombe ; la bourse et le reste du jour ont déjà perdu les jetons lâchés.
     const reste = b.dernier && b.enRoute.length ? Math.min(limites.reste ?? Infinity, b.dernier.reste_du_jour) : limites.reste;
     const r = refusDuJeton(0, m, { ...limites, reste });
-    if (r) return refus(...motsDuRefus(r, reste ?? undefined));
+    if (r) return refus(...motsDuRefus(r, { reste: reste ?? undefined, plafond: casino.etat.plafond }));
     // Pas plus de lâchers par minute que le serveur n'en accepte pour tout le site : rien n'est envoyé, rien n'est pris.
     b.heures = b.heures.filter((h) => t - h < 60_000);
     if (!lacherPermis(b.heures, t)) return refus(...motsDuRefus("rate_limited"));
@@ -244,7 +251,14 @@ export default function LaPalissade() {
       coup = await appels.palissade(m);
     } catch (err) {
       b.attente = false;
-      return refus(...motsDuRefus(err instanceof ServerError ? err.code : "network", reste ?? undefined));
+      const code = err instanceof ServerError ? err.code : "network";
+      // Le plafond refusé, ou pas de réponse à temps (le lâcher a pu partir) : le casino relit son état, mais seulement quand
+      // plus rien ne tombe, pour que la barre ne montre jamais un gain avant sa coupe.
+      if (code === "casino_plafond" || code === "delai") {
+        if (b.enRoute.length) b.relireApres = true;
+        else casino.relire();
+      }
+      return refus(...motsDuRefus(code, { reste: reste ?? undefined, plafond: casino.etat.plafond, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined }));
     }
     b.attente = false;
     // La palissade a été quittée pendant que le serveur répondait : le lâcher se finit sans un son ni un mouvement.
@@ -277,6 +291,8 @@ export default function LaPalissade() {
     reveiller();
   }
 
+  // Le plafond du jour atteint : le pupitre s'éteint, la phrase le dit à côté des jetons (`LigneDuPlafond`).
+  const eteint = etatDuPlafond(casino.etat)?.niveau === "atteint";
   return (
     <div class="cas-jeu pal-jeu" ref={racine}>
       <div class="pal-salle" ref={salle}>
@@ -300,7 +316,7 @@ export default function LaPalissade() {
           </div>
         </section>
         <PanneauDuCroupier croupier={crou} classe="pal-croupier" />
-        <div class={`cas-pupitre cas-panneau jeu-n9 pal-pupitre ${rayon === 11 ? "cas-pupitre-etroit" : ""}`} ref={pupitre}>
+        <div class={`cas-pupitre cas-panneau jeu-n9 pal-pupitre ${rayon === 11 ? "cas-pupitre-etroit" : ""} ${eteint ? "cas-pupitre-eteint" : ""}`} ref={pupitre}>
           <div class="cas-jetons" role="group" aria-label="Choisir un jeton">
             {JETONS.map((v, i) => (
               <button
@@ -310,6 +326,7 @@ export default function LaPalissade() {
                 aria-pressed={mise === v}
                 aria-label={`Jeton de ${v} statères`}
                 title={`Jeton de ${v}`}
+                disabled={eteint}
                 onClick={() => {
                   setMise(v);
                   SONS.jeton(i);
@@ -319,6 +336,7 @@ export default function LaPalissade() {
               </button>
             ))}
           </div>
+          <LigneDuPlafond />
           <div class="cas-compte">
             <Mots t="Sur la table" couleur="doux" />
             <span class="cas-total">
@@ -326,7 +344,7 @@ export default function LaPalissade() {
             </span>
           </div>
           <div class="cas-gestes">
-            <Bouton ton="or" mot="Lâcher" nom={`Lâcher un statère de ${mise}`} classe="cas-action" onClick={() => void lacher()} />
+            <Bouton ton="or" mot="Lâcher" nom={`Lâcher un statère de ${mise}`} classe="cas-action" disabled={eteint} onClick={() => void lacher()} />
           </div>
         </div>
         <div class="pal-coupes cas-panneau jeu-n9" role="group" aria-label="Ce que paient les coupes">

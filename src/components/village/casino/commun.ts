@@ -33,11 +33,28 @@ export function useJour(): boolean {
 
 /* ---------- Une seule boucle d'animation, arrêtée dès que plus rien ne bouge ---------- */
 
+/**
+ * Le nom de l'annonce d'une panne d'animation : une tâche de `anime` a levé une erreur. Le casino recharge alors le jeu
+ * ouvert (`LeCasino.tsx`) : son tour en cours se finit sans mouvement (la bourse reçoit son solde, la partie s'inscrit) et
+ * il repart au repos. Le serveur a déjà tout décidé : une panne d'écran ne change jamais l'argent.
+ */
+export const PANNE_DU_CASINO = "gal:casino-panne";
+
 const taches = new Set<(t: number) => boolean | void>();
 let boucle = 0;
 function tourne(t: number): void {
   boucle = 0;
-  for (const f of [...taches]) if (f(t) === false) taches.delete(f);
+  for (const f of [...taches]) {
+    // Une tâche qui lève est retirée seule : les autres continuent, et la boucle repart (sinon elle s'arrêtait, et la tâche
+    // fautive relevait la même erreur devant toutes les autres à chaque animation suivante : plus rien ne bougeait).
+    try {
+      if (f(t) === false) taches.delete(f);
+    } catch (err) {
+      taches.delete(f);
+      console.error("Casino : une animation a échoué ; le jeu repart.", err);
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(PANNE_DU_CASINO));
+    }
+  }
   if (taches.size) boucle = requestAnimationFrame(tourne);
 }
 /**

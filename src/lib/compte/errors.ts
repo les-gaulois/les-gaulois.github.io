@@ -283,6 +283,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   pas_de_main: "Cette main du vingt-et-un est déjà finie. Rechargez la page.",
   main_changee: "Cette main a déjà avancé. Rechargez la page.",
   coup_refuse: "Ce coup n'est pas permis maintenant.",
+  delai: "Le serveur n'a pas répondu à temps : le coup a pu partir, la bourse se relit. Si cela dure, rechargez la page.",
 
   // La vie du village : les bulles et l'état vocal (migration 20261113002300_village_vie).
   invalid_plafond: "Indiquez un plafond de 0 à 100 dollars, au centime près.",

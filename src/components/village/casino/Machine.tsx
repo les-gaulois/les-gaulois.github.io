@@ -37,7 +37,7 @@ import { SONS, type Roulement } from "../../../lib/jeu/casino-sons";
 import { JETONS, OR, Toile, borne, ton, versLaToile, type ValeurDeJeton } from "../../../lib/jeu/casino-toile";
 import { nombreEcrit } from "../../../lib/jeu/ecriture";
 import type { CoupDeLaMachine, ResultatDeLaMachine } from "../../../lib/village/contrat-casino";
-import { motsDuRefus, refusDuJeton } from "../../../lib/village/ecran-casino";
+import { motsDuRefus, refusDuJeton, secondesAvantLaMinute } from "../../../lib/village/ecran-casino";
 import { anime, montrer, sansMouvement, useLargeurDuJeu } from "./commun";
 import { useCasino, type Casino } from "./contexte";
 import { PanneauDuCroupier, useCroupier, type CroupierDuJeu } from "./Croupier";
@@ -242,7 +242,8 @@ function usePupitreDeLaMachine(casino: Casino, crou: CroupierDuJeu, occupe: () =
     const refus = (code: string): void => {
       SONS.refus();
       const l = r.current.casino.limites;
-      const [titre, sous] = code === "rien" ? ["Faites vos jeux", (l.bourse ?? 0) < 10 ? "La bourse ne suffit pas" : "Choisissez un jeton"] : motsDuRefus(code, l.reste ?? undefined);
+      const [titre, sous] = code === "rien" ? ["Faites vos jeux", (l.bourse ?? 0) < 10 ? "La bourse ne suffit pas" : "Choisissez un jeton"] : motsDuRefus(code, { reste: l.reste ?? undefined, plafond: r.current.casino.etat.plafond, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined });
+      if (code === "casino_plafond" || code === "delai") r.current.casino.relire();
       r.current.crou.dit(titre, sous);
     };
     return {

@@ -178,15 +178,36 @@ export function netDeLaPartie(mise: number, rendu: number): { texte: string; dit
   return { texte: `${net >= 0 ? "+" : "-"}${nombreEcrit(Math.abs(net))}`, dit: `${net >= 0 ? "plus" : "moins"} ${Math.abs(net)} statères`, gagne: net > 0 };
 }
 
+/**
+ * Les secondes jusqu'à la minute suivante : le serveur compte les actions de chaque compte par minute de l'horloge (30 au
+ * plus, `internal.limit_exceeded`), et repart de zéro à chaque nouvelle minute.
+ */
+export const secondesAvantLaMinute = (quand: Date = new Date()): number => 60 - quand.getSeconds();
+
+/** Ce que les mots d'un refus peuvent dire de plus : le reste du jour, le plafond lu au serveur, le temps avant la reprise. */
+export interface PrecisionsDuRefus {
+  /** Ce qu'il reste à miser aujourd'hui. */
+  reste?: number | undefined;
+  /** Le plafond du jour tel que `get_casino` le donne (`plafond`), jamais une valeur écrite dans l'écran. */
+  plafond?: number | undefined;
+  /** Pour le refus de cadence du serveur : le temps avant la minute suivante (`secondesAvantLaMinute`). */
+  secondes?: number | undefined;
+}
+
 /** Ce que dit le croupier quand le serveur refuse un coup (titre, sous-titre). Un refus ne prend rien. */
-export function motsDuRefus(code: string, reste?: number): [string, string] {
+export function motsDuRefus(code: string, { reste, plafond, secondes }: PrecisionsDuRefus = {}): [string, string] {
   switch (code) {
     case "solde_insuffisant":
     case "bourse":
       return ["Faites vos jeux", "La bourse ne suffit pas"];
     case "casino_plafond":
+      // Le serveur refuse : ce que l'écran croyait du reste du jour était dépassé. Le casino relit son état, et la ligne du
+      // plafond, à côté des jetons, dit ce qu'il reste vraiment ; le croupier ne dit que ce qui est sûr.
+      return ["Plafond du jour", "La mise dépasse ce qu'il reste à miser aujourd'hui"];
     case "plafond_du_jour":
-      return ["Plafond du jour", reste !== undefined && reste > 0 ? `Encore ${nombreEcrit(reste)} aujourd'hui` : `${nombreEcrit(PLAFOND_DU_JOUR_DU_CASINO)} misés aujourd'hui`];
+      return reste !== undefined && reste > 0
+        ? ["Plafond du jour", `Encore ${nombreEcrit(reste)} aujourd'hui`]
+        : ["Plafond du jour atteint", plafond ? `${nombreEcrit(plafond)} misés aujourd'hui, le casino rouvre à minuit` : "Le casino rouvre à minuit"];
     case "plafond":
     case "mise_trop_haute":
       return ["Faites vos jeux", `${MISE_DE_DEPART_AU_PLUS} au plus sur la table`];
@@ -197,7 +218,10 @@ export function motsDuRefus(code: string, reste?: number): [string, string] {
     case "no_gaulois":
       return ["Pas encore", "Créez d'abord votre Gaulois"];
     case "rate_limited":
-      return ["Doucement", "Un instant entre deux tours"];
+      return ["Doucement", secondes ? `Trop de coups cette minute : reprise dans ${secondes} secondes` : "Un instant entre deux tours"];
+    case "delai":
+      // Le coup a pu être joué au serveur : le casino relit la bourse et les dernières parties (`relire`).
+      return ["Le serveur ne répond pas", "Le coup a pu partir : la bourse se relit"];
     case "not_signed_in":
       return ["Pas encore", "Reconnectez-vous"];
     case "suspended":
@@ -219,6 +243,45 @@ export function motsDuRefus(code: string, reste?: number): [string, string] {
     default:
       return ["Rien ne part", "Le serveur ne répond pas"];
   }
+}
+
+/* ---------- Le plafond du jour ---------- */
+
+/**
+ * Où en est le compte face au plafond du jour (demande du pilote, 24 novembre 2026 : « que ce soit mieux lisible quand on
+ * dépasse ce montant ») : `atteint` quand il reste moins que le plus petit jeton (aucune mise ne passe plus jusqu'à minuit),
+ * `bas` quand il reste moins qu'une table pleine, `null` sinon et pendant un essai GOD (rien n'y compte). Les nombres sont
+ * ceux de `get_casino` : le plafond n'est jamais écrit dans l'écran.
+ */
+export type EtatDuPlafond = { niveau: "atteint"; plafond: number; misee: number; reste: 0 } | { niveau: "bas"; plafond: number; misee: number; reste: number } | null;
+export function etatDuPlafond(e: Pick<EtatDuCasino, "ouvert" | "god" | "plafond" | "mise_du_jour" | "reste_du_jour" | "jetons" | "mise_au_plus">): EtatDuPlafond {
+  // Casino fermé : c'est la fermeture qui se dit, pas le plafond ; essai GOD : rien n'y compte.
+  if (!e.ouvert || e.god) return null;
+  const petit = Math.min(...(e.jetons.length ? e.jetons : JETONS_DU_CASINO));
+  if (e.reste_du_jour < petit) return { niveau: "atteint", plafond: e.plafond, misee: e.mise_du_jour, reste: 0 };
+  if (e.reste_du_jour < e.mise_au_plus) return { niveau: "bas", plafond: e.plafond, misee: e.mise_du_jour, reste: e.reste_du_jour };
+  return null;
+}
+
+/** Les heures et minutes entières avant minuit à Paris (le jour du plafond commence à minuit, heure de Paris). */
+const HEURE_A_PARIS = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" });
+export function avantMinuitAParis(maintenant: Date): { heures: number; minutes: number } {
+  const p = HEURE_A_PARIS.formatToParts(maintenant);
+  const v = (t: string): number => Number(p.find((x) => x.type === t)?.value ?? 0);
+  const restant = Math.max(0, 24 * 3600 - (v("hour") * 3600 + v("minute") * 60 + v("second")));
+  const minutesEnTout = Math.ceil(restant / 60);
+  return { heures: Math.floor(minutesEnTout / 60) % 24, minutes: minutesEnTout % 60 };
+}
+
+/** « 5 heures et 12 minutes », « 40 minutes », « moins d'une minute ». */
+export function dureeEnMots({ heures, minutes }: { heures: number; minutes: number }): string {
+  const mots = [
+    [heures, "heure"],
+    [minutes, "minute"],
+  ]
+    .filter(([n]) => (n as number) > 0)
+    .map(([n, mot]) => `${n as number} ${mot as string}${(n as number) > 1 ? "s" : ""}`);
+  return mots.length ? mots.join(" et ") : "moins d'une minute";
 }
 
 /* ---------- Le niveau d'un tour ---------- */

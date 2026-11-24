@@ -9,7 +9,7 @@
 import { nombreEcrit } from "../jeu/ecriture";
 import { NOMS_DES_RANGS, nomDeLaCarte, total, vingtEtUnDEntree } from "./casino/vingt-et-un";
 import type { CarteDuVingtEtUn, CoupDuCasino, CoupDuVingtEtUn, CoupsPermis, FaitDuVingtEtUn, IssueDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn } from "./contrat-casino";
-import { motsDuRefus } from "./ecran-casino";
+import { motsDuRefus, secondesAvantLaMinute, type PrecisionsDuRefus } from "./ecran-casino";
 
 /** Les quatre gestes : le mot du bouton, puis son nom entier (lu aux lecteurs d'écran, bulle du survol). */
 export const NOMS_DES_GESTES: Readonly<Record<CoupDuVingtEtUn, readonly [string, string]>> = {
@@ -72,10 +72,10 @@ export function nomDuGeste(geste: CoupDuVingtEtUn, permis: GestesPermis, regles:
 }
 
 /** Ce que dit le croupier quand le serveur refuse un geste en pleine main. */
-export function motsDuRefusEnMain(code: string, reste?: number): [string, string] {
+export function motsDuRefusEnMain(code: string, o: Omit<PrecisionsDuRefus, "secondes"> = {}): [string, string] {
   if (code === "solde_insuffisant" || code === "bourse") return ["À vous", "La bourse ne suffit pas"];
   if (code === "casino_plafond" || code === "plafond_du_jour") return ["À vous", "Le plafond du jour ne suffit pas"];
-  return motsDuRefus(code, reste);
+  return motsDuRefus(code, { ...o, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined });
 }
 
 /* ---------- Les mots pendant la main ---------- */
