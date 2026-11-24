@@ -28,7 +28,7 @@ describe("les chiffres du casino", () => {
     expect(MISE_DE_DEPART_AU_PLUS).toBe(200);
     expect(PAS_DES_MISES).toBe(10);
     expect(COMPLEMENTS_AU_PLUS).toBe(3);
-    expect(PLAFOND_DU_JOUR_DU_CASINO).toBe(2000);
+    expect(PLAFOND_DU_JOUR_DU_CASINO).toBe(12500);
   });
 
   it("ont chaque refus écrit en mots, sans signe", () => {

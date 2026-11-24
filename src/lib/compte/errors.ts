@@ -278,7 +278,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   casino_ferme: "Le casino est fermé pour l'instant.",
   pari_invalide: "Ce pari n'est pas valable : des jetons de 10, 20, 50, 100 ou 200 statères. Rechargez la page.",
   mise_trop_haute: "200 statères au plus de mise de départ.",
-  casino_plafond: "Cette mise dépasse ce qu'il vous reste à miser aujourd'hui : 2 000 statères par jour, tous jeux compris.",
+  casino_plafond: "Cette mise dépasse ce qu'il vous reste à miser aujourd'hui, tous jeux compris.",
   main_en_cours: "Une main du vingt-et-un vous attend : finissez-la d'abord.",
   pas_de_main: "Cette main du vingt-et-un est déjà finie. Rechargez la page.",
   main_changee: "Cette main a déjà avancé. Rechargez la page.",
