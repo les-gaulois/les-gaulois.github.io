@@ -27,6 +27,8 @@ import { graine } from "./casino-essai";
 const LONG = 300_000;
 const MIGRATION = `${NOMS[0]}.sql`;
 const MIGRATION_PLAFOND = `${NOMS_PLAFOND[0]}.sql`;
+/** Le plafond du jour, tel que le contrat le dit et que le serveur le tient. */
+const P = PLAFOND_DU_JOUR_DU_CASINO;
 let db: PGlite;
 
 const lignes = async <T>(sql: string, params: unknown[] = []): Promise<T[]> => (await db.query<T>(sql, params)).rows;
@@ -327,7 +329,7 @@ describe("le casino des membres", () => {
   it("montre l'écran entier, sans rien d'un autre compte", async () => {
     const uid = await joueur(5000);
     const e = await comme<EtatDuCasino>(uid, "select public.get_casino() as r");
-    expect(e).toMatchObject({ ok: true, ouvert: true, peut_jouer: true, god: false, solde: 5000, plafond: 12500, mise_au_plus: 200, jetons: [10, 20, 50, 100, 200], mise_du_jour: 0, reste_du_jour: 12500, parties: [], main: null });
+    expect(e).toMatchObject({ ok: true, ouvert: true, peut_jouer: true, god: false, solde: 5000, plafond: P, mise_au_plus: 200, jetons: [10, 20, 50, 100, 200], mise_du_jour: 0, reste_du_jour: P, parties: [], main: null });
     expect(e.jour).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(Object.keys(e).sort()).toEqual(["god", "jetons", "jour", "main", "mise_au_plus", "mise_du_jour", "ok", "ouvert", "parties", "peut_jouer", "plafond", "reste_du_jour", "solde"]);
   });
@@ -339,7 +341,7 @@ describe("le casino des membres", () => {
     await pousser([6]);
     const roue = await comme<Record<string, unknown>>(uid, "select public.jouer_roue($1::jsonb) as r", [json({ rouge: 100, n7: 10, impair: 50 })]);
     const attendu = payerLaRoue({ rouge: 100, n7: 10, impair: 50 }, 7);
-    expect(roue).toMatchObject({ ok: true, jeu: "roue", numero: 7, mise: 160, rendu: attendu.total, par_pari: attendu.parPari, god: false, solde_apres: 5000 - 160 + attendu.total, mise_du_jour: 160, reste_du_jour: 12500 - 160 });
+    expect(roue).toMatchObject({ ok: true, jeu: "roue", numero: 7, mise: 160, rendu: attendu.total, par_pari: attendu.parPari, god: false, solde_apres: 5000 - 160 + attendu.total, mise_du_jour: 160, reste_du_jour: P - 160 });
     expect(roue).not.toHaveProperty("solde");
     // la machine : le tirage 5 donne la torque d'or, 20 fois
     await pousser([5]);
@@ -417,24 +419,24 @@ describe("le casino des membres", () => {
     expect((await lignes<{ r: { error: string } }>("select public.lire_vingt_et_un() as r"))[0]!.r).toMatchObject({ ok: false, error: "not_signed_in" });
   });
 
-  it("tient le plafond de 12 500 statères misés par jour de Paris, tous jeux confondus", async () => {
+  it("tient le plafond du jour (50 000 statères misés par jour de Paris), tous jeux confondus", async () => {
     expect(await une("select internal.casino_plafond() as r")).toBe(PLAFOND_DU_JOUR_DU_CASINO);
-    expect(PLAFOND_DU_JOUR_DU_CASINO).toBe(12500);
+    expect(P).toBe(50000);
     const uid = await joueur(100_000);
     // une mise d'hier soir, à l'heure de Paris, ne compte pas
     await db.query(
       "insert into internal.stateres_mouvements (user_id, nature, montant, ref, cree_le) values ($1, 'casino_mise', -200, 'casino/0', date_trunc('day', now() at time zone 'Europe/Paris') at time zone 'Europe/Paris' - interval '1 second')",
       [uid],
     );
-    expect(await comme(uid, "select public.get_casino() as r")).toMatchObject({ mise_du_jour: 0, reste_du_jour: 12500 });
-    // 12 000 déjà misés aujourd'hui, notés au journal comme le serveur les note
-    await misesDuJour(uid, 12000);
-    for (let i = 0; i < 2; i++) expect(await comme(uid, "select public.jouer_roue('{\"rouge\":100,\"bleu\":100}'::jsonb) as r")).toMatchObject({ ok: true, mise_du_jour: 12000 + 200 * (i + 1) });
-    expect(await comme(uid, "select public.jouer_machine(90) as r")).toMatchObject({ ok: true, mise_du_jour: 12490, reste_du_jour: 10 });
+    expect(await comme(uid, "select public.get_casino() as r")).toMatchObject({ mise_du_jour: 0, reste_du_jour: P });
+    // le plafond moins 500 déjà misés aujourd'hui, notés au journal comme le serveur les note
+    await misesDuJour(uid, P - 500);
+    for (let i = 0; i < 2; i++) expect(await comme(uid, "select public.jouer_roue('{\"rouge\":100,\"bleu\":100}'::jsonb) as r")).toMatchObject({ ok: true, mise_du_jour: P - 500 + 200 * (i + 1) });
+    expect(await comme(uid, "select public.jouer_machine(90) as r")).toMatchObject({ ok: true, mise_du_jour: P - 10, reste_du_jour: 10 });
     expect(await comme(uid, "select public.jouer_des('{\"s7\":20}'::jsonb) as r")).toMatchObject({ ok: false, error: "casino_plafond" });
-    expect(await comme(uid, "select public.jouer_palissade(10) as r")).toMatchObject({ ok: true, mise_du_jour: 12500, reste_du_jour: 0 });
+    expect(await comme(uid, "select public.jouer_palissade(10) as r")).toMatchObject({ ok: true, mise_du_jour: P, reste_du_jour: 0 });
     expect(await comme(uid, "select public.distribuer_vingt_et_un(10) as r")).toMatchObject({ ok: false, error: "casino_plafond" });
-    expect(await comme(uid, "select public.get_casino() as r")).toMatchObject({ plafond: 12500, mise_du_jour: 12500, reste_du_jour: 0 });
+    expect(await comme(uid, "select public.get_casino() as r")).toMatchObject({ plafond: P, mise_du_jour: P, reste_du_jour: 0 });
     expect(await lignes("select 1 from internal.casino_parties where user_id = $1", [uid])).toHaveLength(4);
   });
 
@@ -558,14 +560,14 @@ describe("le vingt-et-un des membres", () => {
 
   it("prend les compléments sous le plafond du jour et dans la bourse", async () => {
     const riche = await joueur(100_000);
-    await misesDuJour(riche, 12100);
+    await misesDuJour(riche, P - 400);
     await comme(riche, "select public.jouer_roue('{\"rouge\":100,\"bleu\":100}'::jsonb) as r");
     await viderLeHasard();
     await pousser([7, 5, 20, 9]);
     const d = await comme<ReponseDuVingtEtUn>(riche, "select public.distribuer_vingt_et_un(100) as r");
-    expect(d).toMatchObject({ mise_du_jour: 12500 - 100, reste_du_jour: 100 });
+    expect(d).toMatchObject({ mise_du_jour: P - 100, reste_du_jour: 100 });
     await pousser([2, ...Array.from({ length: 23 }, () => 0)]);
-    expect(await comme(riche, "select public.jouer_vingt_et_un($1, 0, 'separer') as r", [d.table.partie])).toMatchObject({ ok: true, mise_du_jour: 12500, reste_du_jour: 0 });
+    expect(await comme(riche, "select public.jouer_vingt_et_un($1, 0, 'separer') as r", [d.table.partie])).toMatchObject({ ok: true, mise_du_jour: P, reste_du_jour: 0 });
     expect(await comme(riche, "select public.jouer_vingt_et_un($1, 1, 'doubler') as r", [d.table.partie])).toMatchObject({ ok: false, error: "casino_plafond" });
     expect(await comme(riche, "select public.lire_vingt_et_un() as r")).toMatchObject({ table: { tour: 1, misee: 200 } });
 
@@ -599,7 +601,7 @@ describe("le mode GOD", () => {
     const avant = await solde(uid);
     await viderLeHasard();
     await pousser([2]);
-    expect(await comme(uid, "select public.jouer_roue('{\"n3\":200}'::jsonb) as r")).toMatchObject({ ok: true, god: true, mise: 200, rendu: 7200, solde_apres: avant, mise_du_jour: 0, reste_du_jour: 12500 });
+    expect(await comme(uid, "select public.jouer_roue('{\"n3\":200}'::jsonb) as r")).toMatchObject({ ok: true, god: true, mise: 200, rendu: 7200, solde_apres: avant, mise_du_jour: 0, reste_du_jour: P });
     for (let i = 0; i < 12; i++) expect(await comme(uid, "select public.jouer_palissade(200) as r")).toMatchObject({ ok: true, god: true });
     await pousser([7, 5, 20, 9, 2, ...Array.from({ length: 23 }, () => 0)]);
     const d = await comme<ReponseDuVingtEtUn>(uid, "select public.distribuer_vingt_et_un(200) as r");
@@ -694,24 +696,28 @@ describe("le fichier à coller", () => {
     await base.close();
   });
 
-  it("du plafond à 12 500 : s'installe sur le casino déjà collé, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
+  it("du plafond à 50 000 : s'installe sur le plafond de 12 500 déjà collé, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
     const base = await baseDeTest({ sauf: [MIGRATION_PLAFOND] });
-    expect((await base.query<{ p: number }>("select internal.casino_plafond() as p")).rows[0]!.p).toBe(2000);
+    expect((await base.query<{ p: number }>("select internal.casino_plafond() as p")).rows[0]!.p).toBe(12500);
     const controle = async (): Promise<string> => {
       const r = await base.exec(texteACollerPlafond());
       return (r.at(-1)!.rows[0] as { controle: string }).controle;
     };
     expect(await controle()).toBe(ATTENDU_PLAFOND);
     expect(await controle()).toBe(ATTENDU_PLAFOND);
-    expect((await base.query<{ p: number }>("select internal.casino_plafond() as p")).rows[0]!.p).toBe(12500);
+    expect((await base.query<{ p: number }>("select internal.casino_plafond() as p")).rows[0]!.p).toBe(P);
     expect((await base.query<{ x: boolean }>("select has_function_privilege('authenticated', 'internal.casino_plafond()', 'execute') as x")).rows[0]!.x).toBe(false);
     await base.close();
   });
 
-  it("du plafond : ne remplace que internal.casino_plafond, et s'arrête sans rien changer sans le casino", { timeout: LONG }, async () => {
-    const sql = texteDeMigration(MIGRATION_PLAFOND);
-    expect([...sql.matchAll(/create or replace function ([a-z_]+\.[a-z0-9_]+)\(/g)].map((m) => m[1])).toEqual(["internal.casino_plafond"]);
-    expect(sql).not.toMatch(/\b(delete|update|insert|drop|truncate|alter)\b/i);
+  it("du plafond : chaque migration du plafond ne remplace que internal.casino_plafond, et le fichier s'arrête sans rien changer sans le casino", { timeout: LONG }, async () => {
+    const duPlafond = migrations().filter((m) => m.includes("_casino_plafond_"));
+    expect(duPlafond).toEqual(["20261124000100_casino_plafond_12500.sql", MIGRATION_PLAFOND]);
+    for (const nom of duPlafond) {
+      const sql = texteDeMigration(nom);
+      expect([...sql.matchAll(/create or replace function ([a-z_]+\.[a-z0-9_]+)\(/g)].map((m) => m[1]), nom).toEqual(["internal.casino_plafond"]);
+      expect(sql, nom).not.toMatch(/\b(delete|update|insert|drop|truncate|alter)\b/i);
+    }
     const sansCasino = await baseDeTest({ sauf: migrations().filter((m) => m >= MIGRATION) });
     await expect(sansCasino.exec(texteACollerPlafond())).rejects.toThrow(/pas installé/);
     await sansCasino.exec("rollback");

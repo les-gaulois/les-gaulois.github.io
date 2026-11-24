@@ -3,7 +3,8 @@
  * « Mon Gaulois » et le serveur. Décisions du pilote : six jeux en statères (la roue du charron, le vingt-et-un, la machine
  * du forgeron, la course des familiers, la palissade et les dés), « oui plafond de 2000 par jour », « le casino tu peux
  * l'ouvrir » (ouvert à tous les comptes validés dès la mise en ligne). Le 24 novembre 2026, le plafond passe à 12 500
- * (« 12500 plutôt ! », migration `20261124000100_casino_plafond_12500`).
+ * (« 12500 plutôt ! », migration `20261124000100_casino_plafond_12500`), puis à 50 000 le même jour
+ * (« augmente la limite à 50000 », migration `20261124000200_casino_plafond_50000`).
  *
  * Le serveur décide et tire tout, d'abord (migration `20261123000100_casino_des_gaulois`, appels `casino` de
  * `src/lib/compte/api.ts`) : il vérifie le compte, les paris, la bourse et le plafond du jour, prend la mise au journal des
@@ -43,10 +44,10 @@ export const PAS_DES_MISES = 10;
 export const MISE_DE_DEPART_AU_PLUS = 200;
 /**
  * Les statères misés par jour et par compte, au plus, tous jeux confondus, compléments du vingt-et-un compris (jour de Paris) :
- * 12 500 depuis le 24 novembre 2026 (2 000 avant). Le serveur fait foi : l'écran montre le `plafond` de `get_casino`, jamais
+ * 50 000 depuis le 24 novembre 2026 (2 000 avant, et 12 500 quelques heures ce jour-là). Le serveur fait foi : l'écran montre le `plafond` de `get_casino`, jamais
  * ce chiffre-ci, qui n'en est que la valeur attendue.
  */
-export const PLAFOND_DU_JOUR_DU_CASINO = 12500;
+export const PLAFOND_DU_JOUR_DU_CASINO = 50000;
 /** Au vingt-et-un, doubler et séparer ajoutent chacun la mise de la main en cours : au plus 3 fois la mise de départ en tout. */
 export const COMPLEMENTS_AU_PLUS = 3;
 /** Les dernières parties du compte que `get_casino` rend. */
@@ -298,7 +299,7 @@ export interface EtatDuCasino {
  * - `main_changee` : `p_tour` n'est plus celui de la main (relire avec `lire_vingt_et_un`) ;
  * - `coup_refuse` : ce coup n'est pas permis sur la main en cours ;
  * - `mode_god` : une main jouée avec vraie mise ne se continue pas pendant un essai du mode GOD (elle attend la fin de l'essai) ;
- * - `casino_plafond` : la mise ferait passer le compte du jour au-dessus du plafond (12 500) ;
+ * - `casino_plafond` : la mise ferait passer le compte du jour au-dessus du plafond (50 000) ;
  * - `solde_insuffisant` : la bourse ne suffit pas.
  */
 export const REFUS_DU_CASINO = [

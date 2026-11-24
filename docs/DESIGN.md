@@ -1270,7 +1270,7 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
   la bannière « À l'affiche » (le palais, ses colonnes, ses tentures, ses lustres, la grande roue sur sa table, le croupier en
   pied) ; les six vignettes, chacune avec son croupier en médaillon et ce que le jeu rend en moyenne ; « Vos dernières
   parties », les six plus récentes du compte lues au serveur (mise, rendu, solde de la partie) ; le jeu juste en trois lignes, les
-  règles en pli, et ce qui a été misé aujourd'hui sur le plafond du jour, lu au serveur (12 500 depuis le 24 novembre 2026). Jamais rien d'un autre compte.
+  règles en pli, et ce qui a été misé aujourd'hui sur le plafond du jour, lu au serveur (50 000 depuis le 24 novembre 2026). Jamais rien d'un autre compte.
 - **Une seule bourse, celle de la barre.** Un jeu l'annonce en deux temps, avec les nombres du serveur : la mise prise dès la
   réponse (`prendreLaMise`), le gain une fois le résultat montré (`finDeTour`, `solde_apres`). La barre ne montre jamais un
   résultat avant l'animation. En essai GOD, une étiquette « Essai » ; rien n'est misé ni rendu.
