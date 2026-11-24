@@ -1143,7 +1143,7 @@ dessinés autour par Claude Fable 5.2 (icônes de `dessins-ecran.ts`). Les règl
 - **L'accueil** (`LeDuel.tsx`) : l'entraînement en trois niveaux (apprenti, guerrier, druide), ma défense (mes cinq cartes,
   repoussés et fois battu), ma collection (« 21 sur 273 »), le boss du jour et les défis (`BossEtDefis.tsx`), et l'entrée
   « Les salles » (`duel-salles/Entree.tsx`, à la session des salles), qui ne paraît que si le serveur a les salles ; leur
-  vue (`duel-salles/LesSalles.tsx`) ne se charge qu'en y entrant et emporte la main d'entraînement. Juste après, l'entrée
+  vue (`duel-salles/LesSalles.tsx`) ne se charge qu'en y entrant et emporte la main de jeu. Juste après, l'entrée
   « Le tableau » (`duel-tableau/Entree.tsx`, à la session du tableau et de la saison), qui se cache aussi sans le serveur ;
   sa vue (`duel-tableau/LeTableau.tsx`) se charge de même à la demande.
 - **Le boss du jour** : un Gaulois unique debout sur sa bannière, son pouvoir, et le bouton pour l'affronter. Au serveur,
@@ -1158,7 +1158,9 @@ dessinés autour par Claude Fable 5.2 (icônes de `dessins-ecran.ts`). Les règl
   même recueil sert de tiroir pour changer une carte de sa main, sous la bourse.
 - **Ma main de défense** : le Gaulois « chez toi » devant sa bannière, les cinq cartes, la bourse, « Enregistrer » ;
   l'historique de ceux qui t'ont battu et de ceux que tu as repoussés. Au téléphone, deux boutons dans l'en-tête montrent
-  l'une ou l'autre.
+  l'une ou l'autre. Une défense enregistrée, ici ou sur un autre appareil, devient aussi la main de jeu (boss,
+  entraînement, salles), gardée sur l'appareil (`gal-duel-main`) ; une carte changée dans l'arène ne change qu'elle
+  (24 novembre 2026, `choisirLaMainDeJeu` d'`ecran-duel.ts`).
 - **Le badge « carte de duel »** sous un objet sorti du booster surprise : retiré le 22 novembre 2026, la grande carte de la fin du booster porte ses effets (« Les cartes des cosmétiques »).
 
 

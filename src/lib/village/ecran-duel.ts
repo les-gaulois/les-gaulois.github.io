@@ -155,6 +155,32 @@ export function refusDeLaMain(main: readonly string[], catalogue: Catalogue, aMo
   return null;
 }
 
+/** La marque d'une main, pour savoir si la défense a changé depuis la dernière fois que l'appareil l'a vue. */
+export const marqueDeLaMain = (main: readonly string[]): string => main.join("|");
+
+/**
+ * La main de jeu du duel (entraînement, boss, salles), gardée sur l'appareil (24 novembre 2026 : une défense enregistrée
+ * laissait la main d'avant au combat du boss). Une défense neuve pour cet appareil (enregistrée ici, sur un autre
+ * appareil, ou avant qu'il ne la retienne) devient la main de jeu : c'est la dernière que le membre a composée. Sinon la
+ * main actuelle reste ; à l'ouverture, la main gardée, puis la défense, puis ce que porte le Gaulois. `null` : rien ne
+ * change. `adoptee` : la défense vient d'être prise, à retenir comme vue.
+ */
+export function choisirLaMainDeJeu(o: {
+  actuelle: readonly string[] | null;
+  gardee: readonly string[] | null;
+  defense: readonly string[] | null;
+  defenseVue: string | null;
+  valable: (main: readonly string[]) => boolean;
+  parDefaut: () => string[];
+}): { main: string[]; adoptee: boolean } | null {
+  const { defense, gardee } = o;
+  if (defense && o.valable(defense) && marqueDeLaMain(defense) !== o.defenseVue) return { main: [...defense], adoptee: true };
+  if (o.actuelle) return null;
+  if (gardee && o.valable(gardee)) return { main: [...gardee], adoptee: false };
+  if (defense && o.valable(defense)) return { main: [...defense], adoptee: false };
+  return { main: o.parDefaut(), adoptee: false };
+}
+
 /** Ce qui reste de la bourse pour un emplacement, une fois payées les quatre autres cartes. */
 export function resteDeLaBourse(main: readonly string[], i: number, prix: PrixDUneCarte, bourse: number): number {
   return bourse - main.reduce((s, id, k) => (k === i ? s : s + prix(id)), 0);

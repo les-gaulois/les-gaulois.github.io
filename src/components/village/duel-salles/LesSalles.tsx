@@ -24,7 +24,7 @@ export interface ProprietesDesSalles {
   lib: LibDesBannieres | false | null;
   /** Le Gaulois du membre tel que le duel le dessine. */
   gaulois: { tenue: Tenue; familier: Familier | null; banniere: string | null };
-  /** La main d'entraînement du duel (arme, tête, haut, pieds, bas), emportée dans la salle ; elle s'y change. */
+  /** La main de jeu du duel (arme, tête, haut, pieds, bas), emportée dans la salle ; elle s'y change. */
   main: readonly string[];
   /** Les cartes du membre. */
   aMoi: ReadonlySet<string>;

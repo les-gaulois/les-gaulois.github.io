@@ -9,9 +9,11 @@ import {
   NIVEAUX_D_ENTRAINEMENT,
   cartesAMoi,
   cartesDeLEmplacement,
+  choisirLaMainDeJeu,
   compteDeLaCollection,
   lireLEtatDuServeur,
   mainParDefaut,
+  marqueDeLaMain,
   ouTrouver,
   refusDeLaMain,
   resteDeLaBourse,
@@ -162,5 +164,33 @@ describe("les cartes que l'arène laisse poser", () => {
     const camp = (repos: number[]) => ({ repos }) as unknown as Parameters<typeof MOTEUR.libres>[0];
     expect(MOTEUR.libres(camp([0, 2, 0, 1, 3]))).toEqual([0, 2]);
     expect(MOTEUR.libres(camp([2, 1, 3, 1, 2]))).toEqual([1, 3]);
+  });
+});
+
+describe("la main de jeu du duel", () => {
+  const ANCIENNE = ["gourdin", "bonnet", "tunique", "bottes", "braies"];
+  const NEUVE = ["marteau-forgeron", "bonnet", "tunique", "bottes", "braies"];
+  const DEFAUT = ["defaut"];
+  const base = { valable: (x: readonly string[]) => !x.includes("vendue"), parDefaut: () => [...DEFAUT] };
+
+  it("prend une défense enregistrée depuis, même avec l'ancienne main gardée sur l'appareil (le combat du boss du 24 novembre)", () => {
+    const vue = marqueDeLaMain(ANCIENNE);
+    expect(choisirLaMainDeJeu({ ...base, actuelle: ANCIENNE, gardee: ANCIENNE, defense: NEUVE, defenseVue: vue })).toEqual({ main: NEUVE, adoptee: true });
+    expect(choisirLaMainDeJeu({ ...base, actuelle: null, gardee: ANCIENNE, defense: NEUVE, defenseVue: vue })).toEqual({ main: NEUVE, adoptee: true });
+    // Un appareil qui n'avait encore rien retenu prend la défense une fois.
+    expect(choisirLaMainDeJeu({ ...base, actuelle: null, gardee: ANCIENNE, defense: NEUVE, defenseVue: null })).toEqual({ main: NEUVE, adoptee: true });
+  });
+
+  it("garde la main changée dans l'arène tant que la défense ne change pas", () => {
+    const vue = marqueDeLaMain(NEUVE);
+    expect(choisirLaMainDeJeu({ ...base, actuelle: ANCIENNE, gardee: ANCIENNE, defense: NEUVE, defenseVue: vue })).toBeNull();
+    expect(choisirLaMainDeJeu({ ...base, actuelle: null, gardee: ANCIENNE, defense: NEUVE, defenseVue: vue })).toEqual({ main: ANCIENNE, adoptee: false });
+  });
+
+  it("ne prend pas une défense devenue injouable, et retombe sur la main gardée, la défense, puis celle par défaut", () => {
+    const vendue = ["vendue", "bonnet", "tunique", "bottes", "braies"];
+    expect(choisirLaMainDeJeu({ ...base, actuelle: ANCIENNE, gardee: ANCIENNE, defense: vendue, defenseVue: null })).toBeNull();
+    expect(choisirLaMainDeJeu({ ...base, actuelle: null, gardee: vendue, defense: NEUVE, defenseVue: marqueDeLaMain(NEUVE) })).toEqual({ main: NEUVE, adoptee: false });
+    expect(choisirLaMainDeJeu({ ...base, actuelle: null, gardee: null, defense: null, defenseVue: null })).toEqual({ main: DEFAUT, adoptee: false });
   });
 });

@@ -15,9 +15,11 @@ import {
   NOMS_DES_EMPLACEMENTS,
   NOMS_DES_NIVEAUX,
   cartesAMoi,
+  choisirLaMainDeJeu,
   compteDeLaCollection,
   NIVEAUX_AVEC_ARTICLE,
   lireLEtatDuServeur,
+  marqueDeLaMain,
   type PartieEnCours,
   mainParDefaut,
   nomDeLObjet,
@@ -63,8 +65,47 @@ import { SON } from "./sons-du-duel";
  * un membre qui ne voit pas le duel ne les reçoit jamais.
  */
 
-/** La main d'entraînement gardée sur l'appareil : retrouvée au prochain duel. */
+/** La main de jeu (entraînement, boss, salles) gardée sur l'appareil : retrouvée au prochain duel. */
 const CLE_DE_LA_MAIN = "gal-duel-main";
+/** La dernière défense que cet appareil a prise pour main de jeu : une défense qui en diffère a été enregistrée depuis. */
+const CLE_DE_LA_DEFENSE_VUE = "gal-duel-defense-vue";
+/** La même, pour cette visite, quand l'appareil ne garde rien. */
+let defenseVueIci: string | null = null;
+
+function lireLaMainGardee(): string[] | null {
+  try {
+    const brut = localStorage.getItem(CLE_DE_LA_MAIN);
+    const x: unknown = brut ? JSON.parse(brut) : null;
+    return Array.isArray(x) && x.every((id) => typeof id === "string") ? x : null;
+  } catch {
+    return null;
+  }
+}
+
+/** La mémoire de la visite d'abord : elle suit chaque défense prise, même quand le stockage, plein, n'a rien pu écrire. */
+function lireLaDefenseVue(): string | null {
+  if (defenseVueIci !== null) return defenseVueIci;
+  try {
+    return localStorage.getItem(CLE_DE_LA_DEFENSE_VUE);
+  } catch {
+    return null;
+  }
+}
+
+function noterLaDefenseVue(defense: readonly string[]): void {
+  defenseVueIci = marqueDeLaMain(defense);
+  try {
+    localStorage.setItem(CLE_DE_LA_DEFENSE_VUE, defenseVueIci);
+  } catch {
+    // Sans stockage, la défense vue vaut pour cette visite.
+  }
+}
+
+/**
+ * Le dernier état du duel connu de cette page. L'accès au duel (`VillageApp.tsx`) n'est lu qu'à l'ouverture de « Mon
+ * Gaulois » : sans ce souvenir, revenir sur le duel repartait d'avant la défense enregistrée ou le duel joué entre-temps.
+ */
+let dernierEtat: { serveur: unknown; etat: EtatLuDuServeur | null } | null = null;
 
 const ICONES = {
   duel: () => urlDeLaPlanche("duel-ic-duel", iconeDuDuel),
@@ -231,7 +272,10 @@ export default function LeDuel({ serveur }: { serveur: unknown | null }) {
   const { gaulois, inventaire, panne } = useLeMembre();
   const lib = useBannieres();
   const [vue, setVue] = useState<Vue>({ kind: "accueil" });
-  const [etatServeur, setEtatServeur] = useState<EtatLuDuServeur | null>(() => lireLEtatDuServeur(serveur));
+  const [etatServeur, setEtatServeur] = useState<EtatLuDuServeur | null>(() => (dernierEtat && dernierEtat.serveur === serveur ? dernierEtat.etat : lireLEtatDuServeur(serveur)));
+  useEffect(() => {
+    dernierEtat = { serveur, etat: etatServeur };
+  }, [serveur, etatServeur]);
   // Les cartes à moi : celles que le serveur dit jouables quand il a le duel, sinon l'inventaire et les cartes de base.
   const aMoi = useMemo(() => etatServeur?.collection ?? (inventaire || !panne ? cartesAMoi(m.catalogue, inventaire) : null), [etatServeur, inventaire, panne, m]);
   const [main, setMain] = useState<string[] | null>(null);
@@ -270,20 +314,6 @@ export default function LeDuel({ serveur }: { serveur: unknown | null }) {
     );
   }, [vue.kind, LeTableau]);
 
-  // La main d'entraînement : celle de l'appareil si elle est encore valable, sinon la défense, sinon ce que porte le Gaulois.
-  useEffect(() => {
-    if (!gaulois || !aMoi || main) return;
-    const valable = (x: readonly string[] | null | undefined): x is string[] => !!x && refusDeLaMain(x, m.catalogue, aMoi, m.prix, m.P.BOURSE) === null;
-    let gardee: string[] | null = null;
-    try {
-      const brut = localStorage.getItem(CLE_DE_LA_MAIN);
-      gardee = brut ? (JSON.parse(brut) as string[]) : null;
-    } catch {
-      gardee = null;
-    }
-    const defense = etatServeur?.defense ? [...etatServeur.defense] : null;
-    setMain(valable(gardee) ? gardee : valable(defense) ? defense : mainParDefaut(m.catalogue, gaulois.tenue, aMoi, m.prix, m.P.BOURSE));
-  }, [gaulois, aMoi, etatServeur, main, m]);
   const garderLaMain = (x: string[]): void => {
     setMain(x);
     try {
@@ -292,6 +322,26 @@ export default function LeDuel({ serveur }: { serveur: unknown | null }) {
       // Sans stockage, la main vaut pour cette visite.
     }
   };
+  // La main de jeu : une défense neuve pour cet appareil la remplace (enregistrée ici, ailleurs, ou avant) ; sinon, à
+  // l'ouverture, celle de l'appareil si elle est encore valable, puis la défense, puis ce que porte le Gaulois. Jamais
+  // pendant un duel ou dans les salles : la main montrée est celle qui part au serveur ; elle se reprend au retour.
+  const enJeu = vue.kind === "arene" || vue.kind === "salles";
+  useEffect(() => {
+    if (!gaulois || !aMoi || (enJeu && main)) return;
+    const choix = choisirLaMainDeJeu({
+      actuelle: main,
+      gardee: lireLaMainGardee(),
+      defense: etatServeur?.defense ?? null,
+      defenseVue: lireLaDefenseVue(),
+      valable: (x) => refusDeLaMain(x, m.catalogue, aMoi, m.prix, m.P.BOURSE) === null,
+      parDefaut: () => mainParDefaut(m.catalogue, gaulois.tenue, aMoi, m.prix, m.P.BOURSE),
+    });
+    if (!choix) return;
+    if (choix.adoptee) {
+      noterLaDefenseVue(choix.main);
+      garderLaMain(choix.main);
+    } else setMain(choix.main);
+  }, [gaulois, aMoi, etatServeur, main, m, enJeu]);
 
   const style = { "--dl-paillettes": PAILLETTES() } as JSX.CSSProperties;
   if (!gaulois || !main || !aMoi) {
@@ -410,7 +460,12 @@ export default function LeDuel({ serveur }: { serveur: unknown | null }) {
           aMoi={aMoi}
           serveur={etatServeur}
           depart={etatServeur?.defense ? [...etatServeur.defense] : main}
-          onEnregistree={(defense) => setEtatServeur((s) => (s ? { ...s, defense } : s))}
+          onEnregistree={(defense) => {
+            // La défense qu'on vient d'enregistrer est aussi la main de jeu : le boss, l'entraînement et les salles la prennent.
+            noterLaDefenseVue(defense);
+            garderLaMain([...defense]);
+            setEtatServeur((s) => (s ? { ...s, defense } : s));
+          }}
           retour={() => setVue({ kind: "accueil" })}
         />
       )}
