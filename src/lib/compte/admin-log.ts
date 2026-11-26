@@ -105,6 +105,7 @@ const ROBOT_SALONS: Record<string, string> = {
   alliance: "le salon Discord de l'alliance",
   achats: "le salon Discord des achats du village",
   duels: "le salon Discord des duels",
+  casino: "le salon Discord du casino",
 };
 
 /** L'état d'une zone de l'alliance, comme le journal l'écrit (migration 20261113001000). */

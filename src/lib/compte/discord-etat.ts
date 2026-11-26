@@ -168,7 +168,7 @@ export interface EtatDuMenu extends Etat {
 export const ETAT_NON_LU: EtatDuMenu = { ton: "muted", mot: "État non lu" };
 
 /** Le nom court d'un salon du robot, devant son état sur la ligne du menu. */
-export const NOMS_COURTS: Readonly<Record<RobotSalonId, string>> = { nouvelles: "Nouvelles", encadrement: "Encadrement", victoires: "Victoires", alliance: "Alliance", achats: "Achats", duels: "Duels" };
+export const NOMS_COURTS: Readonly<Record<RobotSalonId, string>> = { nouvelles: "Nouvelles", encadrement: "Encadrement", victoires: "Victoires", alliance: "Alliance", achats: "Achats", duels: "Duels", casino: "Casino" };
 
 /** La ligne « Salons du robot » : l'état de chaque salon, avec son nom. Rien tant que la lecture n'est pas faite. */
 export function etatsDuMenuSalons(salons: Lu<readonly RobotSalon[]>): EtatDuMenu[] {

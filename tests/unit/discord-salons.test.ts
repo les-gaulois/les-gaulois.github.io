@@ -79,7 +79,7 @@ describe("les phrases", () => {
 describe("le salon des victoires", () => {
   const WINS = ROBOT_SALON_TEXTS.find((t) => t.id === "victoires")!;
   it("vient après les deux autres, avec son secret de secours", () => {
-    expect(ROBOT_SALON_TEXTS.map((t) => t.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance", "achats", "duels"]);
+    expect(ROBOT_SALON_TEXTS.map((t) => t.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance", "achats", "duels", "casino"]);
     expect(WINS.secret).toBe("DISCORD_WEBHOOK_VICTOIRES");
   });
   it("un serveur sans sa migration ne le rend pas : la page montre les deux autres, sans erreur", () => {
@@ -144,8 +144,8 @@ describe("le salon des achats du village", () => {
 
 describe("le salon des duels", () => {
   const DUELS = ROBOT_SALON_TEXTS.find((t) => t.id === "duels")!;
-  it("vient en dernier, sans secret à lui, et suit le salon des achats sans lien ici", () => {
-    expect(ROBOT_SALON_TEXTS.at(-1)?.id).toBe("duels");
+  it("vient avant le casino, sans secret à lui, et suit le salon des achats sans lien ici", () => {
+    expect(ROBOT_SALON_TEXTS.at(-2)?.id).toBe("duels");
     expect(DUELS.secret).toBeNull();
     expect(DUELS.optional).toBe(true);
     expect(phraseSansReglage(DUELS)).toBe("Sans lien ici, les duels partent dans le salon des achats du village, ou dans celui des nouvelles s'il n'est pas branché.");
@@ -156,5 +156,22 @@ describe("le salon des duels", () => {
     const cinq = [unset("nouvelles"), unset("encadrement"), unset("victoires"), unset("alliance"), unset("achats")];
     expect(parseDiscordSalons(answer(cinq))?.map((s) => s.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance", "achats"]);
     expect(parseDiscordSalons(answer([...cinq, unset("duels")]))?.map((s) => s.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance", "achats", "duels"]);
+  });
+});
+
+describe("le salon du casino", () => {
+  const CASINO = ROBOT_SALON_TEXTS.find((t) => t.id === "casino")!;
+  it("vient en dernier, sans secret à lui, et suit le salon des achats sans lien ici", () => {
+    expect(ROBOT_SALON_TEXTS.at(-1)?.id).toBe("casino");
+    expect(CASINO.secret).toBeNull();
+    expect(CASINO.optional).toBe(true);
+    expect(phraseSansReglage(CASINO)).toBe("Sans lien ici, les gains du casino partent dans le salon des achats du village, ou dans celui des nouvelles s'il n'est pas branché.");
+    expect(CASINO.intro).toContain("1 000 statères ou plus");
+    expect(CASINO.intro).toContain("sans aucun solde");
+  });
+  it("un serveur sans sa migration ne le rend pas ; avec elle, il se relit comme les autres", () => {
+    const six = [unset("nouvelles"), unset("encadrement"), unset("victoires"), unset("alliance"), unset("achats"), unset("duels")];
+    expect(parseDiscordSalons(answer(six))?.map((s) => s.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance", "achats", "duels"]);
+    expect(parseDiscordSalons(answer([...six, unset("casino")]))?.map((s) => s.id)).toEqual(["nouvelles", "encadrement", "victoires", "alliance", "achats", "duels", "casino"]);
   });
 });

@@ -97,7 +97,36 @@ function pierre(rp: typeof RUBIS, losange: boolean): Toile {
 }
 
 /* ---------- Les six vignettes ---------- */
-const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean) => void>> = {
+/**
+ * Le vrai tirage d'un coup, que la vignette montre à la place de son décor d'exemple : l'image d'un gros gain que le robot
+ * poste sur Discord (`src/lib/casino-image.ts`, 26 novembre 2026). Le hall n'en passe jamais : ses vignettes restent les
+ * mêmes. La machine reçoit les symboles de la ligne du milieu déjà peints (`symbole` de `casino-machine.ts`, que le hall
+ * ne charge pas). La roue n'en a pas besoin : l'image pose le numéro sur sa plaque.
+ */
+export type TirageDeLaVignette =
+  | { jeu: "machine"; signes: readonly [Toile, Toile, Toile] }
+  | { jeu: "course"; gagnant: number }
+  | { jeu: "palissade"; coupe: number }
+  | { jeu: "des"; faces: readonly [number, number] };
+
+/** Les trois faces vues d'un dé posé sur `dessus` : dessus, gauche, droite, deux à deux voisines (jamais deux faces opposées). */
+export function facesVues(dessus: number): [number, number, number] {
+  const voisines = [1, 2, 3, 4, 5, 6].filter((f) => f !== dessus && f !== 7 - dessus);
+  const gauche = voisines[0]!;
+  const droite = voisines.find((f) => f !== gauche && f !== 7 - gauche)!;
+  return [dessus, gauche, droite];
+}
+
+/**
+ * Les trois couloirs que montre la vignette de la course, de haut en bas, et la place du gagnant parmi eux : les trois
+ * numéros qui se suivent autour du couloir gagnant (`gagnant`, de 0 à 5), sans sortir des six.
+ */
+export function couloirsVus(gagnant: number): { numeros: [number, number, number]; enTete: number } {
+  const debut = Math.max(0, Math.min(3, gagnant - 1));
+  return { numeros: [debut + 1, debut + 2, debut + 3], enTete: gagnant - debut };
+}
+
+const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean, tirage?: TirageDeLaVignette) => void>> = {
   "vingt-et-un"(Tl, jour) {
     const h = Tl.h;
     const cx = Tl.w >> 1;
@@ -127,7 +156,8 @@ const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean) => void
     pile(Tl, cx + 84, h - 10, 5, RUBIS, 8);
     pile(Tl, cx + 66, h - 4, 2, IVOIRE, 8);
   },
-  machine(Tl, jour) {
+  machine(Tl, jour, tirage) {
+    const tires = tirage?.jeu === "machine" ? tirage.signes : null;
     const h = Tl.h;
     const cx = Tl.w >> 1;
     mur(Tl, jour, 0.5, 0.45);
@@ -159,7 +189,9 @@ const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean) => void
       const mx = fx + (fw >> 1);
       const my = fy + (fh >> 1);
       const signe = signes[k]!;
-      if (signe === "statere") c.pose(statere(16), mx - 8, my - 8);
+      const tire = tires?.[k];
+      if (tire) c.pose(tire, mx - (tire.w >> 1), my - (tire.h >> 1));
+      else if (signe === "statere") c.pose(statere(16), mx - 8, my - 8);
       else c.pose(pierre(signe === "rubis" ? RUBIS : SAPHIR, signe === "rubis"), mx - 8, my - 8);
       c.r(fx + fw, fy, 2, fh, ton(NOIR, 1));
     }
@@ -184,7 +216,8 @@ const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean) => void
     c.cerne();
     Tl.poseOmbre(c, cx - (mw >> 1) - 5, h - mh - 6, 4, 3, 0.5);
   },
-  course(Tl, jour) {
+  course(Tl, jour, tirage) {
+    const vus = tirage?.jeu === "course" ? couloirsVus(tirage.gagnant) : null;
     const w = Tl.w;
     const h = Tl.h;
     mur(Tl, jour, 0.6, 0.3);
@@ -213,7 +246,11 @@ const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean) => void
       ["renardeau-roux", 0.4, 1],
       ["lapin-de-garenne", 0.62, 2],
     ] as const;
-    for (const [id, fx, k] of coureurs) {
+    // Avec un tirage, le familier du couloir gagnant est en tête, les deux autres derrière lui.
+    const enTete = vus?.enTete ?? 2;
+    const derriere = [0, 1, 2].filter((k) => k !== enTete);
+    for (const [id, fxDuHall, k] of coureurs) {
+      const fx = vus ? (k === enTete ? 0.62 : derriere.indexOf(k) === 0 ? 0.12 : 0.4) : fxDuHall;
       const c = familier(id, true);
       const bas = sol + Math.round(((h - sol) * (k + 0.82)) / 3);
       const x0 = Math.round(w * fx);
@@ -225,11 +262,12 @@ const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean) => void
       Tl.poseOmbre(c, x0, bas - c.h, 2, 2, 0.4);
       const pl = new Toile(11, 11);
       pl.tout((x, y) => (x === 0 || y === 0 || x === 10 || y === 10 ? ton(OR, 5) : ton(NOIR, 1)));
-      ecrisSur(pl, String(k + 1), 3, 2, ton(OR, 6));
+      ecrisSur(pl, String(vus ? vus.numeros[k] : k + 1), 3, 2, ton(OR, 6));
       Tl.pose(pl, 4, bas - 12);
     }
   },
-  palissade(Tl, jour) {
+  palissade(Tl, jour, tirage) {
+    const coupe = tirage?.jeu === "palissade" ? tirage.coupe : null;
     const w = Tl.w;
     const h = Tl.h;
     const cx = w >> 1;
@@ -274,21 +312,29 @@ const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean) => void
       Tl.r(bx + k * cw, by - 3, 1, 13, ton(OR, 3));
     }
     Tl.r(bx + n * cw, by - 3, 1, 13, ton(OR, 3));
+    // Avec un tirage : le statère posé dans sa coupe, sous sa lueur.
+    if (coupe !== null) {
+      const kx = bx + coupe * cw + (cw >> 1);
+      lueur(Tl, kx, by + 2, 16, 0.5, ton(OR, 7));
+      bille(Tl, kx, by + 3, 3);
+      return;
+    }
     // la bille et sa trace
     const tx = cx + 9;
     const ty = y0 + 12 + Math.round(rangs * 0.55) * 11 - 6;
     for (let i = 1; i < 14; i++) Tl.m(tx - Math.round(i * 0.7), ty - i * 2, ton(IVOIRE, 6), 0.4 * (1 - i / 14));
     bille(Tl, tx, ty, 3);
   },
-  des(Tl, jour) {
+  des(Tl, jour, tirage) {
+    const faces = tirage?.jeu === "des" ? tirage.faces : null;
     const h = Tl.h;
     const cx = Tl.w >> 1;
     mur(Tl, jour, 0.5, 0.4);
     plateau(Tl, Math.round(h * 0.5), RUBIS, 0.04);
     lueur(Tl, cx, Math.round(h * 0.52), 62, jour ? 0.22 : 0.3);
     const a = Math.min(30, Math.round(h * 0.25));
-    const d1 = de(a, [6, 3, 2]);
-    const d2 = de(a - 3, [5, 1, 4], BORDEAUX);
+    const d1 = de(a, faces ? facesVues(faces[0]) : [6, 3, 2]);
+    const d2 = de(a - 3, faces ? facesVues(faces[1]) : [5, 1, 4], BORDEAUX);
     Tl.poseOmbre(d1, cx - a * 2 + 2, Math.round(h * 0.56) - a - 6, 4, 4);
     Tl.poseOmbre(d2, cx + 6, Math.round(h * 0.62) - a + 2, 4, 4);
     pile(Tl, cx - 78, h - 8, 4, NOIR, 8);
@@ -299,10 +345,10 @@ const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean) => void
   },
 };
 
-/** La vignette d'un jeu, de `w` sur `h` points. */
-export function vignette(id: JeuDuCasino, w: number, h: number, jour: boolean): Toile {
+/** La vignette d'un jeu, de `w` sur `h` points ; avec `tirage`, le vrai tirage d'un coup (l'image du robot seulement). */
+export function vignette(id: JeuDuCasino, w: number, h: number, jour: boolean, tirage?: TirageDeLaVignette): Toile {
   const Tl = new Toile(w, h);
-  VIGNETTES[id](Tl, jour);
+  VIGNETTES[id](Tl, jour, tirage);
   return Tl;
 }
 

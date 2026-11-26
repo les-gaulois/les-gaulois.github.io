@@ -316,6 +316,35 @@ jobs:
         with:
           path: .cache/duels-envoi.json
           key: duels-envoi-${{ hashFiles('.cache/duels-envoi.json') }}
+      # Les gros gains du casino (demande du pilote, 26 novembre 2026, « 1 000 statères ou plus ») : l'image de chaque coup
+      # qui gagne au moins 1 000 statères, lue au serveur (casino_annonces_a_envoyer), qui note chaque envoi : pas d'état
+      # dans data/. Le robot garde aussi chaque envoi accepté dans le cache du workflow (.cache/casino-envoi.json) : un coup
+      # que le serveur n'a pas pu noter ne repart pas. Dans le salon du casino réglé dans la Direction, sinon celui des
+      # achats, sinon celui des nouvelles. Rien tant que sa migration n'est pas collée.
+      - name: Restaurer l'état des gros gains du casino annoncés
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/casino-envoi.json
+          key: casino-envoi-${{ github.run_id }}
+          restore-keys: casino-envoi-
+      - name: Annoncer les gros gains du casino sur Discord
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm run casino:envoyer
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          DISCORD_WEBHOOK_GAZETTE: ${{ secrets.DISCORD_WEBHOOK_GAZETTE }}
+      - name: Conserver l'état des gros gains du casino annoncés
+        if: ${{ !cancelled() && hashFiles('.cache/casino-envoi.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: .cache/casino-envoi.json
+          key: casino-envoi-${{ hashFiles('.cache/casino-envoi.json') }}
       # Le trop-payé rendu après les prix baissés du 21 novembre 2026 (docs/DIRECTION.md, « Le trop-payé rendu ») : le
       # message public, une fois, dans le salon des nouvelles, puis un message privé du robot (DISCORD_BOT_TOKEN) à chaque
       # joueur remboursé, lu au serveur (rendus_des_prix). Une fois tout parti, l'étape ne fait plus rien. Même garde-fou :

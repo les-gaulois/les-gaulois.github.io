@@ -7,7 +7,7 @@
  */
 import { lastSendSentence, outcomeSentence, type LastSend, type SendOutcome } from "./discord-appels";
 
-export type RobotSalonId = "nouvelles" | "encadrement" | "victoires" | "alliance" | "achats" | "duels";
+export type RobotSalonId = "nouvelles" | "encadrement" | "victoires" | "alliance" | "achats" | "duels" | "casino";
 
 export interface RobotSalonText {
   id: RobotSalonId;
@@ -81,6 +81,16 @@ export const ROBOT_SALON_TEXTS: readonly RobotSalonText[] = [
     intro: "Chaque victoire d'un Gaulois sur un autre en duel de cartes, en image : les deux Gaulois, les pseudos publics seulement, sans aucun solde, quelques minutes après le duel.",
     secret: null,
     repli: { phrase: "Sans lien ici, les duels partent dans le salon des achats du village, ou dans celui des nouvelles s'il n'est pas branché.", etat: "Suit les achats" },
+    optional: true,
+  },
+  {
+    // Migration 20261126000100 (demande du pilote, 26 novembre 2026) : le robot de la GitHub Action y poste l'image de chaque
+    // coup du casino qui gagne 1 000 statères ou plus, toutes les 5 minutes ; sans lien ici, ils suivent le salon des achats.
+    id: "casino",
+    title: "Le salon du casino",
+    intro: "Chaque coup du casino qui gagne 1 000 statères ou plus, en image : le nom Discord du joueur, le jeu, les statères gagnés et la vraie chance du coup, sans aucun solde, quelques minutes après le coup.",
+    secret: null,
+    repli: { phrase: "Sans lien ici, les gains du casino partent dans le salon des achats du village, ou dans celui des nouvelles s'il n'est pas branché.", etat: "Suit les achats" },
     optional: true,
   },
 ];

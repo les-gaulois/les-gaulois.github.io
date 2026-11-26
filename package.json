@@ -39,6 +39,7 @@
     "achats:envoyer": "tsx scripts/envoyer-achats.ts",
     "marche:annoncer": "tsx scripts/annoncer-marche.ts",
     "duels:envoyer": "tsx scripts/envoyer-duels.ts",
+    "casino:envoyer": "tsx scripts/envoyer-casino.ts",
     "rendus:envoyer": "tsx scripts/envoyer-rendus-prix.ts",
     "victoires:envoyer": "tsx scripts/envoyer-victoires.ts",
     "victoires:rejouer": "tsx scripts/rejouer-victoires.ts",

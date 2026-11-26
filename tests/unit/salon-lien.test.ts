@@ -318,3 +318,20 @@ describe("la migration du salon des achats", () => {
     expect(SQL).not.toMatch(/grant execute on function public\.(robot_discord_salons|note_discord_salon)\([^)]*\) to (anon|authenticated)/);
   });
 });
+
+describe("le salon du casino", () => {
+  const ACHATS = "https://discord.com/api/webhooks/623456789012345678/achatsachatsachatsachatsach";
+  const DUELS = "https://discord.com/api/webhooks/723456789012345678/duelsduelsduelsduelsduelsdu";
+  const CASINO = "https://discord.com/api/webhooks/823456789012345678/casinocasinocasinocasinoca";
+  it("son lien d'abord ; sinon celui des achats, puis celui des nouvelles, puis le secret des nouvelles ; jamais celui des duels", () => {
+    expect(chooseLink("casino", { nouvelles: NEWS, achats: ACHATS, duels: DUELS, casino: CASINO }, OLD)).toEqual({ link: CASINO, source: "direction" });
+    expect(chooseLink("casino", { nouvelles: NEWS, achats: ACHATS, duels: DUELS, casino: null }, OLD)).toEqual({ link: ACHATS, source: "direction" });
+    expect(chooseLink("casino", { nouvelles: NEWS, achats: null, duels: DUELS, casino: null }, OLD)).toEqual({ link: NEWS, source: "direction" });
+    expect(chooseLink("casino", { nouvelles: null, achats: null, duels: DUELS }, ` ${OLD} `)).toEqual({ link: OLD, source: "secret" });
+    expect(chooseLink("duels", { casino: CASINO }, "")).toEqual({ link: null, source: "none" });
+  });
+  it("un serveur qui ne connaît pas encore le casino le laisse suivre les achats", async () => {
+    expect(await salonLink("casino", ENV, answering({ nouvelles: NEWS, encadrement: null, achats: ACHATS, duels: null }))).toEqual({ link: ACHATS, source: "direction", warning: null });
+    expect(await salonLink("casino", ENV, answering({ nouvelles: NEWS, encadrement: null, achats: ACHATS, duels: null, casino: CASINO }))).toEqual({ link: CASINO, source: "direction", warning: null });
+  });
+});
