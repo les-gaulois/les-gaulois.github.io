@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-26",
+    "kind": "corrige",
+    "rank": "minor",
+    "title": "Le bouton pour poser sa carte reste en place",
+    "body": "Au duel, le bouton qui pose la carte choisie ne saute plus en biais hors de sa case quand la souris passe dessus ou quand on appuie.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-26",
     "kind": "nouveau",
     "title": "Les gros gains du casino sur Discord",
     "body": "Un coup du casino qui gagne 1 000 statères ou plus s'annonce en image sur Discord : le jeu, le tirage, les statères gagnés, la mise et la vraie chance du coup. Jamais une perte ni un solde.",
