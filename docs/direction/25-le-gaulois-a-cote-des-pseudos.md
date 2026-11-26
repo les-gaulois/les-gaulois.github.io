@@ -1,0 +1,12 @@
+<!-- Partie de docs/DIRECTION.md : « Le village des Gaulois » › « Le Gaulois à côté des pseudos ». Sommaire et ordre des parties : docs/DIRECTION.md. -->
+
+#### Le Gaulois à côté des pseudos
+
+Demande du pilote, 16 novembre 2026 : le Gaulois d'un membre qui a créé le sien paraît à côté de son pseudo dans la gazette (podium en marches, plus actifs, paliers franchis, arrivées), sur Records (podiums et records des joueurs), sur Membres (paliers, encadrement) et sur chaque case des « Dernières parties » de `/revoir`.
+
+- **Le chemin** (`src/lib/gaulois-site.ts`) : les tenues de `.cache/gaulois-fiches.json`, écrites par l'étape « Lire les Gaulois des fiches » pour les membres au pseudo public, validés, qui ont enregistré leur Gaulois (le serveur en décide). Aucune migration, aucune lecture de plus. Rien n'est du temps réel : un Gaulois rhabillé paraît à la construction suivante. Sans le fichier, les pages s'affichent comme avant.
+- **Le dessin** : une image par membre, `/gaulois/<identifiant public>.png` (`src/pages/gaulois/[id].png.ts`), le Gaulois entier, une case par pixel. `GauloisPortrait.astro` l'agrandit d'un nombre entier, sans lissage, en pied ou en buste (le haut de la même image). Décoratif : `alt=""`, le pseudo est écrit à côté. Là où le Gaulois paraît, l'emplacement de la photo Discord (`.face-slot`) n'est pas écrit.
+- **Les parties à revoir de « Dernières parties »** (`gauloisDeLaPartie`, par `gauloisDuJournal` ; les cases de `/revoir` l'utilisaient jusqu'au 18 novembre 2026, retirées avec elles) : les membres au pseudo public qui ont un Gaulois et que nomme le film de la partie dans le camp du clan (`.cache/films/`, noms de `nomsPubliables` ; un pseudo porté par deux membres ne désigne personne), plus ceux de leur liste officielle (`.cache/member-games/results.json`, celle des podiums, relue environ une fois par jour). Six au plus, les autres comptés.
+- **L'accueil et « Dernières parties »** (même jour, à la suite) : le buste devant les pseudos du podium et des plus actifs de l'accueil (`ClanWeek.astro`) ; sous chaque partie du journal qui a son replay sur le site, le buste et le pseudo de ses Gaulois, liés à leur fiche (`gauloisDuJournal`, `GamesJournal.tsx`). Seulement ces parties-là, sept jours au plus : leurs pseudos se lisent déjà dans le replay, et le site ne publie pas un mois d'heures de jeu par membre.
+- **Tests** : `tests/unit/gaulois-site.test.ts`.
+

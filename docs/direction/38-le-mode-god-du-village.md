@@ -1,0 +1,16 @@
+<!-- Partie de docs/DIRECTION.md : « Le village des Gaulois » › « Le mode GOD du village ». Sommaire et ordre des parties : docs/DIRECTION.md. -->
+
+### Le mode GOD du village
+
+Demandé par le pilote le 16 novembre 2026 : un bouton pour lui seul, dans l'onglet Village de la Direction, qui lui donne de quoi tout essayer, sans rien garder et sans rien montrer (migration `20261116000900_village_mode_god.sql`, lecture `src/lib/village/god.ts`, bloc « Mode GOD » de `DirectionVillage.tsx`).
+
+- **Qui** : le compte dont l'identifiant Discord est dans `internal.village_god_titulaire`, lu par `private_links.discord_id`, qui ne vient que de Discord. La table est vide dans le dépôt : l'identifiant s'écrit dans l'éditeur SQL de Supabase. Tout autre compte, fondateur compris, reçoit `permis: false` et ne voit pas le bloc ; les deux boutons lui répondent `forbidden`.
+- **Allumer** (`activer_village_god`) : le serveur copie ce que le compte possède et porte (tenue, familier, bannière, inventaire, familiers, bannières, Gaulois uniques, gravures), puis ajoute 1 000 000 de statères (`god_debut`). Refusé avec une offre ouverte au marché.
+- **Pendant l'essai** : un déclencheur change la nature de chaque mouvement de statères du compte en `test_…` et un autre l'annule aussitôt (`god_retour`) : le solde ne bouge pas. Rien de ce qui lit le journal par sa nature ne voit l'essai : ni l'annonce des achats sur Discord, ni les totaux de l'onglet Village. Les vrais gains (victoires, pronostics, ventes) restent vrais. Le marché et les mises sont refusés (`mode_god`) : rien ne sort du compte. La vitrine, /gaulois, les images du robot et la bannière de /liste montrent le Gaulois de la copie (`internal.gaulois_montre`).
+- **Éteindre** (`desactiver_village_god`) : tout redevient la copie, les fusions de l'essai sont oubliées, le million est repris (`god_fin`). Le journal des statères ne s'efface pas : les lignes de l'essai y restent, leur somme vaut zéro.
+- **Au journal de l'encadrement** : `village_god_on` et `village_god_off`, que lisent les admins.
+- **Sauvegarde** : éteindre l'essai avant de s'en servir. `export_site` ne garde pas la copie de l'essai : une sauvegarde prise pendant un essai, puis restaurée, laisserait au compte ses objets d'essai et le million.
+- **Un nouveau genre d'objet** (une table `internal.gaulois_…` de plus) doit entrer dans la copie et dans la remise, dans une nouvelle migration : sinon ce que l'essai y gagne resterait.
+- **Mise en ligne** : coller la migration dans l'éditeur SQL de Supabase, puis une ligne `insert into internal.village_god_titulaire (discord_id) values ('…');` avec l'identifiant du pilote, avant de publier le site. `code-discord` n'a pas à être remise en ligne.
+- **Essayé sans vrai compte** : sur PGlite, avec les vraies tables et les vrais déclencheurs du journal des statères, migration collée deux fois (27 contrôles : autre compte et visiteur refusés, solde inchangé après achat, pochette et remboursement, marché, mise et vente refusés, aucune ligne annonçable, vraie victoire gardée, copie montrée aux autres, tout remis à l'identique, somme de l'essai à zéro). Les cinq fonctions remplacées (place, /gaulois, images, bannières, totaux de la Direction, où les statères « en circulation » ne comptent pas les lignes de l'essai) n'y ont été que lues, pas exécutées. Jamais sur le vrai projet.
+

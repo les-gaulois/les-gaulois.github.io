@@ -1,0 +1,17 @@
+<!-- Partie de docs/DIRECTION.md : « Le village des Gaulois » › « Le don de statères ». Sommaire et ordre des parties : docs/DIRECTION.md. -->
+
+### Le don de statères
+
+Demandé par le pilote le 17 novembre 2026 : un panneau pour donner des statères, « uniquement disponible pour Jod » (migration `20261117000200_don_de_stateres.sql`, lecture `src/lib/village/don.ts`, bloc « Donner des statères » de `DirectionVillage.tsx`, sous le mode GOD).
+
+- **Qui** : le compte dont l'identifiant Discord est dans `internal.stateres_don_titulaire`, lu par `private_links.discord_id`, qui ne vient que de Discord, et dont le compte est validé. La table est vide dans le dépôt : l'identifiant s'écrit dans l'éditeur SQL de Supabase. Tout autre compte, fondateur compris, reçoit `permis: false` et ne voit pas le bloc ; `donner_stateres` lui répond `forbidden` avant toute autre chose.
+- **Un don** (`donner_stateres`) : de 1 à 100 000 statères, à un compte validé choisi dans la liste, où chaque nom porte son numéro de Gaulois (deux comptes peuvent avoir le même nom), avec un motif facultatif de 80 signes au plus. L'écran demande de relire puis de confirmer. Il crée ces statères (nature `don` du journal des statères) : c'est voulu par le pilote, avec les points et la loterie (et la prime du coffre du druide, jusqu'à son arrêt).
+- **Jamais deux fois** : l'écran tire une clé à la préparation du don ; la même clé renvoyée, après une panne de réseau par exemple, ne redonne rien. Le même don préparé de nouveau après un envoi raté garde sa clé, et la liste des derniers dons est relue après tout refus.
+- **Les traces** : chaque don est gardé dans `internal.stateres_dons` (les 20 derniers s'affichent sous le formulaire) et va au journal de l'équipe (`stateres_don`, avec le montant), que lisent les admins.
+- **Jamais un solde** : le panneau ne montre le solde de personne. Celui qui reçoit voit son solde monter, sans message.
+- **Le mode GOD** : pendant l'essai de celui qui reçoit, le don reste un vrai gain (`internal.village_god_mouvement` laisse passer `don`).
+- **Pas de reprise** : le panneau ne retire pas de statères. Une erreur se corrige dans l'éditeur SQL.
+- **Ce qui manque** : les totaux de l'onglet Village ne comptent pas les dons dans « Distribués » (ils sont dans « en circulation ») ; `internal.stateres_dons` n'est pas dans la sauvegarde chiffrée (les lignes `don` du journal des statères, elles, y sont).
+- **Mise en ligne** : `.cache/a-coller-don-stateres.sql` (`npx tsx scripts/a-coller-don-stateres.ts`, dernière ligne « don de statères : installé »), collé par le pilote, puis la ligne `insert into internal.stateres_don_titulaire (discord_id) values ('…');`. Le site peut passer avant : sans la migration ou sans titulaire, rien ne paraît. `code-discord` n'a pas à être remise en ligne.
+- **Essayé sans vrai compte** : la migration sur PGlite, avec une copie réduite des tables qu'elle lit (54 contrôles : sans titulaire personne, autre compte, compte sans Discord et visiteur refusés, tables fermées, don, journaux, même clé, chaque refus, plafond, mode GOD de celui qui reçoit, titulaire suspendu ou retiré, 20 derniers dons, limite d'appels, rejouée trois fois) ; l'écran dans Chromium avec un faux serveur (93 contrôles : 360, 1 440 et 1 920 px, clair et sombre, montants refusés, confirmation, refus du serveur, même clé au second envoi, axe, aucun défilement de côté, bloc absent pour un autre compte). Ces deux essais ne sont pas dans le dépôt. Jamais sur le vrai projet ni avec un vrai compte.
+

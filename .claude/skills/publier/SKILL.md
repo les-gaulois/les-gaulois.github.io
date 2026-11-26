@@ -21,7 +21,7 @@ Suivre la skill `verifier` jusqu'au bout. Un contrôle qui échoue arrête la pu
 
 ## 3. Faire relire
 
-Si le changement touche `src/lib/`, `scripts/`, `supabase/`, `tests/` ou plus d'une centaine de lignes : demander au sous-agent `relecteur` de relire le diff (`git diff origin/main...HEAD`, ou `git diff` si rien n'est encore committé). Corriger ce qu'il signale comme bloquant, puis refaire l'étape 2 si du code a changé.
+Si le changement touche `src/lib/`, `scripts/`, `supabase/`, `tests/` ou plus d'une centaine de lignes : demander au sous-agent `relecteur` de relire le diff (`git diff origin/main...HEAD`, ou `git diff` si rien n'est encore committé). Corriger ce qu'il signale comme bloquant, puis, si du code a changé, relancer les contrôles de ce code (skill `verifier`, « Pendant le travail ») et une seule fois le build et l'e2e complets. Le relecteur tourne sur Sonnet : lui donner le diff et ce qu'il doit regarder, pas l'histoire de la tâche.
 
 ## 4. Se mettre à jour sur origin/main
 
@@ -37,7 +37,7 @@ git status
 
 ## 5. Composer le commit
 
-- Ajouter chaque fichier par son nom : `git add src/pages/x.astro tests/e2e/site.spec.ts`. Jamais `git add -A`, `--all` ni `.`.
+- Ajouter chaque fichier par son nom : `git add src/pages/x.astro tests/e2e/outils-site.ts`. Jamais `git add -A`, `--all` ni `.`.
 - Relire `git diff --cached --stat` puis `git diff --cached`. Doivent être absents : `.env`, tout fichier de `supabase/.temp/`, `public/generated/`, `dist/`, `test-results/`, un identifiant Discord, une clé, un fichier de `data/` modifié à la main.
 - `git status` ne doit plus montrer de fichier modifié que tu voulais inclure.
 - Message en français, une ligne, préfixe par domaine puis résumé à l'indicatif : `pages: ajoute la page Événements`, `design: resserre la grille des membres sur mobile`, `contenu: nouveau chapitre du guide`, `supabase: table des sondages`, `tests: couvre le tri par arrivée`, `docs: …`. Le préfixe `data:` est réservé au robot. Un corps de message explique le pourquoi quand ce n'est pas évident.

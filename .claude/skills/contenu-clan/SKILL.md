@@ -33,4 +33,4 @@ Les schémas exacts sont dans `src/lib/schemas.ts` et `src/content.config.ts`. U
 
 ## Les tests qui comptent
 
-`tests/e2e/site.spec.ts` vérifie le nombre de chapitres (`guide-chapter`, 11) sur `/debuter`, leurs titres, les chiffres de chaque essai et l'adresse du Discord. Ajouter un chapitre, changer un titre ou un lien demande de mettre ces valeurs à jour dans le test, puis `verifier`. `tests/unit/guide.test.ts` refuse un chapitre sans nom court, sans groupe ou avec une icône qui n'existe pas.
+`tests/e2e/site-guide.spec.ts` vérifie le nombre de chapitres (`guide-chapter`, 11) sur `/debuter`, leurs titres, les chiffres de chaque essai et l'adresse du Discord. Ajouter un chapitre, changer un titre ou un lien demande de mettre ces valeurs à jour dans le test, puis `verifier`. `tests/unit/guide.test.ts` refuse un chapitre sans nom court, sans groupe ou avec une icône qui n'existe pas.

@@ -8,7 +8,7 @@ paths:
 
 # Tests e2e (Playwright)
 
-Trois fichiers dans `tests/e2e/` : `site.spec.ts` (parcours, données affichées, accessibilité, défilement horizontal, pied de page, clavier), `carte.spec.ts` (console et film de la carte : fenêtres, zoom, clic sur un clan, accessibilité de chaque fenêtre), `fx.spec.ts` (effets). Deux projets dans `playwright.config.ts` : `desktop` (1280 × 800) et `mobile` (375 × 812, tactile). Les tests lisent `data/leaderboard.json` et `data/members.json` et comparent la page aux fichiers.
+Dans `tests/e2e/` : `outils-site.ts` (aides communes et `PAGES`, la liste des pages contrôlées), `site.spec.ts` (contrôles communs : chaque page de `PAGES`, accessibilité, défilement horizontal, titres, thèmes, plan du site, pied de page, sans JavaScript, clavier), un fichier par domaine depuis le 26 novembre 2026 (`site-accueil`, `site-membres`, `site-village`, `site-guide`, `site-resultats`, en `.spec.ts`), `carte.spec.ts` (console et film de la carte), `fx.spec.ts` (effets), `cartes.spec.ts`, `compagnon.spec.ts`, `revoir.spec.ts`, `accueil-jeu.spec.ts`. Pendant le travail, lancer seulement le fichier du domaine touché ; tout `npm run test:e2e` une fois avant de publier. Deux projets dans `playwright.config.ts` : `desktop` (1280 × 800) et `mobile` (375 × 812, tactile). Les tests lisent `data/leaderboard.json` et `data/members.json` et comparent la page aux fichiers.
 
 ## Avant de lancer
 

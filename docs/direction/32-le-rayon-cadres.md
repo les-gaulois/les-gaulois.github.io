@@ -1,0 +1,12 @@
+<!-- Partie de docs/DIRECTION.md : « Le village des Gaulois » › « Le rayon Cadres ». Sommaire et ordre des parties : docs/DIRECTION.md. -->
+
+### Le rayon Cadres
+
+Demande du pilote, 17 novembre 2026 : « cadres animés » (première des autres idées de boutique), six choisis sur maquette, puis « crée-en 20 de plus », « détaille et travaille davantage le cadre », et enfin « détaillé selon la rareté ».
+
+- **Ce que c'est.** Vingt-six cadres animés en pixels pour la carte du membre, neuvième onglet de la boutique, à la suite des cartes (`src/lib/village/cadres.ts`, écran `src/components/village/Cadres.tsx`, présenté comme les bannières et les cartes : le livre jusqu'au 22 novembre 2026, puis le défilé des cartes). Le cadre du milieu entoure la vraie carte du membre, animée : sa bannière, sa finition, son familier.
+- **Détaillé selon la rareté.** Communs (4) et peu communs (8) : sept cases d'épaisseur, de la matière, des coins ouvragés, quelques particules. Épiques (5), mystiques (4) et légendaires (5) : dix cases, un blason au sommet, des coins sculptés, plusieurs couches de particules qui débordent, et la lumière du cadre sur l'image. Les raretés sont une proposition de Claude, à changer si le pilote le demande. Dessins dans `src/lib/fx/cadres-carte.ts` ; ne pas les simplifier sans sa demande.
+- **Les règles**, celles des finitions, reprises fonction pour fonction (migration `20261117001600_cadres_des_cartes.sql`) : prix d'une bannière de la rareté, un seul exemplaire, jamais au marché, en pochette ni à la revente, pas d'achat pendant un essai en mode GOD, débit noté « cadre/<identifiant> », aucun statère créé. Le membre en montre un, ou aucun (`choisir_cadre`). La sauvegarde chiffrée garde les cadres (version 11).
+- **Où il se voit.** Dans la boutique, et sur la carte de la fiche du membre au pseudo public, à la mise à jour suivante du site (`cadres_des_joueurs`, lue par empreinte avec la clé de service, `src/lib/cadres-joueurs.ts`). Pas sur le podium de l'accueil, où le liseré d'or, d'argent ou de bronze se gagne par la place et où trois cartes se touchent ; pas encore dans la vitrine ni dans les annonces d'achat sur Discord. En pause ou avec « réduire les animations », le cadre reste, figé : c'est un objet du membre, pas un effet.
+- **À coller par le pilote** : `.cache/a-coller-cadres.sql` (`npx tsx scripts/a-coller-cadres.ts`), dernière ligne « cadres : installés ». L'onglet ne paraît que si le serveur connaît `get_mes_cadres`. Jamais essayé avec un vrai compte : l'écran a été vu avec un faux serveur.
+

@@ -50,7 +50,7 @@ Le plan du site est dans `src/lib/nav.ts` : il alimente le menu, les onglets de 
 
 ## Tests
 
-- Ajouter le chemin à `PAGES` dans `tests/e2e/site.spec.ts` : la page passe alors les tests d'accessibilité (axe, WCAG AA), de défilement horizontal et de pied de page.
+- Ajouter le chemin à `PAGES` dans `tests/e2e/outils-site.ts` : la page passe alors les tests d'accessibilité (axe, WCAG AA), de défilement horizontal et de pied de page.
 - Ajouter au moins une vérification fonctionnelle avec un `data-testid`, dans le style des tests existants, qui compare ce qui s'affiche aux fichiers de `data/` ou `content/`.
 - Une page avec des calculs : la logique va dans `src/lib/` avec son test dans `tests/unit/`.
 
