@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { SALLES_DU_DUEL, gainDuGagnant, partDeLaCagnotte, type MatchDeSalle } from "../../src/lib/village/contrat-salles";
 import {
-  coupsDeMonCote, ecartDHorloge, ecranDesSalles, issueEnMots, lireLesSalles, luiDe, mainEnListe, potDeLaSalle, saCarteALaManche, stateresEnMots, tempsDeLaManche,
+  CADENAS_DU_MODE_GOD, coupsDeMonCote, ecartDHorloge, ecranDesSalles, issueEnMots, lireLesSalles, luiDe, mainEnListe, potDeLaSalle, raisonDuCadenas, saCarteALaManche,
+  stateresEnMots, tempsDeLaManche,
 } from "../../src/lib/village/ecran-salles";
 
 const NB = String.fromCharCode(160);
@@ -89,6 +90,32 @@ describe("le match de mon côté", () => {
     expect(coupsDeMonCote(a)).toEqual([[0, 3], [2, 1]]);
     expect(saCarteALaManche(a, 2)).toBe(1);
     expect(mainEnListe(MAIN)).toEqual(["gourdin", "bonnet", "tunique", "bottes", "braies"]);
+  });
+});
+
+describe("la raison du cadenas", () => {
+  const salles = (permise: (mise: number) => boolean) => SALLES_DU_DUEL.map((mise) => ({ mise, attente: false, permise: permise(mise) }));
+  const vu = (o: Record<string, unknown>) => lireLesSalles(etat({ solde: 300, ...o }))!;
+
+  it("dit le mode GOD quand le solde couvre une salle fermée", () => {
+    expect(raisonDuCadenas(vu({ salles: salles(() => false), solde: 50_000 }), true)).toBe(CADENAS_DU_MODE_GOD);
+    expect(raisonDuCadenas(vu({ salles: salles(() => false), solde: 25 }), true)).toBe(CADENAS_DU_MODE_GOD);
+  });
+
+  it("dit le manque de statères quand chaque salle fermée coûte plus que le solde", () => {
+    expect(raisonDuCadenas(vu({ salles: salles((m) => m <= 250), solde: 300 }), true)).toBe("Les salles au cadenas demandent plus de statères que tu n'en as.");
+    expect(raisonDuCadenas(vu({ salles: salles(() => false), solde: 12 }), true)).toBe(`Il te faut au moins 25${NB}statères pour entrer dans une salle.`);
+  });
+
+  it("se tait quand tout est ouvert, pendant l'essai du duel fermé, et quand l'écran le dit déjà", () => {
+    expect(raisonDuCadenas(vu({ salles: salles(() => true) }), true)).toBeNull();
+    expect(raisonDuCadenas(vu({ ouvert: false, salles: salles(() => true), solde: 0 }), true)).toBeNull();
+    expect(raisonDuCadenas(vu({ salles: salles(() => false), jour: { jour: "2026-11-22", joues: 10, au_plus: 10 } }), true)).toBeNull();
+    expect(raisonDuCadenas(vu({ salles: salles(() => false) }), false)).toBeNull();
+  });
+
+  it("dit tout sans signes", () => {
+    for (const t of [CADENAS_DU_MODE_GOD, raisonDuCadenas(vu({ salles: salles(() => false), solde: 0 }), true) ?? ""]) expect(t).not.toMatch(/[<>=÷×%+]/);
   });
 });
 

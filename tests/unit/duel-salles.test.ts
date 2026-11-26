@@ -19,6 +19,7 @@ import {
 import type { Camp, IdDeCompagnon, IdDeLieu, MainParEmplacement, OptionsDuCamp } from "../../supabase/functions/code-discord/duel/index";
 import { hasardDEssai } from "../../src/lib/village/essai-duel";
 import { SALLES_DU_DUEL, gainDuGagnant, partDeLaCagnotte } from "../../src/lib/village/contrat-salles";
+import { CADENAS_DU_MODE_GOD, lireLesSalles, raisonDuCadenas } from "../../src/lib/village/ecran-salles";
 import { baseDeTest, commeMembre, discordDe, migrations, nouveauMembre } from "./banc-pglite";
 
 const LONG = 300_000;
@@ -419,6 +420,7 @@ describe("les salles en direct, avec mise", () => {
   it("refusent un compte qui n'a pas la mise, et font sortir de la salle celui qui ne l'a plus", async () => {
     expect(await entrer(d, 50)).toMatchObject({ ok: false, error: "solde_insuffisant" });
     expect((await etat(d)).salles.map((s) => s.permise)).toEqual([true, false, false, false, false, false]);
+    expect(raisonDuCadenas(lireLesSalles(await etat(d))!, true)).toBe("Les salles au cadenas demandent plus de statères que tu n'en as.");
     ok(await entrer(d, 25));
     // il dépense ailleurs pendant qu'il attend
     await db.query("insert into internal.stateres_mouvements (user_id, nature, montant, ref) values ($1, 'achat', -10, 'essai')", [d]);
@@ -484,6 +486,9 @@ describe("les salles en direct, avec mise", () => {
     await db.query("insert into internal.village_god (user_id, sauvegarde) values ($1, '{\"gaulois\": {\"tenue\": {}}}'::jsonb)", [e]);
     try {
       expect(await entrer(e, 25)).toMatchObject({ ok: false, error: "mode_god" });
+      // L'écran dit pourquoi les six salles ont un cadenas.
+      expect((await etat(e)).salles.every((s) => !s.permise)).toBe(true);
+      expect(raisonDuCadenas(lireLesSalles(await etat(e))!, true)).toBe(CADENAS_DU_MODE_GOD);
       await expect(db.query("insert into internal.stateres_mouvements (user_id, nature, montant, ref) values ($1, 'duel_mise', -25, 'essai')", [e])).rejects.toThrow(/mode_god/);
       const avant = await solde(e);
       await db.query("insert into internal.stateres_mouvements (user_id, nature, montant, ref) values ($1, 'duel_rendu', 25, 'essai')", [e]);

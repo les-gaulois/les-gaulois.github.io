@@ -15,8 +15,9 @@ Claude Opus 5.5. Le serveur fait foi (« Les salles du duel » de `docs/DIRECTIO
   silhouette en pointillé), le dos de carte « a posé » (coche verte) ou « réfléchit » (trois points), la machine de l'essai
   (une tête d'automate en bois), le cadenas, les deux pièces de la mise rendue.
 - **Le hall** : ta main (cinq petites cartes ; un clic ouvre le tiroir du recueil), les matchs du jour en tube à crans, les six
-  salles (prix ; « Attend » quand un Gaulois y attend ; cadenas et emblème grisé quand elle est fermée pour toi, sans dire
-  pourquoi : jamais un solde), les règles dans un pli. Pendant l'essai (duel fermé), un bandeau dit que la machine joue en face
+  salles (prix ; « Attend » quand un Gaulois y attend ; cadenas et emblème grisé quand elle est fermée pour toi ; depuis le
+  26 novembre 2026, la raison en rouge sous les salles, `raisonDuCadenas` : mode GOD allumé ou statères manquants, sans jamais
+  écrire le solde), les règles dans un pli. Pendant l'essai (duel fermé), un bandeau dit que la machine joue en face
   et que rien n'est misé. Au téléphone, la main tient sur une ligne et les six salles se voient sans défiler.
 - **L'attente** : ton Gaulois, la place vide en face, le temps écoulé (« 0:42 », la seule heure de l'écran), « On cherche un
   Gaulois » et trois carrés qui prennent l'or à tour de rôle, lentement ; « Quitter la salle » ne coûte rien et ne touche jamais

@@ -104,6 +104,25 @@ export function ecranDesSalles(e: EtatDesSalles, vus: ReadonlySet<number>): Ecra
   return { kind: "hall" };
 }
 
+/** Le refus d'une salle pendant un essai du mode GOD, en clair. */
+export const CADENAS_DU_MODE_GOD = "Le mode GOD est allumé : pas de mise pendant un essai. Éteins-le dans la Direction, onglet Village, pour entrer.";
+
+/**
+ * Pourquoi des salles ont un cadenas, dit en rouge sous les salles (le pilote, 26 novembre 2026 : six cadenas, rien pour
+ * dire pourquoi). Le serveur ferme une salle du duel ouvert pour trois raisons (`permise` de `SalleDuDuel`) : les matchs du
+ * jour joués, une mise plus haute que le solde, un essai du mode GOD. Une salle fermée alors qu'il reste des matchs et que
+ * le solde couvre sa mise ne l'est donc que par le mode GOD. `null` : rien n'est fermé, le duel est en essai, ou la raison
+ * est déjà à l'écran (« Cette main ne se joue plus », « Reviens demain »).
+ */
+export function raisonDuCadenas(e: Pick<EtatDesSalles, "ouvert" | "salles" | "jour" | "solde">, mainValide: boolean): string | null {
+  if (!e.ouvert || !mainValide || e.jour.joues >= e.jour.au_plus) return null;
+  const fermees = e.salles.filter((s) => !s.permise);
+  if (fermees.length === 0) return null;
+  if (fermees.some((s) => s.mise <= e.solde)) return CADENAS_DU_MODE_GOD;
+  if (fermees.length < e.salles.length) return "Les salles au cadenas demandent plus de statères que tu n'en as.";
+  return `Il te faut au moins ${stateresEnMots(Math.min(...e.salles.map((s) => s.mise)))} pour entrer dans une salle.`;
+}
+
 /* ---------- Le temps de la manche ---------- */
 
 /** L'écart entre l'horloge du serveur et celle de l'appareil, mesuré à la réception d'une réponse (en millisecondes). */

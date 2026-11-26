@@ -223,6 +223,12 @@
   font-size: 12.5px;
   line-height: 1.45;
 }
+/* Pourquoi des salles ont un cadenas : en rouge et assez grand pour se lire d'un coup d'œil. */
+.ds-raison {
+  color: var(--ds-rouge);
+  font-size: 15px;
+  font-weight: 700;
+}
 .ds-regles {
   padding: calc(2 * var(--jeu-p)) calc(6 * var(--jeu-p));
   background: var(--dl-page);

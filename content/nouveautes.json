@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-26",
+    "kind": "ameliore",
+    "rank": "minor",
+    "title": "Les salles du duel disent pourquoi elles sont fermées",
+    "body": "Quand une salle a un cadenas, la raison s'écrit en rouge sous les salles : le mode GOD allumé, ou pas assez de statères pour la mise.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-26",
     "kind": "corrige",
     "rank": "minor",
     "title": "Le bouton pour poser sa carte reste en place",

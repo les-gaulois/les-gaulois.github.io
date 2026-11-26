@@ -4,7 +4,7 @@ import { PrixDuJeu } from "../BoutiqueDuJeu";
 import { SON } from "../duel/sons-du-duel";
 import type { MoteurDuDuel } from "../duel/moteur";
 import type { EtatDesSalles, MiseDeSalle } from "../../../lib/village/contrat-salles";
-import { stateresEnMots } from "../../../lib/village/ecran-salles";
+import { raisonDuCadenas, stateresEnMots } from "../../../lib/village/ecran-salles";
 import { emblemeDeSalle, iconeCagnotte, iconeMachine, iconeVerrou } from "./dessins-salles";
 import { EMPLACEMENTS_DE_LA_MAIN, nomDeLObjet } from "../../../lib/village/ecran-duel";
 import { ImageDesSalles, PetiteCarte, ROUGE, Mot, TeteDesSalles } from "./pieces";
@@ -51,7 +51,8 @@ export function Refus({ message }: { message: string | null }) {
 
 /**
  * Le hall des salles : ta main (à changer dans le tiroir du recueil), les six salles, les matchs du jour, la cagnotte, les
- * règles. Une salle ne montre que son prix et si un Gaulois y attend ; une salle fermée pour toi, un cadenas.
+ * règles. Une salle ne montre que son prix et si un Gaulois y attend ; une salle fermée pour toi, un cadenas, et la raison
+ * en rouge sous les salles (`raisonDuCadenas`).
  */
 export function Hall({
   e,
@@ -75,6 +76,7 @@ export function Hall({
   onEntrer: (mise: MiseDeSalle) => void;
 }) {
   const plein = e.ouvert && e.jour.joues >= e.jour.au_plus;
+  const raison = raisonDuCadenas(e, mainValide);
   return (
     <section class="dl-ecran ds-hall" aria-label="Les salles" data-testid="salles-hall">
       <TeteDesSalles titre="Les salles" retour={retour} droite={<CagnotteDeLaTete e={e} />} />
@@ -159,6 +161,12 @@ export function Hall({
           );
         })}
       </div>
+      {raison && (
+        <p class="ds-refus ds-raison" role="status" data-testid="salles-raison">
+          <ImageDesSalles cle="verrou" planche={iconeVerrou} />
+          <span>{raison}</span>
+        </p>
+      )}
       <Refus message={refus} />
       <details class="fold ds-regles">
         <summary>Les règles</summary>
