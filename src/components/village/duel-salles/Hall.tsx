@@ -175,9 +175,7 @@ export function Hall({
           <li>{e.regles.secondes} secondes par manche. Qui ne pose pas à temps, ou qui quitte, perd le match.</li>
           <li>Le gagnant reçoit les deux mises, moins {e.regles.part_cagnotte} pour cent pour la cagnotte de la saison.</li>
           <li>Égalité : chacun reprend sa mise.</li>
-          <li>
-            {e.regles.par_jour} matchs avec mise par jour, {e.regles.meme_adversaire} au plus contre le même Gaulois.
-          </li>
+          <li>{e.regles.par_jour} matchs avec mise par jour.</li>
           <li>L'écran relit le serveur chaque seconde : ce n'est pas du temps réel à la seconde près.</li>
           {!e.ouvert && <li>Tant que le duel est fermé, la machine joue en face, au niveau du guerrier, et rien n'est misé.</li>}
         </ul>

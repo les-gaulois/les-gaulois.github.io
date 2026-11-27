@@ -35,8 +35,11 @@ export const SECONDES_DE_REVELATION = 4;
 export const PART_DE_LA_CAGNOTTE = 10;
 /** Les matchs avec mise permis par jour (heure de Paris), contre tous. */
 export const MATCHS_PAR_JOUR = 10;
-/** Les matchs avec mise permis par jour contre un même adversaire : au-delà, le serveur ne les apparie plus ce jour-là. */
-export const MATCHS_CONTRE_UN_MEME = 3;
+/**
+ * Les matchs avec mise permis par jour contre un même adversaire : autant que contre tous depuis le 27 novembre 2026 (3
+ * avant, retiré à la demande du pilote, migration 20261127000200).
+ */
+export const MATCHS_CONTRE_UN_MEME = MATCHS_PAR_JOUR;
 /** Sans nouvelles de l'écran depuis ce nombre de secondes, qui attend quitte la salle. */
 export const SECONDES_SANS_NOUVELLES = 10;
 

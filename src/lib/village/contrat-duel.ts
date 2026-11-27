@@ -21,9 +21,11 @@
  * voit et joue le duel : pour tout autre compte, ces fonctions refusent `duel_ferme`.
  *
  * Aucune récompense en statères : le duel n'en crée ni n'en prend jamais. Proposition de la session du moteur, à confirmer
- * par le pilote : un duel compté gagné donne des pas du pass (`internal.sentier_gains`, source « duel/1 » à « duel/4 »).
- * Les chiffres ci-dessous (duels comptés, plafond du jour, pas, abandon) sont aussi des propositions, sauf les 3 duels
- * comptés et le duel de la flamme, choisis par le pilote.
+ * par le pilote : un duel compté gagné donne des pas du pass (`internal.sentier_gains`, sources « duel/1 » à « duel/4 »).
+ * Les chiffres ci-dessous (plafond du jour, pas, abandon) sont aussi des propositions. Les 3 duels comptés par jour (4 avec
+ * la flamme), choisis par le pilote le 22 novembre 2026, sont retirés à sa demande le 27 novembre 2026 (migration
+ * 20261127000200) : tout duel est compté, un seul par jour contre un même membre ou un même boss, dans le plafond du jour ;
+ * seules les 4 premières victoires comptées du jour donnent des pas du pass.
  */
 import type { Atouts, EmplacementDuDuel, IdDeCompagnon, IdDeLieu, MainParEmplacement, NiveauDeLaMachine } from "../../../supabase/functions/code-discord/duel/index";
 import type { Tenue } from "../gaulois";
@@ -31,14 +33,21 @@ import type { Tenue } from "../gaulois";
 /** Une main : la carte de chaque emplacement (l'identifiant d'un objet de la garde-robe, ou d'une carte de base). */
 export type MainDuDuel = MainParEmplacement;
 
-/** Les duels comptés par jour (heure de Paris) : au-delà, on rejoue pour le plaisir, sans récompense. */
-export const DUELS_COMPTES_PAR_JOUR = 3;
-/** Le duel de plus quand la flamme de série du membre brûle. Rien n'est compté tant que le duel est fermé, ni pendant un essai du mode GOD. */
-export const DUELS_DE_LA_FLAMME = 1;
 /** Le plafond de duels joués contre le serveur par jour, comptés ou non : chaque manche se calcule chez lui. */
 export const DUELS_AU_PLUS_PAR_JOUR = 30;
+/**
+ * Les duels comptés par jour (heure de Paris) : autant que de duels joués depuis le 27 novembre 2026. Rejouer le même membre
+ * ou le même boss le même jour se fait pour le plaisir, sans récompense. Rien n'est compté tant que le duel est fermé, ni
+ * pendant un essai du mode GOD, ni contre sa propre main. La flamme de série n'ajoute plus de duel.
+ */
+export const DUELS_COMPTES_PAR_JOUR = DUELS_AU_PLUS_PAR_JOUR;
 /** Les pas du pass que donne un duel compté gagné (proposition) ; une mission du jour en donne 10. Une défaite ou une égalité ne donne rien. */
 export const PAS_PAR_VICTOIRE = 5;
+/**
+ * Les victoires comptées du jour qui donnent des pas du pass (choix du pilote, 27 novembre 2026 : « 4 victoires par jour ») :
+ * les suivantes comptent au tableau des duellistes et partent sur Discord, sans pas. 20 pas par jour au plus.
+ */
+export const VICTOIRES_AVEC_PAS_PAR_JOUR = 4;
 /** Le niveau de la machine qui joue la main de défense d'un membre. */
 export const NIVEAU_DE_LA_DEFENSE: NiveauDeLaMachine = "guerrier";
 /** Une partie laissée sans manche jouée pendant ce temps est perdue par abandon. */
@@ -66,14 +75,17 @@ export interface GauloisDuDuel {
 export interface DuelsDuJour {
   /** Le jour, à l'heure de Paris (AAAA-MM-JJ). */
   jour: string;
-  /** Les duels comptés de base (3). */
+  /** Les duels comptés permis aujourd'hui (`DUELS_COMPTES_PAR_JOUR`, 30 ; 3 avant le 27 novembre 2026). */
   comptes: number;
-  /** La flamme de série brûle : un duel compté de plus. Relevée par le site après chaque construction ; `releve` dit quand. */
+  /**
+   * La flamme de série brûle (elle n'ajoute plus de duel depuis le 27 novembre 2026). Relevée par le site après chaque
+   * construction ; `releve` dit quand.
+   */
   flamme: boolean;
   releve: string | null;
   /** Les duels comptés déjà commencés aujourd'hui. */
   faits: number;
-  /** Les duels comptés qui restent aujourd'hui. */
+  /** Les duels qui peuvent encore être comptés aujourd'hui : ceux qui restent à jouer (rejouer un même adversaire ne compte pas). */
   restants: number;
   /** Tous les duels commencés aujourd'hui, comptés ou non, et leur plafond. */
   joues: number;

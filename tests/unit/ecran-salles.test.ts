@@ -20,7 +20,7 @@ function match(o: Partial<MatchDeSalle> = {}): MatchDeSalle {
 const etat = (o: Record<string, unknown> = {}) => ({
   ok: true, ouvert: true, maintenant: "2026-11-22T15:00:10.000Z",
   salles: SALLES_DU_DUEL.map((mise) => ({ mise, attente: mise === 100, permise: mise <= 250 })),
-  regles: { secondes: 30, revelation: 4, part_cagnotte: 10, par_jour: 10, meme_adversaire: 3 },
+  regles: { secondes: 30, revelation: 4, part_cagnotte: 10, par_jour: 10, meme_adversaire: 10 },
   jour: { jour: "2026-11-22", joues: 2, au_plus: 10 }, cagnotte: { saison: "saison-1", nom: "Saison 1", montant: 340 },
   attente: null, match: null, dernier: null, ...o,
 });

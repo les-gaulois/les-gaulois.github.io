@@ -16,6 +16,7 @@ import {
   choisir, graineSuivante, libres, mainEnEntiers, manche, tirageDeLaGraine, valeurDuCoup, verdict,
 } from "../../supabase/functions/code-discord/duel/index";
 import type { Atouts, Camp, Carte, IdDeCompagnon, IdDeLieu, MainParEmplacement, OptionsDuCamp } from "../../supabase/functions/code-discord/duel/index";
+import { DUELS_AU_PLUS_PAR_JOUR, DUELS_COMPTES_PAR_JOUR, PAS_PAR_VICTOIRE, VICTOIRES_AVEC_PAS_PAR_JOUR } from "../../src/lib/village/contrat-duel";
 import { hasardDEssai } from "../../src/lib/village/essai-duel";
 import { ATTENDU, NOMS, texteAColler } from "../../scripts/a-coller-duel";
 import { BOSS, ORDRE_DES_BOSS, bossDuJour } from "../../supabase/functions/code-discord/duel/contenu/boss";
@@ -404,14 +405,84 @@ describe("le duel des membres", () => {
     expect(await une<string>("select count(*)::text as r from internal.stateres_mouvements")).toBe(avant);
   });
 
-  it("compte trois duels par jour, quatre quand la flamme de série brûle", async () => {
+  it("compte tous les duels du jour, plus seulement trois, sans duel de plus pour la flamme de série", async () => {
     const jour = (await appel(membre, "public.get_mon_duel()")).jour as Record<string, unknown>;
-    expect(jour).toMatchObject({ comptes: 3, flamme: false, au_plus: 30 });
+    expect(jour).toMatchObject({ comptes: DUELS_COMPTES_PAR_JOUR, flamme: false, au_plus: DUELS_AU_PLUS_PAR_JOUR });
+    expect(DUELS_COMPTES_PAR_JOUR).toBe(30);
+    expect(Number(jour.restants)).toBe(DUELS_AU_PLUS_PAR_JOUR - Number(jour.joues));
+    // La flamme se lit toujours, mais n'ajoute plus de duel.
     expect(await une("select public.noter_flammes_duel(array[$1]) as r", ["a".repeat(64)])).toEqual({ ok: true, flammes: 1 });
     const avec = (await appel(membre, "public.get_mon_duel()")).jour as Record<string, unknown>;
-    expect(avec).toMatchObject({ flamme: true });
-    expect(Number(avec.restants)).toBe(Number(jour.restants) + 1);
+    expect(avec).toMatchObject({ flamme: true, comptes: DUELS_COMPTES_PAR_JOUR });
+    expect(avec.restants).toBe(jour.restants);
     expect(await une("select public.noter_flammes_duel(array['pas-une-empreinte']) as r")).toMatchObject({ ok: false });
+    // Cinq duels comptés de plus aujourd'hui, contre cinq autres boss : le suivant, contre un membre pas encore affronté
+    // compté aujourd'hui, l'est encore (le quatrième ne l'était plus avant le 27 novembre 2026).
+    const autres = ORDRE_DES_BOSS.filter((b) => b !== bossDuJour(new Date()).id).slice(0, 5);
+    await db.query(
+      `insert into internal.duel_parties (user_id, contre, boss, niveau, compte, jour, main_a, main_b, options_a, options_b, cartes_a, cartes_b, atouts_a, atouts_b, etat_a, etat_b, graine, fini, verdict, fini_le)
+       select $1, 'boss', b, 'guerrier', true, internal.duel_jour(now()), d.main_a, d.main_b, d.options_a, d.options_b, d.cartes_a, d.cartes_b, d.atouts_a, d.atouts_b, d.etat_a, d.etat_b, 7, true, -1, now()
+       from internal.duel_parties d, unnest($2::text[]) b where d.id = (select min(id) from internal.duel_parties where user_id = $1)`,
+      [membre, autres],
+    );
+    const faits = Number(((await appel(membre, "public.get_mon_duel()")).jour as Record<string, unknown>).faits);
+    expect(faits).toBeGreaterThanOrEqual(5);
+    const cleDuTitulaire = (await lignes<{ cle: string }>("select cle::text as cle from internal.duel_mains where user_id = $1", [titulaire]))[0]!.cle;
+    expect(await une<number>("select count(*)::int as r from internal.duel_parties where user_id = $1 and adversaire = $2 and jour = internal.duel_jour(now()) and compte", [membre, titulaire])).toBe(0);
+    const r = await appel<Reponse>(membre, "public.commencer_duel('membre', $1::uuid, $2::jsonb)", [cleDuTitulaire, JSON.stringify(BASE)]);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.partie.compte).toBe(true);
+    await appel(membre, "public.abandonner_duel($1)", [r.partie.partie]);
+    expect(Number(((await appel(membre, "public.get_mon_duel()")).jour as Record<string, unknown>).faits)).toBe(faits + 1);
+  });
+
+  it("ne donne des pas du pass qu'aux quatre premières victoires comptées du jour, et les annonce toutes", async () => {
+    expect(await une<number>("select internal.duel_victoires_avec_pas() as r")).toBe(VICTOIRES_AVEC_PAS_PAR_JOUR);
+    expect(VICTOIRES_AVEC_PAS_PAR_JOUR).toBe(4);
+    const avant = await une<string>("select count(*)::text as r from internal.stateres_mouvements");
+    const deja = await une<number>("select count(*)::int as r from internal.duel_parties where user_id = $1 and jour = internal.duel_jour(now()) and compte and fini and verdict = 1", [membre]);
+    expect(deja).toBeLessThan(VICTOIRES_AVEC_PAS_PAR_JOUR);
+    // Six victoires comptées de plus contre la main du défenseur, finies une à une : seules celles qui restent sous les quatre
+    // du jour donnent leurs cinq pas ; toutes entrent dans la file des annonces.
+    const pas: (number | null)[] = [];
+    for (let i = 0; i < 6; i++) {
+      const id = (await lignes<{ id: number }>(
+        `insert into internal.duel_parties (user_id, contre, adversaire, niveau, compte, jour, main_a, main_b, options_a, options_b, cartes_a, cartes_b, atouts_a, atouts_b, etat_a, etat_b, graine)
+         select $1, 'membre', $2, 'guerrier', true, internal.duel_jour(now()), d.main_a, d.main_b, d.options_a, d.options_b, d.cartes_a, d.cartes_b, d.atouts_a, d.atouts_b, d.etat_a, d.etat_b, 7
+         from internal.duel_parties d where d.user_id = $1 order by d.id limit 1 returning id::integer as id`,
+        [membre, defenseur],
+      ))[0]!.id;
+      await db.query("select internal.duel_finir($1, 1, false)", [id]);
+      pas.push((await lignes<{ pas: number | null }>("select pas from internal.duel_parties where id = $1", [id]))[0]!.pas);
+      expect(await une<number>("select count(*)::int as r from internal.duel_annonces where partie = $1", [id])).toBe(1);
+    }
+    expect(pas).toEqual(Array.from({ length: 6 }, (_, i) => (deja + i + 1 <= VICTOIRES_AVEC_PAS_PAR_JOUR ? PAS_PAR_VICTOIRE : null)));
+    const sources = await lignes<{ source: string }>("select source from internal.sentier_gains where user_id = $1 and jour = internal.duel_jour(now()) and source like 'duel/%' order by source", [membre]);
+    expect(sources.map((s) => s.source)).toEqual(["duel/1", "duel/2", "duel/3", "duel/4"]);
+    expect(await une<string>("select count(*)::text as r from internal.stateres_mouvements")).toBe(avant);
+  });
+
+  it("refuse le trente et unième duel du jour, et compte encore le trentième", async () => {
+    await db.exec("begin;");
+    try {
+      // les duels joués aujourd'hui portés à 29, tous finis, aucun contre le boss du jour
+      await db.query(
+        `insert into internal.duel_parties (user_id, contre, adversaire, niveau, compte, jour, main_a, main_b, options_a, options_b, cartes_a, cartes_b, atouts_a, atouts_b, etat_a, etat_b, graine, fini, verdict, fini_le)
+         select $1, 'membre', $2, 'guerrier', false, internal.duel_jour(now()), d.main_a, d.main_b, d.options_a, d.options_b, d.cartes_a, d.cartes_b, d.atouts_a, d.atouts_b, d.etat_a, d.etat_b, 7, true, -1, now()
+         from internal.duel_parties d, generate_series(1, 29 - (select count(*)::int from internal.duel_parties where user_id = $1 and jour = internal.duel_jour(now()))) g
+         where d.id = (select min(id) from internal.duel_parties where user_id = $1)`,
+        [membre, defenseur],
+      );
+      expect(((await appel(membre, "public.get_mon_duel()")).jour as Record<string, unknown>)).toMatchObject({ joues: 29, restants: 1 });
+      const trentieme = await appel<Reponse>(membre, "public.commencer_duel('boss', null, $1::jsonb)", [JSON.stringify(BASE)]);
+      if (!trentieme.ok) throw new Error(trentieme.error);
+      expect(trentieme.partie.compte).toBe(true);
+      await appel(membre, "public.abandonner_duel($1)", [trentieme.partie.partie]);
+      expect(((await appel(membre, "public.get_mon_duel()")).jour as Record<string, unknown>)).toMatchObject({ joues: 30, restants: 0 });
+      expect(await appel(membre, "public.commencer_duel('boss', null, $1::jsonb)", [JSON.stringify(BASE)])).toMatchObject({ ok: false, error: "trop_de_duels" });
+    } finally {
+      await db.exec("rollback;");
+    }
   });
 
   it("joue le boss du jour du contenu, et perd par abandon une partie laissée 24 heures", async () => {

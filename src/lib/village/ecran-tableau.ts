@@ -69,8 +69,9 @@ export function semaineDe(t: Date): string {
 }
 
 /**
- * Ce que dit l'essai contre le hasard (`scripts/essai-tableau-duel.ts`, 22 novembre 2026), pour le pli « Comment on est
+ * Ce que dit l'essai contre le hasard (`scripts/essai-tableau-duel.ts`, 22 novembre 2026, refait le 27 novembre 2026 sans
+ * les limites de trois duels comptés par jour et de trois matchs contre un même adversaire), pour le pli « Comment on est
  * classé ». À refaire, et à réécrire ici, si la règle du tableau change.
  */
 export const TEXTE_DE_L_ESSAI =
-  "Essai sur 60 saisons simulées avec le vrai moteur et des Gaulois de forces connues : le premier de la semaine est l'un des plus forts 64 fois sur 100, contre 28 pour un Gaulois tiré au sort ; celui de la saison, 82 fois sur 100. Jouer beaucoup ou ne battre que des comptes faibles n'y change presque rien, et un forfait ne rapporte rien à celui qui reste.";
+  "Essai sur 60 saisons simulées avec le vrai moteur et des Gaulois de forces connues : le premier de la semaine est l'un des plus forts 70 fois sur 100, contre 28 pour un Gaulois tiré au sort ; celui de la saison, 83 fois sur 100. Jouer beaucoup ou ne battre que des comptes faibles n'y change presque rien, et un forfait ne rapporte rien à celui qui reste.";

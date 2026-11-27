@@ -79,7 +79,7 @@ export function lireLesSalles(brut: unknown): EtatDesSalles | null {
       revelation: nombre(regles["revelation"], 4),
       part_cagnotte: nombre(regles["part_cagnotte"], 10),
       par_jour: nombre(regles["par_jour"], 10),
-      meme_adversaire: nombre(regles["meme_adversaire"], 3),
+      meme_adversaire: nombre(regles["meme_adversaire"], 10),
     },
     jour: { jour: typeof jour["jour"] === "string" ? jour["jour"] : "", joues: nombre(jour["joues"], 0), au_plus: nombre(jour["au_plus"], 10) },
     cagnotte: { saison: typeof cagnotte["saison"] === "string" ? cagnotte["saison"] : "", nom: typeof cagnotte["nom"] === "string" ? cagnotte["nom"] : null, montant: nombre(cagnotte["montant"], 0) },

@@ -4,7 +4,7 @@
  * - l'essai du titulaire tant que le duel est fermé : la machine en face, sans mise, joue comme le moteur ;
  * - deux faux membres qui jouent un match entier, chaque manche rejouée par le moteur partagé, la carte d'en face cachée ;
  * - le temps (celui qui ne pose pas perd), l'égalité (chacun reprend sa mise), le départ ;
- * - les garde-fous : trois matchs par jour contre un même adversaire, dix par jour, le solde, le mode GOD, les attentes
+ * - les garde-fous : dix matchs par jour (plus de limite contre un même adversaire depuis le 27 novembre 2026), le solde, le mode GOD, les attentes
  *   sans nouvelles ;
  * - la somme des soldes, des mises en jeu et des cagnottes, qui ne bouge jamais ;
  * - la file des victoires, les droits, la sauvegarde, et le fichier que colle le pilote.
@@ -210,7 +210,7 @@ describe("les salles, tant que le duel est fermé", () => {
 
   it("montrent les six salles au titulaire, sans solde, toutes ouvertes à l'essai", async () => {
     const e = await etat(titulaire);
-    expect(e).toMatchObject({ ok: true, ouvert: false, attente: null, match: null, dernier: null, regles: { secondes: 30, part_cagnotte: 10, par_jour: 10, meme_adversaire: 3 } });
+    expect(e).toMatchObject({ ok: true, ouvert: false, attente: null, match: null, dernier: null, regles: { secondes: 30, part_cagnotte: 10, par_jour: 10, meme_adversaire: 10 } });
     expect(e.salles).toEqual(SALLES_DU_DUEL.map((mise) => ({ mise, attente: false, permise: true })));
     // le solde de l'appelant seul, pour la bourse de la barre du jeu ; aucun autre
     expect(e).toMatchObject({ solde: 0 });
@@ -393,28 +393,28 @@ describe("les salles en direct, avec mise", () => {
     expect(await une<string>("select jobname as r from cron.job where jobname = 'gal-duel-salles'")).toBe("gal-duel-salles");
   });
 
-  it("n'apparient plus deux membres qui ont déjà joué trois matchs avec mise ensemble aujourd'hui", async () => {
+  it("apparient encore deux membres qui ont déjà joué trois matchs avec mise ensemble aujourd'hui (plus de limite contre un même adversaire)", async () => {
     expect(await une<number>("select internal.duel_salle_matchs_contre($1, $2, internal.duel_jour(now())) as r", [a, b])).toBe(3);
     ok(await entrer(a, 100));
-    const r = ok(await entrer(b, 100));
-    expect(r.match).toBeNull();
-    expect(r.attente).toMatchObject({ mise: 100 });
-    // un troisième Gaulois prend le premier qui attend
-    const m = ok(await entrer(c, 100)).match!;
+    const m = ok(await entrer(b, 100)).match!;
     expect(m.moi).toBe("b");
     expect((await etat(a)).match).toMatchObject({ match: m.match, moi: "a" });
-    expect((await etat(b)).attente).toMatchObject({ mise: 100 });
+    // un troisième Gaulois attend : les deux sont déjà en match
+    const r = ok(await entrer(c, 100));
+    expect(r.match).toBeNull();
+    expect(r.attente).toMatchObject({ mise: 100 });
     // « Quitter la salle », sans nommer le match : le match qui vient de commencer n'est pas touché
-    expect(ok(await appel(c, "public.quitter_salle_duel()")).match).toMatchObject({ match: m.match, fini: false });
-    // c s'en va du match : il perd
-    const sc = await solde(c);
-    const q = ok(await appel(c, "public.quitter_salle_duel($1)", [m.match]));
+    expect(ok(await appel(b, "public.quitter_salle_duel()")).match).toMatchObject({ match: m.match, fini: false });
+    // b s'en va du match : il perd
+    const sb = await solde(b);
+    const q = ok(await appel(b, "public.quitter_salle_duel($1)", [m.match]));
     expect(q.dernier).toMatchObject({ match: m.match, fin: "quitte", verdict: -1, gain: 0 });
-    expect(await solde(c)).toBe(sc);
+    expect(await solde(b)).toBe(sb);
     expect((await etat(a)).dernier).toMatchObject({ verdict: 1, gain: 180 });
-    // b quitte la salle sans rien perdre
-    ok(await appel(b, "public.quitter_salle_duel()"));
-    expect((await etat(b)).attente).toBeNull();
+    expect(await une<number>("select internal.duel_salle_matchs_contre($1, $2, internal.duel_jour(now())) as r", [a, b])).toBe(4);
+    // c quitte la salle sans rien perdre
+    ok(await appel(c, "public.quitter_salle_duel()"));
+    expect((await etat(c)).attente).toBeNull();
   });
 
   it("refusent un compte qui n'a pas la mise, et font sortir de la salle celui qui ne l'a plus", async () => {

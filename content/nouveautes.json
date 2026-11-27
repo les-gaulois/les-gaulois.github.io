@@ -2,6 +2,16 @@
   {
     "date": "2026-11-27",
     "kind": "ameliore",
+    "title": "Le duel sans limite de trois",
+    "body": "Tous vos duels du jour comptent au tableau, plus seulement trois : un par jour contre chaque Gaulois ou boss. Les 4 premières victoires donnent des pas du pass. En salle, le même Gaulois peut revenir.",
+    "link": {
+      "href": "/village#duel",
+      "label": "Le duel"
+    }
+  },
+  {
+    "date": "2026-11-27",
+    "kind": "ameliore",
     "rank": "top",
     "title": "Deux fois plus de statères : 60 par point",
     "body": "Chaque point rapporté au clan donne maintenant 60 statères au lieu de 30. Et novembre est doublé : ce que vos points vous avaient donné vous est versé une seconde fois.",

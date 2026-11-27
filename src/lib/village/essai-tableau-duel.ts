@@ -18,6 +18,8 @@ import { BOSS, NIVEAUX, NIVEAU_DES_BOSS, ORDRE_DES_BOSS, bossParId, optionsDuBos
 import { carte, choisir, hasardDeLaGraine, jouerUnDuel } from "../../../supabase/functions/code-discord/duel/index";
 import type { Carte, IdDeCompagnon, IdDeLieu, Joueur } from "../../../supabase/functions/code-discord/duel/index";
 import { GARDE_ROBES, mainAuHasard } from "./essai-duel";
+import { DUELS_COMPTES_PAR_JOUR } from "./contrat-duel";
+import { MATCHS_CONTRE_UN_MEME, MATCHS_PAR_JOUR } from "./contrat-salles";
 import type { ResultatDuTableau } from "./tableau-duel";
 
 /** Un réglage de la machine qui fait un joueur de force connue : plus la fantaisie est petite, plus il voit loin, plus il est fort. */
@@ -96,8 +98,11 @@ export function creerMonde(graine: number, honnetes = 14): GauloisSimule[] {
   for (let i = 0; i < honnetes; i++) ajouter("honnete", entre(alea, 1, TALENTS.length - 1), unDe(alea, gardes), entre(alea, 2, 7), entre(alea, 1, 3), entre(alea, 0, 2));
   for (let i = 0; i < 3; i++) ajouter("nouveau", entre(alea, 0, 1), unDe(alea, ["base", "communs"] as const), entre(alea, 1, 4), entre(alea, 1, 2), entre(alea, 0, 1));
   ajouter("temoin", TALENT_MOYEN, "aisee", 4, 2, 1);
-  ajouter("volume", TALENT_MOYEN, "aisee", 7, 4, 3);
-  ajouter("chasseur", TALENT_MOYEN, "aisee", 4, 2, 1);
+  // Depuis le 27 novembre 2026, plus de limite de 3 duels comptés par jour ni de 3 matchs contre un même adversaire : celui
+  // qui joue tout ce qu'il peut joue chaque jour le boss et toutes les défenses, et jusqu'aux dix matchs de salle ; le
+  // chasseur bat chaque jour tous les comptes faibles.
+  ajouter("volume", TALENT_MOYEN, "aisee", 7, DUELS_COMPTES_PAR_JOUR, MATCHS_PAR_JOUR);
+  ajouter("chasseur", TALENT_MOYEN, "aisee", 4, 5, 1);
   ajouter("ami", TALENT_MOYEN, "aisee", 4, 2, 1);
   ajouter("complice", 0, "base", 4, 1, 0);
   return l;
@@ -108,7 +113,8 @@ const joueurDe = (t: Talent, alea: () => number): Joueur => (moi, lui, m) => cho
 /**
  * Joue la saison d'un monde, jour après jour, comme le serveur compte les duels : au plus `parties` duels comptés par jour
  * et par Gaulois, un seul contre un même boss ou un même membre ce jour-là ; les matchs de salle appariés au hasard, au plus
- * 3 par jour contre un même adversaire. `semaines` semaines de 7 jours.
+ * `MATCHS_CONTRE_UN_MEME` par jour contre un même adversaire (autant que contre tous depuis le 27 novembre 2026 ; 3 avant).
+ * `semaines` semaines de 7 jours.
  */
 export function jouerLaSaison(gaulois: readonly GauloisSimule[], graine: number, semaines = 6): ResultatDuTableau[] {
   const alea = hasardDeLaGraine(graine), jeu = hasardDeLaGraine((graine % 2147483000) + 17);
@@ -159,7 +165,7 @@ export function jouerLaSaison(gaulois: readonly GauloisSimule[], graine: number,
       if (l.length < 2) break;
       const a = unDe(alea, l), b = unDe(alea, l.filter((x) => x !== a));
       const cle = a < b ? `${a}-${b}` : `${b}-${a}`;
-      if ((paires.get(cle) ?? 0) >= 3) continue;
+      if ((paires.get(cle) ?? 0) >= MATCHS_CONTRE_UN_MEME) continue;
       paires.set(cle, (paires.get(cle) ?? 0) + 1);
       reste.set(a, reste.get(a)! - 1);
       reste.set(b, reste.get(b)! - 1);
