@@ -279,7 +279,7 @@ function LeDonDeStateres() {
       }
     } catch (e) {
       setRefus(messageOf(e));
-      // L'envoi a pu arriver au serveur malgré la panne : le panneau est relu.
+      // L'envoi a pu arriver au serveur malgré la panne : la liste des derniers dons est relue, pour le voir.
       const relu = await call<unknown>("get_stateres_don").then(lirePanneauDuDon, () => null);
       if (relu?.permis) setEtat(relu);
     } finally {
@@ -370,6 +370,33 @@ function LeDonDeStateres() {
           <p class="dir-note">Vous seul voyez ce panneau. Chaque don est noté au journal de l'équipe.</p>
         </div>
       </div>
+      {etat.dons.length > 0 && (
+        <div class="mt-4">
+          <h4>Derniers dons</h4>
+          <Defile label="Les derniers dons">
+            <thead>
+            <tr>
+              <th scope="col">Le</th>
+              <th scope="col">Membre</th>
+              <th scope="col" class="dir-village-nombre">
+                Statères
+              </th>
+              <th scope="col">Motif</th>
+            </tr>
+          </thead>
+          <tbody data-testid="village-don-liste">
+            {etat.dons.map((d, i) => (
+              <tr key={`${d.le}-${i}`}>
+                <td>{fmtDateTime(d.le)}</td>
+                <td>{d.nom}</td>
+                <td class="dir-village-nombre">{fmtInt(d.montant)}</td>
+                <td>{d.motif ?? ""}</td>
+              </tr>
+            ))}
+          </tbody>
+          </Defile>
+        </div>
+      )}
     </Bloc>
   );
 }
