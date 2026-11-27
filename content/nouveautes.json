@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-11-28",
+    "kind": "ameliore",
+    "rank": "staff",
+    "title": "Les dons à soi-même cachés",
+    "body": "Dans la Direction, onglet Village, la liste des derniers dons ne montre plus les dons que le titulaire du panneau s'est faits. Ils restent notés au journal de l'équipe."
+  },
+  {
     "date": "2026-11-27",
     "kind": "ameliore",
     "title": "Le duel sans limite de trois",
