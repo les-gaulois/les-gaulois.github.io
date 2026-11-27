@@ -242,7 +242,7 @@ function usePupitreDeLaMachine(casino: Casino, crou: CroupierDuJeu, occupe: () =
     const refus = (code: string): void => {
       SONS.refus();
       const l = r.current.casino.limites;
-      const [titre, sous] = code === "rien" ? ["Faites vos jeux", (l.bourse ?? 0) < 10 ? "La bourse ne suffit pas" : "Choisissez un jeton"] : motsDuRefus(code, { reste: l.reste ?? undefined, plafond: r.current.casino.etat.plafond, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined });
+      const [titre, sous] = code === "rien" ? ["Faites vos jeux", (l.bourse ?? 0) < 10 ? "La bourse ne suffit pas" : "Choisissez un jeton"] : motsDuRefus(code, { reste: l.reste ?? undefined, plafond: r.current.casino.etat.plafond ?? undefined, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined });
       if (code === "casino_plafond" || code === "delai") r.current.casino.relire();
       r.current.crou.dit(titre, sous);
     };

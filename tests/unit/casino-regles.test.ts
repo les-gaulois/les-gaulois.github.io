@@ -28,7 +28,8 @@ describe("les chiffres du casino", () => {
     expect(MISE_DE_DEPART_AU_PLUS).toBe(200);
     expect(PAS_DES_MISES).toBe(10);
     expect(COMPLEMENTS_AU_PLUS).toBe(3);
-    expect(PLAFOND_DU_JOUR_DU_CASINO).toBe(50000);
+    // Plus de plafond du jour depuis le 27 novembre 2026 (« enleve la limite de statere au casino ») : 50 000 avant.
+    expect(PLAFOND_DU_JOUR_DU_CASINO).toBeNull();
   });
 
   it("ont chaque refus écrit en mots, sans signe", () => {

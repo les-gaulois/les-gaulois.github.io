@@ -113,6 +113,8 @@ describe("le plafond du jour, lisible d'un coup d'œil", () => {
     expect(etatDuPlafond(etat(0, true))).toBeNull();
     // Le plafond est celui que le serveur donne, quel qu'il soit.
     expect(etatDuPlafond({ ...etat(0), plafond: 2000 })).toMatchObject({ niveau: "atteint", plafond: 2000 });
+    // Sans plafond (depuis le 27 novembre 2026), rien à dire, quoi qu'on ait misé.
+    expect(etatDuPlafond({ ...etat(0), plafond: null, reste_du_jour: null, mise_du_jour: 900_000 })).toBeNull();
   });
 
   it("compte jusqu'à minuit à l'heure de Paris, en hiver comme en été", async () => {

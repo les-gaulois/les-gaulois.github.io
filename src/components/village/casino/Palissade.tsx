@@ -17,6 +17,7 @@ import {
   lacherPermis,
   mesurerLaPalissade,
   placesDesLachers,
+  resteDesLachers,
   type DixiemesDUneCoupe,
   type Volee,
 } from "../../../lib/jeu/casino-palissade";
@@ -237,9 +238,9 @@ export default function LaPalissade() {
     const m = b.mise;
     if (b.enVol + m > limites.plafond) return refus(b.enVol ? "Un instant" : REPOS[0], `${limites.plafond} au plus sur la table`);
     // La table compte ce qui tombe ; la bourse et le reste du jour ont déjà perdu les jetons lâchés.
-    const reste = b.dernier && b.enRoute.length ? Math.min(limites.reste ?? Infinity, b.dernier.reste_du_jour) : limites.reste;
+    const reste = resteDesLachers(limites.reste, b.dernier, b.enRoute.length);
     const r = refusDuJeton(0, m, { ...limites, reste });
-    if (r) return refus(...motsDuRefus(r, { reste: reste ?? undefined, plafond: casino.etat.plafond }));
+    if (r) return refus(...motsDuRefus(r, { reste: reste ?? undefined, plafond: casino.etat.plafond ?? undefined }));
     // Pas plus de lâchers par minute que le serveur n'en accepte pour tout le site : rien n'est envoyé, rien n'est pris.
     b.heures = b.heures.filter((h) => t - h < 60_000);
     if (!lacherPermis(b.heures, t)) return refus(...motsDuRefus("rate_limited"));
@@ -258,7 +259,7 @@ export default function LaPalissade() {
         if (b.enRoute.length) b.relireApres = true;
         else casino.relire();
       }
-      return refus(...motsDuRefus(code, { reste: reste ?? undefined, plafond: casino.etat.plafond, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined }));
+      return refus(...motsDuRefus(code, { reste: reste ?? undefined, plafond: casino.etat.plafond ?? undefined, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined }));
     }
     b.attente = false;
     // La palissade a été quittée pendant que le serveur répondait : le lâcher se finit sans un son ni un mouvement.

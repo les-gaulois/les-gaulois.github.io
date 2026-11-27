@@ -6,6 +6,7 @@ import {
   SceneDeLaPalissade,
   avancerLaChute,
   bourseDesLachers,
+  resteDesLachers,
   chancesDuRang,
   chancesEnMots,
   coupesEnMots,
@@ -254,5 +255,17 @@ describe("la bourse pendant les chutes", () => {
     // Éteint pendant qu'un essai tombe : la mise du vrai lâcher est prise, l'essai ne compte pas.
     const V2 = { rendu: 5, god: false, solde_apres: 995 };
     expect(bourseDesLachers(V2, [E, V2])).toBe(990);
+  });
+
+  it("prend le plus petit reste du jour pendant les chutes, et ne lit jamais un plafond absent comme 0", () => {
+    // Avec un plafond : l'état du casino dit 500, le dernier coup du serveur (lâchers en route comptés) 300.
+    expect(resteDesLachers(500, { reste_du_jour: 300 }, 2)).toBe(300);
+    expect(resteDesLachers(500, { reste_du_jour: 300 }, 0)).toBe(500);
+    expect(resteDesLachers(500, null, 2)).toBe(500);
+    expect(resteDesLachers(null, { reste_du_jour: 300 }, 1)).toBe(300);
+    // Sans plafond (depuis le 27 novembre 2026) : null partout, jamais 0.
+    expect(resteDesLachers(null, { reste_du_jour: null }, 3)).toBeNull();
+    expect(resteDesLachers(null, null, 0)).toBeNull();
+    expect(resteDesLachers(500, { reste_du_jour: null }, 3)).toBe(500);
   });
 });

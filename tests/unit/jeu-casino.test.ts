@@ -362,6 +362,12 @@ describe("l'écran du casino", () => {
     expect(lireEtatDuCasino([etat])).toBeNull();
   });
 
+  it("lit un casino sans plafond du jour (27 novembre 2026) : plafond et reste à null, jamais un reste absent", () => {
+    expect(lireEtatDuCasino({ ...etat, plafond: null, reste_du_jour: null })).toMatchObject({ plafond: null, reste_du_jour: null, mise_du_jour: 300 });
+    expect(lireEtatDuCasino({ ...etat, reste_du_jour: undefined })).toBeNull();
+    expect(lireEtatDuCasino({ ...etat, reste_du_jour: "1700" })).toBeNull();
+  });
+
   it("écrit chaque partie en mots courts", () => {
     expect(resumeDeLaPartie({ jeu: "roue", numero: 31 })).toBe("Sorti : le 31, rouge");
     expect(resumeDeLaPartie({ jeu: "roue", numero: 16 })).toBe("Sorti : le 16, bleu");

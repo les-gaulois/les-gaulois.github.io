@@ -85,8 +85,9 @@ export function lireEtatDuCasino(reponse: unknown): EtatDuCasino | null {
   if (r["ok"] !== true || typeof r["ouvert"] !== "boolean") return null;
   const solde = entier(r["solde"]);
   const miseDuJour = entier(r["mise_du_jour"]);
+  // `null` : pas de plafond du jour (depuis le 27 novembre 2026) ; absent ou autre chose qu'un entier : hors du contrat.
   const resteDuJour = entier(r["reste_du_jour"]);
-  if (solde === null || miseDuJour === null || resteDuJour === null) return null;
+  if (solde === null || miseDuJour === null || (resteDuJour === null && r["reste_du_jour"] !== null)) return null;
   const jetons = Array.isArray(r["jetons"]) && r["jetons"].every((j) => entier(j) !== null && (j as number) > 0) ? (r["jetons"] as number[]) : [...JETONS_DU_CASINO];
   const parties = Array.isArray(r["parties"]) ? r["parties"].map(lirePartie).filter((p): p is PartieDuCasino => p !== null) : [];
   return {
@@ -96,7 +97,7 @@ export function lireEtatDuCasino(reponse: unknown): EtatDuCasino | null {
     god: r["god"] === true,
     solde,
     jour: typeof r["jour"] === "string" ? r["jour"] : "",
-    plafond: entier(r["plafond"]) ?? PLAFOND_DU_JOUR_DU_CASINO,
+    plafond: r["plafond"] === null ? null : (entier(r["plafond"]) ?? PLAFOND_DU_JOUR_DU_CASINO),
     mise_au_plus: entier(r["mise_au_plus"]) ?? MISE_DE_DEPART_AU_PLUS,
     jetons,
     mise_du_jour: miseDuJour,
@@ -250,13 +251,14 @@ export function motsDuRefus(code: string, { reste, plafond, secondes }: Precisio
 /**
  * Où en est le compte face au plafond du jour (demande du pilote, 24 novembre 2026 : « que ce soit mieux lisible quand on
  * dépasse ce montant ») : `atteint` quand il reste moins que le plus petit jeton (aucune mise ne passe plus jusqu'à minuit),
- * `bas` quand il reste moins qu'une table pleine, `null` sinon et pendant un essai GOD (rien n'y compte). Les nombres sont
- * ceux de `get_casino` : le plafond n'est jamais écrit dans l'écran.
+ * `bas` quand il reste moins qu'une table pleine, `null` sinon, pendant un essai GOD (rien n'y compte) et quand le serveur
+ * ne tient pas de plafond (depuis le 27 novembre 2026). Les nombres sont ceux de `get_casino` : le plafond n'est jamais
+ * écrit dans l'écran.
  */
 export type EtatDuPlafond = { niveau: "atteint"; plafond: number; misee: number; reste: 0 } | { niveau: "bas"; plafond: number; misee: number; reste: number } | null;
 export function etatDuPlafond(e: Pick<EtatDuCasino, "ouvert" | "god" | "plafond" | "mise_du_jour" | "reste_du_jour" | "jetons" | "mise_au_plus">): EtatDuPlafond {
-  // Casino fermé : c'est la fermeture qui se dit, pas le plafond ; essai GOD : rien n'y compte.
-  if (!e.ouvert || e.god) return null;
+  // Casino fermé : c'est la fermeture qui se dit, pas le plafond ; essai GOD : rien n'y compte ; pas de plafond : rien à dire.
+  if (!e.ouvert || e.god || e.plafond === null || e.reste_du_jour === null) return null;
   const petit = Math.min(...(e.jetons.length ? e.jetons : JETONS_DU_CASINO));
   if (e.reste_du_jour < petit) return { niveau: "atteint", plafond: e.plafond, misee: e.mise_du_jour, reste: 0 };
   if (e.reste_du_jour < e.mise_au_plus) return { niveau: "bas", plafond: e.plafond, misee: e.mise_du_jour, reste: e.reste_du_jour };

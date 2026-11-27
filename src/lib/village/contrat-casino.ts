@@ -4,10 +4,11 @@
  * du forgeron, la course des familiers, la palissade et les dés), « oui plafond de 2000 par jour », « le casino tu peux
  * l'ouvrir » (ouvert à tous les comptes validés dès la mise en ligne). Le 24 novembre 2026, le plafond passe à 12 500
  * (« 12500 plutôt ! », migration `20261124000100_casino_plafond_12500`), puis à 50 000 le même jour
- * (« augmente la limite à 50000 », migration `20261124000200_casino_plafond_50000`).
+ * (« augmente la limite à 50000 », migration `20261124000200_casino_plafond_50000`). Le 27 novembre 2026, plus de
+ * plafond du tout (« enleve la limite de statere au casino », migration `20261127000300_casino_sans_plafond`).
  *
  * Le serveur décide et tire tout, d'abord (migration `20261123000100_casino_des_gaulois`, appels `casino` de
- * `src/lib/compte/api.ts`) : il vérifie le compte, les paris, la bourse et le plafond du jour, prend la mise au journal des
+ * `src/lib/compte/api.ts`) : il vérifie le compte, les paris, la bourse et le plafond du jour s'il y en a un, prend la mise au journal des
  * statères, tire le résultat avec le générateur sûr de Postgres, rend le gain. L'écran ne fait que montrer ce qu'il a reçu.
  * Les règles et les chances, au chiffre près des maquettes validées, sont dans `src/lib/village/casino/` (une par jeu) :
  * l'écran s'en sert pour dessiner, jamais pour décider.
@@ -44,10 +45,11 @@ export const PAS_DES_MISES = 10;
 export const MISE_DE_DEPART_AU_PLUS = 200;
 /**
  * Les statères misés par jour et par compte, au plus, tous jeux confondus, compléments du vingt-et-un compris (jour de Paris) :
- * 50 000 depuis le 24 novembre 2026 (2 000 avant, et 12 500 quelques heures ce jour-là). Le serveur fait foi : l'écran montre le `plafond` de `get_casino`, jamais
- * ce chiffre-ci, qui n'en est que la valeur attendue.
+ * `null`, aucun plafond, depuis le 27 novembre 2026 (2 000 jusqu'au 24 novembre 2026, 12 500 quelques heures ce jour-là, puis
+ * 50 000). Le serveur fait foi : l'écran montre le `plafond` de `get_casino` (`null` : pas de plafond), jamais ce chiffre-ci,
+ * qui n'en est que la valeur attendue.
  */
-export const PLAFOND_DU_JOUR_DU_CASINO = 50000;
+export const PLAFOND_DU_JOUR_DU_CASINO: number | null = null;
 /** Au vingt-et-un, doubler et séparer ajoutent chacun la mise de la main en cours : au plus 3 fois la mise de départ en tout. */
 export const COMPLEMENTS_AU_PLUS = 3;
 /** Les dernières parties du compte que `get_casino` rend. */
@@ -95,8 +97,8 @@ export interface CoupDuCasino {
   solde_apres: number;
   /** Les statères misés aujourd'hui (jour de Paris), ce coup compris. */
   mise_du_jour: number;
-  /** Ce qu'il reste à miser aujourd'hui : `PLAFOND_DU_JOUR_DU_CASINO` moins `mise_du_jour`. */
-  reste_du_jour: number;
+  /** Ce qu'il reste à miser aujourd'hui : le plafond moins `mise_du_jour`, ou `null` quand il n'y a pas de plafond. */
+  reste_du_jour: number | null;
 }
 
 /** `jouer_roue(p_paris)` : le numéro sorti (1 à 36) et ce que rend chaque pari, mise comprise. */
@@ -226,7 +228,8 @@ export interface ReponseDuVingtEtUn {
   table: TableDuVingtEtUn;
   solde_apres: number;
   mise_du_jour: number;
-  reste_du_jour: number;
+  /** `null` : pas de plafond du jour. */
+  reste_du_jour: number | null;
 }
 
 /** `lire_vingt_et_un()` : la main laissée ouverte, à reprendre, ou `null`. Une main ouverte ne se perd jamais : elle attend son joueur. */
@@ -270,13 +273,15 @@ export interface EtatDuCasino {
   /** Un essai du mode GOD est allumé : on joue sans mise ni gain. */
   god: boolean;
   solde: number;
-  /** Le jour de Paris (AAAA-MM-JJ) du plafond. */
+  /** Le jour de Paris (AAAA-MM-JJ) de `mise_du_jour`. */
   jour: string;
-  plafond: number;
+  /** Les statères misés au plus par jour, ou `null` : pas de plafond (depuis le 27 novembre 2026). */
+  plafond: number | null;
   mise_au_plus: number;
   jetons: number[];
   mise_du_jour: number;
-  reste_du_jour: number;
+  /** Ce qu'il reste à miser aujourd'hui, ou `null` quand il n'y a pas de plafond. */
+  reste_du_jour: number | null;
   /** Les `DERNIERES_PARTIES_DU_CASINO` dernières parties finies, de la plus récente à la plus ancienne. */
   parties: PartieDuCasino[];
   /** La main du vingt-et-un laissée ouverte, à reprendre, ou `null`. */
@@ -299,7 +304,7 @@ export interface EtatDuCasino {
  * - `main_changee` : `p_tour` n'est plus celui de la main (relire avec `lire_vingt_et_un`) ;
  * - `coup_refuse` : ce coup n'est pas permis sur la main en cours ;
  * - `mode_god` : une main jouée avec vraie mise ne se continue pas pendant un essai du mode GOD (elle attend la fin de l'essai) ;
- * - `casino_plafond` : la mise ferait passer le compte du jour au-dessus du plafond (50 000) ;
+ * - `casino_plafond` : la mise ferait passer le compte du jour au-dessus du plafond, quand il y en a un (aucun depuis le 27 novembre 2026) ;
  * - `solde_insuffisant` : la bourse ne suffit pas.
  */
 export const REFUS_DU_CASINO = [

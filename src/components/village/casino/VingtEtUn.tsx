@@ -248,7 +248,7 @@ export default function LeVingtEtUn() {
       if (code === "main_changee" || code === "pas_de_main" || code === "delai") return void reprendre();
       setPhase("joueur");
       if (code === "casino_plafond") casino.relire();
-      crou.refus(...motsDuRefusEnMain(code, { reste: reste ?? undefined, plafond: casino.etat.plafond }));
+      crou.refus(...motsDuRefusEnMain(code, { reste: reste ?? undefined, plafond: casino.etat.plafond ?? undefined }));
       return;
     }
     if (!arret.current.monte) return quitte(rep);
@@ -494,7 +494,7 @@ export default function LeVingtEtUn() {
           <li>Doubler : sur ses deux premières cartes, la mise est doublée et on reçoit une seule carte de plus. Permis aussi après avoir séparé.</li>
           <li>Séparer : deux cartes de même valeur font deux mains, une seule fois. Des as séparés reçoivent une seule carte chacun. Un 21 après avoir séparé n'est pas un 21 d'entrée.</li>
           <li>Ni assurance, ni abandon.</li>
-          <li>200 statères au plus pour la mise de départ. Doubler et séparer restent permis tant que la bourse et le plafond du jour suffisent. Jetons de 10, 20, 50, 100 et 200.</li>
+          <li>200 statères au plus pour la mise de départ. Doubler et séparer restent permis tant que la bourse{casino.etat.plafond === null ? " suffit" : " et le plafond du jour suffisent"}. Jetons de 10, 20, 50, 100 et 200.</li>
           <li>Une main laissée en cours vous attend : elle reprend où elle était.</li>
           <li>Joué au mieux, le jeu rend en moyenne 99,4 % de la mise, jamais plus.</li>
           <li>Le druide montre le meilleur coup parmi ceux qui sont permis.</li>

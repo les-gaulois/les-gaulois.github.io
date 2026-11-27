@@ -852,6 +852,17 @@ export function bourseDesLachers(dernier: Pick<CoupALaBourse, "solde_apres">, en
   return dernier.solde_apres - enRoute.reduce((a, c) => a + (c.god ? 0 : c.rendu), 0);
 }
 
+/**
+ * Ce qui reste à miser aujourd'hui pendant que des statères tombent : le plus petit de ce que dit l'état du casino et de ce
+ * que dit le dernier coup du serveur, qui compte déjà les lâchers en route. `null` : pas de plafond du jour (depuis le
+ * 27 novembre 2026) ; un `null` n'est jamais lu comme 0.
+ */
+export function resteDesLachers(reste: number | null, dernier: { reste_du_jour: number | null } | null, enRoute: number): number | null {
+  const vu = dernier && enRoute > 0 ? dernier.reste_du_jour : null;
+  if (vu === null) return reste;
+  return reste === null ? vu : Math.min(reste, vu);
+}
+
 /* ---------- La cadence des lâchers ---------- */
 
 /**

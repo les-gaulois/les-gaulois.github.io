@@ -121,6 +121,7 @@ function etatDuJour(etat: EtatDuCasino): string {
   if (!etat.peut_jouer) return "Votre compte attend sa validation";
   if (etat.god) return "Essai : rien n'est misé";
   if (etatDuPlafond(etat)?.niveau === "atteint") return `Plafond du jour atteint : ${nombreEcrit(etat.mise_du_jour)} statères misés`;
+  if (etat.plafond === null) return `Misé aujourd'hui : ${nombreEcrit(etat.mise_du_jour)}`;
   return `Misé aujourd'hui : ${nombreEcrit(etat.mise_du_jour)} sur ${nombreEcrit(etat.plafond)}`;
 }
 
@@ -240,7 +241,11 @@ export function Hall({ etat, prets, ouvrir }: { etat: EtatDuCasino; prets: Reado
               <li>Chaque jeu rend en moyenne exactement la mise. Le vingt-et-un rend 99,4 % joué au mieux.</li>
               <li>Le serveur tire le résultat d'abord. L'animation le montre, elle ne le change jamais.</li>
               <li>Jetons de {etat.jetons.join(", ").replace(/, (\d+)$/, " et $1")} statères, {etat.mise_au_plus} au plus sur une table.</li>
-              <li>{nombreEcrit(etat.plafond)} statères misés au plus par jour, tous jeux ensemble.</li>
+              {etat.plafond === null ? (
+                <li>Pas de limite par jour : seule la bourse compte.</li>
+              ) : (
+                <li>{nombreEcrit(etat.plafond)} statères misés au plus par jour, tous jeux ensemble.</li>
+              )}
             </ul>
           </details>
           <div class="cas-remise">

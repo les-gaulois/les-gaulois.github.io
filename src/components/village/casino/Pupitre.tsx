@@ -60,7 +60,7 @@ export function usePupitre({ surRefus }: { surRefus?: (titre: string, sous: stri
     const refus = (code: string): false => {
       SONS.refus();
       const l = etat.current.limites;
-      const [titre, sous] = motsDuRefus(code, { reste: l.reste ?? undefined, plafond: etat.current.plafondDuJour, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined });
+      const [titre, sous] = motsDuRefus(code, { reste: l.reste ?? undefined, plafond: etat.current.plafondDuJour ?? undefined, secondes: code === "rate_limited" ? secondesAvantLaMinute() : undefined });
       // Le serveur dit le plafond atteint, ou n'a pas répondu à temps (le coup a pu partir) : le casino relit son état (la
       // bourse, le reste du jour, les dernières parties), et le bandeau du plafond paraît partout s'il le faut.
       if (code === "casino_plafond" || code === "delai") etat.current.relire();
