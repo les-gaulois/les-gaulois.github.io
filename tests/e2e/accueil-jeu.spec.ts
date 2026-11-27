@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { nombresDuJeu } from "../../src/lib/accueil-jeu";
+import { nombresDuJeu, STATERES_PAR_POINT } from "../../src/lib/accueil-jeu";
 import { loadMembers } from "../../src/lib/data";
 import { fmtInt } from "../../src/lib/format";
 import { EMPLACEMENTS_OBJETS, OBJETS } from "../../src/lib/gaulois";
@@ -86,7 +86,7 @@ test("« Du commun au divin » suit le défilement en quatre étapes", async ({ 
     await expect(scene).toHaveAttribute("data-etape", etape);
     await expect(page.getByTestId("home-parcours-etape").nth(Number(etape))).toHaveClass(/actif/);
   }
-  // La bourse n'est qu'un exemple de la règle : 30 statères par point, jamais le solde d'un membre.
+  // La bourse n'est qu'un exemple de la règle : 60 statères par point depuis le 27 novembre 2026, jamais le solde d'un membre.
   await aller(0.45);
   await expect(scene).toHaveAttribute("data-etape", "1");
   // Les deux nombres lus d'un coup : le défilement peut encore les changer entre deux lectures.
@@ -98,7 +98,7 @@ test("« Du commun au divin » suit le défilement en quatre étapes", async ({ 
   await expect
     .poll(async () => {
       const b = await bourse();
-      return b.stateres === b.points * 30 && b.points > 0;
+      return STATERES_PAR_POINT === 60 && b.stateres === b.points * STATERES_PAR_POINT && b.points > 0;
     })
     .toBe(true);
   await expect(page.locator(".accueil-bourse")).toContainText("Un exemple de la règle");

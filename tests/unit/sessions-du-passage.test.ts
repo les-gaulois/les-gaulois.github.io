@@ -260,8 +260,8 @@ describe("les deux chemins des statères", () => {
       ["fpartage", "2026-11-13T16:00:00.000Z", 2.05, 3],
       ["cancien1", "2026-11-12T08:00:00.000Z", 1.81, 3],
     ]);
-    // 30 statères par point rapporté au clan, à chaque Gaulois présent.
-    expect(envoyees.map((p) => stateresDeVictoire(p.points, p.gaulois))).toEqual([188, 1, 50, 62, 54]);
+    // 60 statères par point rapporté au clan, à chaque Gaulois présent.
+    expect(envoyees.map((p) => stateresDeVictoire(p.points, p.gaulois))).toEqual([376, 2, 100, 123, 109]);
     expect(cheminApi.resultat).toEqual({ notees: 5, credits: 10, restantes: 0 });
     expect(JSON.stringify(cheminFichier.appels)).not.toMatch(/id-zoe|id-anonyme/);
   });

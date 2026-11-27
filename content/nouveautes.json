@@ -1,5 +1,16 @@
 [
   {
+    "date": "2026-11-27",
+    "kind": "ameliore",
+    "rank": "top",
+    "title": "Deux fois plus de statères : 60 par point",
+    "body": "Chaque point rapporté au clan donne maintenant 60 statères au lieu de 30. Et novembre est doublé : ce que vos points vous avaient donné vous est versé une seconde fois.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
     "date": "2026-11-26",
     "kind": "ameliore",
     "rank": "minor",

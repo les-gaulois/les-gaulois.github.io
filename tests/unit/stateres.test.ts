@@ -44,43 +44,51 @@ const game = () =>
   });
 
 describe("la règle des statères", () => {
-  it("donne à chaque Gaulois présent tous les points rapportés au clan, 30 statères par point, sans partage", () => {
-    // Le pilote, 13 novembre 2026 au soir : « 30 par point » (d'abord 10).
-    expect(STATERES_PAR_POINT).toBe(30);
-    expect(REGLE_STATERES).toBe("entier-30");
-    expect(stateresDeVictoire(1.67, 5)).toBe(50);
-    expect(stateresDeVictoire(1.67, 1)).toBe(50);
-    expect(stateresDeVictoire(6.26, 7)).toBe(188);
-    expect(stateresDeVictoire(2, 3)).toBe(60);
-    expect(stateresDeVictoire(1, 13)).toBe(30);
+  it("donne à chaque Gaulois présent tous les points rapportés au clan, 60 statères par point, sans partage", () => {
+    // Le pilote, 13 novembre 2026 au soir : « 30 par point » (d'abord 10) ; le 27 novembre 2026 : « double la somme
+    // apportée lors des points sur OpenFront », 60 par point, sous un nouveau nom de règle.
+    expect(STATERES_PAR_POINT).toBe(60);
+    expect(REGLE_STATERES).toBe("entier-60");
+    expect(stateresDeVictoire(1.67, 5)).toBe(100);
+    expect(stateresDeVictoire(1.67, 1)).toBe(100);
+    expect(stateresDeVictoire(6.26, 7)).toBe(376);
+    expect(stateresDeVictoire(2, 3)).toBe(120);
+    expect(stateresDeVictoire(1, 13)).toBe(60);
   });
 
   it("arrondit sur l'écriture décimale, une demie vers le haut, comme Postgres", () => {
-    // 2,05 × 30 = 61,5 : 62, là où Math.round(2.05 * 30) donne 61 (le calcul en virgule flottante fait 61,49999…).
-    expect(Math.round(2.05 * 30)).toBe(61);
-    expect(stateresDeVictoire(2.05, 1)).toBe(62);
-    expect(stateresDeVictoire(16.65, 1)).toBe(500);
-    expect(stateresDeVictoire(1.65, 1)).toBe(50);
-    expect(stateresDeVictoire(0.15, 1)).toBe(5);
-    expect(stateresDeVictoire(2.25, 1)).toBe(68);
-    expect(stateresDeVictoire(1.005, 1)).toBe(30);
-    expect(stateresDeVictoire(0.3333333333333333, 1)).toBe(10);
-    expect(stateresDeVictoire(0.6666666666666666, 1)).toBe(20);
-    expect(stateresDeVictoire(99.94, 1)).toBe(2998);
-    expect(stateresDeVictoire(6.71, 13)).toBe(201);
+    // 1,025 × 60 = 61,5 : 62, là où Math.round(1.025 * 60) donne 61 (le calcul en virgule flottante fait 61,49999…).
+    expect(Math.round(1.025 * 60)).toBe(61);
+    expect(stateresDeVictoire(1.025, 1)).toBe(62);
+    expect(Math.round(4.225 * 60)).toBe(253);
+    expect(stateresDeVictoire(4.225, 1)).toBe(254);
+    expect(Math.round(8.325 * 60)).toBe(499);
+    expect(stateresDeVictoire(8.325, 1)).toBe(500);
+    expect(stateresDeVictoire(2.05, 1)).toBe(123);
+    expect(stateresDeVictoire(16.65, 1)).toBe(999);
+    expect(stateresDeVictoire(1.65, 1)).toBe(99);
+    expect(stateresDeVictoire(0.15, 1)).toBe(9);
+    expect(stateresDeVictoire(0.025, 1)).toBe(2);
+    expect(stateresDeVictoire(2.25, 1)).toBe(135);
+    expect(stateresDeVictoire(1.005, 1)).toBe(60);
+    expect(stateresDeVictoire(0.3333333333333333, 1)).toBe(20);
+    expect(stateresDeVictoire(0.6666666666666666, 1)).toBe(40);
+    expect(stateresDeVictoire(99.94, 1)).toBe(5996);
+    expect(stateresDeVictoire(6.71, 13)).toBe(403);
   });
 
   it("donne au moins 1 statère à une partie qui rapporte des points", () => {
-    expect(stateresDeVictoire(0.04, 2)).toBe(1);
+    expect(stateresDeVictoire(0.008, 2)).toBe(1);
+    expect(stateresDeVictoire(0.0083, 1)).toBe(1);
+    expect(stateresDeVictoire(0.0084, 1)).toBe(1);
     expect(stateresDeVictoire(0.01, 1)).toBe(1);
-    expect(stateresDeVictoire(0.0166, 1)).toBe(1);
-    expect(stateresDeVictoire(0.0167, 1)).toBe(1);
-    expect(stateresDeVictoire(0.05, 1)).toBe(2);
+    expect(stateresDeVictoire(0.04, 2)).toBe(2);
+    expect(stateresDeVictoire(0.05, 1)).toBe(3);
     expect(stateresDeVictoire(1e-7, 1)).toBe(1);
   });
 
-  it("reste dans les bornes du serveur : moins de 1 000 points, moins de 30 001 statères", () => {
-    expect(stateresDeVictoire(999.99, 200)).toBe(30000);
+  it("reste dans les bornes du serveur : moins de 1 000 points, moins de 60 001 statères, bien sous le million du journal", () => {
+    expect(stateresDeVictoire(999.99, 200)).toBe(59999);
     expect(Number.isSafeInteger(stateresDeVictoire(999.99, 1))).toBe(true);
   });
 
@@ -102,6 +110,7 @@ describe("les mots des statères", () => {
     "src/lib/stateres-releve.ts",
     "scripts/crediter-stateres.ts",
     "supabase/migrations/20261113001800_village_stateres.sql",
+    "supabase/migrations/20261127000100_stateres_60_par_point.sql",
     ".github/workflows/victoires.yml",
     "src/pages/confidentialite.astro",
   ];
@@ -111,14 +120,36 @@ describe("les mots des statères", () => {
       expect(texte, f).not.toMatch(/gagn\w* (par|pour|avec) (les|des|une|chaque) (victoires?|parties? gagnée)|pour chaque victoire|monnaie des victoires|statères des victoires|par partie gagnée/i);
     }
     expect(readFileSync("supabase/migrations/20261113001800_village_stateres.sql", "utf8")).toContain("points rapportés au clan");
-    // « 30 par point » (le pilote, 13 novembre 2026 au soir) : le chiffre est le même partout, et l'ancien 10 a disparu.
-    for (const f of ["src/lib/stateres.ts", "scripts/crediter-stateres.ts", "supabase/migrations/20261113001800_village_stateres.sql", ".github/workflows/victoires.yml"]) {
+    // « 60 par point » (le pilote, 27 novembre 2026) : le chiffre est le même partout, et les anciens 10 et 30 ont disparu
+    // de ce qui décrit la règle en vigueur. La migration du 13 novembre, figée, garde son 30 : la nouvelle la remplace.
+    for (const f of ["src/lib/stateres.ts", "scripts/crediter-stateres.ts", "supabase/migrations/20261127000100_stateres_60_par_point.sql", ".github/workflows/victoires.yml"]) {
       const texte = readFileSync(f, "utf8");
-      expect(texte, f).toContain("30 statères par point rapporté au clan");
-      expect(texte, f).not.toMatch(/\b10 (statères )?par point|vaut 10 statères/);
+      expect(texte, f).toContain("60 statères par point rapporté au clan");
+      expect(texte, f).not.toMatch(/\b(10|30) statères par point rapporté au clan|vaut (10|30) statères/);
     }
-    expect(readFileSync("supabase/migrations/20261113001800_village_stateres.sql", "utf8")).toContain("round(p_points * 30)");
-    expect(readFileSync("supabase/migrations/20261113001800_village_stateres.sql", "utf8")).toContain("'entier-30'::text");
+    const ancienne = readFileSync("supabase/migrations/20261113001800_village_stateres.sql", "utf8");
+    expect(ancienne).toContain("round(p_points * 30)");
+    expect(ancienne).toContain("'entier-30'::text");
+    const nouvelle = readFileSync("supabase/migrations/20261127000100_stateres_60_par_point.sql", "utf8");
+    expect(nouvelle).toContain("round(p_points * 60)");
+    expect(nouvelle).toContain("'entier-60'::text");
+    // Rien n'est effacé ni recalculé : elle n'écrit qu'une ligne de journal et une ligne de rattrapage par compte, et ne
+    // change ensuite que l'heure où le message a été vu.
+    const code = nouvelle.replace(/\r\n/g, "\n").split("\n").filter((l) => !l.trimStart().startsWith("--")).join("\n");
+    expect(code.replace(/on delete cascade/g, "")).not.toMatch(/\b(drop|delete|truncate)\b/i);
+    expect(code.match(/\binsert into [\w.]+/g)).toEqual(["insert into internal.stateres_mouvements", "insert into internal.stateres_points_doubles"]);
+    expect(code.match(/\bupdate [\w.]+ set \w+/g)).toEqual(["update internal.stateres_points_doubles set vu_le"]);
+    expect(code).toContain("values (u.user_id, 'points_doubles', u.total, 'novembre-2026')");
+    expect(code).toContain("m.nature = 'victoire'\n      and m.regle = 'entier-30'");
+    // Le déclencheur du mode GOD : celui de 20261122002000, mot pour mot, avec la seule nature 'points_doubles' en plus.
+    const declencheur = (t: string) => {
+      const x = t.replace(/\r\n/g, "\n");
+      const debut = x.indexOf("create or replace function internal.village_god_mouvement()");
+      return x.slice(debut, x.indexOf("end $$;", debut));
+    };
+    const avant = declencheur(readFileSync("supabase/migrations/20261122002000_duel_tableau_et_saison.sql", "utf8"));
+    expect(avant).toContain("'duel_saison') then return new;");
+    expect(declencheur(nouvelle)).toBe(avant.replace("'duel_saison') then return new;", "'duel_saison', 'points_doubles') then return new;"));
     expect(readFileSync("src/pages/confidentialite.astro", "utf8")).toContain("pour chaque partie qui a rapporté des points au clan");
     expect(readFileSync(".github/workflows/victoires.yml", "utf8")).toContain("name: Donner les statères des points rapportés au clan");
     expect(ERROR_MESSAGES["invalid_parties"]).not.toMatch(/victoire/i);
@@ -212,8 +243,8 @@ describe("un passage de la relecture", () => {
     const envoyees = calls[1]!.args["p_parties"] as { partie: string; empreintes: string[] }[];
     expect(envoyees.map((p) => p.partie)).toEqual(["neuve001", "neuve002"]);
     expect(r).toEqual({ notees: 2, credits: 4, restantes: 0 });
-    // 1,67 point puis 0,04 point : 50 et 1 statères.
-    expect(lines.join("\n")).toContain("51 statères");
+    // 1,67 point puis 0,04 point : 100 et 2 statères.
+    expect(lines.join("\n")).toContain("102 statères");
     expect(JSON.stringify(calls) + lines.join("\n")).not.toMatch(/id-zoe|id-anonyme/);
   });
 

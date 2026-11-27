@@ -399,9 +399,9 @@ jobs:
           echo "::warning::Trop-payé rendu : état des messages non enregistré sur main. Sa copie gardée en cache évite de les renvoyer ; il sera de nouveau enregistré au prochain passage."
           exit 1
       # Les statères du village des Gaulois (docs/DIRECTION.md, « Le village des Gaulois ») :
-      # 30 statères par point rapporté au clan, à chaque Gaulois présent dans la partie. Chaque partie du mois qui a rapporté
-      # des points est relue une fois, et l'empreinte SHA-256 de chaque Gaulois présent part au serveur, qui crédite les
-      # comptes validés.
+      # 60 statères par point rapporté au clan (30 avant le 27 novembre 2026), à chaque Gaulois présent dans la partie.
+      # Chaque partie du mois qui a rapporté des points est relue une fois, et l'empreinte SHA-256 de chaque Gaulois présent
+      # part au serveur, qui crédite les comptes validés.
       # Après l'envoi sur Discord et à part de lui : une panne du serveur ou de l'API ne retient jamais une image. Avec
       # SUPABASE_URL et SUPABASE_SECRET_KEY ; sans eux, l'étape ne fait rien. Rien n'est écrit dans le dépôt.
       - name: Donner les statères des points rapportés au clan

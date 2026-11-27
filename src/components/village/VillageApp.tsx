@@ -18,6 +18,7 @@ import { ANCRE_SENTIER } from "../../lib/village/sentier";
 import Boutique from "./Boutique";
 import LoterieDuMardi from "./Loterie";
 import AtelierDeLaForge from "./Forge";
+import PointsDoubles from "./PointsDoubles";
 import VestiaireDuJeu from "./VestiaireDuJeu";
 import LeSentier, { objetsQuiAttendent, useSentier } from "./Sentier";
 import VitrineDuJeu from "./VitrineDuJeu";
@@ -233,6 +234,8 @@ export default function VillageApp() {
     <div class={`village jeu-ecrans ${aCreer ? "jeu-sans-menu" : ""}`} data-testid="village">
       {!aCreer && <MenuDuJeu prefix={PREFIXE} onglets={onglets} active={active} onSelect={select} />}
       {!aCreer && <RessourcesDuJeu sentier={sentier.etat.kind === "pret" ? sentier.etat.sentier : null} versLePass={() => select(ANCRE_SENTIER)} />}
+      {/* Novembre doublé (27 novembre 2026) : le message, une seule fois, à qui a reçu le rattrapage. */}
+      {!aCreer && <PointsDoubles actif={gauloisCree} />}
       <div class="jeu-parties">
         {aCreer && (
           <Ecran>

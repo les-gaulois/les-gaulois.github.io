@@ -852,12 +852,12 @@ describe("victoryCard", () => {
     expect(victoryImageAlt(VICTORY, "GAL", true, false)).not.toContain("statère");
   });
   it("avec la monnaie : la pièce et les statères de chaque Gaulois, sous les points rapportés au clan", () => {
-    // 1,81 point, 30 statères par point rapporté au clan, arrondi : 54 à chacun des 6 Gaulois.
-    expect(staterWords(VICTORY)).toBe("54 statères par villageois");
+    // 1,81 point, 60 statères par point rapporté au clan, arrondi : 109 à chacun des 6 Gaulois.
+    expect(staterWords(VICTORY)).toBe("109 statères par villageois");
     for (const shape of [SQUARE, null]) {
       const before = victoryCard(VICTORY, "GAL", SITE, measure, shape, false);
       const card = victoryCard(VICTORY, "GAL", SITE, measure, shape, true);
-      const words = card.texts.find((t) => t.text === "54 statères par villageois")!;
+      const words = card.texts.find((t) => t.text === "109 statères par villageois")!;
       const points = card.texts.find((t) => t.text === "+1,81")!;
       expect(words).toMatchObject({ font: "body", color: CARD_COLORS.MUTED });
       // Sans vignette : juste sous le chiffre des points, à la place d'une ligne d'explication. À côté de la carte : sur sa
@@ -882,7 +882,7 @@ describe("victoryCard", () => {
       } else expect(card.texts.filter((t) => t !== words).map((t) => t.text)).toEqual(before.texts.map((t) => t.text));
       expectClean(card);
     }
-    expect(plain(victoryImageAlt(VICTORY, "GAL", true, true))).toContain("+1,81 point gagné, partie de 16 min. Chaque Gaulois du village présent dans la partie reçoit 54 statères, pour les points rapportés au clan. Gaulois de la partie");
+    expect(plain(victoryImageAlt(VICTORY, "GAL", true, true))).toContain("+1,81 point gagné, partie de 16 min. Chaque Gaulois du village présent dans la partie reçoit 109 statères, pour les points rapportés au clan. Gaulois de la partie");
   });
   it("avec la monnaie : rien si la partie ne rapporte pas de points ; un seul statère, un seul Gaulois s'écrivent au singulier", () => {
     for (const points of [null, 0, -0.4]) {
@@ -892,10 +892,10 @@ describe("victoryCard", () => {
       expect(victoryImageAlt(none, "GAL", true, true)).not.toContain("statère");
     }
     // Une partie qui rapporte des points donne au moins un statère.
-    expect(staterWords({ ...VICTORY, points: 0.04 })).toBe("1 statère par villageois");
-    expect(staterWords({ ...VICTORY, points: 0.04, gaulois: 1 })).toBe("1 statère par villageois");
-    expect(victoryImageAlt({ ...VICTORY, points: 0.04, gaulois: 1 }, "GAL", true, true)).toContain("Chaque Gaulois du village présent dans la partie reçoit 1 statère, pour les points rapportés au clan.");
-    expect(plain(staterWords({ ...VICTORY, points: 120 }) ?? "")).toBe("3 600 statères par villageois");
+    expect(staterWords({ ...VICTORY, points: 0.008 })).toBe("1 statère par villageois");
+    expect(staterWords({ ...VICTORY, points: 0.008, gaulois: 1 })).toBe("1 statère par villageois");
+    expect(victoryImageAlt({ ...VICTORY, points: 0.008, gaulois: 1 }, "GAL", true, true)).toContain("Chaque Gaulois du village présent dans la partie reçoit 1 statère, pour les points rapportés au clan.");
+    expect(plain(staterWords({ ...VICTORY, points: 120 }) ?? "")).toBe("7 200 statères par villageois");
     // Jamais les mots que le pilote a repris.
     for (const text of [staterWords(VICTORY) ?? "", victoryImageAlt(VICTORY, "GAL", true, true)]) expect(text).not.toMatch(/gagnés par|partie gagnée/);
     // Beaucoup de Gaulois, de longs noms : la ligne de la pièce ne déborde pas.
@@ -907,7 +907,7 @@ describe("victoryCard", () => {
   });
   it("dit tout à un lecteur d'écran, crédit compris", () => {
     expect(plain(victoryImageAlt(VICTORY, "GAL", true))).toBe(
-      "Victoire de [GAL] sur la carte Quatre Îles, 4 équipes, mercredi 11 novembre à 18:04, heure de Paris. 6 Gaulois sur 23 joueurs, +1,81 point gagné, partie de 16 min. Chaque Gaulois du village présent dans la partie reçoit 54 statères, pour les points rapportés au clan. Gaulois de la partie, sous leur nom en partie : alpha, Caché, Zoé en jeu, 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan. Image et nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0, image redimensionnée.",
+      "Victoire de [GAL] sur la carte Quatre Îles, 4 équipes, mercredi 11 novembre à 18:04, heure de Paris. 6 Gaulois sur 23 joueurs, +1,81 point gagné, partie de 16 min. Chaque Gaulois du village présent dans la partie reçoit 109 statères, pour les points rapportés au clan. Gaulois de la partie, sous leur nom en partie : alpha, Caché, Zoé en jeu, 1 Gaulois sans nom et 1 joueur sous le tag, hors du clan. Image et nom de la carte : © OpenFront and Contributors, CC BY-SA 4.0, image redimensionnée.",
     );
     // Sans la monnaie : la phrase d'avant, mot pour mot.
     expect(plain(victoryImageAlt(VICTORY, "GAL", true, false))).toBe(

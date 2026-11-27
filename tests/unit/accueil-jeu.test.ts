@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bourseDExemple, echelleDesRaretes, gauloisEnVedette, nombresDuJeu, rangDeRarete, STATERES_PAR_POINT, type GauloisDeLAccueil } from "../../src/lib/accueil-jeu";
+import * as REGLE from "../../src/lib/stateres";
 
 const g = (id: string, rarete: string | null, victoires: number | null): GauloisDeLAccueil => ({ id, pseudo: id.toUpperCase(), rarete, victoires });
 
@@ -68,16 +69,17 @@ describe("les nombres du jeu", () => {
 });
 
 describe("la bourse d'exemple", () => {
-  it("suit la règle de 30 statères par point", () => {
-    expect(STATERES_PAR_POINT).toBe(30);
+  it("suit la vraie règle : 60 statères par point depuis le 27 novembre 2026", () => {
+    expect(STATERES_PAR_POINT).toBe(60);
+    expect(STATERES_PAR_POINT).toBe(REGLE.STATERES_PAR_POINT);
     expect(bourseDExemple(0)).toEqual({ points: 0, stateres: 0 });
-    expect(bourseDExemple(0.5)).toEqual({ points: 50, stateres: 1500 });
-    expect(bourseDExemple(1)).toEqual({ points: 100, stateres: 3000 });
+    expect(bourseDExemple(0.5)).toEqual({ points: 50, stateres: 3000 });
+    expect(bourseDExemple(1)).toEqual({ points: 100, stateres: 6000 });
   });
 
   it("reste dans ses bornes", () => {
     expect(bourseDExemple(-2)).toEqual({ points: 0, stateres: 0 });
-    expect(bourseDExemple(7)).toEqual({ points: 100, stateres: 3000 });
+    expect(bourseDExemple(7)).toEqual({ points: 100, stateres: 6000 });
     expect(bourseDExemple(Number.NaN)).toEqual({ points: 0, stateres: 0 });
   });
 });

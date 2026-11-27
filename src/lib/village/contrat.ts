@@ -5,8 +5,8 @@
  *
  * Les prix sont ceux du pilote (13 novembre 2026) : commun 100, peu commun 250, épique 500, mystique 1 000, légendaire
  * 2 500, pochette surprise 200. Ils sont semés dans la table des réglages par la migration de la boutique ; un test garde
- * les deux écritures identiques. Les statères viennent des points rapportés au clan, 30 par point (choix du pilote le 13 novembre 2026, après
- * la mesure de l'économie), et de rien d'autre :
+ * les deux écritures identiques. Les statères viennent des points rapportés au clan, 60 par point (30 le 13 novembre 2026, après
+ * la mesure de l'économie ; doublé par le pilote le 27 novembre 2026), et de rien d'autre :
  * ils ne s'achètent jamais.
  */
 import type { RareteDUnique } from "../../../supabase/functions/code-discord/modeles/modele";
@@ -1107,3 +1107,14 @@ export interface AchatDeBillets {
  * `no_gaulois` ; depuis la migration 20261121000200, toujours `achat_ferme`. Un refus ne débite rien.
  */
 export type RefusLoterie = "invalid_request" | "mode_god" | "tirage_fait" | "prix_change" | "aucun_billet" | "plafond_billets" | "solde_insuffisant" | "not_validated" | "no_gaulois" | "achat_ferme";
+
+/**
+ * `get_mes_points_doubles()` (migration 20261127000100, le pilote, 27 novembre 2026) : le rattrapage de novembre du compte
+ * connecté, ou `null` s'il n'en a pas reçu. `montant` : la somme de ses crédits des points rapportés au clan de novembre à
+ * 30 par point, versée une fois de plus ; `parties` : le nombre de ces crédits ; `vu` : il a déjà vu son message dans « Mon
+ * Gaulois » (`voir_points_doubles()`, qui rend `{ ok: true }`).
+ */
+export interface MesPointsDoubles {
+  ok: true;
+  doubles: { montant: number; parties: number; vu: boolean } | null;
+}

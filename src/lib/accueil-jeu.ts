@@ -6,6 +6,7 @@
  * aucun Gaulois, aucune rareté ni aucun nombre n'est inventé. Les écrans sont dans src/components/accueil/.
  */
 import type { PortraitDeGaulois } from "./gaulois-site";
+import { STATERES_PAR_POINT } from "./stateres";
 
 /** Les raretés qu'un Gaulois peut porter, de la plus simple à la plus haute (le légendaire de saison compte pour légendaire). */
 export const RARETES_DE_L_ECHELLE = ["commun", "peu-commun", "epique", "mystique", "legendaire", "divin"] as const;
@@ -109,8 +110,11 @@ export function nombresDuJeu(c: CatalogueDuJeu): NombreDuJeu[] {
   return tous.filter((x) => x.n > 0);
 }
 
-/** Les statères des points rapportés au clan, la règle du jeu : 30 par point (CLAUDE.md, « Le village des Gaulois »). */
-export const STATERES_PAR_POINT = 30;
+/**
+ * Les statères des points rapportés au clan, la règle du jeu : 60 par point depuis le 27 novembre 2026 (30 avant), repris de
+ * `stateres.ts` pour que l'exemple suive toujours la vraie règle (CLAUDE.md, « Le village des Gaulois »).
+ */
+export { STATERES_PAR_POINT };
 
 /**
  * L'exemple de la bourse de « Du commun au divin », qui suit le défilement : `part` va de 0 à 1, les points de 0 à

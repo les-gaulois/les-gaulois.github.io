@@ -16,7 +16,7 @@ import { lireLeTableau, lireMesInsignes } from "../../src/lib/village/contrat-ta
 import { COTE_DE_L_INSIGNE_DU_DUEL, INSIGNE_DU_DUEL, casesDeLInsigneDuDuel } from "../../src/lib/village/insigne-du-duel";
 import { compte, debutDeLaSemaine, jourEnLettres, jourEtHeure, rangCourt, rangEnMots, semaineDe } from "../../src/lib/village/ecran-tableau";
 import { REGLES_DU_TABLEAU, attendus, classer, partageDeLaCagnotte, retenus, tableauDeLaSaison, tableauDeLaSemaine, type ResultatDuTableau } from "../../src/lib/village/tableau-duel";
-import { baseDeTest, commeMembre, nouveauMembre } from "./banc-pglite";
+import { baseDeTest, commeMembre, migrations, nouveauMembre } from "./banc-pglite";
 
 const LONG = 120_000;
 
@@ -399,8 +399,12 @@ describe("l'écran du tableau", () => {
 });
 
 describe("le fichier à coller du tableau", () => {
-  it("s'installe après toutes les autres migrations, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
-    const base = await baseDeTest({ sauf: [`${NOM}.sql`] });
+  // Le fichier se colle après les migrations qui le précèdent : une migration plus récente (20261127000100) remplace le
+  // déclencheur du mode GOD, et il refuserait alors, à raison, de le remettre à son ancienne version.
+  const luiEtApres = () => migrations().filter((m) => m >= `${NOM}.sql`);
+
+  it("s'installe après les migrations qui le précèdent, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
+    const base = await baseDeTest({ sauf: luiEtApres() });
     for (let fois = 0; fois < 2; fois++) {
       const r = await base.exec(texteAColler().split("\r\n").join("\n"));
       expect(r.at(-1)!.rows[0]).toEqual({ controle: ATTENDU });
@@ -410,7 +414,7 @@ describe("le fichier à coller du tableau", () => {
   });
 
   it("s'arrête sans rien changer quand les salles ne sont pas installées", { timeout: LONG }, async () => {
-    const base = await baseDeTest({ sauf: [`${NOM}.sql`, "20261122001000_duel_salles_en_direct.sql"] });
+    const base = await baseDeTest({ sauf: [...luiEtApres(), "20261122001000_duel_salles_en_direct.sql"] });
     await expect(base.exec(texteAColler())).rejects.toThrow(/salles du duel/);
     await base.exec("rollback");
     expect((await base.query<{ f: string | null }>("select to_regprocedure('public.get_tableau_duel()')::text as f")).rows[0]!.f).toBeNull();
@@ -418,7 +422,7 @@ describe("le fichier à coller du tableau", () => {
   });
 
   it("refuse de remplacer un déclencheur du mode GOD plus récent que le sien", { timeout: LONG }, async () => {
-    const base = await baseDeTest({ sauf: [`${NOM}.sql`] });
+    const base = await baseDeTest({ sauf: luiEtApres() });
     const def = (await base.query<{ d: string }>("select pg_get_functiondef('internal.village_god_mouvement()'::regprocedure) as d")).rows[0]!.d;
     // une version suivante, qui connaîtrait une nature de plus que celle-ci
     await base.exec(def.split("'duel_gain', 'duel_rendu')").join("'duel_gain', 'duel_rendu', 'duel_saison', 'nature_future')"));

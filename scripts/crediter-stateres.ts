@@ -1,5 +1,5 @@
 /**
- * Donne aux Gaulois les statères des points qu'ils ont rapportés au clan, 30 statères par point rapporté au clan, à chaque
+ * Donne aux Gaulois les statères des points qu'ils ont rapportés au clan, 60 statères par point rapporté au clan, à chaque
  * Gaulois présent dans la partie (docs/DIRECTION.md, « Le village des Gaulois », lot 2). Lancé par le workflow
  * `.github/workflows/victoires.yml`, toutes les 5 minutes, après l'envoi des victoires sur Discord et à part de lui : son
  * échec ne retient jamais une image.
