@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-11-27",
+    "kind": "retire",
+    "rank": "staff",
+    "title": "Plus de liste des derniers dons",
+    "body": "Dans la Direction, onglet Village, le tableau des derniers dons de statères sous le panneau du don n'est plus affiché."
+  },
+  {
+    "date": "2026-11-27",
     "kind": "ameliore",
     "title": "Le duel sans limite de trois",
     "body": "Tous vos duels du jour comptent au tableau, plus seulement trois : un par jour contre chaque Gaulois ou boss. Les 4 premières victoires donnent des pas du pass. En salle, le même Gaulois peut revenir.",
