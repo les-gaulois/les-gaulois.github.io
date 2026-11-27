@@ -124,7 +124,9 @@ describe("les fonds des vraies choses", () => {
     }
   });
 
-  it("montrent la chose entière dans les cases des écrans, la tête d'un familier jamais coupée", () => {
+  // Toutes les choses dans cinq tailles de case : 4 secondes sur le poste, plus que les 5 secondes par défaut sur la machine de
+  // la GitHub Action (échec du 27 novembre 2026, run 46053981192). Le délai est celui du calcul, pas une vérification en moins.
+  it("montrent la chose entière dans les cases des écrans, la tête d'un familier jamais coupée", { timeout: 60_000 }, () => {
     // Les boîtes d'image des écrans, en pixels : vestiaire du jeu, ancienne case, pass, vitrine, case étroite d'un téléphone.
     for (const [boiteL, boiteH, place] of [[112, 76, 80], [104, 88, 80], [104, 92, 64], [104, 80, 80], [92, 76, 80]] as const) {
       for (const c of CHOSES) {
