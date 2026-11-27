@@ -2,6 +2,16 @@
   {
     "date": "2026-11-28",
     "kind": "ameliore",
+    "title": "Le casino sans limite du jour",
+    "body": "Au casino, plus de limite de 50 000 statères misés par jour : seule votre bourse compte. La mise de départ reste de 200 au plus par tour.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-28",
+    "kind": "ameliore",
     "rank": "staff",
     "title": "Les dons à soi-même cachés",
     "body": "Dans la Direction, onglet Village, la liste des derniers dons ne montre plus les dons que le titulaire du panneau s'est faits. Ils restent notés au journal de l'équipe."
