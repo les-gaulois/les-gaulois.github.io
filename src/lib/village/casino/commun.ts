@@ -1,5 +1,5 @@
 /**
- * Ce que les six jeux du casino partagent : la forme d'une mise et d'une table de paris, telle que le serveur la vérifie
+ * Ce que les jeux du casino partagent : la forme d'une mise et d'une table de paris, telle que le serveur la vérifie
  * (`internal.casino_paris` de la migration `20261123000100_casino_des_gaulois`). Des calculs purs : l'écran s'en sert pour
  * griser un bouton, le serveur revérifie tout.
  */

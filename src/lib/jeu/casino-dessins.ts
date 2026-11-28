@@ -10,8 +10,8 @@ import { casesDuStatere, type TailleStatere } from "../../../supabase/functions/
 import { GAULOIS_LARGEUR, TENUE_DE_DEPART, casesDuGaulois, type Tenue } from "../gaulois";
 import { ROSE, NOIR, OR, BORDEAUX, Toile, cadreOr, disque, ton, toileDesCases } from "./casino-toile";
 
-/** Les six croupiers, un par jeu : le donneur du vingt-et-un, celui de la roue, le forgeron de la machine, la bergère de la course, la gardienne de la palissade, le joueur de dés. */
-export const CROUPIERS = ["donneur", "roue", "forgeron", "course", "palissade", "des"] as const;
+/** Les sept croupiers, un par jeu : le donneur du vingt-et-un, celui de la roue, le forgeron de la machine, la bergère de la course, la gardienne de la palissade, le joueur de dés, le barde du poker. */
+export const CROUPIERS = ["donneur", "roue", "forgeron", "course", "palissade", "des", "barde"] as const;
 export type Croupier = (typeof CROUPIERS)[number];
 
 /** Leur tenue, posée sur la tenue de départ du jeu (maquette de Claude Fable 5.2). */
@@ -22,6 +22,7 @@ export const TENUES_DES_CROUPIERS: Readonly<Record<Croupier, Tenue>> = {
   course: { cheveux: "tresses", teinte_cheveux: "blond", barbe: "aucune", tete: "chapeau-berger", haut: "gilet-berger", bas: "braies-carreaux", arme: "aucune", yeux: "rieurs", bouche: "grand-sourire" },
   palissade: { peau: "foncee", cheveux: "courts", teinte_cheveux: "noir", barbe: "bouc", tete: "casque-cuir", haut: "plastron-cuir", bas: "braies-lacees", arme: "aucune", bouche: "sourire" },
   des: { cheveux: "meches", teinte_cheveux: "roux", barbe: "longue-moustache", tete: "bonnet", haut: "chemise-jabot", bas: "braies-rayees", arme: "aucune", yeux: "clin-d-oeil", bouche: "en-coin" },
+  barde: { peau: "mate", cheveux: "tresses", teinte_cheveux: "noir", barbe: "bouc", tete: "couronne-fleurs", haut: "manteau-plumes", bas: "braies-lacees", arme: "aucune", yeux: "vifs", bouche: "sourire" },
 };
 
 /** Les cinq visages d'un croupier : au repos, concentré (il lance), content, ébahi (un grand gain), complice (rien cette fois). */

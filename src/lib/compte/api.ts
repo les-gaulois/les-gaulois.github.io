@@ -13,7 +13,7 @@ import type { AdversairesDuDuel, ContreQui, EtatDuDuel, MainDuDuel, MainEnregist
 import type { EtatDesSalles } from "../village/contrat-salles";
 import type {
   CoupDeLaCourse, CoupDeLaMachine, CoupDeLaPalissade, CoupDeLaRoue, CoupDesDes, CoupDuVingtEtUn, EtatDuCasino, LectureDuVingtEtUn, MisesDeLaRoue, MisesDesDes,
-  ReponseDuVingtEtUn,
+  ReponseDuVingtEtUn, CoupDuPoker, DonneDuPoker,
 } from "../village/contrat-casino";
 
 export const SUPABASE_URL = (import.meta.env.PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
@@ -314,6 +314,10 @@ export const casino = {
   jouer: (partie: number, tour: number, coup: CoupDuVingtEtUn): Promise<ReponseDuVingtEtUn> => avecDelai(call<ReponseDuVingtEtUn>("jouer_vingt_et_un", { p_partie: partie, p_tour: tour, p_coup: coup })),
   /** La main laissée ouverte, à reprendre, ou `null`. */
   lire: (): Promise<LectureDuVingtEtUn> => avecDelai(call<LectureDuVingtEtUn>("lire_vingt_et_un")),
+  /** Le poker du barde : la mise et la donne des cinq cartes (refus `main_en_cours` si une main attend). */
+  distribuerPoker: (mise: number): Promise<DonneDuPoker> => avecDelai(call<DonneDuPoker>("distribuer_poker", { p_mise: mise })),
+  /** Le poker du barde : les cartes gardées sur la main `partie`, le tirage, ce que rend la main. */
+  jouerPoker: (partie: number, gardes: boolean[]): Promise<CoupDuPoker> => avecDelai(call<CoupDuPoker>("jouer_poker", { p_partie: partie, p_gardes: gardes })),
 };
 
 /**

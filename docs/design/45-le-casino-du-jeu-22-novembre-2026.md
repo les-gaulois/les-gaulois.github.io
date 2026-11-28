@@ -2,7 +2,7 @@
 
 ### Le casino du jeu (22 novembre 2026)
 
-`/village#casino`, « Le casino » : six jeux en statères dans la direction « Le Palais d'or » choisie par le pilote (« fais en
+`/village#casino`, « Le casino » : six jeux en statères (sept avec le poker du barde, 28 novembre 2026 : cinq cartes du vingt-et-un sur le feutre, la carte gardée monte avec son étiquette d’or, le conseil du barde cerne d’or ce qu’il garde, la table des gains allume la main sortie ; classes `pk-*` ; « Mon bilan » sous les jeux du hall, classes `cas-bilan-*`) dans la direction « Le Palais d'or » choisie par le pilote (« fais en
 sorte que ça reste cohérent avec le reste du Mon Gaulois »), pixel de luxe, laque noire, or et bordeaux la nuit, ivoire et or
 le jour (le pourpre de la maquette est devenu bordeaux, « le velours de théâtre, plus chaud », choix du pilote du soir
 du 22 novembre 2026). Maquettes jouables de Claude Fable 5.2, validées, **portées telles quelles** : mêmes dessins, mêmes mouvements, mêmes

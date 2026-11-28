@@ -2441,6 +2441,331 @@
   transition: none !important;
 }
 
+/* ---------- Le poker du barde (28 novembre 2026, src/components/village/casino/Poker.tsx) ---------- */
+/* Cinq cartes du jeu du vingt-et-un sur le feutre : une carte gardée monte et porte son étiquette d'or ; le conseil du barde
+   cerne d'or les cartes qu'il garderait et voile les autres ; la table des gains allume la main sortie. */
+
+.casino-jeu .pk-salle {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-areas:
+    "table croupier"
+    "table gestes"
+    "table pupitre"
+    "gains gains";
+  gap: 14px 32px;
+  align-items: center;
+}
+.casino-jeu .pk-salle > * {
+  min-width: 0;
+}
+.casino-jeu .pk-table {
+  grid-area: table;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  min-height: 330px;
+  padding: 52px 18px 34px;
+  filter: drop-shadow(0 8px 0 var(--cas-ombre));
+}
+.casino-jeu .pk-croupier {
+  grid-area: croupier;
+}
+.casino-jeu .pk-gestes {
+  grid-area: gestes;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.casino-jeu .pk-pupitre {
+  grid-area: pupitre;
+}
+.casino-jeu .pk-coups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.casino-jeu .pk-barde {
+  gap: calc(3 * var(--jeu-p));
+  padding: 0 calc(4 * var(--jeu-p));
+}
+.casino-jeu .pk-barde-dit {
+  min-height: 24px;
+  opacity: 0;
+  translate: 0 6px;
+  transition:
+    opacity 0.5s ease,
+    translate 0.5s ease;
+}
+.casino-jeu .pk-barde-dit.pk-vu {
+  opacity: 1;
+  translate: 0 0;
+}
+.casino-jeu .pk-main {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+}
+.casino-jeu .pk-carte {
+  position: relative;
+  flex: 0 1 90px;
+  min-width: 0;
+  aspect-ratio: 45 / 64;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transition:
+    translate 0.25s cubic-bezier(0.3, 1.4, 0.5, 1),
+    filter 0.3s ease;
+}
+.casino-jeu .pk-carte:disabled {
+  cursor: default;
+}
+.casino-jeu .pk-carte canvas {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(2px 4px 0 rgb(3 2 10 / 0.42));
+  image-rendering: pixelated;
+}
+.casino-jeu .pk-carte.pk-gardee {
+  translate: 0 -16px;
+}
+.casino-jeu .pk-carte.pk-jetee {
+  filter: brightness(0.62) saturate(0.6);
+}
+.casino-jeu .pk-carte.pk-conseil::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 3px dashed var(--cas-or);
+  border-radius: 4px;
+  pointer-events: none;
+}
+.casino-jeu .pk-carte:focus-visible {
+  outline: 3px solid var(--cas-or);
+  outline-offset: 4px;
+}
+.casino-jeu .pk-etiquette {
+  position: absolute;
+  left: 50%;
+  bottom: -32px;
+  translate: -50% 0;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.casino-jeu .pk-gardee .pk-etiquette {
+  opacity: 1;
+}
+@media (hover: hover) {
+  .casino-jeu .pk-carte:not(:disabled):not(.pk-gardee):hover {
+    translate: 0 -6px;
+  }
+}
+.casino-jeu .pk-sorte {
+  min-height: 32px;
+  opacity: 0;
+  scale: 0.85;
+  transition:
+    opacity 0.5s ease,
+    scale 0.5s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.casino-jeu .pk-sorte.pk-vue {
+  opacity: 1;
+  scale: 1;
+}
+.casino-jeu .pk-gains {
+  grid-area: gains;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+  padding: 24px;
+}
+.casino-jeu .pk-ligne {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px 12px;
+}
+.casino-jeu .pk-ligne > :first-child {
+  grid-column: 1 / -1;
+}
+.casino-jeu .pk-regles {
+  margin-top: 18px;
+}
+@container casino (max-width: 1099px) {
+  .casino-jeu .pk-gains {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container casino (max-width: 799px) {
+  .casino-jeu .pk-salle {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "table"
+      "gestes"
+      "pupitre"
+      "croupier"
+      "gains";
+    gap: 14px;
+  }
+}
+@container casino (max-width: 519px) {
+  .casino-jeu .pk-main {
+    gap: 4px;
+  }
+  .casino-jeu .pk-table {
+    min-height: 240px;
+    padding: 44px 8px 30px;
+  }
+  .casino-jeu .pk-etiquette {
+    bottom: -26px;
+    scale: 0.6;
+  }
+  .casino-jeu .pk-gains {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .casino-jeu .pk-carte,
+  .casino-jeu .pk-sorte,
+  .casino-jeu .pk-barde-dit {
+    transition: none;
+  }
+}
+:root.fx-off .casino-jeu .pk-carte,
+:root.fx-off .casino-jeu .pk-sorte,
+:root.fx-off .casino-jeu .pk-barde-dit {
+  transition: none !important;
+}
+
+/* ---------- Mon bilan (28 novembre 2026, `Bilan` de src/components/village/casino/Hall.tsx) ---------- */
+/* Dans le hall, sous les jeux : ce que le compte a misé et reçu depuis sa première partie, jeu par jeu, avec une jauge :
+   le trait d'or marque ce que le jeu rend en moyenne, la barre ce qu'il a rendu au joueur. */
+
+.casino-jeu .cas-bilan {
+  margin-top: calc(22 * var(--jeu-p));
+}
+.casino-jeu .cas-bilan-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 24px;
+  padding: 6px 0 14px;
+  border-bottom: 2px solid var(--cas-creux);
+}
+.casino-jeu .cas-bilan-totaux {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 32px;
+}
+.casino-jeu .cas-bilan .cas-col {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+.casino-jeu .cas-bilan-jeux {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+  gap: 12px 18px;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.casino-jeu .cas-bilan-jeux li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "nom net"
+    "jauge jauge";
+  gap: 10px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--cas-creux);
+  border: 2px solid var(--cas-filet);
+}
+.casino-jeu .cas-bilan-nom {
+  grid-area: nom;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.casino-jeu .cas-bilan-net {
+  grid-area: net;
+}
+.casino-jeu .cas-bilan-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.casino-jeu .cas-bilan-jauge {
+  grid-area: jauge;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.casino-jeu .cas-bilan-barre {
+  position: relative;
+  height: 10px;
+  background: var(--cas-page);
+  box-shadow: inset 0 0 0 2px var(--cas-filet);
+}
+.casino-jeu .cas-bilan-barre i {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  bottom: 2px;
+  width: calc(var(--vous) - 2px);
+  background: var(--cas-doux);
+}
+.casino-jeu .cas-bilan-barre i.cas-plus {
+  background: var(--cas-or);
+}
+.casino-jeu .cas-bilan-barre b {
+  position: absolute;
+  left: calc(var(--moy) - 2px);
+  top: -5px;
+  bottom: -5px;
+  width: 4px;
+  background: var(--cas-or);
+}
+.casino-jeu .cas-bilan-chiffres {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.casino-jeu .cas-bilan-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+/* Sur un téléphone : le nom sur toute la ligne, l'écart dessous, les deux chiffres de la jauge l'un sous l'autre. */
+@media (max-width: 47.99rem) {
+  .casino-jeu .cas-bilan-jeux li {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "nom"
+      "net"
+      "jauge";
+  }
+  .casino-jeu .cas-bilan-chiffres {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
 /* ---------- Le plafond du jour ---------- */
 /* Lisible d'un coup d'œil (demande du pilote, 24 novembre 2026) : le bandeau du hall avec le compte à rebours jusqu'à
    minuit, et dans chaque pupitre la phrase à côté des jetons éteints (src/components/village/casino/Plafond.tsx). */

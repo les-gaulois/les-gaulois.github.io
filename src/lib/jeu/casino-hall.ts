@@ -145,6 +145,24 @@ const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean, tirage?
     Tl.poseOmbre(s, cx + 34, h - 14, 1, 1);
     Tl.poseOmbre(s, cx - 24, h - 13, 1, 1);
   },
+  // Le poker du barde (28 novembre 2026) : la quinte flush royale en éventail sur le velours bordeaux.
+  poker(Tl, jour) {
+    const h = Tl.h;
+    const cx = Tl.w >> 1;
+    mur(Tl, jour, 0.5, 0.36);
+    plateau(Tl, Math.round(h * 0.58), BORDEAUX);
+    lueur(Tl, cx, Math.round(h * 0.48), 70, jour ? 0.25 : 0.36);
+    const rangs = ["10", "V", "D", "R", "A"];
+    rangs.forEach((r, i) => {
+      const c = carte(30, 42, r, "coeur").tourne((i - 2) * 0.16).cerne();
+      Tl.poseOmbre(c, cx - 15 + (i - 2) * 20, Math.round(h * 0.46) - 26 + Math.abs(i - 2) * 3, 3, 4);
+    });
+    pile(Tl, cx - 70, h - 10, 4, RUBIS);
+    pile(Tl, cx + 66, h - 12, 5, IVOIRE);
+    pile(Tl, cx + 84, h - 6, 2, NOIR);
+    const s = statere(12);
+    Tl.poseOmbre(s, cx - 48, h - 13, 1, 1);
+  },
   roue(Tl, jour) {
     const h = Tl.h;
     const cx = Tl.w >> 1;

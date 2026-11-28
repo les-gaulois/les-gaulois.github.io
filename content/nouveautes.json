@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-28",
+    "kind": "nouveau",
+    "rank": "top",
+    "title": "Le poker du barde et votre bilan",
+    "body": "Un septième jeu au casino : le poker du barde, où le barde montre le meilleur choix. Dans le hall, « Mon bilan » montre ce que vous avez misé et reçu à chaque jeu, à vous seul.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-28",
     "kind": "ameliore",
     "title": "Le casino sans limite du jour",
     "body": "Au casino, plus de limite de 50 000 statères misés par jour : seule votre bourse compte. La mise de départ reste de 200 au plus par tour.",

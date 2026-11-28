@@ -10,8 +10,11 @@ import { COUPE_HAUTE, SONS } from "../../src/lib/jeu/casino-sons";
 import { BORDEAUX, ENCRE, IVOIRE, JETONS, OR, PIECES_DES_TABLES, RUBIS, SAPHIR, Toile, hexDe, jeton, jetonDeMise, pair, toileDesCases } from "../../src/lib/jeu/casino-toile";
 import { Planche, R } from "../../src/lib/jeu/planche";
 import { JEUX_DU_CASINO, REFUS_DU_CASINO, type CoupDuCasino } from "../../src/lib/village/contrat-casino";
+import { RENDEMENT_DU_POKER } from "../../src/lib/village/casino/poker";
+import { rendementAuMieux as rendementDuVingtEtUn } from "../../src/lib/village/casino/vingt-et-un";
 import {
   JEUX_DU_HALL,
+  MOYENNE_DU_JEU,
   casinoMontre,
   jeuxDeLaCategorie,
   lireEtatDuCasino,
@@ -268,10 +271,19 @@ describe("les peintures du hall", () => {
     expect(etroit.rx).toBe(85);
   });
 
-  it("montre les six jeux du contrat, rangés en trois catégories", () => {
+  it("montre les sept jeux du contrat (le poker du barde depuis le 28 novembre 2026), rangés en trois catégories", () => {
     expect(JEUX_DU_HALL.map((j) => j.id).sort()).toEqual([...JEUX_DU_CASINO].sort());
-    expect(jeuxDeLaCategorie("tout")).toHaveLength(6);
-    expect(jeuxDeLaCategorie("tables").length + jeuxDeLaCategorie("machines").length + jeuxDeLaCategorie("courses").length).toBe(6);
+    expect(jeuxDeLaCategorie("tout")).toHaveLength(7);
+    expect(jeuxDeLaCategorie("tables").length + jeuxDeLaCategorie("machines").length + jeuxDeLaCategorie("courses").length).toBe(7);
+    expect(jeuxDeLaCategorie("tables").map((j) => j.id)).toContain("poker");
+  });
+
+  it("donne à « Mon bilan » ce que chaque jeu rend en moyenne, les jeux de cartes joués au mieux, au dixième du calcul exact", () => {
+    expect(Object.keys(MOYENNE_DU_JEU).sort()).toEqual([...JEUX_DU_CASINO].sort());
+    for (const j of JEUX_DU_CASINO) expect(MOYENNE_DU_JEU[j].auMieux, j).toBe(j === "vingt-et-un" || j === "poker");
+    for (const j of JEUX_DU_CASINO) if (!MOYENNE_DU_JEU[j].auMieux) expect(MOYENNE_DU_JEU[j].pourCent, j).toBe(100);
+    expect(MOYENNE_DU_JEU["vingt-et-un"].pourCent).toBe(Math.round(rendementDuVingtEtUn() * 1000) / 10);
+    expect(MOYENNE_DU_JEU.poker.pourCent).toBe(Math.round(RENDEMENT_DU_POKER * 1000) / 10);
   });
 });
 

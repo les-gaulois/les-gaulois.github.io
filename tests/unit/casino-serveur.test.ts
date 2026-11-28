@@ -345,9 +345,11 @@ describe("le casino des membres", () => {
   it("montre l'écran entier, sans rien d'un autre compte", async () => {
     const uid = await joueur(5000);
     const e = await comme<EtatDuCasino>(uid, "select public.get_casino() as r");
-    expect(e).toMatchObject({ ok: true, ouvert: true, peut_jouer: true, god: false, solde: 5000, plafond: null, mise_au_plus: 200, jetons: [10, 20, 50, 100, 200], mise_du_jour: 0, reste_du_jour: null, parties: [], main: null });
+    expect(e).toMatchObject({ ok: true, ouvert: true, peut_jouer: true, god: false, solde: 5000, plafond: null, mise_au_plus: 200, jetons: [10, 20, 50, 100, 200], mise_du_jour: 0, reste_du_jour: null, parties: [], main: null, poker: null });
     expect(e.jour).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(Object.keys(e).sort()).toEqual(["god", "jetons", "jour", "main", "mise_au_plus", "mise_du_jour", "ok", "ouvert", "parties", "peut_jouer", "plafond", "reste_du_jour", "solde"]);
+    // le poker et le bilan depuis le 28 novembre 2026 (migration 20261128000500_casino_poker_et_bilan)
+    expect(Object.keys(e).sort()).toEqual(["bilan", "god", "jetons", "jour", "main", "mise_au_plus", "mise_du_jour", "ok", "ouvert", "parties", "peut_jouer", "plafond", "poker", "reste_du_jour", "solde"]);
+    expect(e.bilan).toEqual({ depuis: null, parties: 0, mise: 0, rendu: 0, jeux: [] });
   });
 
   it("joue chaque jeu à un coup : tire, prend la mise au journal, rend le gain", async () => {

@@ -1,11 +1,12 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { frNumber } from "../../../lib/nombre";
 import { medaillon, portraitEnPied } from "../../../lib/jeu/casino-dessins";
 import { banniere, placeDeLaRoue, vignette } from "../../../lib/jeu/casino-hall";
 import { SONS } from "../../../lib/jeu/casino-sons";
 import { pair } from "../../../lib/jeu/casino-toile";
 import { nombreEcrit } from "../../../lib/jeu/ecriture";
 import type { EtatDuCasino, JeuDuCasino } from "../../../lib/village/contrat-casino";
-import { CATEGORIES_DU_CASINO, JEUX_DU_HALL, etatDuPlafond, jeuDuHall, jeuxDeLaCategorie, netDeLaPartie, resumeDeLaPartie, type CategorieDuCasino, type JeuDuHall } from "../../../lib/village/ecran-casino";
+import { CATEGORIES_DU_CASINO, JEUX_DU_HALL, MOYENNE_DU_JEU, etatDuPlafond, jeuDuHall, jeuxDeLaCategorie, netDeLaPartie, resumeDeLaPartie, type CategorieDuCasino, type JeuDuHall } from "../../../lib/village/ecran-casino";
 import { Etiquette } from "../../jeu/Pixels";
 import { useJour } from "./commun";
 import { Bouton, Mots, Peinture, Pic } from "./Pieces";
@@ -13,7 +14,7 @@ import { BandeauDuPlafond } from "./Plafond";
 
 /**
  * Le hall du Palais d'or (maquette de Claude Fable 5.2, validée par le pilote le 22 novembre 2026) : les catégories, la
- * bannière « À l'affiche », les vignettes des six jeux avec leur croupier et leur rendement, « Vos dernières parties » (les
+ * bannière « À l'affiche », les vignettes des sept jeux avec leur croupier et leur rendement, « Vos dernières parties » (les
  * six plus récentes du compte, lues au serveur), le jeu juste et les règles en pli. Chaque peinture est refaite à la taille de sa
  * place, en points entiers, et au thème du moment.
  */
@@ -168,6 +169,87 @@ function Parties({ etat }: { etat: EtatDuCasino }) {
   );
 }
 
+/** Ce que chaque jeu rend en moyenne, en pour cent (joué au mieux pour le vingt-et-un et le poker). */
+const UNE_DECIMALE = frNumber({ maximumFractionDigits: 1 });
+const pourCent = (v: number): string => `${UNE_DECIMALE.format(v)} %`;
+
+/**
+ * « Mon bilan » (28 novembre 2026, choisi par le pilote, maquette validée) : ce que le compte a misé et ce qui lui est revenu
+ * depuis sa première partie, en tout et jeu par jeu, à côté de ce que chaque jeu rend en moyenne (`bilan` de `get_casino`,
+ * essais du mode GOD exclus). À lui seul : rien d'un autre compte, aucun classement. Rien tant qu'il n'a pas joué.
+ */
+function Bilan({ etat }: { etat: EtatDuCasino }) {
+  const j = useJour();
+  const b = etat.bilan;
+  if (!b || !b.parties) return null;
+  const net = netDeLaPartie(b.mise, b.rendu);
+  const depuis = b.depuis ? new Date(b.depuis).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" }) : "";
+  const jeux = [...b.jeux].filter((x) => x.parties > 0).sort((x, y) => y.mise - x.mise);
+  return (
+    <section class="jeu-n9 cas-panneau cas-bloc cas-bilan" aria-labelledby="cas-r-bilan">
+      <h4 class="jeu-ruban jeu-ruban-bleu jeu-n9 cas-ruban-bloc" id="cas-r-bilan">
+        <Mots t="Mon bilan" couleur="creme" relief="cerne" />
+      </h4>
+      <div class="cas-bilan-tete">
+        <Mots t={`Depuis le ${depuis} : ${nombreEcrit(b.parties)} ${b.parties > 1 ? "parties" : "partie"}`} couleur="doux" plie />
+        <div class="cas-bilan-totaux">
+          <span class="cas-col">
+            <Mots t="Misé" couleur="doux" />
+            <Mots t={nombreEcrit(b.mise)} p={3} />
+          </span>
+          <span class="cas-col">
+            <Mots t="Revenu" couleur="doux" />
+            <Mots t={nombreEcrit(b.rendu)} p={3} />
+          </span>
+          <span class="cas-col">
+            <Mots t="Écart" couleur="doux" />
+            <Mots t={net.texte} couleur={net.gagne ? "or" : "texte"} p={3} dit={net.dit} />
+          </span>
+        </div>
+      </div>
+      <ul class="cas-bilan-jeux">
+        {jeux.map((x) => {
+          const jeu = jeuDuHall(x.jeu);
+          const vous = x.mise ? (x.rendu / x.mise) * 100 : 0;
+          const { pourCent: moyenne, auMieux } = MOYENNE_DU_JEU[x.jeu];
+          const n = netDeLaPartie(x.mise, x.rendu);
+          return (
+            <li key={x.jeu}>
+              <span class="cas-bilan-nom">
+                <Peinture toile={medaillon(jeu.croupier, 15, j)} />
+                <span class="cas-col">
+                  <Mots t={jeu.nom} plie />
+                  <span class="cas-bilan-detail">
+                    <Mots t={`${nombreEcrit(x.parties)} ${x.parties > 1 ? "parties" : "partie"}`} couleur="doux" />
+                    <Mots t={`${nombreEcrit(x.mise)} misés`} couleur="doux" />
+                  </span>
+                </span>
+              </span>
+              <span class="cas-bilan-net">
+                <Mots t={n.texte} couleur={n.gagne ? "or" : "texte"} p={3} dit={n.dit} />
+              </span>
+              <span class="cas-bilan-jauge" role="img" aria-label={`Ce jeu vous a rendu ${pourCent(vous)} de vos mises ; il rend ${pourCent(moyenne)} en moyenne${auMieux ? ", joué au mieux" : ""}.`}>
+                <span class="cas-bilan-barre" style={`--vous:${Math.min(200, vous) / 2}%;--moy:${moyenne / 2}%`}>
+                  <i class={vous > moyenne ? "cas-plus" : ""} />
+                  <b />
+                </span>
+                <span class="cas-bilan-chiffres" aria-hidden="true">
+                  <Mots t={`Vous : ${pourCent(vous)}`} couleur={vous > moyenne ? "or" : "texte"} muet />
+                  <Mots t={`Le jeu : ${pourCent(moyenne)}${auMieux ? " au mieux" : ""}`} couleur="doux" muet />
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p class="cas-bilan-note">
+        <Pic nom="balance" />
+        <Mots t="Sur beaucoup de parties, on revient vers la moyenne du jeu, aux cartes en jouant au mieux" couleur="doux" plie />
+      </p>
+    </section>
+  );
+}
+
 /**
  * Le hall. `prets` : les jeux déjà à la table (les autres ont « Bientôt » sur leur vignette et y mènent quand même, à leur
  * peinture).
@@ -206,6 +288,7 @@ export function Hall({ etat, prets, ouvrir }: { etat: EtatDuCasino; prets: Reado
       <div class="cas-grille" ref={grilleRef} style={`--cols:${cols}`}>
         {JEUX_DU_HALL.map((jeu, k) => (visibles.includes(jeu) ? <Vignette key={jeu.id} jeu={jeu} k={k} ouvert={prets.has(jeu.id)} ouvrir={ouvrir} /> : null))}
       </div>
+      <Bilan etat={etat} />
       <div class="cas-bas">
         <section class="jeu-n9 cas-panneau cas-bloc" aria-labelledby="cas-r-parties">
           <h4 class="jeu-ruban jeu-ruban-bleu jeu-n9 cas-ruban-bloc" id="cas-r-parties">
@@ -238,7 +321,7 @@ export function Hall({ etat, prets, ouvrir }: { etat: EtatDuCasino; prets: Reado
             </summary>
             <ul>
               <li>On joue en statères, gagnés avec le clan. Ils ne s'achètent pas et ne se retirent pas.</li>
-              <li>Chaque jeu rend en moyenne exactement la mise. Le vingt-et-un rend 99,4 % joué au mieux.</li>
+              <li>Chaque jeu rend en moyenne exactement la mise. Le vingt-et-un rend 99,4 % et le poker 99,5 %, joués au mieux.</li>
               <li>Le serveur tire le résultat d'abord. L'animation le montre, elle ne le change jamais.</li>
               <li>Jetons de {etat.jetons.join(", ").replace(/, (\d+)$/, " et $1")} statères, {etat.mise_au_plus} au plus sur une table.</li>
               {etat.plafond === null ? (

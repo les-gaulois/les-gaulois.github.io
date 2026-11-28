@@ -9,7 +9,10 @@
 import { nombreEcrit } from "../jeu/ecriture";
 import { ROUGES } from "../jeu/casino-roue";
 import type { Croupier } from "../jeu/casino-dessins";
+import { SORTES_DU_POKER } from "./casino/poker";
 import {
+  type BilanDuCasino,
+  type MainDuPoker,
   type CoupDuCasino,
   JETONS_DU_CASINO,
   MISE_DE_DEPART_AU_PLUS,
@@ -38,7 +41,7 @@ export interface JeuDuHall {
   rend: string;
   croupier: Croupier;
 }
-/** Les six jeux, dans l'ordre du hall de la maquette validée. */
+/** Les sept jeux, dans l'ordre du hall de la maquette validée, le poker du barde au bout (28 novembre 2026). */
 export const JEUX_DU_HALL: readonly JeuDuHall[] = [
   { id: "vingt-et-un", nom: "Le vingt-et-un", cat: "tables", rend: "Rend 99,4 % joué au mieux", croupier: "donneur" },
   { id: "roue", nom: "La roue du charron", cat: "tables", rend: "Rend 100 %", croupier: "roue" },
@@ -46,7 +49,22 @@ export const JEUX_DU_HALL: readonly JeuDuHall[] = [
   { id: "course", nom: "La course des familiers", cat: "courses", rend: "Rend 100 %", croupier: "course" },
   { id: "palissade", nom: "La palissade", cat: "machines", rend: "Rend 100 %", croupier: "palissade" },
   { id: "des", nom: "Les dés", cat: "tables", rend: "Rend 100 %", croupier: "des" },
+  { id: "poker", nom: "Le poker du barde", cat: "tables", rend: "Rend 99,5 % joué au mieux", croupier: "barde" },
 ];
+/**
+ * Ce que chaque jeu rend en moyenne, en pour cent, pour « Mon bilan » : la mise exactement pour les cinq jeux à un coup ;
+ * pour le vingt-et-un et le poker, joués au mieux (`auMieux`), les calculs exacts arrondis au dixième (`rendementAuMieux`
+ * de leurs règles, `tests/unit/jeu-casino.test.ts` les relie).
+ */
+export const MOYENNE_DU_JEU: Readonly<Record<JeuDuCasino, { pourCent: number; auMieux: boolean }>> = {
+  roue: { pourCent: 100, auMieux: false },
+  machine: { pourCent: 100, auMieux: false },
+  course: { pourCent: 100, auMieux: false },
+  palissade: { pourCent: 100, auMieux: false },
+  des: { pourCent: 100, auMieux: false },
+  "vingt-et-un": { pourCent: 99.4, auMieux: true },
+  poker: { pourCent: 99.5, auMieux: true },
+};
 export const jeuDuHall = (id: JeuDuCasino): JeuDuHall => JEUX_DU_HALL.find((j) => j.id === id) ?? JEUX_DU_HALL[1]!;
 /** Les jeux d'une catégorie. */
 export const jeuxDeLaCategorie = (cat: CategorieDuCasino): JeuDuHall[] => JEUX_DU_HALL.filter((j) => cat === "tout" || j.cat === cat);
@@ -104,7 +122,42 @@ export function lireEtatDuCasino(reponse: unknown): EtatDuCasino | null {
     reste_du_jour: resteDuJour,
     parties,
     main: r["main"] && typeof r["main"] === "object" ? (r["main"] as EtatDuCasino["main"]) : null,
+    poker: lireMainDuPoker(r["poker"]),
+    ...(lireBilan(r["bilan"]) ? { bilan: lireBilan(r["bilan"])! } : {}),
   };
+}
+
+const estCarte = (c: unknown): c is { r: number; e: number } => {
+  if (!c || typeof c !== "object") return false;
+  const { r, e } = c as Record<string, unknown>;
+  return entier(r) !== null && entier(e) !== null && (r as number) >= 0 && (r as number) <= 12 && (e as number) >= 0 && (e as number) <= 3;
+};
+
+/** La main du poker à reprendre, lue sans confiance : `null` s'il n'y en a pas ou si elle ne ressemble pas au contrat. */
+export function lireMainDuPoker(v: unknown): MainDuPoker | null {
+  if (!v || typeof v !== "object") return null;
+  const m = v as Record<string, unknown>;
+  const partie = entier(m["partie"]);
+  const mise = entier(m["mise"]);
+  const main = m["main"];
+  if (partie === null || mise === null || !Array.isArray(main) || main.length !== 5 || !main.every(estCarte)) return null;
+  return { partie, mise, god: m["god"] === true, main: main.map((c) => ({ r: c.r, e: c.e })) };
+}
+
+/** Le bilan du compte (28 novembre 2026), lu sans confiance : `null` s'il ne ressemble pas au contrat. */
+function lireBilan(v: unknown): BilanDuCasino | null {
+  if (!v || typeof v !== "object") return null;
+  const b = v as Record<string, unknown>;
+  const parties = entier(b["parties"]);
+  const mise = entier(b["mise"]);
+  const rendu = entier(b["rendu"]);
+  if (parties === null || mise === null || rendu === null || !Array.isArray(b["jeux"])) return null;
+  const jeux = b["jeux"].flatMap((x) => {
+    const j = x as Record<string, unknown>;
+    const p = entier(j["parties"]), m = entier(j["mise"]), r = entier(j["rendu"]);
+    return estJeu(j["jeu"]) && p !== null && m !== null && r !== null ? [{ jeu: j["jeu"], parties: p, mise: m, rendu: r }] : [];
+  });
+  return { depuis: typeof b["depuis"] === "string" ? b["depuis"] : null, parties, mise, rendu, jeux };
 }
 
 /* ---------- Les mots ---------- */
@@ -146,6 +199,8 @@ export function resumeDeLaPartie(r: ResumeDePartie): string {
       const mots = r.issues.map((i) => ISSUES[i] ?? "");
       return mots.length > 1 ? `Deux mains : ${mots.join(" et ")}` : mots[0]!.charAt(0).toUpperCase() + mots[0]!.slice(1);
     }
+    case "poker":
+      return typeof r.sorte === "number" ? (SORTES_DU_POKER[r.sorte]?.nom ?? "") : "";
   }
   return "";
 }
@@ -168,6 +223,8 @@ export function resumeDuCoup(coup: CoupDuCasino & Record<string, unknown>): Resu
       return Array.isArray(coup["faces"]) && coup["faces"].length === 2 ? { jeu: "des", faces: coup["faces"] as [number, number] } : null;
     case "vingt-et-un":
       return Array.isArray(coup["issues"]) && coup["issues"].length ? { jeu: "vingt-et-un", issues: coup["issues"] as IssueDuVingtEtUn[] } : null;
+    case "poker":
+      return typeof coup["sorte"] === "number" ? { jeu: "poker", sorte: coup["sorte"] } : null;
     default:
       return null;
   }

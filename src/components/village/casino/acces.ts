@@ -20,7 +20,7 @@ export const ANCRE_CASINO = "casino";
  * GOD, le pilote, que le serveur reconnaît par `get_village_god` (`permis`), qui essaie la roue avec son vrai compte pendant
  * que les autres jeux sont portés ; à vrai, il paraît à tout compte dont le Gaulois existe, avec la grande nouveauté. Le
  * serveur, lui, est déjà ouvert (`internal.casino_ouvert`) : ceci ne protège rien, c'est l'annonce qui attend.
- * Ouvert à tous le 23 novembre 2026, les six jeux en ligne (le pilote : « le casino tu peux l'ouvrir ») ; comme le duel,
+ * Ouvert à tous le 23 novembre 2026, les six jeux en ligne (le pilote : « le casino tu peux l'ouvrir » ; le septième, le poker du barde, le 28 novembre 2026) ; comme le duel,
  * l'onglet ne paraît qu'à un compte qui peut jouer (`peut_jouer` de `get_casino`, vu par `VillageApp.tsx`).
  */
 export const CASINO_POUR_TOUS = true;

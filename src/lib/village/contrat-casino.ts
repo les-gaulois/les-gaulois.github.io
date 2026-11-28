@@ -1,7 +1,7 @@
 /**
  * Le contrat du casino des Gaulois (chantier du 22 novembre 2026), entre les écrans de l'onglet « Le casino » de
  * « Mon Gaulois » et le serveur. Décisions du pilote : six jeux en statères (la roue du charron, le vingt-et-un, la machine
- * du forgeron, la course des familiers, la palissade et les dés), « oui plafond de 2000 par jour », « le casino tu peux
+ * du forgeron, la course des familiers, la palissade et les dés ; le poker du barde en septième le 28 novembre 2026), « oui plafond de 2000 par jour », « le casino tu peux
  * l'ouvrir » (ouvert à tous les comptes validés dès la mise en ligne). Le 24 novembre 2026, le plafond passe à 12 500
  * (« 12500 plutôt ! », migration `20261124000100_casino_plafond_12500`), puis à 50 000 le même jour
  * (« augmente la limite à 50000 », migration `20261124000200_casino_plafond_50000`). Le 27 novembre 2026, plus de
@@ -30,8 +30,8 @@
 
 /* ---------- Les jeux et les chiffres ---------- */
 
-/** Les six jeux, dans l'ordre du hall. */
-export const JEUX_DU_CASINO = ["roue", "vingt-et-un", "machine", "course", "palissade", "des"] as const;
+/** Les sept jeux (le poker du barde depuis le 28 novembre 2026). */
+export const JEUX_DU_CASINO = ["roue", "vingt-et-un", "machine", "course", "palissade", "des", "poker"] as const;
 export type JeuDuCasino = (typeof JEUX_DU_CASINO)[number];
 
 /** Les jetons, en statères. Toute mise est une somme de jetons. */
@@ -247,7 +247,56 @@ export type ResumeDePartie =
   | { jeu: "course"; couloir: number; gagnant: number }
   | { jeu: "palissade"; coupe: number }
   | { jeu: "des"; faces: [number, number] }
-  | { jeu: "vingt-et-un"; issues: IssueDuVingtEtUn[] };
+  | { jeu: "vingt-et-un"; issues: IssueDuVingtEtUn[] }
+  | { jeu: "poker"; sorte: number };
+
+/* ---------- Le poker du barde (28 novembre 2026, migration 20261128000500_casino_poker_et_bilan) ---------- */
+
+/** La main du poker laissée ouverte, que `get_casino` rend à son joueur : la donne attend son choix. */
+export interface MainDuPoker {
+  partie: number;
+  mise: number;
+  god: boolean;
+  main: CarteDuVingtEtUn[];
+}
+/** `distribuer_poker(p_mise)` : la mise est prise, cinq cartes sont données. La main attend son choix (`jouer_poker`). */
+export interface DonneDuPoker {
+  ok: true;
+  partie: number;
+  god: boolean;
+  mise: number;
+  main: CarteDuVingtEtUn[];
+  solde_apres: number;
+  mise_du_jour: number;
+  reste_du_jour: number | null;
+}
+/** `jouer_poker(p_partie, p_gardes)` : les cartes non gardées sont remplacées, la main paie. */
+export interface CoupDuPoker extends CoupDuCasino {
+  jeu: "poker";
+  /** La main finale, dans l'ordre de la donne. */
+  main: CarteDuVingtEtUn[];
+  gardes: boolean[];
+  /** L'index de la sorte dans `SORTES_DU_POKER`. */
+  sorte: number;
+}
+
+/* ---------- Mon bilan (28 novembre 2026) ---------- */
+
+/** Ce qu'un compte a misé et reçu à un jeu, depuis sa première partie : à lui seul, jamais à un autre. */
+export interface BilanDUnJeu {
+  jeu: JeuDuCasino;
+  parties: number;
+  mise: number;
+  rendu: number;
+}
+export interface BilanDuCasino {
+  /** La première partie du compte (ISO), ou `null` s'il n'a jamais joué. */
+  depuis: string | null;
+  parties: number;
+  mise: number;
+  rendu: number;
+  jeux: BilanDUnJeu[];
+}
 
 /** Une des dernières parties finies du compte (jamais celles d'un autre). */
 export interface PartieDuCasino {
@@ -286,6 +335,10 @@ export interface EtatDuCasino {
   parties: PartieDuCasino[];
   /** La main du vingt-et-un laissée ouverte, à reprendre, ou `null`. */
   main: TableDuVingtEtUn | null;
+  /** La main du poker laissée ouverte, à reprendre, ou `null` ; absente d'un serveur d'avant le poker. */
+  poker?: MainDuPoker | null;
+  /** Le bilan du compte depuis sa première partie, essais exclus ; absent d'un serveur d'avant le bilan. */
+  bilan?: BilanDuCasino;
 }
 
 /* ---------- Les refus ---------- */
