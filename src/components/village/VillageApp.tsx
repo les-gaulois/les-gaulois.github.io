@@ -226,7 +226,7 @@ export default function VillageApp() {
     if (onglet.id === ANCRE_CASINO && casinoNouveau) return { ...onglet, count: { value: 1, text: "Nouveau", words: "nouveau", tone: "vif" } };
     if (onglet.id === ANCRE_DUEL) return { ...onglet, image: urlDeLaPlanche("duel-menu", iconeDuDuel) };
     if (onglet.id === ANCRE_SENTIER && attendent > 0) return { ...onglet, count: { value: attendent, words: `${attendent} ${attendent > 1 ? "objets" : "objet"} à prendre`, tone: "vif" } };
-    if (onglet.id === RAYON_POCHETTES && aOuvrir > 0 && !surLesPochettes) return { ...onglet, count: { value: aOuvrir, words: `${aOuvrir} ${aOuvrir > 1 ? "boosters gagnés" : "booster gagné"} à ouvrir`, tone: "vif" } };
+    if (onglet.id === RAYON_POCHETTES && aOuvrir > 0 && !surLesPochettes) return { ...onglet, count: { value: aOuvrir, words: `${aOuvrir} ${aOuvrir > 1 ? "boosters offerts" : "booster offert"} à ouvrir`, tone: "vif" } };
     if (onglet.id === ANCRE_LOTERIE) return { ...onglet, count: { value: 1, text: avantLeTirage, words: `tirage ${avantLeTirage === "ce soir" || avantLeTirage === "demain" ? avantLeTirage : `dans ${avantLeTirage}`}` } };
     return onglet;
   });

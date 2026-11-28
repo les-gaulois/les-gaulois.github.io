@@ -41,6 +41,7 @@ Ce document est découpé en parties depuis le 26 novembre 2026, pour qu'une ses
       - [Mise en ligne de la suite du village](direction/26-3-mise-en-ligne-de-la-suite-du-village.md)
   - [Le sentier des Gaulois](direction/27-le-sentier-des-gaulois.md)
   - [Les paliers de victoires et leur booster](direction/28-les-paliers-de-victoires-et-leur-booster.md)
+    - [Les boosters de départ](direction/28-1-les-boosters-de-depart.md)
   - [« Mon Gaulois » en plus jeu](direction/29-mon-gaulois-en-plus-jeu.md)
   - [Le rayon Cartes](direction/30-le-rayon-cartes.md)
   - [La commande /macarte](direction/31-la-commande-macarte.md)

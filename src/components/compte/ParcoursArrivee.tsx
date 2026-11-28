@@ -1,9 +1,11 @@
 import type { ComponentType, RefObject } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { basePath } from "../../lib/compte/api";
+import { basePath, call } from "../../lib/compte/api";
 import { ETAPES_ARRIVEE, numeroDeLEtape, type EtapeArrivee } from "../../lib/compte/arrivee";
 import type { Me } from "../../lib/compte/types";
 import { ADRESSE_VILLAGE } from "../../lib/gaulois";
+import { boostersDeDepartEnMots } from "../../lib/village/etal";
+import { lirePochettesGagnees } from "../../lib/village/loterie";
 import { Loading, Problem } from "./common";
 import { DemandeLienOpenFront } from "./LienOpenFront";
 
@@ -125,12 +127,25 @@ export function ArriveeFinie({ me }: { me: Me }) {
   const titre = useRef<HTMLHeadingElement>(null);
   // Le bouton « Créer mon Gaulois » est en bas du vestiaire : la page remonte jusqu'ici.
   useEffect(() => montrer(haut.current, titre.current), []);
+  // Les boosters de départ (20261128001100), comptés par le serveur ; sans réponse, rien n'est dit.
+  const [offerts, setOfferts] = useState<string | null>(null);
+  useEffect(() => {
+    void call<unknown>("get_pochettes_gagnees").then(
+      (reponse) => setOfferts(boostersDeDepartEnMots(lirePochettesGagnees(reponse)?.surprise, valide)),
+      () => {},
+    );
+  }, [valide]);
   return (
     <section ref={haut} class="card scroll-mt-24 p-5" data-testid="arrivee-finie">
       <h2 ref={titre} class="text-xl" tabIndex={-1}>
         Votre Gaulois est créé
       </h2>
       <p class="mt-2">{suite}</p>
+      {offerts && (
+        <p class="mt-2" data-testid="arrivee-boosters">
+          {offerts}
+        </p>
+      )}
       <p class="mt-2 text-muted">Tapez /gaulois dans le Discord du clan pour le montrer.</p>
       <div class="mt-4 flex flex-wrap gap-3">
         {valide && (

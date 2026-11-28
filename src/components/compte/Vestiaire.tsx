@@ -30,8 +30,10 @@ import type { MaBoutique, PlaqueVue } from "../../lib/village/contrat";
 import { SOLDE_INCONNU, lireBoutique, lireStateres, motStatere, nombre, quantitePossedee, soldeAffiche } from "../../lib/village/ecran-boutique";
 import { tailleDeLApercu } from "../../lib/village/ecran-familiers";
 import { PLAQUES_CHANGEES } from "../../lib/village/ecran-forge";
+import { boostersDeDepartEnMots } from "../../lib/village/etal";
 import { FAMILIERS, familierDe } from "../../lib/village/familiers";
 import { lirePlaques, plaqueDe } from "../../lib/village/forge";
+import { lirePochettesGagnees } from "../../lib/village/loterie";
 import { MODELES, tenueAvecModele } from "../../lib/village/modeles";
 import { cleDeLObjet, cleDesObjetsVus, ecrireLesVus, faireLePoint, lireLesVus, nouveauxDuRayon } from "../../lib/village/nouveaux-objets";
 import { lireMesTenues, type MesTenues } from "../../lib/village/tenues-gardees";
@@ -363,9 +365,16 @@ export function useVestiaire(actif: boolean | undefined) {
       // Le script du Gaulois compagnon (src/scripts/compagnon.ts), absent du village, garde la tenue annoncée par
       // « gal:gaulois-enregistre » pour les pages suivantes.
       if (enregistree) window.dispatchEvent(new CustomEvent("gal:gaulois-enregistre", { detail: { tenue: enregistree } }));
-      setReussite("Votre Gaulois est enregistré. Tapez /gaulois dans le Discord du clan pour le montrer.");
-      // Un Gaulois tout juste créé reçoit ses statères du mois : on relit.
-      if (premiereFois) await lireLInventaire();
+      const enregistre = "Votre Gaulois est enregistré. Tapez /gaulois dans le Discord du clan pour le montrer.";
+      setReussite(enregistre);
+      // Un Gaulois tout juste créé reçoit ses statères du mois et ses boosters de départ (20261128001100) : on relit, et
+      // on dit combien de boosters surprise l'attendent, tels que le serveur les compte. Sans réponse, rien de plus.
+      if (premiereFois) {
+        await lireLInventaire();
+        const bons = await call<unknown>("get_pochettes_gagnees").then(lirePochettesGagnees, () => null);
+        const offerts = boostersDeDepartEnMots(bons?.surprise, me?.status === "validated");
+        if (offerts) setReussite(`${enregistre} ${offerts}`);
+      }
     } catch (e) {
       setProbleme(messageOf(e));
     } finally {

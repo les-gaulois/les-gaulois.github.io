@@ -1819,7 +1819,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 {gagneesEnMots.length > 0 && (
                   <p class="pochettes-gagnees bst-gagnes" data-testid="pochettes-gagnees">
                     <Icone nom="loterie" />
-                    <span>Gagnés à la loterie ou offerts par un palier de victoires, à ouvrir sans rien payer : {gagneesEnMots.join(", ")}.</span>
+                    <span>Offerts ou gagnés à la loterie, à ouvrir sans rien payer : {gagneesEnMots.join(", ")}.</span>
                   </p>
                 )}
                 {/* L'étal (17 novembre 2026, choix du pilote sur exemples : « une à la fois ») : les cinq pochettes devant sa

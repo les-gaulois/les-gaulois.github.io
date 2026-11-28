@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-28",
+    "kind": "nouveau",
+    "rank": "top",
+    "title": "Dix boosters offerts à chaque Gaulois",
+    "body": "Chaque Gaulois reçoit dix boosters surprise à sa création, une seule fois ; ceux déjà créés les reçoivent aujourd'hui. Ils s'ouvrent sans rien payer, et leurs objets ne se revendent pas au jeu.",
+    "link": {
+      "href": "/village#pochettes",
+      "label": "Les boosters"
+    }
+  },
+  {
+    "date": "2026-11-28",
     "kind": "ameliore",
     "rank": "minor",
     "title": "Les gains de Trois cartes sous la table",

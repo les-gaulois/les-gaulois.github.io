@@ -1082,7 +1082,8 @@ export interface BoosterOuvert {
 export type RefusBoosterDeLoterie = "not_validated" | "no_gaulois" | "aucun_booster" | "deja_ouvert";
 
 /**
- * `get_pochettes_gagnees()` : les pochettes gagnées à la loterie ou offertes par un palier de victoires, qui restent à
+ * `get_pochettes_gagnees()` : les pochettes gagnées à la loterie, ou offertes par un palier de victoires ou à la création du
+ * Gaulois (migration 20261128001100), qui restent à
  * ouvrir (`bons`), et les paliers de victoires qui ont offert un booster surprise au compte, du plus haut au plus bas
  * (`paliers`, absent avant la migration 20261121000100).
  */

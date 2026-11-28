@@ -52,6 +52,17 @@ const NOMS_EN_PHRASE: Readonly<Record<PochetteDeLEtal, { un: string; des: string
   modeles: { un: "un booster des Gaulois uniques", des: "boosters des Gaulois uniques" },
 };
 
+/**
+ * La phrase dite juste après la création du Gaulois, quand des boosters surprise l'attendent (dix offerts à la création,
+ * migration 20261128001100, plus ceux gagnés avant) : le nombre est celui que le serveur a rendu, tous les bons surprise
+ * compris. Un compte pas encore validé ne peut pas encore les ouvrir (`village_acheteur`) : la phrase le dit. `null` sans aucun.
+ */
+export function boostersDeDepartEnMots(nombre: number | undefined, valide: boolean): string | null {
+  if (!nombre || nombre < 1) return null;
+  const ou = `dans « Mon Gaulois », onglet « Les boosters », à ouvrir sans rien payer${valide ? "" : " une fois votre compte validé"}.`;
+  return nombre === 1 ? `Un booster surprise vous attend ${ou}` : `${nombre} ${NOMS_EN_PHRASE.surprise.des} vous attendent ${ou}`;
+}
+
 /** Les boosters gagnés à la loterie qui restent à ouvrir, en mots : « 2 boosters surprises », « un booster de statères ». */
 export function boostersGagnesEnMots(bons: Readonly<Partial<Record<PochetteGagnee, number>>>): string[] {
   return POCHETTES_DE_L_ETAL.flatMap((cle) => {

@@ -128,7 +128,7 @@ export function CompteDuBooster({ prix, solde, auMoins = false }: { prix: number
   if (useContext(PochetteGagneeIci)) {
     return (
       <div class="bst-offert">
-        <Etiquette t="Offert" ton="or" dit="Booster offert, par la loterie ou un palier de victoires" />
+        <Etiquette t="Offert" ton="or" dit="Booster offert, à ouvrir sans rien payer" />
         <span data-testid="boutique-gagnee">
           <Px t="Rien à payer" dit="Rien à payer" />
         </span>
