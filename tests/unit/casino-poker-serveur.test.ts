@@ -8,6 +8,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 import { ATTENDU, NOM, texteAColler } from "../../scripts/a-coller-casino-poker";
+import { ATTENDU as ATTENDU_DISCORD, NOM as NOM_DISCORD, texteAColler as texteACollerDiscord } from "../../scripts/a-coller-casino-poker-discord";
 import { SORTES_DU_POKER, carte, donneDuPoker, nombre, sorteDuPoker, tirageDuPoker, type CarteDuPoker } from "../../src/lib/village/casino/poker";
 import type { CoupDuPoker, DonneDuPoker, EtatDuCasino } from "../../src/lib/village/contrat-casino";
 import { lireEtatDuCasino } from "../../src/lib/village/ecran-casino";
@@ -15,6 +16,7 @@ import { baseDeTest, commeMembre, discordDe, migrations, nouveauMembre, texteDeM
 
 const LONG = 300_000;
 const MIGRATION = `${NOM}.sql`;
+const MIGRATION_DISCORD = `${NOM_DISCORD}.sql`;
 let db: PGlite;
 
 const lignes = async <T>(sql: string, params: unknown[] = []): Promise<T[]> => (await db.query<T>(sql, params)).rows;
@@ -250,15 +252,34 @@ describe("mon bilan", () => {
 /* ---------- Les annonces, les droits, le fichier à coller ---------- */
 
 describe("ce qui entoure le poker", () => {
-  it("ne part pas encore sur Discord : la file des gros gains laisse le poker de côté", async () => {
-    const uid = await joueur(1000);
+  it("part sur Discord dès le carré, avec sa donne, et jamais en dessous ni sous les 1 000 statères gagnés", async () => {
+    const uid = await joueur(5000);
     await db.query("insert into internal.casino_annonces_depart (id, partie) values (true, 0) on conflict (id) do update set partie = 0");
-    const royale = [c(0, 1), c(12, 1), c(11, 1), c(10, 1), c(9, 1)];
-    await pousser(valeursPour(royale));
-    const d = await comme<DonneDuPoker>(uid, "select public.distribuer_poker(100) as r");
-    expect(await comme(uid, "select public.jouer_poker($1, '[true, true, true, true, true]'::jsonb) as r", [d.partie])).toMatchObject({ rendu: 25_000 });
-    const file = await une<{ annonces: { partie: number }[] }>("select public.casino_annonces_a_envoyer() as r");
-    expect(file.annonces.map((a) => a.partie)).not.toContain(d.partie);
+    const jouer = async (donne: CarteDuPoker[], mise: number, gardes: string, venues: CarteDuPoker[] = []): Promise<number> => {
+      await viderLeHasard();
+      await pousser(valeursPour(donne));
+      const d = await comme<DonneDuPoker>(uid, "select public.distribuer_poker($1) as r", [mise]);
+      await pousser(valeursDuTirage(donne, venues));
+      await comme(uid, `select public.jouer_poker($1, '${gardes}'::jsonb) as r`, [d.partie]);
+      return d.partie;
+    };
+    const royale = await jouer([c(0, 1), c(12, 1), c(11, 1), c(10, 1), c(9, 1)], 100, "[true, true, true, true, true]");
+    // un carré de rois à 50 : 1 200 gagnés ; à 40 : 960 gagnés, sous le seuil
+    const carre = await jouer([c(12, 0), c(12, 1), c(12, 2), c(3, 1), c(5, 2)], 50, "[true, true, true, false, false]", [c(12, 3), c(7, 0)]);
+    const petitCarre = await jouer([c(12, 0), c(12, 1), c(12, 2), c(3, 1), c(5, 2)], 40, "[true, true, true, false, false]", [c(12, 3), c(7, 0)]);
+    // une couleur à 200 : 1 000 gagnés, un full à 200 : 1 800 gagnés, mais aucun n'est un carré
+    const couleur = await jouer([c(1, 2), c(4, 2), c(6, 2), c(8, 2), c(11, 2)], 200, "[true, true, true, true, true]");
+    const full = await jouer([c(5, 0), c(5, 1), c(5, 2), c(9, 0), c(9, 3)], 200, "[true, true, true, true, true]");
+    expect(full).toBeGreaterThan(0);
+    const file = await une<{ annonces: { partie: number; jeu: string; donne: number[] | null; resultat: { sorte: number } }[] }>("select public.casino_annonces_a_envoyer() as r");
+    const parties = file.annonces.map((a) => a.partie);
+    expect(parties).toContain(royale);
+    expect(parties).toContain(carre);
+    expect(parties).not.toContain(petitCarre);
+    expect(parties).not.toContain(couleur);
+    expect(parties).not.toContain(full);
+    expect(file.annonces.find((a) => a.partie === carre)).toMatchObject({ jeu: "poker", donne: [12, 25, 38, 16, 31], resultat: { sorte: 7 } });
+    expect(file.annonces.filter((a) => a.jeu !== "poker").every((a) => a.donne === null)).toBe(true);
   });
 
   it("n'ouvre que les deux appels du poker aux membres, rien aux visiteurs", async () => {
@@ -281,7 +302,7 @@ describe("ce qui entoure le poker", () => {
   });
 
   it("le fichier à coller s'installe sur le casino déjà en ligne, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
-    const base = await baseDeTest({ sauf: [MIGRATION] });
+    const base = await baseDeTest({ sauf: [MIGRATION, MIGRATION_DISCORD] });
     const controle = async (): Promise<string> => {
       const r = await base.exec(texteAColler());
       return (r.at(-1)!.rows[0] as { controle: string }).controle;
@@ -290,6 +311,25 @@ describe("ce qui entoure le poker", () => {
     expect(await controle()).toBe(ATTENDU);
     expect((await base.query<{ n: number }>("select count(*)::int as n from internal.casino_poker_mains")).rows[0]!.n).toBe(0);
     await base.close();
+  });
+
+  it("le fichier des annonces du poker s'installe sur le poker déjà en ligne, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
+    const base = await baseDeTest({ sauf: [MIGRATION_DISCORD] });
+    const controle = async (): Promise<string> => {
+      const r = await base.exec(texteACollerDiscord());
+      return (r.at(-1)!.rows[0] as { controle: string }).controle;
+    };
+    expect(await controle()).toBe(ATTENDU_DISCORD);
+    expect(await controle()).toBe(ATTENDU_DISCORD);
+    for (const role of ["anon", "authenticated"])
+      expect((await base.query<{ x: boolean }>(`select has_function_privilege('${role}', 'public.casino_annonces_a_envoyer()', 'execute') as x`)).rows[0]!.x, role).toBe(false);
+    const sql = texteDeMigration(MIGRATION_DISCORD);
+    expect([...sql.matchAll(/create or replace function ([a-z_]+\.[a-z0-9_]+)\(/g)].map((m) => m[1])).toEqual(["public.casino_annonces_a_envoyer"]);
+    expect(sql).not.toMatch(/\b(delete|update|insert|drop|truncate|alter)\b/i);
+    await base.close();
+    const sansPoker = await baseDeTest({ sauf: [MIGRATION, MIGRATION_DISCORD] });
+    await expect(sansPoker.exec(texteACollerDiscord())).rejects.toThrow(/pas installé/);
+    await sansPoker.close();
   });
 
   it("le fichier à coller s'arrête sans rien changer sans le casino", { timeout: LONG }, async () => {

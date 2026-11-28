@@ -7,8 +7,9 @@
  *
  * - **Ce qui est annoncé** : la file du serveur (`casino_annonces_a_envoyer`, réservée à la clé de service, migration
  *   20261126000100) donne chaque coup fini qui gagne au moins `SEUIL_DU_CASINO` statères (ce qui revient, moins la mise),
- *   joué après l'installation, jamais un essai du mode GOD, jamais le vingt-et-un (il ne gagne pas autant), d'un compte
- *   encore validé, de moins de 48 heures. Jamais chaque coup, jamais une perte, jamais un solde, aucun classement.
+ *   joué après l'installation, jamais un essai du mode GOD, jamais le vingt-et-un (il ne gagne pas autant), le poker
+ *   seulement à partir du carré (`SORTE_ANNONCEE_DU_POKER`, choix du pilote du 28 novembre 2026), d'un compte encore
+ *   validé, de moins de 48 heures. Jamais chaque coup, jamais une perte, jamais un solde, aucun classement.
  * - **Rien d'inventé** : le robot refait le compte avec les règles du site (`src/lib/village/casino/`) ; un coup dont le
  *   tirage ne rend pas ce que dit le serveur, ou qui gagne moins que le seuil, est noté sans être posté (`illisible`).
  *   La chance est celle de ce rendu-là avec les mêmes paris, calculée sur toutes les issues du jeu, sans arrondi.
@@ -36,6 +37,7 @@ import { IDS_DES_DES, payerLesDes } from "./village/casino/des";
 import { FOIS_DE_LA_MACHINE, SUR_MILLE_DE_LA_MACHINE, lireLaLigne, renduDeLaMachine } from "./village/casino/machine";
 import { CHANCES_DES_COUPES, DIXIEMES_DES_COUPES, RANGEES, coupeDe, renduDeLaCoupe } from "./village/casino/palissade";
 import { IDS_DE_LA_ROUE, payerLaRoue } from "./village/casino/roue";
+import { SORTES_DU_POKER, carte as carteDuPoker, nombre as nombreDuPoker, sorteDuPoker, type CarteDuPoker } from "./village/casino/poker";
 import type { ResultatDeLaMachine } from "./village/contrat-casino";
 
 /** Le gain d'un coup, au moins, pour qu'il soit annoncé : celui du serveur (`internal.casino_annonce_seuil`), choisi par le pilote. */
@@ -50,7 +52,14 @@ export const FONCTION_DU_CASINO = "casino_annonces_a_envoyer";
 export const FONCTION_DE_LA_NOTE = "noter_annonces_casino";
 
 /** Les jeux annoncés : tous ceux du casino, sauf le vingt-et-un, qui ne gagne jamais autant. */
-export const JEUX_ANNONCES = ["roue", "machine", "course", "palissade", "des"] as const;
+export const JEUX_ANNONCES = ["roue", "machine", "course", "palissade", "des", "poker"] as const;
+
+/**
+ * Le poker n'est annoncé qu'à partir du carré (index dans `SORTES_DU_POKER`), et toujours avec 1 000 statères gagnés au
+ * moins : le pilote, 28 novembre 2026, « Oui, dès le carré » (à 200 de mise, une couleur gagne déjà 1 000 statères, une main
+ * sur quarante environ). Le serveur le dit aussi (migration 20261128000600_casino_poker_sur_discord).
+ */
+export const SORTE_ANNONCEE_DU_POKER = 7;
 export type JeuAnnonce = (typeof JEUX_ANNONCES)[number];
 
 /** Le nom de chaque jeu, comme dans le hall : « à la machine du forgeron » ; et ce qu'il rend en moyenne, en une phrase. */
@@ -60,6 +69,7 @@ export const JEUX: Readonly<Record<JeuAnnonce, { a: string; moyenne: string }>> 
   course: { a: "à la course des familiers", moyenne: "La course rend en moyenne la mise." },
   palissade: { a: "à la palissade", moyenne: "La palissade rend en moyenne la mise." },
   des: { a: "aux dés", moyenne: "Les dés rendent en moyenne la mise." },
+  poker: { a: "au poker du barde", moyenne: "Avec les cartes gardées. Le poker rend 99,5 % joué au mieux." },
 };
 
 /** Le tirage d'un coup, tel que le serveur l'a gardé, avec les paris d'une table. */
@@ -68,7 +78,8 @@ export type TirageDuCoup =
   | { jeu: "machine"; resultat: ResultatDeLaMachine; ligne: [number, number, number] }
   | { jeu: "course"; couloir: number; gagnant: number }
   | { jeu: "palissade"; coupe: number }
-  | { jeu: "des"; faces: [number, number]; paris: Record<string, number> };
+  | { jeu: "des"; faces: [number, number]; paris: Record<string, number> }
+  | { jeu: "poker"; donne: CarteDuPoker[]; gardes: boolean[]; main: CarteDuPoker[]; sorte: number };
 
 /** Un gros gain, relu et recompté. */
 export interface GrosGain {
@@ -97,8 +108,9 @@ export function foisEnMots(rendu: number, mise: number): string {
   return (rendu * 10) % mise === 0 ? `${ecrit} fois` : `plus de ${ecrit} fois`;
 }
 
-/** « 100 fois sa mise à la machine du forgeron ». */
-export const titreDuGain = (g: Pick<GrosGain, "mise" | "rendu" | "tirage">): string => `${foisEnMots(g.rendu, g.mise)} sa mise ${JEUX[g.tirage.jeu].a}`;
+/** « 100 fois sa mise à la machine du forgeron » ; au poker, la main d'abord : « Carré, 25 fois sa mise au poker du barde ». */
+export const titreDuGain = (g: Pick<GrosGain, "mise" | "rendu" | "tirage">): string =>
+  `${g.tirage.jeu === "poker" ? `${SORTES_DU_POKER[g.tirage.sorte]?.nom ?? ""}, ` : ""}${foisEnMots(g.rendu, g.mise)} sa mise ${JEUX[g.tirage.jeu].a}`;
 
 const pgcd = (a: number, b: number): number => (b === 0 ? a : pgcd(b, a % b));
 
@@ -120,6 +132,8 @@ export function chanceDuCoup(g: Pick<GrosGain, "mise" | "rendu" | "tirage">): { 
   } else if (t.jeu === "palissade") {
     sur = DIXIEMES_DES_COUPES.reduce((s, d, k) => s + (renduDeLaCoupe(g.mise, k) === g.rendu ? (CHANCES_DES_COUPES[k] ?? 0) : 0), 0);
     parmi = 2 ** RANGEES;
+  } else if (t.jeu === "poker") {
+    ({ sur, parmi } = chanceDuPoker(t, g.mise, g.rendu));
   } else if (t.jeu === "roue") {
     sur = Array.from({ length: 36 }, (_, i) => payerLaRoue(t.paris, i + 1).total).filter((r) => r === g.rendu).length;
     parmi = 36;
@@ -130,6 +144,56 @@ export function chanceDuCoup(g: Pick<GrosGain, "mise" | "rendu" | "tirage">): { 
   }
   const d = sur > 0 ? pgcd(sur, parmi) : 1;
   return { sur: sur / d, parmi: parmi / d };
+}
+
+const combinaisons = (n: number, k: number): number => {
+  let c = 1;
+  for (let i = 0; i < k; i++) c = (c * (n - i)) / (i + 1);
+  return Math.round(c);
+};
+
+/** Parmi toutes les façons de poser aux `places` de `donne` des cartes de `paquet`, celles qui rendent exactement `rendu`. */
+function compterLesMains(donne: readonly CarteDuPoker[], places: readonly number[], paquet: readonly number[], mise: number, rendu: number): { sur: number; parmi: number } {
+  const k = places.length;
+  const main = [...donne];
+  const idx = Array.from({ length: k }, (_, i) => i);
+  let sur = 0;
+  for (;;) {
+    places.forEach((p, j) => (main[p] = carteDuPoker(paquet[idx[j]!]!)));
+    if ((SORTES_DU_POKER[sorteDuPoker(main)]?.fois ?? 0) * mise === rendu) sur++;
+    let j = k - 1;
+    while (j >= 0 && idx[j] === paquet.length - k + j) j--;
+    if (j < 0) break;
+    idx[j]!++;
+    for (let q = j + 1; q < k; q++) idx[q] = idx[q - 1]! + 1;
+  }
+  return { sur, parmi: combinaisons(paquet.length, k) };
+}
+
+/**
+ * La chance d'un coup du poker avec les cartes gardées : parmi toutes les façons de remplacer les cartes jetées par des cartes
+ * qui n'étaient pas dans la donne (elles ne reviennent pas), celles qui rendent exactement autant. Quand les cartes gardées
+ * faisaient déjà la main (tout gardé, ou un carré servi dont on jette la cinquième : toutes les cartes tirées rendent autant),
+ * ce n'est pas le tirage qui l'a donnée mais la donne : la chance est celle d'être servi une main qui rend autant, sur les
+ * 2 598 960 donnes (« 1 sur 4 165 » pour un carré), jamais un « 1 sur 1 » qui ferait croire à un gain sûr. Deux millions et
+ * demi de mains au plus, une fraction de seconde.
+ */
+const chancesDejaComptees = new WeakMap<object, { mise: number; rendu: number; chance: { sur: number; parmi: number } }>();
+function chanceDuPoker(t: Extract<TirageDuCoup, { jeu: "poker" }>, mise: number, rendu: number): { sur: number; parmi: number } {
+  // une annonce la demande plusieurs fois (description, texte, image) : comptée une fois par tirage
+  const deja = chancesDejaComptees.get(t);
+  if (deja && deja.mise === mise && deja.rendu === rendu) return deja.chance;
+  const chance = chanceDuPokerComptee(t, mise, rendu);
+  chancesDejaComptees.set(t, { mise, rendu, chance });
+  return chance;
+}
+function chanceDuPokerComptee(t: Extract<TirageDuCoup, { jeu: "poker" }>, mise: number, rendu: number): { sur: number; parmi: number } {
+  const servie = (): { sur: number; parmi: number } => compterLesMains(t.donne, [0, 1, 2, 3, 4], Array.from({ length: 52 }, (_, n) => n), mise, rendu);
+  const jetees = t.gardes.flatMap((g, i) => (g ? [] : [i]));
+  if (!jetees.length) return servie();
+  const vues = new Set(t.donne.map(nombreDuPoker));
+  const tiree = compterLesMains(t.donne, jetees, Array.from({ length: 52 }, (_, n) => n).filter((n) => !vues.has(n)), mise, rendu);
+  return tiree.sur === tiree.parmi ? servie() : tiree;
 }
 
 /** « 1 sur 500 », « 5 sur 36 ». */
@@ -143,7 +207,9 @@ export const chanceEnPhrase = (c: { sur: number; parmi: number }): string => `${
 
 /** Ce que l'image dit, en phrases : la description de l'image, et le texte de secours. */
 export function gainEnMots(g: GrosGain): string[] {
-  const fois = foisEnMots(g.rendu, g.mise);
+  // au poker, la main d'abord : « Carré, 25 fois sa mise de 50 »
+  const main = g.tirage.jeu === "poker" ? `${SORTES_DU_POKER[g.tirage.sorte]?.nom ?? ""}, ` : "";
+  const fois = `${main}${foisEnMots(g.rendu, g.mise)}`;
   return [
     `${nomAffiche(g)} gagne ${fmtInt(gainDe(g))} statères ${JEUX[g.tirage.jeu].a}.`,
     `${fois.charAt(0).toUpperCase()}${fois.slice(1)} sa mise de ${fmtInt(g.mise)}, le ${dateLongue(g.le)} à ${heureEnMots(g.le)}.`,
@@ -217,6 +283,8 @@ const LigneDuServeur = z.object({
   rendu: z.number().int().min(0).max(1_000_000),
   paris: z.unknown(),
   resultat: z.unknown(),
+  /** Au poker, la donne d'avant le tirage (cartes de 0 à 51, rang n % 13, enseigne n / 13). */
+  donne: z.unknown().optional(),
   nom: z.string().min(1).max(80),
   discord: z.string().nullish(),
 });
@@ -246,6 +314,20 @@ function tirageDe(l: z.infer<typeof LigneDuServeur>): TirageDuCoup | null {
     const resultat = r.data.resultat as ResultatDeLaMachine;
     if (lireLaLigne(r.data.cases) !== resultat || renduDeLaMachine(l.mise, resultat) !== l.rendu) return null;
     return { jeu: "machine", resultat, ligne: [r.data.cases[0][1], r.data.cases[1][1], r.data.cases[2][1]] };
+  }
+  if (l.jeu === "poker") {
+    const Carte = z.object({ r: z.number().int().min(0).max(12), e: z.number().int().min(0).max(3) });
+    const r = z.object({ sorte: z.number().int().min(0).max(SORTES_DU_POKER.length - 1), main: z.array(Carte).length(5), gardes: z.array(z.boolean()).length(5) }).safeParse(l.resultat);
+    const d = z.array(z.number().int().min(0).max(51)).length(5).safeParse(l.donne);
+    if (!r.success || !d.success || new Set(d.data).size !== 5) return null;
+    const main = r.data.main.map((c) => ({ r: c.r, e: c.e }));
+    const dansLaDonne = new Set(d.data);
+    // les cartes gardées sont celles de la donne, à leur place ; les autres viennent du paquet qui restait ; toutes différentes
+    if (new Set(main.map(nombreDuPoker)).size !== 5) return null;
+    if (!main.every((c, i) => (r.data.gardes[i] ? nombreDuPoker(c) === d.data[i] : !dansLaDonne.has(nombreDuPoker(c))))) return null;
+    const sorte = sorteDuPoker(main);
+    if (sorte !== r.data.sorte || sorte < SORTE_ANNONCEE_DU_POKER || (SORTES_DU_POKER[sorte]?.fois ?? 0) * l.mise !== l.rendu) return null;
+    return { jeu: "poker", donne: d.data.map(carteDuPoker), gardes: r.data.gardes, main, sorte };
   }
   if (l.jeu === "course") {
     const Couloir = z.number().int().min(0).max(COULOIRS.length - 1);

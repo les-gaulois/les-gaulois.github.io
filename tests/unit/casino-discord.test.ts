@@ -9,6 +9,7 @@ import { casinoCard, decorDeLaToile, vignetteDuGain } from "../../src/lib/casino
 import {
   CASINO_PAR_PASSAGE,
   SEUIL_DU_CASINO,
+  SORTE_ANNONCEE_DU_POKER,
   casinoPass,
   casinoPayload,
   chanceDuCoup,
@@ -36,6 +37,53 @@ const NOW = new Date("2026-11-26T20:10:00.000Z");
 const ligne = (o: Record<string, unknown> = {}) => ({ partie: 11, le: LE, jeu: "machine", mise: 20, rendu: 2000, paris: { mise: 20 }, resultat: { resultat: 0, cases: [[3, 0, 2], [1, 0, 4], [2, 0, 3]] }, nom: "Gaulois n° 12", discord: "druide.des.bois", ...o });
 const lire = (...annonces: unknown[]) => lireReponseDuCasino({ ok: true, seuil: 1000, annonces })!;
 const gain = (o: Record<string, unknown> = {}): GrosGain => lire(ligne(o)).gains[0]!;
+
+/**
+ * Un carré de rois au poker, mise 50 : la donne (rois de torques, flammes, épées, un 4 et un 6), trois rois gardés, le
+ * quatrième et un 8 tirés. Cartes : rang r (0 l'as), enseigne e ; nombre e × 13 + r.
+ */
+const CARRE = {
+  partie: 21,
+  jeu: "poker",
+  mise: 50,
+  rendu: 1250,
+  paris: { mise: 50 },
+  donne: [12, 25, 38, 16, 31],
+  resultat: { sorte: 7, gardes: [true, true, true, false, false], main: [{ r: 12, e: 0 }, { r: 12, e: 1 }, { r: 12, e: 2 }, { r: 12, e: 3 }, { r: 7, e: 0 }] },
+};
+
+describe("le poker, dès le carré", () => {
+  it("relit la main, vérifie les cartes gardées contre la donne, et recompte le rendu", () => {
+    const g = gain(CARRE);
+    expect(g.tirage).toMatchObject({ jeu: "poker", sorte: 7, gardes: [true, true, true, false, false] });
+    expect(titreDuGain(g)).toBe("Carré, 25 fois sa mise au poker du barde");
+    expect(SORTE_ANNONCEE_DU_POKER).toBe(7);
+    const lu = lire(
+      ligne({ ...CARRE, partie: 1, rendu: 1300 }), // la table ne rend pas cela
+      ligne({ ...CARRE, partie: 2, donne: [12, 25, 38, 16, 31].map((n, i) => (i === 0 ? 0 : n)) }), // la carte gardée n'est pas celle de la donne
+      ligne({ ...CARRE, partie: 3, resultat: { ...CARRE.resultat, main: [{ r: 12, e: 0 }, { r: 12, e: 1 }, { r: 12, e: 2 }, { r: 3, e: 1 }, { r: 12, e: 3 }], gardes: [true, true, true, true, false] } }), // le 4 gardé, le roi de chênes tiré à la place du 6 : un autre carré, valable
+      ligne({ ...CARRE, partie: 4, resultat: { ...CARRE.resultat, sorte: 6 } }), // la sorte annoncée n'est pas celle des cartes
+      ligne({ ...CARRE, partie: 5, mise: 200, rendu: 1200, resultat: { sorte: 5, gardes: [true, true, true, true, true], main: [1, 4, 6, 8, 11].map((r) => ({ r, e: 2 })) }, donne: [27, 30, 32, 34, 37] }), // une couleur : pas annoncée
+      ligne({ ...CARRE, partie: 6, donne: null }),
+      ligne({ ...CARRE, partie: 7, resultat: { ...CARRE.resultat, main: [{ r: 12, e: 0 }, { r: 12, e: 1 }, { r: 12, e: 2 }, { r: 12, e: 3 }, { r: 3, e: 1 }] } }), // une carte jetée revenue
+    );
+    expect(lu.gains.map((x) => x.id)).toEqual([3]);
+    expect(lu.illisibles).toEqual([1, 2, 4, 5, 6, 7]);
+  });
+
+  it("donne la vraie chance avec les cartes gardées : le quatrième roi parmi les 47 cartes, avec n'importe quelle autre", () => {
+    // deux cartes tirées parmi 47 : 1 081 façons ; le roi de chênes et l'une des 46 autres : 46, soit 2 sur 47
+    expect(chanceDuCoup(gain(CARRE))).toEqual({ sur: 2, parmi: 47 });
+    expect(gainEnMots(gain(CARRE))[2]).toBe("2 chances sur 47. Avec les cartes gardées. Le poker rend 99,5 % joué au mieux.");
+    // tout gardé : la chance d'être servi, sur les 2 598 960 donnes (4 quintes flush royales)
+    const royale = gain({ ...CARRE, mise: 100, rendu: 25_000, donne: [13, 25, 24, 23, 22], resultat: { sorte: 9, gardes: [true, true, true, true, true], main: [0, 12, 11, 10, 9].map((r) => ({ r, e: 1 })) } });
+    expect(chanceDuCoup(royale)).toEqual({ sur: 1, parmi: 649_740 });
+    // un carré servi, la cinquième carte jetée : toute carte tirée fait le carré ; la chance est celle d'être servi, jamais 1 sur 1
+    const servi = gain({ ...CARRE, donne: [12, 25, 38, 51, 16], resultat: { sorte: 7, gardes: [true, true, true, true, false], main: [{ r: 12, e: 0 }, { r: 12, e: 1 }, { r: 12, e: 2 }, { r: 12, e: 3 }, { r: 7, e: 0 }] } });
+    expect(chanceDuCoup(servi)).toEqual({ sur: 1, parmi: 4165 });
+    expect(gainEnMots(gain(CARRE))[1]).toBe("Carré, 25 fois sa mise de 50, le 26 novembre 2026 à 21 h 05.");
+  });
+});
 
 describe("le seuil", () => {
   it("est celui du serveur", () => {
@@ -222,6 +270,7 @@ describe("l'image", () => {
     ["course", gain({ jeu: "course", mise: 100, rendu: 2400, paris: { couloir: 5, mise: 100 }, resultat: { couloir: 5, gagnant: 5 } })],
     ["roue", gain({ jeu: "roue", mise: 200, rendu: 1760, paris: { n17: 40, bleu: 160 }, resultat: { numero: 17 }, discord: null })],
     ["des", gain({ jeu: "des", mise: 50, rendu: 1800, paris: { s2: 50 }, resultat: { faces: [1, 1] }, discord: "W".repeat(32) })],
+    ["poker", gain(CARRE)],
   ];
 
   it("garde chaque texte et la vitrine dans l'image, sans rien qui déborde", () => {

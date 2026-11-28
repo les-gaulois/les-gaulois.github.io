@@ -56,8 +56,12 @@ function tirageDeLaVignette(g: GrosGain): TirageDeLaVignette | undefined {
   if (t.jeu === "course") return { jeu: "course", gagnant: t.gagnant };
   if (t.jeu === "palissade") return { jeu: "palissade", coupe: t.coupe };
   if (t.jeu === "des") return { jeu: "des", faces: t.faces };
+  if (t.jeu === "poker") return { jeu: "poker", cartes: t.main };
   return undefined;
 }
+
+/** Un point de la vignette en pixels : 3, et 2 au poker, pour que ses cinq vraies cartes tiennent dans la vitrine. */
+export const echelleDuGain = (g: GrosGain): number => (g.tirage.jeu === "poker" ? 2 : ECHELLE);
 
 /** La vignette du jeu avec son vrai tirage, de `w` sur `h` points, de nuit (Discord se lit surtout en sombre). */
 export function vignetteDuGain(g: GrosGain, w: number, h: number): Toile {
@@ -71,13 +75,14 @@ export function vignetteDuGain(g: GrosGain, w: number, h: number): Toile {
 
 /** Le dessin dans sa vitrine : la vignette à la taille de la vitrine, moins sa marge, centrée. */
 export function dessinDansLaVitrine(g: GrosGain, boite: Boite): DessinPose {
-  const w = Math.floor((boite.width - 2 * VITRINE.marge) / ECHELLE);
-  const h = Math.floor((boite.height - 2 * VITRINE.marge) / ECHELLE);
+  const e = echelleDuGain(g);
+  const w = Math.floor((boite.width - 2 * VITRINE.marge) / e);
+  const h = Math.floor((boite.height - 2 * VITRINE.marge) / e);
   return {
     decor: decorDeLaToile(vignetteDuGain(g, w, h)),
-    echelle: ECHELLE,
-    x: Math.round(boite.x + (boite.width - w * ECHELLE) / 2),
-    y: Math.round(boite.y + (boite.height - h * ECHELLE) / 2),
+    echelle: e,
+    x: Math.round(boite.x + (boite.width - w * e) / 2),
+    y: Math.round(boite.y + (boite.height - h * e) / 2),
   };
 }
 

@@ -4,8 +4,9 @@
  * l'affiche ». Chacune est peinte point par point à la taille de sa place, dans le thème du moment (de nuit, la laque et la
  * bordeaux ; de jour, l'ivoire et le rose).
  */
-import type { JeuDuCasino } from "../village/contrat-casino";
+import type { CarteDuVingtEtUn, JeuDuCasino } from "../village/contrat-casino";
 import { familier, statere } from "./casino-dessins";
+import { CL, CH, face } from "./casino-vingt-et-un";
 import {
   AMBRE,
   EMERAUDE,
@@ -107,7 +108,8 @@ export type TirageDeLaVignette =
   | { jeu: "machine"; signes: readonly [Toile, Toile, Toile] }
   | { jeu: "course"; gagnant: number }
   | { jeu: "palissade"; coupe: number }
-  | { jeu: "des"; faces: readonly [number, number] };
+  | { jeu: "des"; faces: readonly [number, number] }
+  | { jeu: "poker"; cartes: readonly CarteDuVingtEtUn[] };
 
 /** Les trois faces vues d'un dé posé sur `dessus` : dessus, gauche, droite, deux à deux voisines (jamais deux faces opposées). */
 export function facesVues(dessus: number): [number, number, number] {
@@ -145,13 +147,21 @@ const VIGNETTES: Readonly<Record<JeuDuCasino, (Tl: Toile, jour: boolean, tirage?
     Tl.poseOmbre(s, cx + 34, h - 14, 1, 1);
     Tl.poseOmbre(s, cx - 24, h - 13, 1, 1);
   },
-  // Le poker du barde (28 novembre 2026) : la quinte flush royale en éventail sur le velours bordeaux.
-  poker(Tl, jour) {
+  // Le poker du barde (28 novembre 2026) : la quinte flush royale en éventail sur le velours bordeaux ; avec un tirage (l'image
+  // du robot), les cinq vraies cartes de la main, aux cartes gauloises du vingt-et-un, côte à côte.
+  poker(Tl, jour, tirage) {
     const h = Tl.h;
     const cx = Tl.w >> 1;
     mur(Tl, jour, 0.5, 0.36);
     plateau(Tl, Math.round(h * 0.58), BORDEAUX);
     lueur(Tl, cx, Math.round(h * 0.48), 70, jour ? 0.25 : 0.36);
+    if (tirage?.jeu === "poker") {
+      const pas = Math.min(CL + 3, Math.floor((Tl.w - 8 - CL) / 4));
+      const x0 = cx - ((CL + 4 * pas) >> 1);
+      const y = Math.max(2, (h - CH) >> 1);
+      tirage.cartes.forEach((c, i) => Tl.poseOmbre(face(c), x0 + i * pas, y, 2, 3));
+      return;
+    }
     const rangs = ["10", "V", "D", "R", "A"];
     rangs.forEach((r, i) => {
       const c = carte(30, 42, r, "coeur").tourne((i - 2) * 0.16).cerne();

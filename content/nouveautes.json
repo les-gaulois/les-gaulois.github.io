@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-28",
+    "kind": "ameliore",
+    "title": "Les gros gains du poker sur Discord",
+    "body": "Au poker du barde, un carré ou mieux qui gagne 1 000 statères ou plus part sur Discord, en image, avec les cinq cartes de la main et sa vraie chance.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-28",
     "kind": "nouveau",
     "rank": "top",
     "title": "Le poker du barde et votre bilan",
