@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-11-28",
+    "kind": "corrige",
+    "rank": "minor",
+    "title": "La table des gains du poker lisible de jour",
+    "body": "En thème clair, la table des gains du poker du barde était presque blanche sur blanc. Elle est maintenant sur le feutre sombre, comme celle de la machine.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-28",
     "kind": "ameliore",
     "title": "Les gros gains du poker sur Discord",
     "body": "Au poker du barde, un carré ou mieux qui gagne 1 000 statères ou plus part sur Discord, en image, avec les cinq cartes de la main et sa vraie chance.",

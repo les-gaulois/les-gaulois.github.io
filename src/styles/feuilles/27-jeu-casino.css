@@ -2634,7 +2634,15 @@
   gap: 8px 12px;
   padding: 24px;
 }
+/* Les lignes de la table des gains sur la case de feutre sombre, comme la table de la machine : l'écriture crème et or vif
+   s'y lit dans les deux thèmes (la case claire par défaut du kit la rendait illisible de jour). */
 .casino-jeu .pk-ligne {
+  --bt: 3;
+  --br: 3;
+  --bb: 3;
+  --bl: 3;
+  --src: var(--cas-s-case-feutre);
+  border-style: solid;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
