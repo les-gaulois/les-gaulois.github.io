@@ -1,1475 +1,858 @@
 /* Un morceau de la feuille du site (src/lib/feuilles.ts). Tailwind le lit avec le socle : mêmes jetons, mêmes replis. */
 @reference "./01-socle.css";
-/* ---------- Les cartes des cosmétiques (22 novembre 2026) ---------- */
-/* Chaque cosmétique posé sur son fond (objet, familier, Gaulois unique) est une carte, partout où il paraît : vestiaire,
-   boutique, marché, forge, pass, fenêtres d'achat et objet reçu. Modèles de Claude Fable 5.2, acceptés par le pilote :
-   - « lisse » (de base, commun, peu commun) : un cadre net aux coins arrondis, sans reflet ;
-   - « entre » (épique) : le même cadre, quatre coins en cases, un pointillé, un reflet doux qui suit le pointeur ;
-   - « pixel » (mystique, légendaire, saison, divin) : un cadre en cases posé en neuf parts, ses écussons, et une feuille
-     holographique masquée par le motif de sa rareté.
-   Les dessins viennent de src/lib/jeu/cartes-d-objets.ts (variables posées par CarteDObjet.tsx). Les cartes restent claires
-   dans les deux thèmes (choix du pilote) : leurs couleurs d'écriture sont celles du thème clair. Le reflet ne change
-   aucune valeur ; il s'arrête avec la pause et « réduire les animations ». Ne pas changer les couleurs des cadres sans la
-   demande du pilote. */
+/* ---------- La carte des cosmétiques, modèle unique (28 novembre 2026) ---------- */
+/* L'aperçu « Cartes pleine image » validé par le pilote, rareté par rareté (« je veux qu'un seul modèle de cartes et NON
+   plusieurs ! ») : CarteDeCosmetique.tsx, calculs de src/lib/jeu/carte-du-cosmetique.ts. Une carte à collectionner de 70
+   sur 98 cases ; une case vaut `--u`, la largeur de la carte sur 70 (requête de conteneur), pour que la même carte se pose
+   en petit dans une grille et en grand dans une fenêtre. La lumière (`--cc-x`, `--cc-y`, `--cc-o`, posées par
+   lumiere-des-cartes.ts) penche la carte, décale ses trois plans et fait briller sa finition ; elle ne change aucune
+   valeur. Les cartes sont des dessins : mêmes couleurs dans les deux thèmes, leur papier est celui de leur rareté. */
 
-.co-carte {
-  /* La case du dessin, en pixels : un nombre entier, pour des cases nettes. */
-  --co-p: 2px;
-  /* La marge du contenu : la bande du cadre en pixels (quatre cases) et une case d'air ; plus étroite sur un cadre lisse. */
-  --co-pad: 0.4375rem;
-  --co-nom-h: 1.8rem;
-  --co-image-h: 4.5rem;
-  --co-coin-e: 1px;
-  /* Le blanc des cartes, pour leurs lumières : celui qui se pose sur une couleur, le même dans les deux thèmes. */
-  --co-lumiere: var(--sur-couleur);
-  color: #0a1230;
-}
-/* L'intérieur de la carte prend les jetons du thème clair : ses marques et sa rareté se lisent sur son papier clair. La
-   carte elle-même garde ceux de la page, pour que ses anneaux (portée, essayée, focus) se voient autour d'elle, sur une page
-   blanche comme sur une page marine. */
-.co-carte > *,
-.co-bulle-hote {
-  --ecriture: #0a1230;
-  --color-navy: #ffffff;
-  --color-muted: #4a5677;
-  --stage-muted: #4a5677;
-  --color-line-strong: #7a88b4;
-  --rarete-commun-texte: #0b5cad;
-  --rarete-peu-commun-texte: #2a3bc4;
-  --rarete-epique-texte: #6a1fd0;
-  --rarete-mystique-texte: #a50f24;
-  --rarete-legendaire-texte: #7d5900;
-  --rarete-divin-texte: #00706a;
-}
-.co-carte[data-carte="pixel"] {
-  --co-pad: calc(5 * var(--co-p));
-}
-
-/* ---------- La petite carte : case du vestiaire, de la boutique, du marché, de la forge, du pass ---------- */
-
-.co-carte.case-carte {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 0.25rem;
-  padding: var(--co-pad);
-  border: 0;
-  border-image: none;
-  border-radius: 0.625rem;
-  background: none;
-  color: #0a1230;
-  text-align: center;
-}
-.co-carte.case-carte[data-carte="pixel"] {
-  border-radius: 0;
-}
-
-/* Le nom en haut de la carte, en gras ; un nom de trois lignes pousse la carte : il se lit en entier, jamais coupé. */
-.co-carte .co-nom {
-  display: block;
-  min-height: var(--co-nom-h);
-  align-content: normal;
-  font-size: 0.78rem;
-  font-weight: 800;
-  line-height: 1.15;
-  color: #0a1230;
-  overflow-wrap: anywhere;
-  text-wrap: balance;
-}
-
-/* L'image : la chose sur sa scène, dans sa fenêtre ; le reflet se pose dessus. */
-.co-carte.case-carte :is(.case-image, .marche-case-image) {
+/* Sa place : 11 rem, jamais plus large que sa case dans une grille ; plus grande dans une fenêtre (« moyenne ») ou couchée ;
+   une grande carte reçoit sa largeur de l'écran (`largeur`). Une largeur à elle : la carte, qui mesure sa case sur sa
+   largeur (requête de conteneur), ne tombe jamais à zéro dans un parent à la taille de son contenu. */
+.cc-place {
   position: relative;
   display: grid;
-  place-items: center;
-  flex: none;
+  min-width: 0;
+  width: var(--cc-max, 11rem);
+  max-width: 100%;
+  margin-inline: auto;
+}
+.cc-place[data-taille="moyenne"] {
+  --cc-max: 15rem;
+}
+.cc-place[data-taille="couchee"] {
+  --cc-max: 25rem;
+}
+.cc-place[data-grande] {
+  --cc-max: 100%;
+}
+.cc-carte,
+.cc-dessus {
+  /* Une case de la carte. Posée sur les deux conteneurs : la copie d'une carte qu'on glisse au vestiaire la garde. */
+  --cc-l: 70;
+  --cc-h: 98;
+  --u: calc(100cqw / var(--cc-l));
+  --cc-lumiere: var(--sur-couleur);
+  --cc-pixel: "Jersey 10", "Outfit Variable", system-ui, sans-serif;
+  container-type: inline-size;
+}
+.cc-carte {
+  --cc-ombre: rgb(10 18 48 / 0.28);
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.375rem;
   width: 100%;
   min-width: 0;
-  height: var(--co-image-h);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-encre);
+  font: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Couchée (une bannière) : 124 sur 89 cases, les mêmes rangées en tête et en pied. */
+.cc-carte[data-forme="couchee"],
+.cc-dessus[data-forme="couchee"] {
+  --cc-l: 124;
+  --cc-h: 89;
+}
+:root[data-mode="sombre"] .cc-carte {
+  --cc-ombre: rgb(0 0 0 / 0.55);
+}
+button.cc-carte {
+  cursor: pointer;
+}
+.cc-face {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: var(--cc-l) / var(--cc-h);
+  border-radius: calc(var(--u) * 3.5);
+  filter: drop-shadow(0 calc(var(--u) * 3) calc(var(--u) * 4) var(--cc-ombre));
+}
+.cc-corps,
+.cc-dessus {
+  transform: perspective(1100px) rotateX(calc((var(--cc-y) - 0.5) * -13deg)) rotateY(calc((var(--cc-x) - 0.5) * 17deg));
+}
+.cc-corps {
+  position: absolute;
+  inset: 0;
+  /* La forme d'une carte à collectionner : coins arrondis lisses, la scène jusqu'au bord. */
+  clip-path: inset(0 round calc(var(--u) * 3.5));
+}
+.cc-corps > *,
+.cc-art > *,
+.cc-vitre > *,
+.cc-chose > *,
+.cc-roue > * {
+  position: absolute;
+}
+.cc-art,
+.cc-vitre {
+  inset: 0;
   overflow: hidden;
-  border-radius: 0.375rem;
-  box-shadow: 0 0 0 1px var(--co-bord);
-  background: color-mix(in srgb, var(--co-lumiere) 60%, transparent);
+  pointer-events: none;
 }
-.co-carte.case-carte[data-carte="pixel"] :is(.case-image, .marche-case-image) {
-  border-radius: 0;
-  box-shadow: 0 0 0 var(--co-p) var(--co-filet, #0a1230);
+/* Une couche en cases : sa place et sa taille en cases (`--x`, `--y`, `--l`, `--h`), une image nette qui la remplit. */
+.cc-scene,
+.cc-plan-scene,
+.cc-chose {
+  left: calc(var(--u) * var(--x, 0));
+  top: calc(var(--u) * var(--y, 0));
+  width: calc(var(--u) * var(--l, var(--cc-l)));
+  height: calc(var(--u) * var(--h, var(--cc-h)));
 }
-.co-carte .dessin-sur-fond {
+.cc-scene,
+.cc-chose-dessin,
+.cc-contour,
+.cc-rouelle,
+.cc-rouelle-email,
+.cc-spirales,
+.cc-gravure,
+.cc-devant,
+.cc-etoiles,
+.cc-tuile,
+.cc-icone {
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+}
+/* Les trois plans en relief : la scène recule, la chose avance un peu, le devant davantage. */
+.cc-scene,
+.cc-plan-scene {
+  transform: translate(calc((var(--cc-x) - 0.5) * -2.4 * var(--u)), calc((var(--cc-y) - 0.5) * -2.4 * var(--u)));
+}
+.cc-chose {
+  transform: translate(calc((var(--cc-x) - 0.5) * 1.2 * var(--u)), calc((var(--cc-y) - 0.5) * 1.2 * var(--u)));
+}
+.cc-plan-avant {
+  transform: translate(calc((var(--cc-x) - 0.5) * 3.4 * var(--u)), calc((var(--cc-y) - 0.5) * 3.4 * var(--u)));
+}
+/* Commun et peu commun : rien ne brille, les bandeaux sont le plan de devant. */
+.cc-plan-bande {
+  transform: translate(calc((var(--cc-x) - 0.5) * 1.6 * var(--u)), calc((var(--cc-y) - 0.5) * 1.6 * var(--u)));
+}
+.cc-lueur {
+  inset: 0;
+  mix-blend-mode: soft-light;
+  opacity: calc(0.35 + var(--cc-o) * 0.5);
+  background: radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), var(--cc-lumiere), transparent 48%);
+}
+.cc-carte:is([data-rarete="base"], [data-rarete="commun"], [data-rarete="peu-commun"]) .cc-lueur {
+  display: none;
+}
+
+/* La chose seule, en grand, cernée d'une case à la couleur de sa rareté ; elle s'allume quand la lumière passe. */
+.cc-chose-dessin {
+  inset: 0;
+}
+.cc-contour {
+  left: calc(var(--u) * var(--k) * -1);
+  top: calc(var(--u) * var(--k) * -1);
+  width: calc(100% + var(--u) * var(--k) * 2);
+  height: calc(100% + var(--u) * var(--k) * 2);
+}
+.cc-objet {
+  inset: 0;
+  mix-blend-mode: hard-light;
+  opacity: calc(0.2 + var(--cc-o) * 0.7);
+  background-size: 260% 260%;
+  background-position: calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%);
+  -webkit-mask: var(--masque) 0 0 / 100% 100% no-repeat;
+  mask: var(--masque) 0 0 / 100% 100% no-repeat;
+}
+.cc-carte[data-rarete="epique"] .cc-objet {
+  background-image: linear-gradient(calc(100deg + (var(--cc-x) - 0.5) * 70deg), transparent 28%, #c9b8ff 40%, var(--cc-lumiere) 50%, #9fe7ff 58%, transparent 72%);
+}
+.cc-carte[data-rarete="mystique"] .cc-objet {
+  background-image: linear-gradient(calc(100deg + (var(--cc-x) - 0.5) * 70deg), transparent 28%, #ff8a8f 40%, #ffe3c2 50%, #ffc61a 58%, transparent 72%);
+}
+.cc-carte:is([data-rarete="legendaire"], [data-rarete="saison"], [data-tons="legendaire"]) .cc-objet {
+  background-image: linear-gradient(calc(100deg + (var(--cc-x) - 0.5) * 70deg), transparent 28%, #ffd84a 40%, #fffbe6 50%, #f2b632 58%, transparent 72%);
+}
+.cc-carte[data-rarete="divin"] .cc-objet {
+  background-image: linear-gradient(calc(100deg + (var(--cc-x) - 0.5) * 70deg), transparent 22%, #ff8a8f 34%, #ffd84a 42%, #c4f9cb 50%, #9cc2ff 58%, #d8c9ff 66%, transparent 78%);
+}
+
+/* L'épique, « Le repoussé » : la gravure paraît autour de la lumière, les éclats devant. */
+.cc-gravure {
+  inset: 0;
+  background-repeat: repeat;
+  background-size: calc(var(--u) * 4) calc(var(--u) * 4);
+  mix-blend-mode: overlay;
+  opacity: calc(0.3 + var(--cc-o) * 0.7);
+  -webkit-mask-image: radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 12%, transparent 42%);
+  mask-image: radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 12%, transparent 42%);
+}
+/* Le mystique, « L'émail rouge » : la rouelle derrière la chose, son émail qui s'allume sous la lumière. */
+.cc-rouelle,
+.cc-rouelle-email {
+  inset: 0;
+}
+.cc-rouelle {
+  opacity: 0.7;
+}
+.cc-rouelle-email {
+  opacity: calc(0.35 + var(--cc-o) * 0.65);
+  -webkit-mask-image: radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 25%, rgb(0 0 0 / 0.35) 65%);
+  mask-image: radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 25%, rgb(0 0 0 / 0.35) 65%);
+}
+/* Le légendaire, « La feuille d'or » : le décor doré, ses spirales qui brillent au passage de la lumière. */
+.cc-dorure {
+  inset: 0;
+  mix-blend-mode: color;
+  opacity: 0.62;
+  background: linear-gradient(165deg, #fff1a6, #e9b53c 45%, #b98212 75%, #ffe08a);
+}
+.cc-dorure-chaude {
+  inset: 0;
+  mix-blend-mode: multiply;
+  opacity: 0.18;
+  background: #f7c94a;
+}
+.cc-spirales {
+  inset: 0;
+  background-repeat: repeat;
+  background-size: calc(var(--u) * 24) calc(var(--u) * 24);
+  mix-blend-mode: screen;
+  opacity: calc(0.55 + var(--cc-o) * 0.45);
+  -webkit-mask-image: linear-gradient(115deg, transparent calc(var(--cc-x) * 130% - 50%), #000 calc(var(--cc-x) * 130% - 15%), transparent calc(var(--cc-x) * 130% + 20%));
+  mask-image: linear-gradient(115deg, transparent calc(var(--cc-x) * 130% - 50%), #000 calc(var(--cc-x) * 130% - 15%), transparent calc(var(--cc-x) * 130% + 20%));
+}
+.cc-eclat-or {
+  inset: 0;
+  mix-blend-mode: overlay;
+  opacity: calc(0.25 + var(--cc-o) * 0.6);
+  background: linear-gradient(115deg, transparent calc(var(--cc-x) * 130% - 40%), #fff6c8 calc(var(--cc-x) * 130% - 15%), transparent calc(var(--cc-x) * 130% + 10%));
+}
+/* Le divin, « Le ciel qui s'ouvre » : un prisme qui tourne, le cosmos autour de la lumière, la poussière d'étoiles devant. */
+.cc-prisme {
+  inset: 0;
+  mix-blend-mode: multiply;
+  opacity: calc(0.18 + var(--cc-o) * 0.32);
+  background: linear-gradient(calc(125deg + (var(--cc-x) - 0.5) * 90deg), #ff8a8f, #ffd84a, #c4f9cb, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a);
+  background-size: 300% 300%;
+  background-position: calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%);
+}
+.cc-cosmos {
+  opacity: calc(0.45 + var(--cc-o) * 0.55);
+  background: linear-gradient(calc(140deg + (var(--cc-y) - 0.5) * 80deg), #ff8a8f, #ffd84a, #c4f9cb, #9cc2ff, #d8c9ff, #ff8a8f);
+  background-size: 260% 260%;
+  background-position: calc(100% - var(--cc-x) * 100%) calc(var(--cc-y) * 100%);
+  -webkit-mask-image: var(--masque), radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 18%, transparent 58%);
+  mask-image: var(--masque), radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 18%, transparent 58%);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+.cc-etoiles {
+  inset: calc(var(--u) * -4);
+  background-repeat: repeat;
+  background-size: calc(var(--u) * 24) calc(var(--u) * 24);
+  opacity: calc(0.3 + var(--cc-o) * 0.7);
+  -webkit-mask-image: radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 22%, transparent 62%);
+  mask-image: radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 22%, transparent 62%);
+}
+/* Le devant semé (éclats, feuilles d'or qui tombent, perles d'émail qui montent), quatre cases plus grand tout autour. */
+.cc-devant {
+  inset: calc(var(--u) * -4);
+  background-repeat: repeat;
+  background-size: calc(var(--u) * (var(--cc-l) + 8)) calc(var(--u) * (var(--cc-h) + 8));
+}
+.cc-devant[data-sorte="eclats"] {
+  opacity: calc(0.25 + var(--cc-o) * 0.75);
+  -webkit-mask-image: radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 20%, transparent 60%);
+  mask-image: radial-gradient(circle at calc(var(--cc-x) * 100%) calc(var(--cc-y) * 100%), #000 0, #000 20%, transparent 60%);
+}
+.cc-devant[data-sorte="feuilles"] {
+  opacity: calc(0.7 + var(--cc-o) * 0.3);
+  animation: cc-chute 48s linear infinite;
+}
+.cc-devant[data-sorte="email"] {
+  opacity: calc(0.65 + var(--cc-o) * 0.3);
+  animation: cc-montee 40s linear infinite;
+}
+@keyframes cc-chute {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 calc(var(--u) * (var(--cc-h) + 8));
+  }
+}
+@keyframes cc-montee {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 calc(var(--u) * (var(--cc-h) + 8) * -1);
+  }
+}
+
+/* Le rebord léger : deux cases claires à la couleur de la rareté, un fil plus soutenu à l'intérieur. */
+.cc-rebord {
+  inset: 0;
+  border: calc(var(--u) * 2) solid var(--c-rebord);
+  border-radius: calc(var(--u) * 3.5);
+  box-shadow: inset 0 0 0 max(1px, calc(var(--u) * 0.5)) var(--c-bord);
+  pointer-events: none;
+}
+
+/* ---------- Les écritures de la carte ---------- */
+/* En tête : le coût en énergie dans une pièce, le nom et le rôle au duel, la force dans un écusson (rangées 0 à 11). */
+.cc-tete {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: calc(var(--u) * 12);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.6);
+  padding: calc(var(--u) * 1.6) calc(var(--u) * 3) 0;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--c-haut) 96%, transparent), color-mix(in srgb, var(--c-haut) 82%, transparent));
+  box-shadow: 0 calc(var(--u) * 0.5) 0 var(--c-bord);
+  color: var(--c-encre);
+}
+.cc-cout {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 8.4);
+  height: calc(var(--u) * 8.4);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--cc-lumiere), var(--c-haut) 55%, var(--c-bas));
+  box-shadow:
+    0 0 0 calc(var(--u) * 0.6) var(--c-bord),
+    inset 0 calc(var(--u) * -0.6) 0 color-mix(in srgb, var(--c-bord) 45%, transparent);
+}
+.cc-cout b {
+  font: 400 calc(var(--u) * 6.6) / 1 var(--cc-pixel);
+  color: var(--c-encre);
+}
+.cc-eclair {
+  position: absolute;
+  right: calc(var(--u) * -0.8);
+  bottom: calc(var(--u) * -0.4);
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 4);
+  background: #ffd84a;
+  clip-path: polygon(55% 0, 10% 58%, 45% 58%, 30% 100%, 90% 38%, 55% 38%, 75% 0);
+  filter: drop-shadow(0 0 calc(var(--u) * 0.4) #6e4700);
+}
+.cc-titre {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: calc(var(--u) * 0.3);
+}
+/* Le nom tient sur sa ligne : la lettre rapetisse (`--nom`, en cases) plutôt que d'être coupée. */
+.cc-nom {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font: 400 calc(var(--u) * var(--nom, 6.4)) / 0.9 var(--cc-pixel);
+  letter-spacing: 0.01em;
+  color: var(--c-encre);
+}
+.cc-type {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.8);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font: 700 max(7.5px, calc(var(--u) * 2.1)) / 1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c-encre) 82%, transparent);
+}
+.cc-tuile {
+  flex: none;
+  display: inline-block;
+  width: max(9px, calc(var(--u) * 2.8));
+  height: max(9px, calc(var(--u) * 2.8));
+}
+.cc-force {
+  flex: none;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  width: calc(var(--u) * 8.6);
+  height: calc(var(--u) * 9.4);
+  padding-bottom: calc(var(--u) * 1.2);
+  clip-path: polygon(0 0, 100% 0, 100% 64%, 50% 100%, 0 64%);
+  background: linear-gradient(to bottom, var(--c-encre), color-mix(in srgb, var(--c-encre) 72%, #0a1230));
+  color: var(--c-haut);
+}
+.cc-force small {
+  font: 700 calc(var(--u) * 1.5) / 1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cc-force b {
+  font: 400 calc(var(--u) * 6.4) / 0.9 var(--cc-pixel);
+}
+
+/* En pied : la rareté, l'emplacement, le numéro du duel (rangées 87 à 97). */
+.cc-pied {
+  left: 0;
+  top: calc(var(--u) * (var(--cc-h) - 11));
+  width: 100%;
+  height: calc(var(--u) * 11);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 1);
+  padding: 0 calc(var(--u) * 4);
+  font: 700 max(7.5px, calc(var(--u) * 2.1)) / 1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--c-encre);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--c-bas) 82%, transparent), color-mix(in srgb, var(--c-bas) 96%, transparent));
+}
+.cc-rar {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.8);
+  min-width: 0;
+}
+.cc-rar img {
+  flex: none;
+  width: auto;
+  height: max(9px, calc(var(--u) * 3.2));
+  image-rendering: pixelated;
+}
+.cc-num {
+  letter-spacing: 0.02em;
+}
+
+/* La boîte des effets, au-dessus de la carte : la même inclinaison, son propre conteneur. Les mots-clés et le repos ; d'un
+   appui, toutes les lignes du duel sur l'image (rangées 24 à 86). */
+.cc-dessus {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  aspect-ratio: var(--cc-l) / var(--cc-h);
+  pointer-events: none;
+}
+.cc-effets {
+  position: absolute;
+  left: calc(var(--u) * 2);
+  top: calc(var(--u) * (var(--cc-h) - 22));
+  width: calc(var(--u) * (var(--cc-l) - 4));
+  height: calc(var(--u) * 11);
+  display: block;
+  overflow: hidden;
+  margin: 0;
+  padding: 0 calc(var(--u) * 1.6);
+  border: 0;
+  border-radius: calc(var(--u) * 2);
+  color: var(--c-encre);
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  isolation: isolate;
+  background: color-mix(in srgb, var(--c-haut) 88%, transparent);
+  box-shadow:
+    0 0 0 calc(var(--u) * 0.5) color-mix(in srgb, var(--c-bord) 70%, transparent),
+    0 calc(var(--u) * 0.8) calc(var(--u) * 2) rgb(10 18 48 / 0.18);
+  transition:
+    top 0.4s ease,
+    height 0.4s ease;
+}
+.cc-effets:focus-visible {
+  outline: 2px solid var(--c-encre);
+  outline-offset: 1px;
+}
+.cc-bref {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.4);
+  height: 100%;
+  min-width: 0;
+}
+.cc-puce {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.6);
+  min-width: 0;
+  white-space: nowrap;
+  font: 700 max(8px, calc(var(--u) * 2.4)) / 1 var(--font-sans);
+}
+.cc-icone {
+  flex: none;
+  display: inline-block;
+  width: max(10px, calc(var(--u) * 3.4));
+  height: max(10px, calc(var(--u) * 3.4));
+}
+/* Sans duel (un familier, un Gaulois unique) : sa phrase sur deux lignes au plus ; d'un appui, en entier. */
+.cc-puce.cc-puce-texte {
+  display: -webkit-box;
+  flex: 1;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.cc-repos {
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
+  font: 600 max(7.5px, calc(var(--u) * 2.1)) / 1 var(--font-sans);
+  color: color-mix(in srgb, var(--c-encre) 75%, transparent);
+}
+.cc-tout {
+  display: none;
+}
+.cc-effets[aria-expanded="true"] {
+  top: calc(var(--u) * 24);
+  height: calc(var(--u) * (var(--cc-h) - 35));
+  overflow-y: auto;
+  padding-block: calc(var(--u) * 1.6);
+  background: color-mix(in srgb, var(--c-haut) 95%, transparent);
+}
+.cc-effets[aria-expanded="true"] .cc-bref {
+  display: none;
+}
+.cc-effets[aria-expanded="true"] .cc-tout {
+  display: grid;
+  gap: calc(var(--u) * 1.3);
+}
+.cc-ligne {
+  display: grid;
+  grid-template-columns: max(10px, calc(var(--u) * 3.8)) 1fr;
+  gap: calc(var(--u) * 1);
+  align-items: start;
+  font: 400 max(8.5px, calc(var(--u) * 2.45)) / 1.35 var(--font-sans);
+}
+.cc-ligne b {
+  font-weight: 700;
+}
+.cc-ligne[data-ton="unique"] {
+  font-style: italic;
+  color: color-mix(in srgb, var(--c-encre) 92%, #9c0f24);
+}
+.cc-ligne[data-ton="panoplie"] {
+  padding-top: calc(var(--u) * 1);
+  border-top: calc(var(--u) * 0.3) solid color-mix(in srgb, var(--c-bord) 60%, transparent);
+}
+.cc-ligne-repos {
+  color: color-mix(in srgb, var(--c-encre) 75%, transparent);
+}
+
+/* Une petite carte (une grille de la boutique, du vestiaire) : les mots qui ne tiendraient plus laissent leurs icônes. */
+@container (width < 190px) {
+  .cc-force small,
+  .cc-puce-nom,
+  .cc-ou {
+    display: none;
+  }
+  .cc-bref {
+    gap: calc(var(--u) * 2);
+  }
+}
+
+/* Divin et légendaire en pleine image (demande du pilote) : pas de bandeau, l'écriture flotte sur l'image, cernée de clair ;
+   un cran en dessous, le mystique sur un voile léger et l'épique sur un bandeau de verre. */
+.cc-carte[data-flottant],
+.cc-dessus[data-flottant] {
+  --halo: var(--c-haut);
+  --cerne: calc(var(--u) * 0.45);
+}
+.cc-carte[data-flottant] :is(.cc-tete, .cc-pied) {
+  isolation: isolate;
+}
+.cc-carte[data-flottant="plein"] :is(.cc-tete, .cc-pied) {
+  background: none;
   box-shadow: none;
 }
-
-/* La rareté, en une ligne sous l'image : son icône et son nom, à l'encre de la carte. */
-.co-carte.case-carte :is(.case-rarete, .marche-case-rarete) {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.1875rem 0.25rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--co-encre);
-}
-.co-carte.case-carte :is(.case-prix, .case-revient, .marche-case-nombre) {
-  align-self: center;
-}
-
-/* Les marques posées sur la carte (« à vous », « en vente », « porté », « Nouveau », « essai », la coche, la plaque) : dans
-   les coins de son image, en haut ce qu'on a, en bas ce qu'on fait ; jamais sur le nom, jamais l'une sur l'autre. */
-.co-carte.case-carte .case-image > :is(.case-marque, .case-essai, .case-nouveau, .co-coche, .plaque-coin) {
+.cc-carte[data-flottant="plein"] :is(.cc-tete, .cc-pied)::before {
+  content: "";
   position: absolute;
-  z-index: 5;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
 }
-.co-carte.case-carte .case-image > .case-marque {
-  top: 0.1875rem;
-  right: 0.1875rem;
+.cc-carte[data-flottant="plein"] .cc-tete::before {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--halo) 55%, transparent), transparent);
+}
+.cc-carte[data-flottant="plein"] .cc-pied::before {
+  background: linear-gradient(to top, color-mix(in srgb, var(--halo) 55%, transparent), transparent);
+}
+.cc-carte[data-flottant] :is(.cc-nom, .cc-type, .cc-pied),
+.cc-dessus[data-flottant] :is(.cc-puce, .cc-repos) {
+  text-shadow:
+    var(--cerne) 0 0 var(--halo),
+    calc(-1 * var(--cerne)) 0 0 var(--halo),
+    0 var(--cerne) 0 var(--halo),
+    0 calc(-1 * var(--cerne)) 0 var(--halo),
+    var(--cerne) var(--cerne) 0 var(--halo),
+    calc(-1 * var(--cerne)) var(--cerne) 0 var(--halo),
+    var(--cerne) calc(-1 * var(--cerne)) 0 var(--halo),
+    calc(-1 * var(--cerne)) calc(-1 * var(--cerne)) 0 var(--halo);
+}
+.cc-carte[data-flottant] .cc-type {
+  color: var(--c-encre);
+}
+.cc-dessus[data-flottant="plein"] .cc-effets:not([aria-expanded="true"]) {
+  background: none;
+  box-shadow: none;
+}
+.cc-dessus[data-flottant="plein"] .cc-effets:not([aria-expanded="true"])::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--halo) 60%, transparent), transparent 75%);
+}
+.cc-carte[data-flottant="voile"] .cc-tete {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--c-haut) 58%, transparent), color-mix(in srgb, var(--c-haut) 22%, transparent));
+  box-shadow: none;
+}
+.cc-carte[data-flottant="voile"] .cc-pied {
+  background: linear-gradient(to top, color-mix(in srgb, var(--c-bas) 58%, transparent), color-mix(in srgb, var(--c-bas) 22%, transparent));
+}
+.cc-dessus[data-flottant="voile"] .cc-effets:not([aria-expanded="true"]) {
+  background: color-mix(in srgb, var(--c-haut) 46%, transparent);
+  box-shadow: 0 0 0 calc(var(--u) * 0.4) color-mix(in srgb, var(--c-bord) 35%, transparent);
+}
+.cc-carte[data-flottant="verre"] .cc-tete {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--c-haut) 78%, transparent), color-mix(in srgb, var(--c-haut) 52%, transparent));
+  box-shadow: 0 calc(var(--u) * 0.4) 0 color-mix(in srgb, var(--c-bord) 55%, transparent);
+}
+.cc-carte[data-flottant="verre"] .cc-pied {
+  background: linear-gradient(to top, color-mix(in srgb, var(--c-bas) 80%, transparent), color-mix(in srgb, var(--c-bas) 55%, transparent));
+}
+.cc-dessus[data-flottant="verre"] .cc-effets:not([aria-expanded="true"]) {
+  background: color-mix(in srgb, var(--c-haut) 66%, transparent);
+}
+
+/* ---------- La carte dans une page ---------- */
+/* Les marques posées dans les coins de l'image (rangées 13 à 74) : en haut ce qu'on a, en bas ce qu'on fait. */
+.cc-marques {
+  left: calc(var(--u) * 3);
+  top: calc(var(--u) * 13);
+  right: calc(var(--u) * 3);
+  height: calc(var(--u) * (var(--cc-h) - 36));
+  pointer-events: none;
+}
+/* Une image du site posée au milieu de l'image de la carte, à la place du dessin (la carte du membre et sa finition). */
+.cc-image {
+  left: calc(var(--u) * 3);
+  top: calc(var(--u) * 13);
+  right: calc(var(--u) * 3);
+  height: calc(var(--u) * (var(--cc-h) - 36));
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.cc-image > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+.cc-image.cc-image-pleine {
+  inset: 0;
+  height: auto;
+}
+.cc-image.cc-image-pleine > * {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+.cc-marques > * {
+  position: absolute;
+  z-index: 1;
+}
+.cc-marques > .case-marque {
+  top: 0;
+  right: 0;
   left: auto;
 }
-.co-carte.case-carte .case-image > :is(.case-nouveau, .co-coche) {
-  top: 0.1875rem;
-  left: 0.1875rem;
+.cc-marques > :is(.case-nouveau, .cc-coche) {
+  top: 0;
+  left: 0;
 }
-.co-carte.case-carte .case-image > .case-essai {
+.cc-marques > .case-essai {
   top: auto;
-  bottom: 0.1875rem;
-  left: 0.1875rem;
+  bottom: 0;
+  left: 0;
 }
-.co-carte.case-carte .case-image > .plaque-coin {
+.cc-marques > .plaque-coin {
   top: auto;
-  right: 0.1875rem;
-  bottom: 0.1875rem;
+  right: 0;
+  bottom: 0;
 }
-/* La coche de la carte portée : un rond marine et sa coche blanche, dans le coin de l'image (la case d'avant la posait dans
-   le coin de la case, sur le nom). */
-.co-carte.case-carte[data-etat="portee"]::after {
-  content: none;
-}
-.co-coche {
+.cc-coche {
   width: 1.25rem;
   height: 1.25rem;
   border-radius: 999px;
   background: #0a1230
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23ffffff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     center / 0.875rem no-repeat;
-  box-shadow: 0 0 0 2px var(--co-lumiere);
+  box-shadow: 0 0 0 2px var(--cc-lumiere);
 }
-/* Le cadenas d'une case dont le prix manque : à la place du prix, plus dans un coin. */
-.co-carte.case-carte .case-cadenas {
-  position: static;
-  align-self: center;
-}
-/* Le reflet de la case légendaire d'avant (09-village.css) ne passe plus : la carte a le sien, qui ne bouge pas seul. */
-.co-carte.case-carte::before {
-  content: none;
-}
-.co-carte.case-carte:is([data-rarete]) {
-  overflow: visible;
-}
-
-/* ---------- L'habit : le cadre et son papier ---------- */
-
-.co-cadre {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: linear-gradient(170deg, var(--co-haut), var(--co-bas));
-  box-shadow:
-    inset 0 0 0 2px var(--co-bord),
-    inset 0 0 0 4px color-mix(in srgb, var(--co-lumiere) 85%, transparent),
-    0 2px 6px rgb(10 18 48 / 0.18);
-  pointer-events: none;
-}
-/* Le peu commun : un filet de plus, toujours sans reflet. */
-.co-carte[data-rarete="peu-commun"] > .co-cadre {
-  box-shadow:
-    inset 0 0 0 2px var(--co-bord),
-    inset 0 0 0 4px color-mix(in srgb, var(--co-lumiere) 85%, transparent),
-    inset 0 0 0 5px color-mix(in srgb, var(--co-bord) 45%, transparent),
-    0 2px 6px rgb(10 18 48 / 0.18);
-}
-/* L'épique : un pointillé à l'intérieur du cadre, et ses quatre coins en cases. */
-.co-carte[data-carte="entre"] > .co-cadre {
-  outline: 2px dotted color-mix(in srgb, var(--co-bord) 75%, transparent);
-  outline-offset: -7px;
-}
-.co-coin {
-  position: absolute;
-  z-index: 1;
-  width: calc(11 * var(--co-coin-e));
-  height: calc(11 * var(--co-coin-e));
-  background: var(--co-coin) 0 0 / 100% 100% no-repeat;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-.co-coin[data-coin="hg"] {
-  top: 0;
-  left: 0;
-}
-.co-coin[data-coin="hd"] {
-  top: 0;
-  right: 0;
-  transform: scaleX(-1);
-}
-.co-coin[data-coin="bg"] {
-  bottom: 0;
-  left: 0;
-  transform: scaleY(-1);
-}
-.co-coin[data-coin="bd"] {
-  right: 0;
-  bottom: 0;
-  transform: scale(-1, -1);
-}
-/* Le cadre en cases : neuf parts, ses coins de six cases mordent le papier, sa bande en fait quatre. */
-.co-carte[data-carte="pixel"] > .co-cadre {
-  border: calc(4 * var(--co-p)) solid transparent;
-  border-image: var(--co-cadre) 6 / calc(6 * var(--co-p)) / 0 repeat;
-  border-radius: 0;
-  background: linear-gradient(170deg, var(--co-haut), var(--co-bas)) padding-box;
-  box-shadow: none;
-  filter: drop-shadow(0 var(--co-p) 0 rgb(10 18 48 / 0.22));
-  image-rendering: pixelated;
-}
-/* Le papier étoilé du divin. */
-.co-carte[data-rarete="divin"] > .co-cadre {
-  background:
-    var(--co-etoiles) 0 0 / calc(24 * var(--co-p)) repeat padding-box,
-    linear-gradient(175deg, var(--co-haut), #cdeffb 55%, #e6dcff) padding-box;
-}
-.co-ecusson {
-  position: absolute;
-  left: 50%;
-  z-index: 0;
-  width: calc(20 * var(--co-p));
-  height: calc(4 * var(--co-p));
-  margin-left: calc(-10 * var(--co-p));
-  background: var(--co-ecusson) 0 0 / 100% 100% no-repeat;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-.co-ecusson[data-bord="haut"] {
-  top: 0;
-}
-.co-ecusson[data-bord="bas"] {
-  bottom: 0;
-  background-image: var(--co-ecusson-bas);
-}
-
-/* ---------- Le reflet ---------- */
-
-/* L'épique : une bande claire qui glisse avec le pointeur. */
-.co-reflet {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(112deg, transparent 30%, color-mix(in srgb, var(--co-lumiere) 75%, transparent) 47%, rgb(226 200 255 / 0.55) 53%, transparent 70%);
-  background-size: 260% 100%;
-  background-position: calc(100% - var(--co-mx) * 100%) 0;
-  mix-blend-mode: soft-light;
-  pointer-events: none;
-}
-
-/* La feuille holographique : une couche masquée par le motif de la rareté, une couche pleine, une lueur sous le pointeur. */
-.co-holo,
-.co-lueur,
-.co-feuille-cadre {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.co-holo[data-couche="a"] {
-  -webkit-mask-image: var(--co-motif);
-  mask-image: var(--co-motif);
-  -webkit-mask-size: calc(var(--co-motif-n) * var(--co-p));
-  mask-size: calc(var(--co-motif-n) * var(--co-p));
-  -webkit-mask-repeat: repeat;
-  mask-repeat: repeat;
-  image-rendering: pixelated;
-}
-.co-lueur {
-  background: radial-gradient(circle at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), color-mix(in srgb, var(--co-lumiere) 38%, transparent), color-mix(in srgb, var(--co-lumiere) 0%, transparent) 45%);
-  mix-blend-mode: soft-light;
-}
-/* La lumière qui passe sur le cadre seul : la carte entière, moins son papier. */
-.co-feuille-cadre {
-  z-index: 0;
-  padding: calc(4 * var(--co-p));
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box exclude,
-    linear-gradient(#000 0 0);
-  mix-blend-mode: overlay;
-}
-
-/* Mystique : un arc-en-ciel en rayures de cases. */
-.co-carte[data-rarete="mystique"] .co-holo[data-couche="a"] {
-  background: linear-gradient(115deg, #ff5f86, #ffc61a, #3fce6a, #19b8d3, #8b5cf6, #ff5f86, #ffc61a, #3fce6a, #19b8d3, #8b5cf6, #ff5f86);
-  background-size: 320% 320%;
-  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
-  mix-blend-mode: hard-light;
-  opacity: 0.42;
-}
-/* Sur une petite carte, les rayures laissent mieux voir l'objet. */
-.co-carte:not(.co-grande)[data-rarete="mystique"] .co-holo[data-couche="a"] {
-  opacity: 0.28;
-}
-.co-carte[data-rarete="mystique"] .co-holo[data-couche="b"] {
-  background: linear-gradient(115deg, #ff5f86, #ffc61a, #3fce6a, #19b8d3, #8b5cf6, #ff5f86, #ffc61a, #3fce6a, #19b8d3, #8b5cf6, #ff5f86);
-  background-size: 320% 320%;
-  background-position: calc(100% - var(--co-mx) * 100%) calc(100% - var(--co-my) * 100%);
-  mix-blend-mode: soft-light;
-  opacity: 0.3;
-}
-.co-carte[data-rarete="mystique"] .co-feuille-cadre {
-  background: linear-gradient(115deg, transparent 20%, var(--co-lumiere) 38%, #ffd84a 46%, #9cc2ff 54%, var(--co-lumiere) 62%, transparent 80%);
-  background-size: 300% 300%;
-  background-position: calc(100% - var(--co-mx) * 100%) calc(100% - var(--co-my) * 100%);
-  opacity: 0.85;
-}
-/* Légendaire : une feuille d'or et des paillettes. */
-.co-carte[data-rarete="legendaire"] .co-holo[data-couche="a"] {
-  background: radial-gradient(circle at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), var(--co-lumiere) 0%, #fff6c2 22%, rgb(255 216 74 / 0.55) 45%, rgb(255 216 74 / 0.12) 75%);
-  opacity: 0.8;
-}
-.co-carte[data-rarete="legendaire"] .co-holo[data-couche="b"] {
-  background: linear-gradient(112deg, transparent 22%, rgb(255 241 168 / 0.9) 40%, color-mix(in srgb, var(--co-lumiere) 95%, transparent) 50%, rgb(255 198 26 / 0.8) 60%, transparent 78%);
-  background-size: 280% 100%;
-  background-position: calc(100% - var(--co-mx) * 100%) 0;
-  mix-blend-mode: soft-light;
-  opacity: 0.55;
-}
-.co-carte[data-rarete="legendaire"] .co-feuille-cadre {
-  background: linear-gradient(112deg, transparent 25%, var(--co-lumiere) 45%, #fffbe6 55%, transparent 75%);
-  background-size: 280% 100%;
-  background-position: calc(100% - var(--co-mx) * 100%) 0;
-  opacity: 0.95;
-}
-/* Légendaire de saison : les rayons du solstice. */
-.co-carte[data-rarete="saison"] .co-holo[data-couche="a"] {
-  background: repeating-conic-gradient(from calc(var(--co-mx) * 50deg - 25deg) at 50% -12%, rgb(255 241 168 / 0.95) 0deg 5deg, rgb(196 249 203 / 0.85) 5deg 8deg, rgb(255 198 26 / 0.9) 8deg 12deg, rgb(255 138 143 / 0.6) 12deg 15deg);
-  mix-blend-mode: hard-light;
-  opacity: 0.4;
-}
-.co-carte[data-rarete="saison"] .co-holo[data-couche="b"] {
-  background: repeating-conic-gradient(from calc(var(--co-mx) * 50deg - 25deg) at 50% -12%, color-mix(in srgb, var(--co-lumiere) 0%, transparent) 0deg 6deg, color-mix(in srgb, var(--co-lumiere) 85%, transparent) 6deg 9deg, color-mix(in srgb, var(--co-lumiere) 0%, transparent) 9deg 15deg);
-  mix-blend-mode: soft-light;
-  opacity: 0.45;
-}
-.co-carte[data-rarete="saison"] .co-feuille-cadre {
-  background: linear-gradient(112deg, transparent 25%, var(--co-lumiere) 42%, #c4f9cb 50%, var(--co-lumiere) 58%, transparent 75%);
-  background-size: 280% 100%;
-  background-position: calc(100% - var(--co-mx) * 100%) 0;
-  opacity: 0.95;
-}
-/* Divin : un prisme sur toute la carte. */
-.co-carte[data-rarete="divin"] .co-holo[data-couche="a"] {
-  background: conic-gradient(from calc(var(--co-mx) * 180deg) at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f);
-  opacity: 0.5;
-}
-.co-carte[data-rarete="divin"] .co-holo[data-couche="b"] {
-  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff);
-  background-size: 300% 300%;
-  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
-  mix-blend-mode: soft-light;
-  opacity: 0.18;
-}
-.co-carte[data-rarete="divin"] .co-feuille-cadre {
-  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, var(--co-lumiere), #c4f9cb, #9cc2ff, var(--co-lumiere), #d8c9ff, #ff8a8f, #ffd84a, var(--co-lumiere), #c4f9cb, #9cc2ff);
-  background-size: 300% 300%;
-  background-position: calc(100% - var(--co-mx) * 100%) calc(100% - var(--co-my) * 100%);
-}
-
-/* ---------- Le rang du duel et la fiche des effets (pour qui voit le duel) ---------- */
-
-.co-tuile {
-  display: block;
-  flex: none;
-  width: calc(var(--co-n, 11) * var(--co-icone-e, 1px));
-  height: calc(var(--co-n, 11) * var(--co-icone-e, 1px));
-  background: 0 0 / 100% 100% no-repeat;
-  image-rendering: pixelated;
-}
-.co-duel {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.1875rem 0.25rem;
-  border-radius: 0.3125rem;
-  background: color-mix(in srgb, var(--co-lumiere) 90%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--co-bord) 60%, transparent);
-}
-.co-carte[data-carte="pixel"] .co-duel {
-  border-radius: 0;
-}
-.co-duel > .co-tuile {
-  --co-n: 15;
-}
-.co-force {
-  justify-self: start;
-  font-size: 1.125rem;
-  font-weight: 800;
-  line-height: 1;
-}
-.co-cout {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.125rem;
-  padding: 0.125rem 0.3125rem 0.125rem 0.25rem;
-  border-radius: 0.375rem;
-  background: #0a1230;
-  color: var(--co-lumiere);
-  font-size: 0.75rem;
-  font-weight: 800;
-  line-height: 1;
-}
-.co-eclair {
-  display: block;
-  width: 5px;
-  height: 7px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 7' shape-rendering='crispEdges'%3E%3Cpath d='M3 0h2v1H3zM2 1h2v1H2zM1 2h2v1H1zM0 3h5v1H0zM2 4h2v1H2zM1 5h2v1H1zM0 6h2v1H0z' fill='%23ffc61a'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
-}
-.co-mots {
-  display: flex;
-  grid-column: 1 / -1;
-  justify-content: center;
-  gap: 0.25rem;
-}
-.co-mots .co-tuile {
-  --co-n: 11;
-}
-
-.co-fiche {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  padding: 0.5rem 0.625rem;
-  border-radius: 0.375rem;
-  background: color-mix(in srgb, var(--co-lumiere) 94%, transparent);
-  box-shadow: 0 0 0 1px var(--co-bord);
-  color: #0a1230;
-  font-size: 0.8125rem;
-  line-height: 1.3;
-  text-align: left;
-}
-.co-carte[data-carte="pixel"] .co-fiche {
-  border-radius: 0;
-  box-shadow: 0 0 0 var(--co-p) var(--co-filet, #0a1230);
-}
-.co-ligne-effet {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.4375rem;
-}
-.co-ligne-effet .co-tuile {
-  --co-icone-e: 2px;
-}
-.co-tuile-vide {
-  visibility: hidden;
-}
-.co-ligne-effet b {
-  font-weight: 800;
-}
-.co-ligne-effet[data-ton="panoplie"] {
-  padding-top: 0.375rem;
-  border-top: 1px dashed var(--co-bord);
-}
-.co-ligne-effet[data-ton="panoplie"] b {
-  color: var(--co-encre);
-}
-.co-ligne-effet[data-ton="panoplie"] .co-tuile {
-  display: none;
-}
-.co-unique {
-  display: grid;
-  gap: 0.0625rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  background: linear-gradient(90deg, #fff1a8, #ffe07a 60%, #fff1a8);
-  box-shadow: inset 0 0 0 1px #d9a21b;
-  color: #3a2606;
-}
-.co-carte[data-carte="pixel"] .co-unique {
-  border-radius: 0;
-}
-.co-unique small {
-  font-size: 0.625rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #6e4700;
-}
-.co-unique strong {
-  font-size: 1rem;
-  font-weight: 800;
-  line-height: 1.1;
-}
-.co-pied-fiche {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding-top: 0.25rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: var(--co-encre);
-}
-
-/* La carte d'une bannière, en paysage : elle prend la largeur de la bannière entière, agrandie d'un nombre entier de fois. */
-.co-carte.co-paysage {
-  width: max-content;
-  max-width: 100%;
-}
-/* Une bannière est déjà une scène riche : la feuille holographique y est plus légère, pour qu'elle reste bien visible. */
-.co-carte.co-paysage .co-holo[data-couche="a"] {
-  opacity: 0.3;
-}
-.co-carte.co-paysage .case-image.co-banniere {
-  width: auto;
-  height: auto;
-  justify-self: center;
-  align-self: center;
-}
-
-/* Quelques mots de plus sous la rareté (la taille d'un familier). */
-.co-carte .co-sous {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--co-encre);
-  text-align: center;
-}
-
-/* ---------- La grande carte d'une fenêtre (achat, objet reçu) : elle s'incline vers le pointeur ---------- */
-
-.co-carte.co-grande {
-  --co-p: 3px;
-  --co-nom-h: 1.3rem;
-  --co-image-h: 9.5rem;
-  --co-coin-e: 2px;
-  width: min(17.5rem, calc(100vw - 4rem));
-  gap: 0.375rem;
-  cursor: default;
-  transform: perspective(56rem) rotateX(var(--co-rx, 0deg)) rotateY(var(--co-ry, 0deg));
-  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-.co-carte.co-grande[data-tenue] {
-  transition: transform 0.08s linear;
-}
-.co-carte.co-grande .co-nom {
-  display: block;
-  min-height: 0;
-  font-size: 1.125rem;
-  line-height: 1.15;
-}
-.co-carte.co-grande :is(.case-rarete) {
-  font-size: 0.75rem;
-}
-.co-carte.co-grande .co-duel > .co-tuile {
-  --co-icone-e: 2px;
-}
-.co-carte.co-grande .co-force {
-  font-size: 1.5rem;
-}
-.co-carte.co-grande .co-cout {
-  font-size: 0.875rem;
-}
-.co-carte.co-grande .co-mots .co-tuile {
-  --co-icone-e: 2px;
-}
-@media (min-width: 30rem) {
-  .co-carte.co-grande {
-    --co-p: 4px;
-    --co-image-h: 10.5rem;
-  }
-}
-/* Au repos, la lumière d'une grande carte en cases passe lentement d'un bord à l'autre. */
-.co-carte.co-grande[data-carte="pixel"]:not([data-tenue]) {
-  animation: co-balayage 11s ease-in-out infinite alternate;
-}
-@keyframes co-balayage {
-  from {
-    --co-mx: 0.12;
-    --co-my: 0.3;
-  }
-  to {
-    --co-mx: 0.88;
-    --co-my: 0.7;
-  }
-}
-
-/* ---------- La pleine image et le débordement (22 novembre 2026) ---------- */
-/* Choix du pilote sur les modèles de Claude Fable 5.2 : « pour les mystiques Par le haut, le nom devant ; et divin et
-   légendaire Les bandeaux fins », en petit dans les cases comme en grand à la sortie des boosters (CartesRares.tsx,
-   CarteDeSortie.tsx). Ne pas en changer la mise en page sans sa demande. */
-
-/* La pleine image : la scène sous toute la carte, le liseré en cases par-dessus, un bandeau fin en haut et en bas. */
-.co-carte.case-carte.co-pleine,
-.co-carte.co-pleine {
-  padding: calc(3 * var(--co-p));
-  gap: 0;
-  border-radius: 0;
-  overflow: hidden;
-  box-shadow: 0 var(--co-p) calc(3 * var(--co-p)) rgb(10 18 48 / 0.2);
-}
-.co-pleine-fond {
-  position: absolute;
-  inset: calc(3 * var(--co-p));
-  z-index: 0;
-  overflow: hidden;
-  background: var(--co-haut);
-}
-:is(.co-pleine-fond, .co-fenetre-fond) > .co-scene {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  image-rendering: pixelated;
-}
-.co-lisere {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  border: calc(3 * var(--co-p)) solid transparent;
-  border-image: var(--co-lisere) 6 / calc(6 * var(--co-p)) / 0 repeat;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-.co-carte.co-pleine > .co-feuille-cadre {
-  z-index: 5;
-  padding: calc(3 * var(--co-p));
-}
-.co-joyau {
-  position: absolute;
-  z-index: 5;
-  width: calc(6 * var(--co-p));
-  height: calc(3 * var(--co-p));
-  background: var(--co-joyau) 0 0 / 100% 100% no-repeat;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-.co-joyau:is([data-bord="haut"], [data-bord="bas"]) {
-  left: calc(50% - 3 * var(--co-p));
-}
-.co-joyau[data-bord="haut"] {
-  top: 0;
-}
-.co-joyau[data-bord="bas"] {
-  bottom: 0;
-}
-.co-joyau:is([data-bord="gauche"], [data-bord="droite"]) {
-  top: calc(50% - 3 * var(--co-p));
-  width: calc(3 * var(--co-p));
-  height: calc(6 * var(--co-p));
-  background-image: var(--co-joyau-debout);
-}
-.co-joyau[data-bord="gauche"] {
-  left: 0;
-}
-.co-joyau[data-bord="droite"] {
-  right: 0;
-}
-.co-carte.co-pleine .co-bande {
-  position: relative;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: color-mix(in srgb, var(--co-lumiere) 88%, transparent);
-}
-/* Le texte des bandeaux commence après les coins du liseré (six cases). */
-.co-carte.co-pleine .co-bande[data-bord="haut"] {
-  padding: 0.25rem calc(3.5 * var(--co-p));
-  border-bottom: var(--co-p) solid var(--co-filet, #0a1230);
-}
-.co-carte.co-pleine .co-bande[data-bord="bas"] {
-  flex-direction: column;
-  align-items: stretch;
-  padding: 0.25rem calc(3.5 * var(--co-p));
-  border-top: var(--co-p) solid var(--co-filet, #0a1230);
-}
-.co-carte.co-pleine .co-bande .co-nom {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  font-size: 0.6875rem;
-  letter-spacing: -0.01em;
-  text-align: left;
-  overflow-wrap: break-word;
-  hyphens: auto;
-}
-.co-carte.co-pleine .co-bande .co-duel {
-  padding: 0;
-  background: none;
-  box-shadow: none;
-}
-.co-bande-mot {
-  font-size: 0.6875rem;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
-  text-align: center;
-  text-transform: uppercase;
-  color: var(--co-encre);
-}
-.co-carte.case-carte.co-pleine .case-image.co-zone,
-.co-carte.co-pleine .co-zone {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  flex: 1 0 auto;
-  place-items: center;
-  width: 100%;
-  height: auto;
-  min-height: 5.5rem;
-  overflow: visible;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-}
-/* La chose est posée par l'écran (au milieu, au sol ou contre le bas), à une place qu'il mesure. */
-.co-zone > .co-chose {
-  position: absolute;
-  z-index: 1;
-  pointer-events: none;
-}
-.co-chose canvas {
-  display: block;
-  image-rendering: pixelated;
-  filter: drop-shadow(var(--co-p) var(--co-p) 0 rgb(10 18 48 / 0.3));
-}
-
-/* Le débordement : la chose sort de sa fenêtre par le haut, passe sur le cadre ; le nom reste devant, cerné de clair. */
-.co-carte.case-carte.co-deborde .case-image.co-fenetre,
-.co-carte.co-deborde .co-fenetre {
-  overflow: visible;
-  background: none;
-}
-.co-fenetre-fond {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border-radius: inherit;
-}
-.co-fenetre > .co-chose {
-  position: absolute;
-  z-index: 3;
-  pointer-events: none;
-}
-.co-carte .co-nom-devant {
-  position: relative;
-  z-index: 4;
-  text-shadow:
-    1.5px 0 var(--co-lumiere),
-    -1.5px 0 var(--co-lumiere),
-    0 1.5px var(--co-lumiere),
-    0 -1.5px var(--co-lumiere),
-    1.5px 1.5px var(--co-lumiere),
-    -1.5px 1.5px var(--co-lumiere),
-    1.5px -1.5px var(--co-lumiere),
-    -1.5px -1.5px var(--co-lumiere);
-}
-
-/* ---------- En grand, à la sortie des boosters ---------- */
-
-.co-sortie-socle {
-  display: grid;
-  place-items: center;
-}
-/* Ce qui sort de la carte par le haut a sa place au-dessus d'elle. */
-.co-sortie-socle.co-sortie-deborde {
-  padding-top: 24px;
-}
-.co-carte.co-sortie {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  flex-direction: column;
-  width: calc(70 * var(--co-p));
-  max-width: 100%;
-  color: #0a1230;
-  text-align: left;
-  transform: perspective(56rem) rotateX(var(--co-rx, 0deg)) rotateY(var(--co-ry, 0deg));
-  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-.co-carte.co-sortie[data-tenue] {
-  transition: transform 0.08s linear;
-}
-.co-carte.co-sortie[data-carte="pixel"]:not([data-tenue]) {
-  animation: co-balayage 11s ease-in-out infinite alternate;
-}
-/* 116 cases de haut : l'écran choisit la case (`caseDeLaSortie`) pour que la bourse et les boutons tiennent dessous. */
-.co-carte.co-sortie.co-pleine {
-  height: calc(116 * var(--co-p));
-}
-.co-carte.co-sortie.co-pleine[data-tiroir] {
-  cursor: pointer;
-}
-.co-carte.co-sortie.co-deborde {
-  gap: var(--co-p);
-  padding: calc(4 * var(--co-p)) calc(5 * var(--co-p)) calc(5 * var(--co-p));
-}
-.co-carte.co-sortie .co-nom,
-.co-carte.co-sortie.co-pleine .co-bande .co-nom {
-  min-height: 0;
-  font-size: max(0.875rem, calc(4.2 * var(--co-p)));
-  line-height: 1.05;
-}
-.co-carte.co-sortie .co-cout {
-  font-size: max(0.75rem, calc(3.2 * var(--co-p)));
-}
-.co-carte.co-sortie .co-bande[data-bord="haut"] {
-  min-height: calc(12 * var(--co-p));
-  gap: calc(1.5 * var(--co-p));
-  padding: calc(0.8 * var(--co-p)) calc(3.5 * var(--co-p));
-}
-.co-carte.co-sortie .co-bande[data-bord="bas"] {
-  flex-direction: row;
-  align-items: center;
-  min-height: calc(10 * var(--co-p));
-  gap: calc(1.5 * var(--co-p));
-  padding: 0 calc(3.5 * var(--co-p));
-}
-.co-carte.co-sortie .co-zone {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-.co-carte.co-sortie .co-tuile {
-  --co-icone-e: 2px;
-}
-.co-titre {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: calc(0.6 * var(--co-p));
-  min-width: 0;
-}
-.co-rar {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: max(0.6875rem, calc(2.4 * var(--co-p)));
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--co-encre);
-}
-.co-force-grande {
-  display: flex;
-  flex: none;
-  align-items: baseline;
-  gap: 0.25rem;
-  color: var(--co-encre);
-}
-.co-force-grande small {
-  font-size: max(0.6875rem, calc(2.2 * var(--co-p)));
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.co-force-grande b {
-  font-size: max(1.25rem, calc(7 * var(--co-p)));
-  font-weight: 800;
-  line-height: 0.9;
-  color: #0a1230;
-}
-.co-role {
-  flex: 1;
-  min-width: 0;
-  font-size: max(0.6875rem, calc(2.6 * var(--co-p)));
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.co-carte.co-sortie .co-mots {
-  grid-column: auto;
-}
-.co-tete-grande {
-  position: relative;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  gap: calc(1.5 * var(--co-p));
-  min-height: calc(9 * var(--co-p));
-  padding: 0 var(--co-p);
-}
-.co-carte.co-sortie .co-fenetre {
-  position: relative;
-  flex: none;
-  height: calc(46 * var(--co-p));
-  border-radius: 0;
-  box-shadow: 0 0 0 var(--co-p) var(--co-filet, #0a1230);
-}
-.co-ligne-grande {
+/* L'état, sous la carte, sur la page : le prix, « À vous », « Porté ». */
+.cc-etat {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 0.25rem 0.5rem;
-  padding: 0 var(--co-p);
-  font-size: max(0.6875rem, calc(2.4 * var(--co-p)));
-  font-weight: 800;
+  min-height: 1.375rem;
+  font-size: 0.75rem;
+  font-weight: 700;
   line-height: 1.2;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--co-encre);
+  color: var(--ecriture);
 }
-.co-ligne-grande .case-rarete {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--co-encre);
-}
-.co-pied-grand {
-  padding: var(--co-p) var(--co-p) 0;
-}
-/* Le bandeau du bas d'une pleine image, quand il ouvre la fiche : un vrai bouton, à l'allure du bandeau. */
-.co-carte.co-pleine button.co-bande-bouton {
-  width: 100%;
-  margin: 0;
-  border-right: 0;
-  border-bottom: 0;
-  border-left: 0;
-  font: inherit;
-  color: inherit;
-  text-align: left;
+/* Dans le défilé des bannières : la carte couchée, posée par l'écran (DefileDeCartes.tsx), une case du dessin pour
+   `--dc-c` pixels. */
+.dc-carte.dc-unique {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(124 * var(--dc-c));
+  aspect-ratio: 124 / 89;
+  transform-origin: 0 0;
   cursor: pointer;
 }
-.co-carte.co-pleine button.co-bande-bouton:focus-visible {
-  outline: 3px solid var(--ecriture);
-  outline-offset: -3px;
+/* Une finition ou un cadre : la carte debout, que la finition couvre toute. */
+.dc-defile:is([data-forme="finition"], [data-forme="cadre"]) .dc-carte.dc-unique {
+  width: calc(105 * var(--dc-fx));
+  aspect-ratio: 70 / 98;
 }
-/* La description d'un Gaulois unique, dans le bandeau du bas, quand le duel n'en dit rien. */
-.co-bande-sous {
-  flex: 1;
-  font-size: max(0.6875rem, calc(2.6 * var(--co-p)));
+/* Sous le défilé, la vraie carte du membre avec la finition ou le cadre du milieu, animée. */
+.dc-sur-ma-carte {
+  --dc-fx: 2px;
+  display: grid;
+  justify-items: start;
+  gap: 0.375rem;
+  margin: 0.75rem 0 0;
+}
+.dc-sur-ma-carte figcaption {
+  font-size: 0.8125rem;
   font-weight: 700;
-  line-height: 1.25;
-  text-align: center;
-  color: var(--co-encre);
+  color: var(--ecriture);
 }
-/* La fiche de la pleine image : elle monte du bas au survol d'une souris, ou par son bouton, qui la garde ouverte. */
-.co-tiroir {
-  position: absolute;
-  right: calc(3 * var(--co-p));
-  bottom: calc(3 * var(--co-p));
-  left: calc(3 * var(--co-p));
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  gap: var(--co-p);
-  max-height: calc(100% - 18 * var(--co-p));
-  padding: calc(1.5 * var(--co-p)) calc(2 * var(--co-p)) calc(2 * var(--co-p));
-  overflow: auto;
-  border-top: var(--co-p) solid var(--co-filet, #0a1230);
-  background: color-mix(in srgb, var(--co-lumiere) 96%, transparent);
-  transform: translateY(calc(100% + 3 * var(--co-p)));
-  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+.dc-carte.dc-unique[aria-selected="true"] {
+  cursor: inherit;
 }
-.co-carte.co-sortie.co-pleine[data-ouverte] .co-tiroir {
-  transform: none;
+.dc-unique .cc-place,
+.vitrine-grand-couchee .cc-place,
+.dc-unique .cc-place[data-grande] {
+  --cc-max: 100%;
 }
-@media (hover: hover) {
-  .co-carte.co-sortie.co-pleine:hover .co-tiroir {
-    transform: none;
-  }
+/* Dans la vitrine, une bannière couchée prend toute la ligne (une seule colonne sur un petit téléphone : rien ne déborde). */
+.vitrine-grand-couchee {
+  grid-column: 1 / -1;
 }
-.co-tiroir:focus-visible {
+/* Une marque d'une case d'avant (« à vous ») écrite sous la carte : à sa place dans la ligne. */
+.cc-etat > .case-marque {
+  position: static;
+}
+/* Dans la vitrine d'un Gaulois, le lien « où le trouver » couvre toute la carte (sa boîte des effets reste au-dessus). */
+.vitrine-grand-carte {
+  display: grid;
+  align-content: start;
+}
+.vitrine-grand-carte:has(.vitrine-grand-lien:focus-visible) .cc-face {
   outline: 3px solid var(--ecriture);
-  outline-offset: -3px;
+  outline-offset: 3px;
 }
-.co-tiroir .co-fiche,
-.co-carte.co-pleine .co-tiroir .co-fiche {
-  padding: 0;
-  background: none;
-  box-shadow: none;
+/* Le survol, le focus, la carte portée ou essayée : un anneau autour de la carte, à la couleur de l'écriture de la page. */
+button.cc-carte:focus-visible {
+  outline: none;
 }
-:root.fx-off .co-carte.co-sortie {
-  transform: none;
-  transition: none;
-  animation: none;
+button.cc-carte:focus-visible .cc-face {
+  outline: 3px solid var(--ecriture);
+  outline-offset: 3px;
 }
-:root.fx-off .co-tiroir {
-  transition: none;
+.cc-carte[data-etat="portee"] .cc-face {
+  outline: 3px solid var(--ecriture);
+  outline-offset: 3px;
 }
-@media (prefers-reduced-motion: reduce) {
-  .co-carte.co-sortie {
-    transform: none;
-    transition: none;
-    animation: none;
+.cc-carte[data-etat="essayee"] .cc-face {
+  outline: 3px dashed var(--ecriture);
+  outline-offset: 3px;
+}
+/* Une grille de cartes : deux de front sur un téléphone, à leur largeur ailleurs. */
+.cases.cc-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, clamp(148px, calc(50% - 5px), 176px));
+  gap: 14px 10px;
+  justify-content: center;
+}
+@media (min-width: 480px) {
+  .cases.cc-grille {
+    gap: 16px 12px;
+    justify-content: start;
   }
-  .co-tiroir {
-    transition: none;
+}
+/* Au vestiaire du jeu, sous 80 rem : la rangée qui défile sous le Gaulois, les cartes à leur largeur ; le doigt qui part
+   vers le haut prend la carte (Essayage.tsx), celui qui part de côté fait défiler. */
+.vestiaire-jeu .vj-cartes .cc-place {
+  flex: none;
+  width: 160px;
+  scroll-snap-align: start;
+}
+.vestiaire-jeu button.cc-carte {
+  touch-action: pan-x;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+}
+@media (min-width: 80rem) {
+  .vestiaire-jeu .vj-cartes .cases.cc-grille {
+    grid-template-columns: repeat(auto-fill, 160px);
+    gap: 16px 12px;
+  }
+  .vestiaire-jeu .vj-cartes .cc-place {
+    width: auto;
+  }
+  .vestiaire-jeu button.cc-carte {
+    touch-action: pan-y;
   }
 }
 
-/* ---------- Les cartes spéciales statères (22 novembre 2026) ---------- */
-/* Dessins de Claude Fable 5.2 (CarteDeStateres.tsx, src/lib/jeu/cartes-de-stateres.ts), options choisies par Claude à la
-   demande du pilote : l'échelle tout en or, les noms des lots. Une case vaut --p pixels entiers ; la carte fait 76 cases de
-   large : 5 de marge, 66 d'image, 5 de marge. La richesse monte par la forme, jamais par la seule couleur. */
-.cs-socle {
-  display: grid;
-  place-items: center;
-}
-.cs-carte {
-  --p: 4px;
-  /* La demi-case des petits dessins (coin, pièce, pions), arrondie au pixel entier : une case reste nette. */
-  --p2: max(1px, round(down, calc(var(--p) / 2), 1px));
-  --cs-blanc: var(--sur-couleur);
-  --haut: #fbf8ef;
-  --bas: #f0e9d6;
-  --bord: #b99a5e;
-  --encre: #5b4416;
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: calc(76 * var(--p));
-  max-width: 100%;
-  padding: calc(5 * var(--p));
-  border-radius: calc(2.5 * var(--p));
-  color: #0a1230;
-  text-align: center;
-  transform: perspective(56rem) rotateX(var(--co-rx, 0deg)) rotateY(var(--co-ry, 0deg));
-  transition: transform 0.35s ease-out;
-}
-.cs-carte[data-tenue] {
-  transition: none;
-}
-.cs-carte[data-carte="pixel"] {
-  border-radius: 0;
-}
-.cs-carte[data-rang="0"] {
-  --haut: #f7f9fe;
-  --bas: #e3e9f7;
-  --bord: #7f8fbd;
-  --encre: #3d4770;
-}
-.cs-carte[data-rang="2"] {
-  --haut: #fffaf0;
-  --bas: #f8e9c2;
-  --bord: #d0a23a;
-}
-.cs-carte[data-rang="3"] {
-  --haut: #fff9e2;
-  --bas: #ffe7a4;
-  --bord: #d9a21b;
-  --encre: #6e4700;
-}
-.cs-carte[data-rang="4"] {
-  --haut: #fffbe8;
-  --bas: #ffe59a;
-  --bord: #d9a21b;
-  --encre: #6e4700;
-}
-.cs-carte[data-rang="5"] {
-  --haut: #fffbe6;
-  --bas: #ffdd80;
-  --bord: #f2b632;
-  --encre: #6e4700;
-}
-.cs-carte[data-rang="6"] {
-  --haut: #fffdf0;
-  --bas: #ffe9a0;
-  --bord: #f2b632;
-  --encre: #6e4700;
-}
-.cs-cadre {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: linear-gradient(170deg, var(--haut), var(--bas));
-  box-shadow:
-    inset 0 0 0 2px var(--bord),
-    inset 0 0 0 4px color-mix(in srgb, var(--cs-blanc) 85%, transparent),
-    0 2px 6px rgb(10 18 48 / 0.18);
-  pointer-events: none;
-}
-.cs-carte[data-rang="2"] > .cs-cadre {
-  box-shadow:
-    inset 0 0 0 2px var(--bord),
-    inset 0 0 0 4px color-mix(in srgb, var(--cs-blanc) 85%, transparent),
-    inset 0 0 0 6px color-mix(in srgb, var(--bord) 55%, transparent),
-    0 2px 6px rgb(10 18 48 / 0.18);
-}
-/* Le rendu : un pointillé d'or, comme le bord d'un reçu. La bourse : un pointillé et quatre coins en cases. */
-.cs-carte[data-rang="0"] > .cs-cadre {
-  outline: 2px dashed #d9a21b;
-  outline-offset: -8px;
-}
-.cs-carte[data-carte="entre"] > .cs-cadre {
-  outline: 2px dotted color-mix(in srgb, var(--bord) 80%, transparent);
-  outline-offset: -8px;
-}
-.cs-coin {
-  position: absolute;
-  z-index: 1;
-  width: calc(11 * var(--p2));
-  height: calc(11 * var(--p2));
-  background: var(--coin) 0 0 / 100% 100% no-repeat;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-.cs-coin[data-coin="hg"] {
-  top: 0;
-  left: 0;
-}
-.cs-coin[data-coin="hd"] {
-  top: 0;
-  right: 0;
-  transform: scaleX(-1);
-}
-.cs-coin[data-coin="bg"] {
-  bottom: 0;
-  left: 0;
-  transform: scaleY(-1);
-}
-.cs-coin[data-coin="bd"] {
-  right: 0;
-  bottom: 0;
-  transform: scale(-1, -1);
-}
-/* Les lots 4 à 6 : le cadre en cases, en neuf parts. */
-.cs-carte[data-carte="pixel"] > .cs-cadre {
-  border: calc(4 * var(--p)) solid transparent;
-  border-image: var(--cadre) 6 / calc(6 * var(--p)) / 0 repeat;
-  background: linear-gradient(170deg, var(--haut), var(--bas)) padding-box;
-  box-shadow: none;
-  filter: drop-shadow(0 var(--p) 0 rgb(10 18 48 / 0.22));
-  image-rendering: pixelated;
-}
-.cs-carte[data-rang="6"] > .cs-cadre {
-  background:
-    var(--etoiles) 0 0 / calc(24 * var(--p)) repeat padding-box,
-    linear-gradient(175deg, #fffdf0, #ffe9a0 60%, #ffd9c2) padding-box;
-}
-.cs-ecusson {
-  position: absolute;
-  left: 50%;
-  z-index: 0;
-  width: calc(var(--ecu-l, 20) * var(--p));
-  height: calc(4 * var(--p));
-  margin-left: calc(var(--ecu-l, 20) * var(--p) / -2);
-  background: var(--ecusson) 0 0 / 100% 100% no-repeat;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-.cs-ecusson[data-bord="haut"] {
-  top: 0;
-}
-.cs-ecusson[data-bord="bas"] {
-  bottom: 0;
-  background-image: var(--ecusson-bas);
-}
-.cs-feuille-cadre {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  padding: calc(4 * var(--p));
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box exclude,
-    linear-gradient(#000 0 0);
-  background: linear-gradient(112deg, transparent 25%, var(--cs-blanc) 45%, #fffbe6 55%, transparent 75%);
-  background-size: 280% 100%;
-  background-position: calc(100% - var(--co-mx) * 100%) 0;
-  mix-blend-mode: overlay;
-  opacity: 0.9;
-  pointer-events: none;
-}
-.cs-carte[data-rang="6"] .cs-feuille-cadre {
-  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, var(--cs-blanc), #c4f9cb, #9cc2ff, var(--cs-blanc), #d8c9ff, #ff8a8f, #ffd84a, var(--cs-blanc), #c4f9cb, #9cc2ff);
-  background-size: 300% 300%;
-  background-position: calc(100% - var(--co-mx) * 100%) calc(100% - var(--co-my) * 100%);
-  opacity: 1;
-}
-.cs-nom {
-  width: 100%;
-  min-height: calc(8 * var(--p));
-  padding-bottom: calc(1.5 * var(--p));
-  font-size: calc(5.25 * var(--p));
-  font-weight: 800;
-  line-height: 1.15;
-  color: #0a1230;
-}
-.cs-scene {
-  position: relative;
-  flex: none;
-  width: calc(66 * var(--p));
-  height: calc(38 * var(--p));
-  overflow: hidden;
-  border-radius: calc(1.5 * var(--p));
-  box-shadow: 0 0 0 1px var(--bord);
-}
-.cs-carte[data-carte="pixel"] .cs-scene {
-  border-radius: 0;
-  box-shadow: 0 0 0 var(--p) var(--filet-cadre, #3a2606);
-}
-.cs-image,
-.cs-chiffres {
-  position: absolute;
-  inset: 0;
-  display: block;
-  background: 0 0 / 100% 100% no-repeat;
-  image-rendering: pixelated;
-}
-.cs-somme {
-  position: relative;
-  margin-top: calc(3 * var(--p));
-  width: calc(var(--l) * var(--p));
-  height: calc(var(--h) * var(--p));
-}
-.cs-mot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: calc(1.5 * var(--p));
-  margin-top: var(--p);
-  font-size: max(11px, calc(3.5 * var(--p)));
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #0a1230;
-}
-.cs-piece,
-.cs-pions,
-.cs-jauge,
-.cs-chiffres-part {
-  display: block;
-  flex: none;
-  background: 0 0 / 100% 100% no-repeat;
-  image-rendering: pixelated;
-}
-.cs-piece {
-  width: calc(12 * var(--p2));
-  height: calc(12 * var(--p2));
-}
-.cs-pied {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: var(--p) calc(2 * var(--p));
-  width: 100%;
-  margin-top: calc(2.5 * var(--p));
-  padding-top: calc(2.5 * var(--p));
-  border-top: max(1px, calc(var(--p) / 2)) dashed color-mix(in srgb, var(--bord) 70%, transparent);
-  font-size: max(11px, calc(3 * var(--p)));
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--encre);
-}
-.cs-pions {
-  width: calc(var(--l, 40) * var(--p2));
-  height: calc(5 * var(--p2));
-}
-.cs-part {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: calc(2 * var(--p));
-  width: 100%;
-}
-.cs-chiffres-part {
-  width: calc(var(--l) * (var(--p) - 1px));
-  height: calc(var(--h) * (var(--p) - 1px));
-}
-.cs-part > span {
-  font-size: max(11px, calc(3.5 * var(--p)));
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: 0.1em;
-  text-align: left;
-  color: #0a1230;
-}
-.cs-jauge {
-  width: calc(49 * var(--p));
-  height: calc(5 * var(--p));
-  margin-top: calc(1.5 * var(--p));
-}
-/* Les reflets : rien au bas de l'échelle, une bande douce à la bourse, une feuille dès le coffret. */
-.cs-reflet,
-.cs-holo,
-.cs-lueur {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.cs-reflet {
-  background: linear-gradient(112deg, transparent 30%, color-mix(in srgb, var(--cs-blanc) 75%, transparent) 47%, rgb(255 236 170 / 0.55) 53%, transparent 70%);
-  background-size: 260% 100%;
-  background-position: calc(100% - var(--co-mx) * 100%) 0;
-  mix-blend-mode: soft-light;
-}
-.cs-holo[data-couche="a"] {
-  -webkit-mask-image: var(--motif);
-  mask-image: var(--motif);
-  -webkit-mask-size: calc(var(--motif-n) * var(--p));
-  mask-size: calc(var(--motif-n) * var(--p));
-  -webkit-mask-repeat: repeat;
-  mask-repeat: repeat;
-  image-rendering: pixelated;
-}
-.cs-lueur {
-  background: radial-gradient(circle at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), color-mix(in srgb, var(--cs-blanc) 40%, transparent), transparent 45%);
-  mix-blend-mode: soft-light;
-}
-.cs-carte[data-rang="4"] .cs-holo[data-couche="a"] {
-  background: linear-gradient(115deg, var(--cs-blanc), #ffe9a0, var(--cs-blanc), #ffd84a, var(--cs-blanc), #ffe9a0, var(--cs-blanc));
-  background-size: 320% 320%;
-  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
-  mix-blend-mode: soft-light;
-  opacity: 0.7;
-}
-.cs-carte[data-rang="4"] .cs-holo[data-couche="b"] {
-  display: none;
-}
-.cs-carte[data-rang="5"] .cs-holo[data-couche="a"] {
-  background: radial-gradient(circle at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), var(--cs-blanc) 0%, #fff6c2 22%, rgb(255 216 74 / 0.55) 45%, rgb(255 216 74 / 0.12) 75%);
-  opacity: 0.55;
-}
-.cs-carte[data-rang="5"] .cs-holo[data-couche="b"] {
-  background: linear-gradient(112deg, transparent 22%, rgb(255 241 168 / 0.9) 40%, color-mix(in srgb, var(--cs-blanc) 95%, transparent) 50%, rgb(255 198 26 / 0.8) 60%, transparent 78%);
-  background-size: 280% 100%;
-  background-position: calc(100% - var(--co-mx) * 100%) 0;
-  mix-blend-mode: soft-light;
-  opacity: 0.4;
-}
-.cs-carte[data-rang="6"] .cs-holo[data-couche="a"] {
-  background: conic-gradient(from calc(var(--co-mx) * 180deg) at calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%), #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f);
-  opacity: 0.42;
-}
-.cs-carte[data-rang="6"] .cs-holo[data-couche="b"] {
-  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #19d3c5, #9cc2ff, #d8c9ff);
-  background-size: 300% 300%;
-  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
-  mix-blend-mode: soft-light;
-  opacity: 0.2;
-}
-.cs-prisme {
-  position: absolute;
-  inset: calc(4 * var(--p));
-  z-index: -1;
-  background: linear-gradient(calc(100deg + var(--co-my) * 40deg), #ff8a8f, #ffd84a, #c4f9cb, #9cc2ff, #d8c9ff, #ff8a8f, #ffd84a, #c4f9cb, #9cc2ff);
-  background-size: 300% 300%;
-  background-position: calc(var(--co-mx) * 100%) calc(var(--co-my) * 100%);
-  mix-blend-mode: soft-light;
-  opacity: 0.55;
-  pointer-events: none;
-}
-.cs-somme-feuille {
-  position: absolute;
-  inset: 0;
-  -webkit-mask: var(--plein) 0 0 / 100% 100% no-repeat;
-  mask: var(--plein) 0 0 / 100% 100% no-repeat;
-  background: linear-gradient(112deg, #ff8a8f, var(--cs-blanc), #9cecff, var(--cs-blanc), #d8c9ff, var(--cs-blanc), #c4f9cb, var(--cs-blanc), #ff8a8f);
-  background-size: 300% 100%;
-  background-position: calc(var(--co-mx) * 100%) 0;
-  mix-blend-mode: soft-light;
-  opacity: 0.9;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-/* Les éclats : des étoiles de cases qui s'allument et s'éteignent lentement, sur les deux plus gros lots. */
-.cs-eclat {
-  position: absolute;
-  width: calc(5 * var(--p));
-  height: calc(5 * var(--p));
-  background: 0 0 / 100% 100% no-repeat;
-  image-rendering: pixelated;
-  opacity: 0;
-  animation: cs-eclat 7s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes cs-eclat {
-  0%,
-  55%,
-  100% {
-    opacity: 0;
-  }
-  25% {
-    opacity: 0.95;
-  }
-}
-.bst-fige .cs-eclat {
+/* La pause, de la page ou de la fenêtre d'un booster (`bst-fige`) : la lumière ne bouge plus (lumiere-des-cartes.ts), le
+   devant s'arrête. Moins d'animations : rien ne penche ni ne glisse, la lumière se pose où elle est. */
+:root.fx-off .cc-devant,
+.bst-fige .cc-devant {
   animation-play-state: paused;
 }
-:root.fx-off .cs-eclat {
-  animation: none;
-  opacity: 0.8;
-}
-:root.fx-off .cs-carte {
-  transform: none;
-  transition: none;
-}
 @media (prefers-reduced-motion: reduce) {
-  .cs-eclat {
-    animation: none;
-    opacity: 0.8;
-  }
-  .cs-carte {
+  .cc-corps,
+  .cc-dessus,
+  .cc-scene,
+  .cc-plan-scene,
+  .cc-chose,
+  .cc-plan-avant,
+  .cc-plan-bande {
     transform: none;
-    transition: none;
   }
-}
-
-/* ---------- La bulle des effets, au survol d'une petite carte ---------- */
-
-.co-bulle-hote {
-  --co-lumiere: var(--sur-couleur);
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 90;
-  width: min(17rem, calc(100vw - 1rem));
-  pointer-events: none;
-}
-.co-bulle {
-  display: grid;
-  gap: 0.375rem;
-  padding: 0.625rem;
-  border-radius: 0.625rem;
-  background: linear-gradient(170deg, var(--co-haut), var(--co-bas));
-  box-shadow:
-    0 0 0 2px var(--co-bord),
-    0 0.5rem 1.5rem rgb(10 18 48 / 0.3);
-  color: #0a1230;
-}
-.co-bulle-nom {
-  font-size: 0.9375rem;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-/* ---------- La pause et « réduire les animations » : plus rien ne bouge, le reflet reste posé ---------- */
-
-:root.fx-off .co-carte.co-grande {
-  transform: none;
-  transition: none;
-  animation: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .co-carte.co-grande {
-    transform: none;
-    transition: none;
+  .cc-devant {
     animation: none;
+  }
+  .cc-effets {
+    transition: none;
   }
 }
 
@@ -1494,12 +877,10 @@
   --dc-c: 2px;
   --dc-fx: 2px;
   --dc-ecart: 10px;
-  --co-p: 2px;
 }
 @container (min-width: 34rem) {
   .dc-bande {
     --dc-c: 3px;
-    --co-p: 3px;
     --dc-ecart: 20px;
   }
 }
@@ -1616,175 +997,17 @@
   color: color-mix(in srgb, var(--ecriture) 70%, transparent);
 }
 
-/* La carte : celle des cosmétiques (co-carte), en grand, posée par l'écran. */
-.co-carte.dc-carte {
-  position: absolute;
-  top: 0;
-  left: 0;
-  isolation: isolate;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  border-radius: 0.75rem;
-  color: #0a1230;
-  transform-origin: 0 0;
-  cursor: pointer;
-}
-.co-carte.dc-carte[aria-selected="true"] {
-  cursor: inherit;
-}
-.co-carte.dc-carte[data-carte="pixel"] {
-  padding: calc(5 * var(--co-p) + 2px);
-  border-radius: 0;
-}
 .dc-piste:focus-visible .dc-carte[aria-selected="true"] {
   outline: 3px solid var(--color-blue-text, #2148b8);
   outline-offset: 4px;
 }
-/* La lumière holographique sur le cadre seul : rien ne voile l'image. Au repos, elle passe lentement sur la carte du milieu. */
-.co-carte.dc-carte[data-carte="pixel"][aria-selected="true"] {
-  animation: co-balayage 11s ease-in-out infinite alternate;
-}
-/* La largeur d'une carte est celle de son image : la tête et le pied s'y plient (width 0, min-width 100 %), sinon une
-   marque « Sur /gaulois » élargirait la carte du milieu, et le défilé, qui mesure une carte, la poserait de travers. */
-.dc-tete,
-.dc-pied {
-  width: 0;
-  min-width: 100%;
-}
-.dc-tete {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-height: 2.125rem;
-  padding: 0 2px;
-}
-.dc-tete .co-nom {
-  min-height: 0;
-  font-size: 1.0625rem;
-  line-height: 1.15;
-  text-align: left;
-  text-wrap: balance;
-  overflow-wrap: anywhere;
-}
-.dc-marque {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.1875rem 0.5rem 0.1875rem 0.375rem;
-  border-radius: 999px;
-  background: #0a1230;
-  color: var(--co-lumiere);
-  font-size: 0.6875rem;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.dc-carte[data-carte="pixel"] .dc-marque {
-  border-radius: 0;
-}
-.dc-coche {
-  flex: none;
-  width: 0.75rem;
-  height: 0.75rem;
-}
-.dc-image {
-  position: relative;
-  display: block;
-  flex: none;
-  overflow: hidden;
-  border-radius: 0.375rem;
-  box-shadow: 0 0 0 1px var(--co-bord);
-}
-.dc-carte[data-carte="pixel"] .dc-image {
-  border-radius: 0;
-  box-shadow: 0 0 0 var(--co-p) var(--co-filet, #0a1230);
-}
-.dc-image :is(img, canvas) {
-  display: block;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-/* Une bannière : l'image entière, une case du dessin pour un nombre entier de pixels. */
-.dc-defile[data-forme="banniere"] .dc-image {
-  width: calc(124 * var(--dc-c));
-  height: calc(80 * var(--dc-c));
-}
-.dc-defile[data-forme="banniere"] .dc-image img {
-  width: 100%;
-  height: 100%;
-}
-/* Une finition ou un cadre : la vraie carte du membre, posée sur une table marine (elle fait lire les lumières des cadres). */
-.dc-defile:is([data-forme="finition"], [data-forme="cadre"]) .dc-image {
-  display: grid;
-  place-items: center;
-  background: radial-gradient(110% 80% at 50% 38%, #22357e, #0a1230 72%);
-}
-.dc-defile[data-forme="finition"] .dc-image {
-  width: calc(112 * var(--dc-fx));
-  height: calc(176 * var(--dc-fx));
-}
-.dc-defile[data-forme="cadre"] .dc-image {
-  width: calc(144 * var(--dc-fx));
-  height: calc(208 * var(--dc-fx));
-}
-.dc-pied {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-height: 1.75rem;
-  padding: 0 2px;
-}
-.dc-rarete {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3125rem;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--co-encre);
-}
+/* Le prix d'une carte du défilé, à son pied. */
 .dc-prix {
-  font-size: 0.9375rem;
-  font-weight: 800;
   white-space: nowrap;
 }
-.dc-mot {
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--co-encre);
-}
-@container (max-width: 33.99rem) {
-  .dc-tete .co-nom {
-    font-size: 0.9375rem;
-  }
-  .dc-rarete,
-  .dc-mot {
-    font-size: 0.6875rem;
-  }
-  .dc-prix {
-    font-size: 0.875rem;
-  }
-}
-:root.fx-off .co-carte.dc-carte[aria-selected="true"] {
-  animation: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .co-carte.dc-carte[aria-selected="true"] {
-    animation: none;
-  }
-}
 
-/* La carte du membre dans le défilé : celle de l'accueil (04-poste.css), deux cases de la carte par case de l'image, sans
-   flotter ; avec un cadre, la toile du cadre la déborde de douze cases de chaque côté. Les voisines sont en image fixe. */
+/* La carte du membre sous le défilé (« Sur ma carte ») : celle de l'accueil (04-poste.css), deux cases de la carte par case
+   de l'image, sans flotter ; avec un cadre, la toile du cadre la déborde de douze cases de chaque côté. */
 .dc-membre {
   --px: calc(var(--dc-fx) * 2);
 }
@@ -1798,21 +1021,6 @@
 .dc-membre .podium-carte {
   box-shadow: none;
 }
-.dc-image .dc-membre-fixe {
-  width: calc(96 * var(--dc-fx));
-  height: calc(160 * var(--dc-fx));
-  border-radius: calc(5 * var(--dc-fx));
-}
-.dc-image .dc-cadre-fixe {
-  width: calc(144 * var(--dc-fx));
-  height: calc(208 * var(--dc-fx));
-}
-/* La scène d'une bannière essayée : le Gaulois du membre devant elle, à la taille de la bannière. */
-.dc-image > .dc-scene {
-  width: 100%;
-  height: 100%;
-}
-
 /* Sous la bande : la fiche de la carte du milieu et ce qu'on en fait. */
 /* La bande remplace la vitrine d'avant : pas de second cadre autour d'elle. */
 .banniere-vitrine.dc-vitrine {
@@ -1867,399 +1075,4 @@
 }
 .dc-apercus {
   margin-top: 1.5rem;
-}
-
-/* ---------- La carte de poche (22 novembre 2026) ---------- */
-/* Demande du pilote : « le même affichage pour la boutique et les vestiaires : des véritables cartes avec les infos
-   dessus », dessin de Claude Fable 5.2 (CarteDePoche.tsx) : la grande carte en plus serré, 80 cases de 2 pixels, les effets
-   du duel écrits à 11 pixels au moins. Deux cartes de front sur un téléphone, quatre dans le panneau de la boutique. Le
-   bouton de la carte reste `button.case` (le glisser du vestiaire le prend) ; le pli et le dos sont à côté de lui. */
-.cases.co-grille {
-  --co-carte-l: 160px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, clamp(152px, calc(50% - 4px), var(--co-carte-l)));
-  gap: 8px;
-  justify-content: center;
-}
-@media (min-width: 480px) {
-  .cases.co-grille {
-    gap: 12px;
-    justify-content: start;
-  }
-}
-.co-emplacement {
-  /* Le blanc des cartes, pour le pli et le dos, voisins du bouton de la carte. */
-  --co-lumiere: var(--sur-couleur);
-  position: relative;
-  display: flex;
-  min-width: 0;
-}
-/* Au vestiaire du jeu, sous 80 rem : la rangée qui défile sous le Gaulois garde sa place, les cartes à leur largeur. */
-.vestiaire-jeu .vj-cartes .co-emplacement {
-  flex: none;
-  width: 160px;
-  scroll-snap-align: start;
-}
-@media (min-width: 80rem) {
-  .vestiaire-jeu .vj-cartes .cases.co-grille {
-    grid-template-columns: repeat(auto-fill, 160px);
-    gap: 12px;
-  }
-  .vestiaire-jeu .vj-cartes .co-emplacement {
-    width: auto;
-  }
-}
-
-.co-carte.case-carte.co-poche {
-  --co-pad: 8px;
-  width: 100%;
-  min-width: 0;
-  gap: 4px;
-  font-size: 11px;
-  line-height: 14px;
-  text-align: left;
-}
-.co-carte.case-carte.co-poche[data-carte="pixel"] {
-  --co-pad: calc(5 * var(--co-p));
-}
-.co-carte.co-poche .case-image {
-  height: 72px;
-}
-
-/* La tête : le prix en énergie, le nom, la force. */
-.co-tete {
-  position: relative;
-  z-index: 4;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px;
-  min-height: 30px;
-}
-.co-carte.co-poche .co-tete .co-nom {
-  grid-column: 2;
-  min-height: 0;
-  font-size: 12px;
-  line-height: 14px;
-  text-align: center;
-  overflow-wrap: break-word;
-  hyphens: auto;
-}
-.co-tete > * {
-  grid-row: 1;
-}
-.co-tete .co-cout {
-  grid-column: 1;
-}
-.co-force-poche {
-  display: inline-flex;
-  grid-column: 3;
-  align-items: center;
-  gap: 3px;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-/* La rareté et le repos. */
-.co-rang {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0 4px;
-  min-height: 14px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 14px;
-}
-.co-carte.case-carte.co-poche .co-rang .case-rarete {
-  justify-content: flex-start;
-  font-size: 11px;
-}
-.co-repos {
-  font-weight: 700;
-  color: var(--co-encre);
-}
-
-/* Les effets écrits : cinq lignes ; une ligne entière ou rien, le reste est au dos. */
-.co-texte {
-  display: flex;
-  flex-flow: column wrap;
-  align-content: flex-start;
-  gap: 2px 0;
-  height: 74px;
-  overflow: hidden;
-  font-size: 11px;
-  line-height: 14px;
-  letter-spacing: -0.005em;
-}
-.co-texte[data-court] {
-  height: auto;
-}
-.co-texte > * {
-  flex: none;
-  width: 100%;
-}
-.co-effet {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-}
-.co-effet > .co-tuile {
-  margin-top: 1px;
-}
-.co-effet > span {
-  min-width: 0;
-  hyphens: auto;
-}
-.co-effet b,
-.co-unique-poche b {
-  font-weight: 800;
-}
-.co-unique-poche {
-  padding: 0 5px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, #fff1a8, #ffe07a 60%, #fff1a8);
-  box-shadow: inset 0 0 0 1px #d9a21b;
-  color: #3a2606;
-}
-.co-carte[data-carte="pixel"] .co-unique-poche {
-  border-radius: 0;
-}
-.co-unique-poche small {
-  font-size: 11px;
-  font-weight: 700;
-  color: #6e4700;
-}
-
-/* La panoplie, et l'état en bas : le prix, « À vous », « Porté » ; à droite, la place du pli. */
-.co-pied-poche {
-  min-height: 18px;
-  padding-top: 3px;
-  border-top: 1px dashed var(--co-bord);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 14px;
-  color: var(--co-encre);
-}
-.co-etat {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 4px;
-  min-height: 24px;
-  margin-top: auto;
-  padding-right: 80px;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 14px;
-}
-.co-etat[data-seul] {
-  justify-content: center;
-  padding-right: 0;
-}
-.co-carte.case-carte.co-poche .co-etat :is(.case-prix, .case-revient) {
-  align-self: center;
-}
-.co-avous {
-  padding: 3px 7px;
-  border-radius: 4px;
-  background: #0a1230;
-  color: var(--co-lumiere);
-  font-size: 11px;
-}
-.co-porte {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 800;
-}
-.co-porte .co-coche {
-  display: inline-block;
-  flex: none;
-  width: 18px;
-  height: 18px;
-  background-size: 12px;
-  box-shadow: none;
-}
-
-/* Le pli : à côté du bouton de la carte dans le code, posé sur son coin. */
-.co-pli {
-  position: absolute;
-  right: var(--co-pli-d, 8px);
-  bottom: var(--co-pli-b, 8px);
-  z-index: 7;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  min-width: 24px;
-  margin: 0;
-  padding: 0 7px 0 8px;
-  border: 1px solid #0a1230;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--co-lumiere) 96%, #0a1230);
-  color: #0a1230;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1;
-  cursor: pointer;
-}
-.co-pli::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  margin-top: -3px;
-  border: solid #0a1230;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-  transition: transform 0.18s ease;
-}
-.co-pli[aria-expanded="true"]::after {
-  margin-top: 3px;
-  transform: rotate(-135deg);
-}
-.co-pli:hover {
-  background: #e8edf9;
-}
-.co-pli:focus-visible {
-  outline: 3px solid #0a1230;
-  outline-offset: 2px;
-  box-shadow: 0 0 0 2px var(--co-lumiere);
-}
-.co-emplacement[data-carte="pixel"] {
-  --co-pli-d: 10px;
-  --co-pli-b: 10px;
-}
-.co-emplacement[data-carte="pixel"] > .co-pli {
-  border-radius: 0;
-}
-.co-emplacement[data-facon="pleine"] {
-  --co-pli-d: 11px;
-  --co-pli-b: 12px;
-}
-
-/* Le dos : toute la fiche, sur le papier de la carte, dans son cadre. Il prend les jetons clairs, comme la carte. */
-.co-dos {
-  --ecriture: #0a1230;
-  --color-navy: #ffffff;
-  --color-muted: #4a5677;
-  position: absolute;
-  inset: var(--co-dos-m, 4px);
-  z-index: 6;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 6px 7px 34px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border-radius: 7px;
-  background: linear-gradient(170deg, var(--co-haut), var(--co-bas));
-  color: #0a1230;
-  font-size: 11px;
-  line-height: 13.5px;
-  text-align: left;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(6px);
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease,
-    visibility 0s 0.18s;
-}
-.co-emplacement[data-ouvert] > .co-dos {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-  transition-delay: 0s;
-}
-.co-emplacement[data-carte="pixel"] > .co-dos {
-  --co-dos-m: 8px;
-  border-radius: 0;
-}
-.co-emplacement[data-facon="pleine"] > .co-dos {
-  --co-dos-m: 6px;
-}
-.co-dos:focus-visible {
-  outline: 2px solid #0a1230;
-  outline-offset: -2px;
-}
-.co-dos-nom {
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 14px;
-}
-.co-dos-nom small {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--co-encre);
-}
-.co-dos .co-fiche {
-  gap: 5px;
-  padding: 0;
-  background: none;
-  box-shadow: none;
-  font-size: 11px;
-  line-height: 13.5px;
-}
-.co-dos .co-unique strong {
-  font-size: 12px;
-}
-.co-dos-pied {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 3px;
-  font-weight: 700;
-  color: var(--co-encre);
-}
-:root.fx-off .co-dos {
-  transition: none;
-  transform: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .co-dos,
-  .co-pli::after {
-    transition: none;
-  }
-  .co-dos {
-    transform: none;
-  }
-}
-
-/* La pleine image de poche (légendaire, saison, divin) : la tête dans le bandeau du haut, le reste dans celui du bas. */
-.co-carte.co-pleine.co-poche .co-bande[data-bord="haut"] {
-  min-height: 34px;
-  padding: 2px calc(3.5 * var(--co-p));
-}
-.co-carte.co-pleine.co-poche .co-bande[data-bord="bas"] {
-  gap: 4px;
-  padding: 4px calc(3.5 * var(--co-p)) 6px;
-  background: color-mix(in srgb, var(--co-lumiere) 92%, transparent);
-}
-.co-carte.co-pleine.co-poche .co-bande .co-tete {
-  flex: 1;
-}
-.co-carte.co-pleine.co-poche .co-bande .co-tete .co-nom {
-  flex: none;
-  text-align: center;
-}
-.co-carte.case-carte.co-pleine.co-poche .case-image.co-zone {
-  min-height: 76px;
-}
-/* Le débordement de poche (mystique) : la tête au-dessus de la chose qui sort, son nom et sa force cernés de clair. */
-.co-carte.co-deborde.co-poche .co-tete {
-  z-index: 4;
-}
-.co-carte.co-deborde.co-poche .co-force-poche b {
-  text-shadow:
-    1.5px 0 var(--co-lumiere),
-    -1.5px 0 var(--co-lumiere),
-    0 1.5px var(--co-lumiere),
-    0 -1.5px var(--co-lumiere);
 }

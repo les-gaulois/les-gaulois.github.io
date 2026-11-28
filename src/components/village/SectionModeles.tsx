@@ -16,7 +16,8 @@ import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster
 import type { EtatDesModeles } from "./Modeles";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 import { CarteDeStateres } from "./CarteDeStateres";
-import { CarteDeSortie } from "./CarteDeSortie";
+import { CarteDeCosmetique } from "./CarteDeCosmetique";
+import { carteDuModele } from "./cartes-des-choses";
 
 /**
  * Les Gaulois uniques sur « La boutique » (15 novembre 2026, demande du pilote : « mets-les en pochette dédiée et en
@@ -87,31 +88,39 @@ function RendusDeLAlbum({ chance, paliers }: { chance: number; paliers: readonly
 }
 
 /**
- * Une case de la vitrine : le modèle seul, son nom, sa rareté, puis son prix, « à vous » ou « porté ». Un bouton : il
- * l'essaie sur le Gaulois du membre. Celui qu'on porte ne s'essaie pas : sa case arrête l'essayage en cours.
+ * Une case de la vitrine : la carte du Gaulois unique (modèle unique des cosmétiques, 28 novembre 2026 : son corps seul),
+ * puis son prix, « À vous » ou « Porté ». Un bouton : il l'essaie sur le Gaulois du membre. Celui qu'on porte ne s'essaie
+ * pas : sa carte arrête l'essayage en cours.
  */
 function CaseDeModele({ modele, etat, prix, essaye, onClick }: { modele: ModeleRange; etat: EtatDuModele; prix: number; essaye: boolean; onClick: () => void }) {
-  const nu = nuDe(modele.id);
   return (
     <li>
-      <button type="button" class="uniques-case" data-rarete={modele.rarete} data-etat={essaye ? "essaye" : etat} aria-pressed={essaye || etat === "porte"} onClick={onClick} data-testid="uniques-case" data-modele={modele.id}>
-        <span class="uniques-case-image">{nu && <Dessin dessin={nu} />}</span>
-        <span class="uniques-case-nom">{modele.nom}</span>
-        <MarqueDeRarete rarete={modele.rarete} />
-        <span class="sr-only">, </span>
-        {etat === "a-obtenir" ? (
-          <Prix montant={prix} class="case-prix" />
-        ) : (
-          <span class="uniques-etat" data-etat={etat}>
-            {etat === "porte" ? "porté" : "à vous"}
-          </span>
-        )}
-        {essaye && (
-          <span class="case-essai">
-            <span class="sr-only">, en </span>essai
-          </span>
-        )}
-      </button>
+      <CarteDeCosmetique
+        {...carteDuModele(modele)}
+        bouton={{ "data-etat": essaye ? "essayee" : etat === "porte" ? "portee" : "libre", "aria-pressed": essaye || etat === "porte", onClick, "data-testid": "uniques-case", "data-modele": modele.id }}
+        marques={
+          essaye ? (
+            <span class="case-essai">
+              <span class="sr-only">, en </span>essai
+            </span>
+          ) : etat === "porte" ? (
+            <span class="cc-coche" aria-hidden="true" />
+          ) : null
+        }
+        etat={
+          etat === "a-obtenir" ? (
+            <>
+              <span class="sr-only">, </span>
+              <Prix montant={prix} class="case-prix" />
+            </>
+          ) : (
+            <span class="uniques-etat" data-etat={etat}>
+              <span class="sr-only">, </span>
+              {etat === "porte" ? "Porté" : "À vous"}
+            </span>
+          )
+        }
+      />
     </li>
   );
 }
@@ -320,7 +329,7 @@ export function DialogueAchatModele({ modele, prix, solde, tenue, acheter, onPor
  * Dessous, le modèle en grand sur le Gaulois du membre avec « Le porter », ou ce qui est rendu, sa part du prix et la
  * bourse. Si le serveur refuse, le compte de l'ouverture s'efface : il ne reste que les mots du refus et « Fermer ».
  */
-export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer }: { mes: MesModeles; solde: number; tenue: Tenue; ouvrir: (prixVu: number) => Promise<Issue<PochetteModelesReponse>>; onPorter: (id: string) => void; onFermer: () => void }) {
+export function DialogueModeles({ mes, solde, ouvrir, onPorter, onFermer }: { mes: MesModeles; solde: number; tenue: Tenue; ouvrir: (prixVu: number) => Promise<Issue<PochetteModelesReponse>>; onPorter: (id: string) => void; onFermer: () => void }) {
   const [etape, setEtape] = useState<"confirmer" | "envoi" | "ouvre" | "revele">("confirmer");
   const [refus, setRefus] = useState<string | null>(null);
   const [tirage, setTirage] = useState<PochetteModelesReponse | null>(null);
@@ -351,8 +360,6 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
     }
   };
   const recu = tirage?.modele ? modeleParId(tirage.modele.modele) : null;
-  // Le Gaulois du membre dans son nouveau corps, pour la grande carte : calculé une fois.
-  const apercuRecu = useMemo(() => (recu ? apercuDuModele(tenue, recu.id) : null), [tenue, recu]);
   const rendu = tirage?.remboursement ?? null;
   const sorti = recu !== null || rendu !== null;
   const ouverte = (etape === "ouvre" || etape === "revele") && sorti && carte !== null;
@@ -383,15 +390,7 @@ export function DialogueModeles({ mes, solde, tenue, ouvrir, onPorter, onFermer 
           revelee={revele}
           onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
           carteFinale={
-            <CarteDeSortie
-              objet={{ nom: recu.nom, dessin: null, couleurs: {}, rarete: recu.rarete, gratuit: false }}
-              rarete={recu.rarete}
-              vignette={apercuRecu}
-              fond={cleDuModele(recu.id)}
-              pose="bas"
-              sous={`Votre Gaulois en ${decrireLeModele(recu.id)}. ${recu.description}`}
-              testid="uniques-tirage"
-            />
+            <CarteDeCosmetique {...carteDuModele(recu)} grande testid="uniques-tirage" />
           }
         >
           {/* La carte montre votre Gaulois dans son nouveau corps, son nom et sa rareté : dessous, la bourse et les boutons. */}

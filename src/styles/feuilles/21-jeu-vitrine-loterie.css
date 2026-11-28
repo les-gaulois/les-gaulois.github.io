@@ -63,7 +63,7 @@
 /* ---------- Les cartes claires au cadre de leur rareté : la tuile du vestiaire ---------- */
 
 /* Claires dans les deux thèmes : les jetons du thème clair, posés sur la carte (le pilote n'aime pas les cartes sombres). */
-.vitrine-jeu :is(.vitrine-carte, .vitrine-grand-case),
+.vitrine-jeu :is(.vitrine-carte),
 .vitrine-publique .vitrine-publique-case {
   --vjl-cadre: var(--jeu-v-tuile-aucune);
   --vjl-teinte: #7a88b4;
@@ -326,22 +326,6 @@
   grid-template-columns: repeat(auto-fill, minmax(calc(52 * var(--jeu-p)), 1fr));
   gap: calc(5 * var(--jeu-p));
 }
-.vitrine-jeu .vitrine-grand-case.case-montree {
-  grid-template-rows: auto 5rem auto;
-  padding: calc(3 * var(--jeu-p)) calc(2 * var(--jeu-p)) calc(3 * var(--jeu-p));
-  cursor: default;
-  transition: translate 0.14s steps(3);
-}
-.vitrine-jeu .vitrine-grand-case .case-image {
-  height: 5rem;
-}
-.vitrine-jeu .vitrine-grand-partie {
-  font-size: 0.625rem;
-  color: var(--color-muted);
-}
-.vitrine-jeu .vitrine-grand-banniere {
-  border-radius: 0;
-}
 /* « Où trouver cet objet » : une petite plaque, sans arrondi. */
 .vitrine-jeu .vitrine-grand-ou {
   margin-top: calc(1 * var(--jeu-p));
@@ -353,18 +337,6 @@
 .vitrine-jeu .vitrine-grand-lien::after {
   inset: calc(-2 * var(--jeu-p)) calc(-2 * var(--jeu-p)) calc(-5 * var(--jeu-p));
   border-radius: 0;
-}
-.vitrine-jeu .vitrine-grand-case[data-lien] {
-  cursor: pointer;
-}
-.vitrine-jeu .vitrine-grand-case[data-lien]:hover,
-.vitrine-jeu .vitrine-grand-case[data-lien]:focus-within {
-  translate: 0 calc(-1 * var(--jeu-p));
-  box-shadow: none;
-}
-.vitrine-jeu .vitrine-grand-case:has(.vitrine-grand-lien:focus-visible) {
-  outline: var(--jeu-p) solid var(--jeu-or-focus);
-  outline-offset: var(--jeu-p);
 }
 .vitrine-jeu-grand-actions {
   justify-content: center;
@@ -1262,7 +1234,7 @@ button.loterie-jeu-case:disabled .loterie-jeu-mini {
 
 /* ---------- La pause et « réduire les animations » : plus rien ne bouge ---------- */
 
-:root.fx-off :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .vitrine-grand-case, .loterie-jeu-mini, .loterie-jeu-du-jour-image, .demo-jeu-paquet-image, .vitrine-publique-case) {
+:root.fx-off :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .loterie-jeu-mini, .loterie-jeu-du-jour-image, .demo-jeu-paquet-image, .vitrine-publique-case) {
   animation: none;
   transition: none;
   translate: none;
@@ -1273,7 +1245,7 @@ button.loterie-jeu-case:disabled .loterie-jeu-mini {
   animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .vitrine-grand-case, .loterie-jeu-mini, .loterie-jeu-du-jour-image, .demo-jeu-paquet-image, .vitrine-publique-case) {
+  :is(.vitrine-jeu, .loterie-jeu, .demo-jeu, .vitrine-publique) :is(.vitrine-carte, .loterie-jeu-mini, .loterie-jeu-du-jour-image, .demo-jeu-paquet-image, .vitrine-publique-case) {
     animation: none;
     transition: none;
     translate: none;

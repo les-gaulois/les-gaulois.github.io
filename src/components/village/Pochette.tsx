@@ -11,7 +11,7 @@ import type { Issue } from "./BoutiqueDialogue";
 import { feterLObjet } from "./Cases";
 import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
-import { CarteDeSortie } from "./CarteDeSortie";
+import { CarteDeCosmetique } from "./CarteDeCosmetique";
 
 /**
  * Le booster surprise, sous l'étal (fiche du kit, `FicheDuBooster`) : son paquet, qui ouvre l'album des objets qu'il peut
@@ -113,7 +113,7 @@ export function DialoguePochette({
           carte={carte}
           revelee={etape === "revele"}
           onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
-          carteFinale={<CarteDeSortie objet={objet} rarete={tire.rarete} vignette={vignetteDe(tire)} fond={cleDeLObjet(tire.emplacement, tire.objet)} testid="pochette-tirage" />}
+          carteFinale={<CarteDeCosmetique nom={objet.nom} rarete={tire.rarete} dessin={vignetteDe(tire)} cle={cleDeLObjet(tire.emplacement, tire.objet)} grande testid="pochette-tirage" />}
         >
           {/* La carte dit tout (nom, rareté, effets) : dessous, la bourse et les boutons seulement. */}
           <span hidden data-objet={`${tire.emplacement}/${tire.objet}`} />

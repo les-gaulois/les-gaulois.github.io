@@ -4,7 +4,7 @@ import { carteDeRarete, type CarteDeScene } from "../../lib/jeu/boosters";
 import { tirageDEssai } from "../../lib/village/demo-booster";
 import { cleDeLObjet } from "../../lib/village/fonds-objets";
 import { Px } from "../jeu/Pixels";
-import { CaseMontree } from "../village/BoutiqueDialogue";
+import { CarteDeCosmetique } from "../village/CarteDeCosmetique";
 import { BoutonDesBoosters, FenetreDuBooster } from "../village/KitDesBoosters";
 import { OuvertureDuBooster } from "../village/OuvertureDuBooster";
 
@@ -42,11 +42,11 @@ export function FenetreDEssai({ village, onEncore, onFermer }: { village: string
         revelee={revelee}
         onRevelee={() => setRevelee(true)}
         carteFinale={
-          <CaseMontree
-            objet={OBJETS[essai.emplacement][essai.objet] ?? { nom: essai.nom, dessin: null, couleurs: {}, rarete: essai.rarete, gratuit: false }}
+          <CarteDeCosmetique
+            nom={OBJETS[essai.emplacement][essai.objet]?.nom ?? essai.nom}
             rarete={essai.rarete}
-            vignette={vignetteDeLObjet(essai.emplacement, essai.objet)}
-            fond={cleDeLObjet(essai.emplacement, essai.objet)}
+            dessin={vignetteDeLObjet(essai.emplacement, essai.objet)}
+            cle={cleDeLObjet(essai.emplacement, essai.objet)}
             grande
             testid="home-tirage"
           />

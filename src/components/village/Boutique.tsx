@@ -1331,7 +1331,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               {rayonObjets && enRayon.length > 0 && (
                 <div class="vestiaire-rayon">
                   <SousTitre t={tournante ? "En rayon cette semaine" : "Boutique du clan"} id="boutique-du-clan" icone={tournante ? "action-selection" : "boutique"} />
-                  <div class="cases co-grille" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-du-clan`} data-testid="boutique-cases">
+                  <div class="cases cc-grille" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-du-clan`} data-testid="boutique-cases">
                     {enRayon.map(([id, objet]) => {
                       const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
                       return (
@@ -1355,7 +1355,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
               {rayonObjets && horsRayon.length > 0 && (
                 <div class="vestiaire-rayon boutique-jeu-hors-rayon">
                   <SousTitre t="Pas en rayon cette semaine" id="boutique-hors-rayon" />
-                  <div class="cases co-grille" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-hors-rayon`} data-testid="boutique-hors-rayon">
+                  <div class="cases cc-grille" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-hors-rayon`} data-testid="boutique-hors-rayon">
                     {horsRayon.map(([id, objet]) => {
                       const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
                       const retour = retourDe(tournante, { emplacement: rayonObjets, objet: id });
@@ -1766,7 +1766,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 <h4 id="boutique-du-clan" class="vestiaire-boutique">
                   {tournante ? "En rayon cette semaine" : "Boutique du clan"}
                 </h4>
-                <div class="cases co-grille" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-du-clan`} data-testid="boutique-cases">
+                <div class="cases cc-grille" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-du-clan`} data-testid="boutique-cases">
                   {enRayon.map(([id, objet]) => {
                     const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
                     return (
@@ -1791,7 +1791,7 @@ export default function Boutique({ pochettes = false }: { pochettes?: boolean })
                 <h4 id="boutique-hors-rayon" class="vestiaire-boutique">
                   Pas en rayon cette semaine
                 </h4>
-                <div class="cases co-grille" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-hors-rayon`} data-testid="boutique-hors-rayon">
+                <div class="cases cc-grille" role="group" aria-labelledby={`boutique-rayon-${rayon} boutique-hors-rayon`} data-testid="boutique-hors-rayon">
                   {horsRayon.map(([id, objet]) => {
                     const essayee = essai?.source === "boutique" && essai.emplacement === rayonObjets && essai.objet === id;
                     const retour = retourDe(tournante, { emplacement: rayonObjets, objet: id });

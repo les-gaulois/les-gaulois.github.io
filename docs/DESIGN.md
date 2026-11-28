@@ -44,7 +44,7 @@ Ce document est découpé en parties depuis le 26 novembre 2026, pour qu'une ses
   - [La vitrine, la loterie et la démo des visiteurs (21 novembre 2026)](design/38-la-vitrine-la-loterie-et-la-demo-des-visiteurs-21-novembre-2.md)
   - [Le pass et la forge du jeu (21 novembre 2026)](design/39-le-pass-et-la-forge-du-jeu-21-novembre-2026.md)
   - [Les fonds d'objets (22 novembre 2026)](design/40-les-fonds-d-objets-22-novembre-2026.md)
-  - [Les cartes des cosmétiques (22 novembre 2026)](design/41-les-cartes-des-cosmetiques-22-novembre-2026.md)
+  - [Les cartes des cosmétiques : un seul modèle (28 novembre 2026)](design/41-les-cartes-des-cosmetiques-22-novembre-2026.md)
   - [Le duel « Coup pour coup » (22 novembre 2026)](design/42-le-duel-coup-pour-coup-22-novembre-2026.md)
   - [Les salles du duel (22 novembre 2026)](design/43-les-salles-du-duel-22-novembre-2026.md)
   - [Le tableau des duellistes (22 novembre 2026)](design/44-le-tableau-des-duellistes-22-novembre-2026.md)

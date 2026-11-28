@@ -2,12 +2,10 @@ import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { motionAllowed } from "../../lib/fx/motion";
 import { RARETES, type Rarete } from "../../lib/gaulois";
-import { styleDeCarte } from "../../lib/jeu/cartes-d-objets";
 import { jouer, type NomDeSon } from "../../lib/jeu/sons";
 import { nombre } from "../../lib/village/ecran-boutique";
 import { ancresDuDefile, arretDuGlissement, pasDuRessort, placeDansLeDefile, posDuGlissement, sensDuGeste, toucheDuDefile, type MesuresDuDefile } from "../../lib/village/defile";
 import { Prix } from "./BoutiquePixels";
-import { HabitDeCarte, variablesDeLaCarte } from "./CarteDObjet";
 import { IconeDeRarete } from "./IconeDeRarete";
 
 /**
@@ -60,13 +58,28 @@ function motsDeLaCarte(c: CarteDuDefile): string {
   return [c.nom, RARETES[c.rarete].nom.toLowerCase(), pied.toLowerCase(), c.marque?.toLowerCase()].filter(Boolean).join(", ");
 }
 
+/**
+ * Le pied d'une carte du défilé posée dans la carte des cosmétiques (`carte`) : sa rareté, sa marque (« Sur ma carte »), son
+ * prix ou ce qu'elle est pour le compte (« À vous »).
+ */
+export function piedDuDefile(c: CarteDuDefile): readonly [ComponentChildren, ComponentChildren, ComponentChildren] {
+  return [
+    <>
+      <IconeDeRarete rarete={c.rarete} />
+      {RARETES[c.rarete].nom}
+    </>,
+    c.marque ?? "",
+    c.prix !== null ? <Prix montant={c.prix} class="dc-prix" /> : (c.mot ?? ""),
+  ];
+}
+
 export function DefileDeCartes({
   cartes,
   choisie,
   onChoisir,
   forme,
   label,
-  image,
+  carte,
   children,
   testid,
 }: {
@@ -78,8 +91,11 @@ export function DefileDeCartes({
   forme: FormeDuDefile;
   /** Le nom de la liste, pour les lecteurs d'écran (« Les bannières »). */
   label: string;
-  /** L'image d'une carte ; `milieu` : c'est la carte du milieu, qui peut s'animer. */
-  image: (id: string, milieu: boolean) => ComponentChildren;
+  /**
+   * La carte, celle des cosmétiques (`CarteDeCosmetique.tsx`, modèle unique du 28 novembre 2026) ; `milieu` : c'est la
+   * carte du milieu. Elle ne se pose que près du milieu.
+   */
+  carte: (c: CarteDuDefile, milieu: boolean) => ComponentChildren;
   /** Sous la bande : la fiche et les actions de la carte du milieu. */
   children?: ComponentChildren;
   testid: string;
@@ -333,41 +349,18 @@ export function DefileDeCartes({
                   elements.current[i] = el;
                 }}
                 id={idDe(i)}
-                class="co-carte dc-carte"
+                class="dc-carte dc-unique"
                 role="option"
                 aria-selected={i === cible}
                 aria-setsize={n}
                 aria-posinset={i + 1}
                 aria-label={motsDeLaCarte(c)}
-                data-carte={styleDeCarte(c.rarete)}
                 data-rarete={c.rarete}
                 data-dc-index={i}
                 data-id={c.id}
                 data-testid="defile-carte"
-                style={variablesDeLaCarte(c.rarete)}
               >
-                <HabitDeCarte rarete={c.rarete} />
-                <span class="dc-tete" aria-hidden="true">
-                  <span class="co-nom">{c.nom}</span>
-                  {c.marque && (
-                    <span class="dc-marque">
-                      <svg class="dc-coche" viewBox="0 0 12 12">
-                        <path d="M2.5 6.2l2.4 2.4 4.6-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                      </svg>
-                      {c.marque}
-                    </span>
-                  )}
-                </span>
-                <span class="dc-image" aria-hidden="true">
-                  {proche && image(c.id, i === cible && !glisseActif)}
-                </span>
-                <span class="dc-pied" aria-hidden="true">
-                  <span class="dc-rarete">
-                    <IconeDeRarete rarete={c.rarete} />
-                    {RARETES[c.rarete].nom}
-                  </span>
-                  {c.prix !== null ? <Prix montant={c.prix} class="dc-prix" /> : c.mot && <span class="dc-mot">{c.mot}</span>}
-                </span>
+                {proche && carte(c, i === cible && !glisseActif)}
               </div>
             );
           })}

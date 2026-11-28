@@ -3,6 +3,9 @@
 /* La chasse fixe de la console et du poste de commandement : depuis le 12 novembre 2026, toutes les pages s'en servent
    (invite, menu, onglets, libellés), et Base.astro la précharge partout. */
 @import "@fontsource-variable/jetbrains-mono";
+/* Les lettres en pixels des noms, des coûts et des forces des cartes des cosmétiques (28 novembre 2026, l'aperçu validé par
+   le pilote) : chargées seulement quand une carte s'affiche. */
+@import "@fontsource/jersey-10";
 @import "tailwindcss";
 
 @theme {
@@ -341,14 +344,18 @@
   inherits: true;
   initial-value: 0;
 }
-/* Le reflet des cartes des cosmétiques (24-cartes.css, 22 novembre 2026) : la place du pointeur sur la carte, de 0 à 1,
-   que la lumière d'une grande carte en cases parcourt aussi seule, lentement. */
-@property --co-mx {
+/* La lumière des cartes des cosmétiques (CarteDeCosmetique.tsx) : au milieu, sauf posée par lumiere-des-cartes.ts. */
+@property --cc-x {
   syntax: "<number>";
   inherits: true;
   initial-value: 0.5;
 }
-@property --co-my {
+@property --cc-y {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0.5;
+}
+@property --cc-o {
   syntax: "<number>";
   inherits: true;
   initial-value: 0.5;

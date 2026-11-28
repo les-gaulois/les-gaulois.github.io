@@ -317,10 +317,6 @@ button.boutique-jeu-lot-case[aria-pressed="true"] {
   outline: var(--jeu-p) solid var(--jeu-or-focus);
   outline-offset: var(--jeu-p);
 }
-.boutique-jeu-lot .marche-case {
-  width: 100%;
-  border-bottom-width: 6px;
-}
 .boutique-jeu-lot-sorte {
   position: relative;
   z-index: 1;
@@ -619,7 +615,7 @@ button.boutique-jeu-lot-case[aria-pressed="true"] {
 }
 
 /* Les cases : claires dans les deux thèmes (les jetons du thème clair, posés sur la case), sans rien changer à leur dessin. */
-.boutique-jeu :is(.case, .marche-case) {
+.boutique-jeu :is(.case) {
   --color-navy: #ffffff;
   --ecriture: #0a1230;
   --color-muted: #4a5677;

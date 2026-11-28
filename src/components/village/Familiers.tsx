@@ -11,6 +11,7 @@ import type { Issue } from "./BoutiqueDialogue";
 import { MarqueDeRarete, Pixels } from "./BoutiquePixels";
 import { cleDuFamilier } from "../../lib/village/fonds-objets";
 import { Case } from "./Cases";
+import { carteDuFamilier } from "./cartes-des-choses";
 
 /**
  * Les familiers du Gaulois à l'écran (15 novembre 2026) : ce que partagent « La boutique » (la pochette des familiers et
@@ -124,10 +125,10 @@ export function MonFamilier({ etat, occupe, probleme, annonce, onChoisir, onReli
   };
   const contenu = (
     <>
-      <div class="cases co-grille" role="group" aria-labelledby="familier-choix-titre" aria-busy={occupe}>
+      <div class="cases cc-grille" role="group" aria-labelledby="familier-choix-titre" aria-busy={occupe}>
         <Case objet={AUCUN} vignette={null} portee={montre === null} onClick={() => choisir(null)} />
         {possedes.map((familier) => (
-          <Case key={familier.id} objet={ficheDe(familier.nom, familier.rarete)} vignette={vignetteDuFamilier(familier)} fond={cleDuFamilier(familier.id)} pose="sol" portee={montre?.id === familier.id} onClick={() => choisir(familier.id)} />
+          <Case key={familier.id} objet={ficheDe(familier.nom, familier.rarete)} vignette={vignetteDuFamilier(familier)} fond={cleDuFamilier(familier.id)} pose="sol" chose={carteDuFamilier(familier)} portee={montre?.id === familier.id} onClick={() => choisir(familier.id)} />
         ))}
       </div>
       <Problem message={probleme} />

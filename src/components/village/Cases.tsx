@@ -10,11 +10,8 @@ import { apercuAvecFamilier, type Familier } from "../../lib/village/familiers";
 import { echelleEntiere } from "../../lib/village/vestiaire-rayons";
 import type { PoseDeLaChose } from "../../lib/village/fonds-objets";
 import { MarqueDeRarete, PetitePlaque, Prix, peindre } from "./BoutiquePixels";
-import { suivreLePointeur, variablesDeLaCarte } from "./CarteDObjet";
-import { faconDeLaCarte, styleDeCarte } from "../../lib/jeu/cartes-d-objets";
-import { CorpsDePoche, EmplacementDePoche } from "./CarteDePoche";
+import { CarteDeCosmetique, type ProprietesDeLaCarte } from "./CarteDeCosmetique";
 import { DessinSurFond } from "./DessinSurFond";
-import { useEffetsDeLaChose } from "./effets-des-cartes";
 
 /**
  * Les pièces que partagent le vestiaire de « Mon Gaulois » (`/village`) et son onglet « La boutique » (`#boutique`) : le
@@ -261,6 +258,7 @@ export function Case({
   nouveau = false,
   fond = null,
   pose = "centre",
+  chose,
   onClick,
 }: {
   objet: Objet;
@@ -279,6 +277,8 @@ export function Case({
   fond?: string | null;
   /** Où poser la chose sur son fond : au milieu (un objet), au sol (un familier), contre le bas (un buste). */
   pose?: PoseDeLaChose;
+  /** Ce qui change la carte d'une chose qui n'est pas un objet (`carteDuFamilier`, `carteDuModele`). */
+  chose?: Partial<ProprietesDeLaCarte>;
   onClick: () => void;
 }) {
   const aVendre = vente && "prix" in vente ? vente : null;
@@ -286,9 +286,6 @@ export function Case({
   // Une chose posée sur son fond (objet, familier, Gaulois unique) est une carte (22 novembre 2026) ; un trait du visage,
   // une coupe ou « rien » gardent la case d'avant.
   const carte = !visage && !!fond && !!vignette;
-  const style = carte ? styleDeCarte(objet.rarete) : null;
-  const effets = useEffetsDeLaChose(carte ? fond : null);
-  const suivre = style && style !== "lisse" ? suivreLePointeur() : null;
   // Les marques posées sur la case (« à vous », « en vente », « Nouveau », « essai », la plaque) : sur une carte, dans les
   // coins de son image, pour ne jamais couvrir son nom ni se couvrir entre elles.
   const marquesDuHaut = (
@@ -356,11 +353,10 @@ export function Case({
     title: plaque ? motsDeLaPlaque(plaque) : undefined,
     onClick,
   };
-  // Une chose sur son fond : la carte de poche (22 novembre 2026, « des véritables cartes avec les infos dessus »), les
-  // effets du duel écrits dessus. Ses marques dans les coins de l'image ; « À vous » ou « Porté » à la place du prix.
+  // Une chose sur son fond (objet, familier, Gaulois unique) : la carte des cosmétiques, modèle unique du site (28 novembre
+  // 2026, CarteDeCosmetique.tsx), ou celle que la page donne (`chose`). Ses marques dans les coins de l'image ; sous elle,
+  // le prix, « À vous » ou « Porté ».
   if (carte && vignette && fond) {
-    const rarete = objet.rarete ?? "commun";
-    const facon = faconDeLaCarte(rarete);
     const marques = (
       <>
         {nouveau && !essayee && !portee && (
@@ -386,6 +382,7 @@ export function Case({
             <span class="sr-only">, en </span>essai
           </span>
         )}
+        {portee && <span class="cc-coche" aria-hidden="true" />}
         {plaque && (
           <>
             <PetitePlaque />
@@ -397,32 +394,17 @@ export function Case({
       </>
     );
     const etat = portee ? (
-      <span class="co-porte" data-testid="case-portee">
-        <span class="co-coche" aria-hidden="true" />
+      <span class="cc-porte" data-testid="case-portee">
         <span class="sr-only">, </span>Porté
       </span>
     ) : prixDeLaCase ? (
       prixDeLaCase
     ) : possede > 0 ? (
-      <span class="co-avous" data-testid="case-a-vous">
+      <span class="cc-avous" data-testid="case-a-vous">
         <span class="sr-only">, </span>À vous
       </span>
     ) : null;
-    return (
-      <EmplacementDePoche nom={objet.nom} rarete={rarete} effets={effets}>
-        <button
-          {...attributs}
-          class={`case case-carte co-carte co-poche${facon !== "simple" ? ` co-${facon}` : ""}`}
-          data-carte={style ?? undefined}
-          style={variablesDeLaCarte(rarete)}
-          onPointerMove={suivre?.onPointerMove}
-          onPointerLeave={suivre?.onPointerLeave}
-          onPointerCancel={suivre?.onPointerCancel}
-        >
-          <CorpsDePoche nom={objet.nom} rarete={rarete} cle={fond} dessin={vignette} effets={effets} pose={pose} image={<ImageDeCase vignette={vignette} fond={fond} rarete={rarete} pose={pose} />} marques={marques} etat={etat} />
-        </button>
-      </EmplacementDePoche>
-    );
+    return <CarteDeCosmetique nom={objet.nom} rarete={objet.rarete ?? null} cle={fond} dessin={vignette} pose={pose} {...chose} bouton={attributs} marques={marques} etat={etat} />;
   }
   // Un trait du visage, une coupe, « rien », « Aucun » : la case d'avant.
   return (

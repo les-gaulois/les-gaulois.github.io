@@ -13,7 +13,8 @@ import { Compte, Dialogue, Refus } from "./BoutiqueDialogue";
 import { Prix } from "./BoutiquePixels";
 import { IconeDeRarete } from "./IconeDeRarete";
 import { CarteAnimee, RefletDeBloc } from "./CarteAnimee";
-import { DefileDeCartes, bruitDuJeu, type CarteDuDefile } from "./DefileDeCartes";
+import { DefileDeCartes, bruitDuJeu, piedDuDefile, type CarteDuDefile } from "./DefileDeCartes";
+import { CarteDeCosmetique } from "./CarteDeCosmetique";
 
 /**
  * Le rayon « Cartes » de la boutique (`src/lib/village/cartes.ts`) : les trente-trois finitions de la carte du membre,
@@ -115,11 +116,14 @@ export function SectionDesCartes({ tenue, familier = null, onSolde, onRefus }: {
     return { id: f.id, nom: f.nom, rarete: f.rarete, prix: e === "a-acheter" ? (mes?.prix[f.rarete] ?? null) : null, mot: e === "a-acheter" ? null : "À vous", marque: e === "montree" ? "Sur ma carte" : null };
   });
 
-  /** L'image d'une carte du défilé : au milieu, la vraie carte du membre, animée ; à côté, son image fixe. */
-  const imageDuDefile = (id: string, milieu: boolean) => {
-    const f = finitionParId(id);
+  /**
+   * La carte d'une finition dans le défilé : la carte des cosmétiques que la finition couvre toute (« La carte la porte »,
+   * choix du pilote, 28 novembre 2026).
+   */
+  const carteDuDefile = (c: CarteDuDefile) => {
+    const f = finitionParId(c.id);
     if (!f) return null;
-    return milieu ? <CarteAnimee finition={f} tenue={tenueVue} fond={fond} classe="dc-membre" sonde familier={familier} /> : <VignetteDeLaFinition finition={f} banniere={imageDeBanniere} />;
+    return <CarteDeCosmetique nom={c.nom} rarete={c.rarete} cle={`finition/${c.id}`} dessin={null} effets={null} type="Finition de la carte" imagePleine image={<VignetteDeLaFinition finition={f} banniere={imageDeBanniere} />} pied={piedDuDefile(c)} />;
   };
 
   /**
@@ -249,13 +253,18 @@ export function SectionDesCartes({ tenue, familier = null, onSolde, onRefus }: {
       </div>
 
       <div class="banniere-vitrine dc-vitrine" data-rarete={finition.rarete} data-testid="carte-vitrine" data-finition={finition.id} data-etat={etatVu}>
-        <DefileDeCartes cartes={cartesDuDefile} choisie={finition.id} onChoisir={voir} forme="finition" label="Les finitions" image={imageDuDefile} testid="cartes-defile">
+        <DefileDeCartes cartes={cartesDuDefile} choisie={finition.id} onChoisir={voir} forme="finition" label="Les finitions" carte={carteDuDefile} testid="cartes-defile">
           <div class="dc-fiche">
             <p class="banniere-famille">{finition.animee ? "Animation en pixels" : "Reflet holographique"}</p>
             <h5 class="banniere-nom" data-testid="carte-vue">
               {finition.nom}
             </h5>
             <p class="banniere-description">{finition.description}</p>
+            {/* La vraie carte du membre avec cette finition, animée. */}
+            <figure class="dc-sur-ma-carte" data-testid="carte-sur-ma-carte">
+              <figcaption>Sur ma carte</figcaption>
+              <CarteAnimee finition={finition} tenue={tenueVue} fond={fond} classe="dc-membre" sonde familier={familier} />
+            </figure>
             <div class="dc-actions">
               {!mes ? null : etatVu === "a-acheter" ? (
                 prix === null || !mes.peutAcheter ? (

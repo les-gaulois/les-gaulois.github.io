@@ -45,9 +45,12 @@ interface Prise {
 /** L'emplacement d'une cible autour du Gaulois : l'onglet du vestiaire qui porte son nom. */
 export const emplacementDe = (cible: string): HTMLElement | null => document.getElementById(`vestiaire-rayon-${cible}`);
 
+/** Une carte qu'on glisse : la carte d'un cosmétique (CarteDeCosmetique.tsx), ou une case d'avant (un trait du visage). */
+const CARTE_QUI_SE_GLISSE = "button.cc-carte, button.case";
+
 /** La carte sous un appui : une case du panneau, qui marche. */
 function carteSous(cible: EventTarget | null, panneau: HTMLElement | null): HTMLButtonElement | null {
-  const carte = cible instanceof Element ? cible.closest<HTMLButtonElement>("button.case") : null;
+  const carte = cible instanceof Element ? cible.closest<HTMLButtonElement>(CARTE_QUI_SE_GLISSE) : null;
   return carte && panneau?.contains(carte) && !carte.disabled ? carte : null;
 }
 
@@ -101,7 +104,7 @@ function dejaSurLeGaulois(carte: HTMLElement): boolean {
   const etat = carte.getAttribute("data-etat");
   if (etat === "essayee") return true;
   if (etat !== "portee") return false;
-  return !carte.closest('[role="group"]')?.querySelector('button.case[data-etat="essayee"]');
+  return !carte.closest('[role="group"]')?.querySelector(':is(button.cc-carte, button.case)[data-etat="essayee"]');
 }
 
 /** Fait jouer une classe d'animation une fois : retirée à la fin, ou au plus tard après `duree`. */
@@ -134,7 +137,7 @@ export function useEssayage({ panneau, zone, cible, annoncer }: { panneau: RefOb
   const enVol = useRef(new WeakSet<HTMLElement>()).current;
 
   /** Ce que la carte dit d'elle : son nom, écrit dans la case. */
-  const nomDe = (carte: HTMLElement): string => carte.querySelector(".case-nom")?.textContent?.trim() ?? "";
+  const nomDe = (carte: HTMLElement): string => carte.querySelector(".cc-nom, .case-nom")?.textContent?.trim() ?? "";
 
   /** La carte arrive : le clic de la carte, le bruit, l'emplacement qui la reçoit, la phrase. */
   const arriver = (carte: HTMLButtonElement, vers: HTMLElement | null, dejaPortee: boolean): void => {

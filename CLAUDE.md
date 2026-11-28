@@ -125,7 +125,7 @@ Le détail de chaque règle et son histoire : `docs/CARTE-DU-PROJET.md`, « Le v
 ### Choix du pilote à ne pas refaire sans sa demande
 
 - L'ouverture des boosters (le serveur tire, le joueur ouvre le paquet et retourne une seule carte qui reste) : mouvement, lumières et sons.
-- Les cartes des cosmétiques : pixel art holographique du mystique au divin, entre-deux à l'épique, cartes lisses sans reflet pour le reste ; pleine image aux bandeaux fins pour le légendaire, le saison et le divin, objet qui déborde par le haut pour le mystique.
+- Les cartes des cosmétiques : un seul modèle (`CarteDeCosmetique.tsx`, 28 nov. 2026), sans cadre, trois plans, l'objet seul en grand ; bannières couchées (`docs/design/41-…`).
 - Le dessin du pass (la bannière du membre pour seul décor, route de pavés, un booster par palier, piste repliée sur dix paliers).
 - La loterie, « le podium d'abord » : les trois cases des lots où le gagnant paraît devant sa bannière, la ligne des parts en ruban, sans or pour les billets achetés, et les règles dans un pli, pas en étiquettes en haut de l'écran.
 - Les huit paysages animés derrière l'écran du jeu, qui tournent toutes les 15 minutes : pas de retour à la bannière et aux collines.

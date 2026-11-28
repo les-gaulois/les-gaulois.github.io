@@ -13,6 +13,17 @@
   {
     "date": "2026-11-28",
     "kind": "ameliore",
+    "rank": "top",
+    "title": "Toutes les cartes refaites",
+    "body": "Objets, familiers, Gaulois uniques, bannières, finitions, cadres et statères : une seule carte, en pleine image, qui bouge en relief. Touchez sa boîte du bas pour lire ses effets.",
+    "link": {
+      "href": "/village",
+      "label": "Mon Gaulois"
+    }
+  },
+  {
+    "date": "2026-11-28",
+    "kind": "ameliore",
     "title": "Les gros gains du poker sur Discord",
     "body": "Au poker du barde, un carré ou mieux qui gagne 1 000 statères ou plus part sur Discord, en image, avec les cinq cartes de la main et sa vraie chance.",
     "link": {

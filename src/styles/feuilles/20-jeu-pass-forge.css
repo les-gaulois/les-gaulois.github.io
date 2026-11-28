@@ -1087,15 +1087,16 @@
   justify-content: center;
   gap: var(--ecart);
 }
-.forge-jeu .forge-cases > .case {
-  width: 7.25rem;
+.forge-jeu .forge-cases > .cc-place {
+  width: 160px;
+  margin-inline: 0;
 }
 @media (max-width: 479px) {
   .forge-jeu .forge-cases {
     --ecart: 0.5rem;
   }
-  .forge-jeu .forge-cases > .case {
-    width: calc((100% - 2 * var(--ecart)) / 3);
+  .forge-jeu .forge-cases > .cc-place {
+    width: calc((100% - var(--ecart)) / 2);
   }
 }
 

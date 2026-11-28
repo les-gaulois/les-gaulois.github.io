@@ -4,13 +4,10 @@ import { RARETES_DES_OBJETS, type Objet, type RareteDObjet as Rarete, type Vigne
 import { stateres } from "../../lib/village/ecran-boutique";
 import { MarqueDeRarete, Prix } from "./BoutiquePixels";
 import { carillonSiVoulu, preparerLeSonSiVoulu } from "./Carillon";
-import { FicheDesEffets, HabitDeCarte, RangDuDuel, RefletDeCarte, suivreLePointeur, useBulleDesEffets, variablesDeLaCarte } from "./CarteDObjet";
-import { faconDeLaCarte, styleDeCarte } from "../../lib/jeu/cartes-d-objets";
-import { PetiteDeborde, PetitePleine } from "./CartesRares";
 import { feterLObjet } from "./Cases";
 import { DessinSurFond } from "./DessinSurFond";
 import type { PoseDeLaChose } from "../../lib/village/fonds-objets";
-import { useEffetsDeLaChose } from "./effets-des-cartes";
+import { CarteDeCosmetique } from "./CarteDeCosmetique";
 
 /** Ce que rend un achat : le résultat du serveur, ou les mots de son refus. */
 export type Issue<T> = { ok: true; valeur: T } | { ok: false; message: string };
@@ -80,49 +77,8 @@ export function CaseMontree({
   sous?: string | null;
   testid?: string;
 }) {
-  const carte = !!fond && !!vignette;
-  const effets = useEffetsDeLaChose(carte ? fond : null);
-  const bulle = useBulleDesEffets(objet.nom, grande ? null : effets);
-  if (carte && vignette) {
-    const style = styleDeCarte(rarete);
-    const suivre = grande || style !== "lisse" ? suivreLePointeur(grande ? 12 : 0) : null;
-    const facon = faconDeLaCarte(rarete);
-    const rare = facon !== "simple";
-    const CorpsRare = facon === "pleine" ? PetitePleine : PetiteDeborde;
-    return (
-      <div
-        class={`case case-montree case-carte co-carte${grande ? " co-grande" : rare ? ` co-${facon}` : ""}`}
-        data-carte={style}
-        data-rarete={rarete}
-        data-testid={testid}
-        style={variablesDeLaCarte(rarete)}
-        onPointerMove={suivre?.onPointerMove}
-        onPointerLeave={(e) => {
-          suivre?.onPointerLeave(e);
-          bulle.onPointerLeave();
-        }}
-        onPointerCancel={suivre?.onPointerCancel}
-        onPointerEnter={bulle.onPointerEnter}
-      >
-        {rare && !grande ? (
-          <CorpsRare nom={objet.nom} rarete={rarete} cle={fond} dessin={vignette} effets={effets} pied={sous ? <span class="co-sous">{sous}</span> : null} pose={pose} />
-        ) : (
-          <>
-            <HabitDeCarte rarete={rarete} />
-            <span class="case-nom co-nom">{objet.nom}</span>
-            <span class="case-image" data-fond="">
-              <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} place={grande ? 168 : 80} maximum={grande ? 4 : 3} pose={pose} class="case-dessin" />
-              <RefletDeCarte rarete={rarete} />
-            </span>
-            <MarqueDeRarete rarete={rarete} />
-            {sous && <span class="co-sous">{sous}</span>}
-            {effets?.duel && <RangDuDuel duel={effets.duel} />}
-            {grande && effets && <FicheDesEffets effets={effets} />}
-          </>
-        )}
-      </div>
-    );
-  }
+  // Une chose sur son fond : la carte des cosmétiques, modèle unique (28 novembre 2026) ; en grand dans une fenêtre.
+  if (vignette && fond) return <CarteDeCosmetique nom={objet.nom} rarete={rarete} cle={fond} dessin={vignette} pose={pose} sous={sous} moyenne={grande} testid={testid} />;
   return (
     <div class="case case-montree" data-rarete={rarete} data-testid={testid}>
       <span class="case-image" data-fond={vignette && fond ? "" : undefined}>
@@ -130,7 +86,7 @@ export function CaseMontree({
       </span>
       <span class="case-nom">{objet.nom}</span>
       <MarqueDeRarete rarete={rarete} />
-      {sous && <span class="co-sous">{sous}</span>}
+      {sous && <span>{sous}</span>}
     </div>
   );
 }

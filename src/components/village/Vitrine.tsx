@@ -2,9 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { GAULOIS as PLACE_DU_GAULOIS, LARGEUR as DECOR_LARGEUR, HAUTEUR as DECOR_HAUTEUR } from "../../../supabase/functions/code-discord/decors/commun";
 import type { ComponentChildren, JSX } from "preact";
 import { decrireGaulois, vignetteDeLObjet, type RareteDObjet as Rarete } from "../../lib/gaulois";
-import { modeleNu } from "../../lib/village/modeles";
-import { cleDeLObjet as fondDeLObjet, cleDuFamilier, cleDuModele } from "../../lib/village/fonds-objets";
-import { vignetteDuFamilier } from "../../lib/village/ecran-familiers";
+import { modeleParId } from "../../lib/village/modeles";
+import { cleDeLObjet as fondDeLObjet } from "../../lib/village/fonds-objets";
 import { call } from "../../lib/compte/api";
 import { FINITIONS, HAUTEUR_DE_TOILE, LARGEUR_DE_TOILE, finitionAnimee, fusionDeLaFinition } from "../../lib/fx/finitions-carte";
 import { finitionParId } from "../../lib/village/cartes";
@@ -17,9 +16,10 @@ import type { ObjetPossede } from "../../lib/village/contrat";
 import { lireBoutique, quantitePossedee } from "../../lib/village/ecran-boutique";
 import { lignesPortees, provenanceDeLObjet, rareteDuCadre, type GauloisVitrine, type Provenance } from "../../lib/village/vitrine";
 import { Dialogue } from "./BoutiqueDialogue";
-import { charger as chargerLesBannieres } from "./Bannieres";
+import { CarteDeBanniereCouchee, charger as chargerLesBannieres } from "./Bannieres";
 import { MarqueDeRarete } from "./BoutiquePixels";
-import { DessinSurFond } from "./DessinSurFond";
+import { CarteDeCosmetique } from "./CarteDeCosmetique";
+import { carteDuFamilier, carteDuModele } from "./cartes-des-choses";
 import { Toile, peindre } from "./PlaceToile";
 
 /**
@@ -346,7 +346,6 @@ function GauloisEnGrand({ fiche, lib, inventaire, Fenetre, onFermer }: { fiche: 
   const grandEcran = useEcranDe(480);
   const g = fiche.gaulois;
   const familier = familierDe(g.familier);
-  const dessinDuFamilier = familier ? vignetteDuFamilier(familier) : null;
   const banniere = lib?.banniereParId(g.banniere) ?? null;
   const scene = useMemo(() => (lib && banniere ? lib.sceneDeLaBanniere(banniere.id, g.tenue, familier) : null), [lib, banniere, g.tenue, familier]);
   const lignes = useMemo(() => lignesPortees(g.tenue), [g.tenue]);
@@ -366,78 +365,77 @@ function GauloisEnGrand({ fiche, lib, inventaire, Fenetre, onFermer }: { fiche: 
       </div>
       <ul class="vitrine-grand-cases" data-testid="vitrine-grand-liste">
         {lignes.map((ligne) => {
-          const dessin = ligne.objet ? vignetteDeLObjet(ligne.objet.emplacement, ligne.objet.id, g.tenue) : ligne.modele ? modeleNu(ligne.modele) : null;
+          // La carte des cosmétiques, modèle unique (28 novembre 2026) : l'objet, ou le Gaulois unique (son corps seul) ; d'où
+          // il vient, sous elle.
+          const modele = ligne.modele ? modeleParId(ligne.modele) : null;
+          const ou = ligne.objet ? provenance(ligne.objet.emplacement, ligne.objet.id) : lien("Boutique ou booster", "gaulois-uniques");
+          const etat = <MotDeLaProvenance ou={ou} onAller={onFermer} />;
           return (
-            <CaseEnGrand key={ligne.partie} partie={ligne.partie} nom={ligne.nom} rarete={ligne.rarete} ou={ligne.objet ? provenance(ligne.objet.emplacement, ligne.objet.id) : lien("Boutique ou booster", "gaulois-uniques")} onAller={onFermer}>
-              {dessin && (
-                <DessinSurFond
-                  dessin={dessin}
-                  fond={ligne.objet ? fondDeLObjet(ligne.objet.emplacement, ligne.objet.id) : ligne.modele ? cleDuModele(ligne.modele) : null}
-                  rarete={ligne.rarete}
-                  place={COTE_DE_CASE}
-                  pose={ligne.objet ? "centre" : "sol"}
-                  class="case-dessin"
-                />
+            <li key={ligne.partie} class="vitrine-grand-carte" data-lien={ou?.kind === "lien" ? "" : undefined}>
+              {ligne.objet ? (
+                <CarteDeCosmetique nom={ligne.nom} rarete={ligne.rarete} cle={fondDeLObjet(ligne.objet.emplacement, ligne.objet.id)} dessin={vignetteDeLObjet(ligne.objet.emplacement, ligne.objet.id, g.tenue)} etat={etat} />
+              ) : modele ? (
+                <CarteDeCosmetique {...carteDuModele(modele)} etat={etat} />
+              ) : (
+                <CarteDeCosmetique nom={ligne.nom} rarete={ligne.rarete} cle={`partie/${ligne.partie}`} dessin={null} effets={null} etat={etat} />
               )}
-            </CaseEnGrand>
+            </li>
           );
         })}
         {familier && (
-          <CaseEnGrand partie="Familier" nom={familier.nom} rarete={familier.rarete} ou={lien("Booster des familiers", "familiers")} onAller={onFermer}>
-            {dessinDuFamilier && <DessinSurFond dessin={dessinDuFamilier} fond={cleDuFamilier(familier.id)} rarete={familier.rarete} place={COTE_DE_CASE} pose="sol" class="case-dessin" />}
-          </CaseEnGrand>
+          <li class="vitrine-grand-carte" data-lien="">
+            <CarteDeCosmetique {...carteDuFamilier(familier)} etat={<MotDeLaProvenance ou={lien("Booster des familiers", "familiers")} onAller={onFermer} />} />
+          </li>
         )}
-        {banniere && vignette && (
-          <CaseEnGrand partie="Bannière" nom={banniere.nom} rarete={banniere.rarete} ou={lib?.estDeLaPochette(banniere) ? lien("Booster des bannières", "pochettes", "bannieres") : lien("À la boutique", "bannieres")} onAller={onFermer}>
-            <Toile largeur={vignette.largeur} hauteur={vignette.hauteur} cases={vignette.cases} class="case-dessin vitrine-grand-banniere" />
-          </CaseEnGrand>
+        {/* La bannière : la carte des cosmétiques couchée (choix du pilote, 28 novembre 2026), sur deux colonnes. */}
+        {banniere && lib && vignette && (
+          <li class="vitrine-grand-carte vitrine-grand-couchee">
+            <CarteDeBanniereCouchee
+              lib={lib}
+              carte={{ id: banniere.id, nom: banniere.nom, rarete: banniere.rarete, prix: null, mot: null, marque: null }}
+              etat={<MotDeLaProvenance ou={lib.estDeLaPochette(banniere) ? lien("Booster des bannières", "pochettes", "bannieres") : lien("À la boutique", "bannieres")} onAller={onFermer} />}
+            />
+          </li>
         )}
       </ul>
     </Fenetre>
   );
 }
 
-/** Le côté, en pixels, de la place du dessin dans une case de la fenêtre : celui des cases du vestiaire. */
-const COTE_DE_CASE = 80;
-
 /**
  * Une case de la fenêtre : la même que celles du vestiaire (cadre et fond de la rareté, son icône), sans être un bouton.
  * Au-dessus du dessin, ce que c'est (« Tête », « Familier ») ; dessous, son nom et sa rareté.
  */
-function CaseEnGrand({ partie, nom, rarete, ou = null, onAller, children }: { partie: string; nom: string; rarete: Rarete | null; ou?: Provenance | null; onAller?: () => void; children: ComponentChildren }) {
-  return (
-    <li class="case case-montree vitrine-grand-case" data-rarete={rarete ?? "aucune"} data-lien={ou?.kind === "lien" ? "" : undefined}>
-      <span class="vitrine-grand-partie">{partie}</span>
-      <span class="case-image">{children}</span>
-      <span class="sr-only"> : </span>
-      <span class="case-nom">{nom}</span>
-      {rarete && <MarqueDeRarete rarete={rarete} />}
-      {ou?.kind === "a-moi" && (
-        <span class="case-marque" data-testid="vitrine-a-vous">
-          <span class="sr-only">, </span>à vous
-        </span>
-      )}
-      {ou?.kind === "gratuit" && (
-        <span class="vitrine-grand-ou">
-          <span class="sr-only">, </span>Gratuit
-        </span>
-      )}
-      {/* Le lien couvre toute la case : la fenêtre se ferme, et la page va là où l'objet s'obtient. */}
-      {ou?.kind === "lien" && (
-        <a
-          class="vitrine-grand-ou vitrine-grand-lien"
-          href={`#${ou.ancre}`}
-          onClick={() => {
-            if (ou.rayon) demanderLeRayon(ou.rayon);
-            if (ou.pochette) demanderLaPochette(ou.pochette);
-            onAller?.();
-          }}
-          data-testid="vitrine-ou"
-        >
-          <span class="sr-only">, où le trouver : </span>
-          {ou.mots}
-        </a>
-      )}
-    </li>
-  );
+/** D'où vient une chose : « à vous », « Gratuit », ou le lien vers là où elle s'obtient (la fenêtre se ferme). */
+function MotDeLaProvenance({ ou, onAller }: { ou: Provenance | null; onAller?: () => void }) {
+  if (ou?.kind === "a-moi")
+    return (
+      <span class="case-marque" data-testid="vitrine-a-vous">
+        <span class="sr-only">, </span>à vous
+      </span>
+    );
+  if (ou?.kind === "gratuit")
+    return (
+      <span class="vitrine-grand-ou">
+        <span class="sr-only">, </span>Gratuit
+      </span>
+    );
+  if (ou?.kind === "lien")
+    return (
+      <a
+        class="vitrine-grand-ou vitrine-grand-lien"
+        href={`#${ou.ancre}`}
+        onClick={() => {
+          if (ou.rayon) demanderLeRayon(ou.rayon);
+          if (ou.pochette) demanderLaPochette(ou.pochette);
+          onAller?.();
+        }}
+        data-testid="vitrine-ou"
+      >
+        <span class="sr-only">, où le trouver : </span>
+        {ou.mots}
+      </a>
+    );
+  return null;
 }
+

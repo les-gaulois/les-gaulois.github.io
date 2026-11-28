@@ -28,15 +28,11 @@ import { cleDeLObjet as fondDeLObjet } from "../../lib/village/fonds-objets";
 import { MESSAGES_DE_LA_FORGE, lireMaForge, messageDeLaForge } from "../../lib/village/forge";
 import { CodeLogin, DiscordButton, Loading, Problem, codeLoginShown, useMe } from "../compte/common";
 import { Etiquette, Icone, Px } from "../jeu/Pixels";
-import { MarqueDeRarete, PetitePlaque, Pixels } from "./BoutiquePixels";
+import { PetitePlaque, Pixels } from "./BoutiquePixels";
 import { BoutonDuJeu, PrixDuJeu, Ruban, SousTitre } from "./BoutiqueDuJeu";
 import { useDecorDuGaulois } from "./Bannieres";
 import { ApercuGaulois } from "./Cases";
-import { HabitDeCarte, RangDuDuel, RefletDeCarte, suivreLePointeur, useBulleDesEffets, variablesDeLaCarte } from "./CarteDObjet";
-import { faconDeLaCarte, styleDeCarte } from "../../lib/jeu/cartes-d-objets";
-import { PetiteDeborde, PetitePleine } from "./CartesRares";
-import { DessinSurFond } from "./DessinSurFond";
-import { useEffetsDeLaChose } from "./effets-des-cartes";
+import { CarteDeCosmetique } from "./CarteDeCosmetique";
 import { Fusion } from "./Fusion";
 import { BoutonDesBoosters, CompteDuBooster, FenetreDuBooster, RefusDuBooster, ResteEnPixels } from "./KitDesBoosters";
 
@@ -86,82 +82,38 @@ function GrandePlaque({ texte, legende, echelle = 8, testid }: { texte: string |
   );
 }
 
-/** La case d'un objet de la forge : la même qu'au vestiaire, avec « porté » et la petite plaque s'il est gravé. */
+/** La case d'un objet de la forge : la carte des cosmétiques, avec « porté » et la petite plaque s'il est gravé. */
 function CaseDeLaForge({ objet, onChoisir }: { objet: ObjetGravable; onChoisir: () => void }) {
   const fiche = ficheDeLObjet(objet);
   const vignette = vignetteDeLObjet(objet.emplacement, objet.objet);
   const plaque = objet.gravure?.texte ?? null;
-  // Une carte, comme au vestiaire (22 novembre 2026) : le nom en haut, l'image, la rareté, et pour qui voit le duel son rang.
   const fond = fondDeLObjet(objet.emplacement, objet.objet);
-  const rarete = fiche?.rarete ?? null;
-  const effets = useEffetsDeLaChose(fond);
-  const bulle = useBulleDesEffets(nomDeLObjet(objet), effets);
-  const style = styleDeCarte(rarete);
-  const suivre = style !== "lisse" ? suivreLePointeur() : null;
-  const facon = faconDeLaCarte(rarete);
-  const rare = facon !== "simple";
-  const CorpsRare = facon === "pleine" ? PetitePleine : PetiteDeborde;
   return (
-    <button
-      type="button"
-      class={`case forge-case case-carte co-carte${rare ? ` co-${facon}` : ""}`}
-      data-carte={style}
-      style={variablesDeLaCarte(rarete)}
-      data-rarete={rarete ?? "aucune"}
-      data-cle={cleDeLObjet(objet)}
-      data-grave={plaque ? "" : undefined}
-      title={plaque ? motsDeLaPlaque(plaque) : undefined}
-      onClick={onChoisir}
-      onPointerMove={suivre?.onPointerMove}
-      onPointerLeave={(e) => {
-        suivre?.onPointerLeave(e);
-        bulle.onPointerLeave();
+    <CarteDeCosmetique
+      nom={nomDeLObjet(objet)}
+      rarete={fiche?.rarete ?? null}
+      cle={fond}
+      dessin={vignette}
+      bouton={{
+        class: "forge-case",
+        "data-cle": cleDeLObjet(objet),
+        "data-grave": plaque ? "" : undefined,
+        "data-testid": "forge-objet",
+        title: plaque ? motsDeLaPlaque(plaque) : undefined,
+        onClick: onChoisir,
       }}
-      onPointerCancel={suivre?.onPointerCancel}
-      onPointerEnter={bulle.onPointerEnter}
-      onFocus={bulle.onFocus}
-      onBlur={bulle.onBlur}
-      data-testid="forge-objet"
-    >
-      {rare && vignette ? (
-        <CorpsRare
-          nom={nomDeLObjet(objet)}
-          rarete={rarete ?? "commun"}
-          cle={fond}
-          dessin={vignette}
-          effets={effets}
-          marques={
-            <>
-              {objet.porte && (
-                <span class="case-marque">
-                  <span class="sr-only">, </span>porté
-                </span>
-              )}
-              {plaque && <PetitePlaque />}
-            </>
-          }
-        />
-      ) : (
+      marques={
         <>
-          <HabitDeCarte rarete={rarete} />
-          <span class="case-nom co-nom">{nomDeLObjet(objet)}</span>
-          <span class="case-image" data-fond={vignette ? "" : undefined}>
-            {vignette && <DessinSurFond dessin={vignette} fond={fond} rarete={rarete} class="case-dessin" />}
-            <RefletDeCarte rarete={rarete} />
-            {/* « porté » et la plaque dans les coins de l'image : sur une carte, ils ne couvrent plus le nom. */}
-            {objet.porte && (
-              <span class="case-marque">
-                <span class="sr-only">, </span>porté
-              </span>
-            )}
-            {plaque && <PetitePlaque />}
-          </span>
-          {fiche?.rarete && <MarqueDeRarete rarete={fiche.rarete} />}
-          {effets?.duel && <RangDuDuel duel={effets.duel} />}
+          {objet.porte && (
+            <span class="case-marque">
+              <span class="sr-only">, </span>porté
+            </span>
+          )}
+          {plaque && <PetitePlaque />}
         </>
-      )}
-      {plaque && <span class="sr-only">. {motsDeLaPlaque(plaque)}</span>}
-    </button>
+      }
+      dit={plaque && <span class="sr-only">. {motsDeLaPlaque(plaque)}</span>}
+    />
   );
 }
 

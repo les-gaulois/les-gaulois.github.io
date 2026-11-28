@@ -8,7 +8,6 @@
  * 15 colonnes qui s'ouvrent l'un après l'autre (les coutures) ; lignes 10 à 77, le corps ; lignes 78 à 87, le bas serti.
  */
 import { casesDuStatere } from "../../../supabase/functions/code-discord/statere";
-import { habillerUnePlanche } from "./cartes-d-objets";
 import { PAL } from "./palette";
 import { Planche, R, grille, lireCouleur, rr, tresse } from "./planche";
 import { ecrire, enCapitales, largeurDuTexte, lignesDuTexte, nombreEcrit } from "./ecriture";
@@ -289,8 +288,6 @@ export function faceDeCarte(f: FaceDeCarte): Planche {
     if (f.fond) poserLeFond(g, f.fond, f.image, bord, { x, y, largeur: place.largeur, hauteur: place.hauteur });
     g.drawImage(plancheDuDessin(f.image), x, y, place.largeur, place.hauteur);
   }
-  // Le cadre de la carte (22 novembre 2026), sous les mots : un nom long reste entier, posé sur la bande.
-  habillerUnePlanche(g, f.rarete);
   const ls = lignesDuTexte(enCapitales(f.nom), W - 8, 3);
   // Sur une carte à rareté, le nom monte de deux cases pour laisser sa place à l'icône ; s'il tient sur trois lignes, elles
   // se serrent en plus d'une case chacune.

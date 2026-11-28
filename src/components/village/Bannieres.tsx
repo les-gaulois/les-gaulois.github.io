@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ServerError, basePath, call } from "../../lib/compte/api";
-import type { ComponentType } from "preact";
+import type { ComponentChildren, ComponentType } from "preact";
 import { ORDRE_RARETES, RARETES, type Rarete, type Tenue } from "../../lib/gaulois";
 import type { Banniere } from "../../lib/village/bannieres";
 import { finitionParId, type FinitionDuRayon } from "../../lib/village/cartes";
@@ -16,8 +16,9 @@ import { Compte, Dialogue, PochetteGagneeIci, Refus, type Issue } from "./Boutiq
 import { MarqueDeRarete, Pixels, Prix, peindre } from "./BoutiquePixels";
 import { IconeDeRarete } from "./IconeDeRarete";
 import { CarteAnimee, RefletDeBloc } from "./CarteAnimee";
-import { DefileDeCartes, bruitDuJeu, type CarteDuDefile } from "./DefileDeCartes";
+import { DefileDeCartes, bruitDuJeu, piedDuDefile, type CarteDuDefile } from "./DefileDeCartes";
 import { CartesDeLaVitrine } from "./Vitrine";
+import { CarteDeCosmetique, useLargeurDeGrandeCarte } from "./CarteDeCosmetique";
 
 /**
  * Les bannières du Gaulois à l'écran (15 novembre 2026, demande du pilote : « un lot de bannières », « achetables par
@@ -215,6 +216,35 @@ export function SceneDeLaBanniere({ lib, banniere, tenue, familier, class: class
     if (scene) peindre(toile.current, scene.largeur, scene.hauteur, scene.cases);
   }, [scene]);
   return <canvas ref={toile} width={BANNIERE_LARGEUR} height={BANNIERE_HAUTEUR} class={`pixels banniere-scene ${classe}`} role="img" aria-label={`Votre Gaulois devant la bannière « ${banniere.nom} »`} data-testid="banniere-scene" data-banniere={banniere.id} />;
+}
+
+/**
+ * La carte d'une bannière : la carte des cosmétiques couchée (choix du pilote, 28 novembre 2026), la bannière entière en
+ * pleine image ; essayée, le Gaulois du membre devant elle. Au pied : sa rareté, sa marque (« Sur /gaulois »), son prix ou
+ * ce qu'elle est pour le compte. `grande` : la carte reçue à la fin d'un booster, à la largeur de l'écran.
+ */
+export function CarteDeBanniereCouchee({ lib, carte, essai = null, grande = false, etat, testid }: { lib: Lib; carte: Pick<CarteDuDefile, "id" | "nom" | "rarete" | "prix" | "mot" | "marque">; essai?: { tenue: Tenue; familier: Familier | null } | null; grande?: boolean; etat?: ComponentChildren; testid?: string }) {
+  const tenue = essai?.tenue ?? null;
+  const familier = essai?.familier ?? null;
+  const image = useMemo(() => (tenue ? lib.sceneDeLaBanniere(carte.id, tenue, familier) : lib.vignetteDeLaBanniere(carte.id)), [lib, carte.id, tenue, familier]);
+  const largeur = useLargeurDeGrandeCarte(true);
+  return (
+    <CarteDeCosmetique
+      nom={carte.nom}
+      rarete={carte.rarete}
+      cle={`banniere/${carte.id}`}
+      dessin={null}
+      scene={image}
+      couchee
+      type={essai ? "Bannière essayée" : "Bannière"}
+      effets={null}
+      grande={grande}
+      largeur={grande ? largeur : undefined}
+      etat={etat}
+      testid={testid}
+      pied={piedDuDefile(carte)}
+    />
+  );
 }
 
 /** Le repère de forme d'une rareté, son icône (21 novembre 2026, à la place des losanges) : la même que sur les cases. */
@@ -549,10 +579,7 @@ export function SectionDesBannieres({
             onChoisir={voir}
             forme="banniere"
             label="Les bannières"
-            image={(id, milieu) => {
-              const b = milieu && essai ? lib.banniereParId(id) : null;
-              return b ? <SceneDeLaBanniere lib={lib} banniere={b} tenue={tenue} familier={familier} class="dc-scene" /> : <img src={`${basePath()}/bannieres/${id}.png`} width={BANNIERE_LARGEUR} height={BANNIERE_HAUTEUR} alt="" draggable={false} decoding="async" />;
-            }}
+            carte={(c, milieu) => <CarteDeBanniereCouchee lib={lib} carte={c} essai={milieu && essai ? { tenue, familier } : null} />}
             testid="bannieres-defile"
           >
             <div class="dc-fiche">
@@ -713,7 +740,7 @@ function DefileDeMesBannieres({ lib, miennes, montree, nom, tenue, familier, cho
       }}
       forme="banniere"
       label="Mes bannières"
-      image={(id) => <img src={`${basePath()}/bannieres/${id}.png`} width={BANNIERE_LARGEUR} height={BANNIERE_HAUTEUR} alt="" draggable={false} decoding="async" />}
+      carte={(c) => <CarteDeBanniereCouchee lib={lib} carte={c} />}
       testid="mes-bannieres-defile"
     >
       <div class="dc-fiche">

@@ -6,14 +6,12 @@ import { albumDeLaMenagerie } from "../../lib/village/album-pochette";
 import type { MesFamiliers, PochetteFamiliersReponse } from "../../lib/village/contrat";
 import { pourcent } from "../../lib/village/ecran-boutique";
 import { ANCRE_FAMILIERS, idsPossedes, lignesDesChances, raisonPochetteFermee, vignetteDuFamilier } from "../../lib/village/ecran-familiers";
-import { FAMILIERS, familierDe, tailleDuFamilier, TAILLES, type Familier } from "../../lib/village/familiers";
+import { FAMILIERS, familierDe } from "../../lib/village/familiers";
 import type { Issue } from "./BoutiqueDialogue";
 import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, ResteEnPixels } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
-import { CarteDeSortie } from "./CarteDeSortie";
-
-/** Le nom d'une taille : « Minuscule », « Géant »… */
-const nomDeLaTaille = (familier: Familier): string => TAILLES.find((taille) => taille.id === tailleDuFamilier(familier).classe)?.nom ?? "";
+import { CarteDeCosmetique } from "./CarteDeCosmetique";
+import { carteDuFamilier } from "./cartes-des-choses";
 
 /**
  * Le booster des familiers, sous l'étal (fiche du kit, `FicheDuBooster`) : la seule façon d'avoir un familier. Son paquet,
@@ -91,15 +89,7 @@ export function DialogueFamiliers({ prix, solde, village, ouvrir, dejaMontre, on
           revelee={etape === "revele"}
           onRevelee={() => setEtape((e) => (e === "ouvre" ? "revele" : e))}
           carteFinale={
-            <CarteDeSortie
-              objet={{ nom: recu.nom, dessin: null, couleurs: {}, rarete: recu.rarete, gratuit: false }}
-              rarete={recu.rarete}
-              vignette={vignetteDuFamilier(recu)}
-              fond={cleDuFamilier(recu.id)}
-              pose="sol"
-              sous={nomDeLaTaille(recu)}
-              testid="familiers-tirage"
-            />
+            <CarteDeCosmetique {...carteDuFamilier(recu)} grande testid="familiers-tirage" />
           }
         >
           {/* La carte dit tout (nom, rareté, taille, effet de compagnon) : dessous, la bourse, ce qui reste et les boutons. */}

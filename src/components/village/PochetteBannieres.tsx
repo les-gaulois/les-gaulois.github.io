@@ -5,8 +5,7 @@ import type { PochetteBannieresReponse } from "../../lib/village/contrat";
 import { idsDesBannieres } from "../../lib/village/ecran-bannieres";
 import { nombre, pourcent } from "../../lib/village/ecran-boutique";
 import type { Banniere } from "../../lib/village/bannieres";
-import { plusTard, type ProprietesDeLaFicheDesBannieres, type ProprietesDuBoosterDesBannieres } from "./Bannieres";
-import { CarteDeBanniere } from "./CarteDObjet";
+import { CarteDeBanniereCouchee, plusTard, type ProprietesDeLaFicheDesBannieres, type ProprietesDuBoosterDesBannieres } from "./Bannieres";
 import { BoutonDesBoosters, ConfirmerLeBooster, FenetreDuBooster, FicheDuBooster, RefusDuBooster, ResteEnPixels, type LigneDeChance } from "./KitDesBoosters";
 import { OuvertureDuBooster } from "./OuvertureDuBooster";
 import { CarteDeStateres } from "./CarteDeStateres";
@@ -102,10 +101,9 @@ export function DialoguePochetteBannieres({ lib, prix, solde, ouvrir, montrer, d
   );
 }
 
-/** La carte de la bannière reçue, entière, pour la fin du booster ; rien si son dessin manque. */
+/** La carte de la bannière reçue, couchée, entière, pour la fin du booster. */
 function CarteDeLaBanniereRecue({ lib, banniere }: { lib: typeof import("../../lib/village/bannieres"); banniere: Banniere }) {
-  const image = useMemo(() => lib.vignetteDeLaBanniere(banniere.id), [lib, banniere.id]);
-  return image ? <CarteDeBanniere nom={banniere.nom} rarete={banniere.rarete} image={image} testid="bannieres-pochette-tirage" /> : null;
+  return <CarteDeBanniereCouchee lib={lib} carte={{ id: banniere.id, nom: banniere.nom, rarete: banniere.rarete, prix: null, mot: null, marque: null }} grande testid="bannieres-pochette-tirage" />;
 }
 
 /**

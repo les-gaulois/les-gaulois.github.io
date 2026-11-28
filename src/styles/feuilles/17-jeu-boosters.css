@@ -1090,18 +1090,3 @@
 .bst-carte.bst-a-la-vraie .bst-c-corps {
   clip-path: none;
 }
-.bst-vraie .co-carte.co-grande {
-  --co-p: 4px;
-  --co-image-h: 11rem;
-  width: 23rem;
-}
-.bst-vraie .co-carte.co-grande .co-nom {
-  font-size: 1.375rem;
-}
-.bst-vraie .co-carte.co-grande.co-paysage {
-  width: max-content;
-}
-/* La pause de la fenêtre arrête aussi la lumière de la carte, là où elle est. */
-.bst-fige .co-carte {
-  animation-play-state: paused;
-}

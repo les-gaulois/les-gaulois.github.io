@@ -14,7 +14,8 @@ import { Compte, Dialogue, Refus } from "./BoutiqueDialogue";
 import { Prix } from "./BoutiquePixels";
 import { IconeDeRarete } from "./IconeDeRarete";
 import { CarteAnimee } from "./CarteAnimee";
-import { DefileDeCartes, bruitDuJeu, type CarteDuDefile } from "./DefileDeCartes";
+import { DefileDeCartes, bruitDuJeu, piedDuDefile, type CarteDuDefile } from "./DefileDeCartes";
+import { CarteDeCosmetique } from "./CarteDeCosmetique";
 
 /**
  * Le rayon « Cadres » de la boutique (`src/lib/village/cadres.ts`) : les vingt-six cadres animés de la carte du membre.
@@ -112,12 +113,11 @@ export function SectionDesCadres({ tenue, familier = null, onSolde, onRefus }: {
     return { id: c.id, nom: c.nom, rarete: c.rarete, prix: e === "a-acheter" ? (mes?.prix[c.rarete] ?? null) : null, mot: e === "a-acheter" ? null : "À vous", marque: e === "montree" ? "Sur ma carte" : null };
   });
 
-  /** L'image d'une carte du défilé : au milieu, la vraie carte du membre dans ce cadre, animée ; à côté, son image fixe. */
-  const imageDuDefile = (id: string, milieu: boolean) => {
-    const c = cadreParId(id);
-    if (!c) return null;
-    return milieu ? <CarteAnimee finition={finition} cadre={c.id} tenue={tenueVue} fond={fond} classe="dc-membre dc-membre-cadre" sonde familier={familier} /> : <VignetteDuCadre cadre={c.id} banniere={imageDeBanniere} />;
-  };
+  /**
+   * La carte d'un cadre dans le défilé : la carte des cosmétiques que le cadre couvre toute (« La carte la porte », choix du
+   * pilote, 28 novembre 2026).
+   */
+  const carteDuDefile = (c: CarteDuDefile) => (cadreParId(c.id) ? <CarteDeCosmetique nom={c.nom} rarete={c.rarete} cle={`cadre/${c.id}`} dessin={null} effets={null} type="Cadre de la carte" imagePleine image={<VignetteDuCadre cadre={c.id as IdDeCadre} banniere={imageDeBanniere} />} pied={piedDuDefile(c)} /> : null);
 
   /** Un autre cadre au milieu du défilé : rien ne part au serveur, la fiche dessous le décrit. */
   const voir = (id: string): void => {
@@ -221,13 +221,18 @@ export function SectionDesCadres({ tenue, familier = null, onSolde, onRefus }: {
       </div>
 
       <div class="banniere-vitrine dc-vitrine" data-rarete={cadre.rarete} data-testid="cadre-vitrine" data-cadre={cadre.id} data-etat={etatVu}>
-        <DefileDeCartes cartes={cartesDuDefile} choisie={cadre.id} onChoisir={voir} forme="cadre" label="Les cadres" image={imageDuDefile} testid="cadres-defile">
+        <DefileDeCartes cartes={cartesDuDefile} choisie={cadre.id} onChoisir={voir} forme="cadre" label="Les cadres" carte={carteDuDefile} testid="cadres-defile">
           <div class="dc-fiche">
             <p class="banniere-famille">Cadre animé</p>
             <h5 class="banniere-nom" data-testid="cadre-vu">
               {cadre.nom}
             </h5>
             <p class="banniere-description">{cadre.description}</p>
+            {/* La vraie carte du membre dans ce cadre, animée. */}
+            <figure class="dc-sur-ma-carte" data-testid="cadre-sur-ma-carte">
+              <figcaption>Sur ma carte</figcaption>
+              <CarteAnimee finition={finition} cadre={cadre.id} tenue={tenueVue} fond={fond} classe="dc-membre dc-membre-cadre" sonde familier={familier} />
+            </figure>
             <div class="dc-actions">
               {!mes ? null : etatVu === "a-acheter" ? (
                 prix === null || !mes.peutAcheter ? (
