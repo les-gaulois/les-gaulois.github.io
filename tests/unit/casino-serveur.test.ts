@@ -137,7 +137,9 @@ describe("les règles du serveur sont celles du TypeScript", () => {
     return t;
   };
 
-  it("la roue : les 150 paris, les rouges, et chaque paiement sur les 36 numéros", async () => {
+  // 150 paris seuls et 450 tables au hasard, puis chaque pari sur chacun des 36 numéros : plus de cinq secondes sur la
+  // machine de GitHub (28 novembre 2026).
+  it("la roue : les 150 paris, les rouges, et chaque paiement sur les 36 numéros", { timeout: LONG }, async () => {
     expect(await une("select to_jsonb(internal.casino_roue_paris()) as r")).toEqual([...PARIS_DE_LA_ROUE]);
     expect(await une("select to_jsonb(internal.casino_roue_rouges()) as r")).toEqual([...ROUGES].sort((a, b) => a - b));
     const cas = Array.from({ length: 600 }, (_, i) => ({ paris: i < PARIS_DE_LA_ROUE.length ? { [PARIS_DE_LA_ROUE[i]!]: 10 } : tableAuHasard(PARIS_DE_LA_ROUE), n: 1 + (i % 36) }));
