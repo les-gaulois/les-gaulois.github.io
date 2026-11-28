@@ -381,6 +381,46 @@ export function rond(): Toile {
   });
   return T;
 }
+/**
+ * La place de « Trois cartes » : un cadre de grains d'or comme le rond de la mise, une carte du croupier en haut, les deux
+ * du joueur en bas, reliées d'un fil d'or. `vif` : allumée, quand la mise à côté gagne. 42 points sur 36 (maquette « Trois
+ * cartes », 28 novembre 2026).
+ */
+export function placeDesTrois(vif: boolean): Toile {
+  const W = 42;
+  const H = 36;
+  const R = 7;
+  const T = new Toile(W, H);
+  const t = { a: c(OR, vif ? 7 : 5), b: c(OR, vif ? 6 : 3), filet: c(OR, vif ? 5 : 2), carte: c(OR, vif ? 6 : 4), fond: c(BORDEAUX, vif ? 4 : 3) };
+  // la distance au bord d'un rectangle aux coins ronds : négative dedans
+  const bord = (x: number, y: number): number => {
+    const qx = Math.abs(x + 0.5 - W / 2) - (W / 2 - R);
+    const qy = Math.abs(y + 0.5 - H / 2) - (H / 2 - R);
+    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - R;
+  };
+  T.tout((x, y) => {
+    const d = bord(x, y);
+    if (d > 0) return null;
+    if (d > -1.6) return Math.floor((x + y) / 2) % 2 ? t.a : t.b;
+    if (d > -2.6) return null;
+    if (d > -3.3) return t.filet;
+    return (x + y) % 2 ? c(BORDEAUX, 2) : null;
+  });
+  for (const [x, y] of [
+    [17, 6],
+    [11, 19],
+    [23, 19],
+  ] as const) {
+    T.r(x, y, 8, 11, t.carte);
+    T.r(x + 1, y + 1, 6, 9, t.fond);
+    T.r(x + 3, y + 4, 2, 3, t.carte);
+  }
+  for (let k = 0; k <= 6; k++) {
+    T.p(19 - k, 17 + Math.round(k * 0.3), t.filet);
+    T.p(24 + k, 17 + Math.round(k * 0.3), t.filet);
+  }
+  return T;
+}
 /** La lueur chaude d'un 21 d'entrée : des grains d'or tramés, plus serrés au cœur. Elle monte lentement (feuille de style). */
 export function lueurDuVingtEtUn(w: number, h: number): Toile {
   const T = new Toile(w, h);
@@ -414,7 +454,15 @@ export interface MiseEnPageDuVingtEtUn {
   sep: number;
   sabot: { x: number; y: number };
   caisse: { x: number; y: number };
+  /**
+   * Le coin haut gauche de la place de « Trois cartes » (`LT` sur `HT`) : à gauche de la mise, sur la ligne du rond, à la
+   * place des enseignes tissées ; son nom est gravé dessous. Elle ne touche ni le rond, ni les cartes du joueur.
+   */
+  trois: { x: number; y: number };
 }
+/** La place de « Trois cartes », en pixels (42 points sur 36). */
+export const LT = 84;
+export const HT = 72;
 export function miseEnPage(largeur: number): MiseEnPageDuVingtEtUn {
   const W = pair(largeur);
   const etroit = W < 440;
@@ -423,9 +471,11 @@ export function miseEnPage(largeur: number): MiseEnPageDuVingtEtUn {
   const yL = yT + HC + 18;
   const yJ = yL + lignes * 24 + 28;
   const yM = yJ + HC + 12;
-  const H = yM + 64 + 24;
+  // sous le rond : la place de « Trois cartes » dépasse de 2 pixels, puis son nom gravé (16 pixels), puis le bord
+  const H = yM + 64 + 44;
   const cx = pair(W / 2);
-  return { W, H, etroit, lignes, cx, cxT: etroit ? cx - 4 : cx, yT, yL, yJ, yM, sep: pair(Math.min(W * 0.25, 150)), sabot: { x: W - 26 - 72, y: 26 }, caisse: { x: 26, y: 26 } };
+  const trois = { x: pair(Math.min(96, cx - 32 - 12 - LT / 2) - LT / 2), y: yM - 6 };
+  return { W, H, etroit, lignes, cx, cxT: etroit ? cx - 4 : cx, yT, yL, yJ, yM, sep: pair(Math.min(W * 0.25, 150)), sabot: { x: W - 26 - 72, y: 26 }, caisse: { x: 26, y: 26 }, trois };
 }
 
 /**
@@ -493,18 +543,14 @@ export function decor(G: MiseEnPageDuVingtEtUn): Toile {
       }
       T.p(x0, ym, c(OR, 7));
     }
-  if (G.W >= 620)
-    (
-      [
-        [-0.8, 0],
-        [-0.62, 1],
-        [0.62, 2],
-        [0.8, 3],
-      ] as const
-    ).forEach(([u, e]) => {
-      // les quatre enseignes tissées ton sur ton, de part et d'autre de la mise
+  // le nom de la place de « Trois cartes », gravé sous elle (jamais sur le filet du bord)
+  const nom = "Trois cartes";
+  ecrisSur(T, nom, Math.max(m + 4, ((G.trois.x + LT / 2) >> 1) - (largeurDuTexte(nom) >> 1)), (G.trois.y + HT + 2) >> 1, c(OR, 4), c(BORDEAUX, 0));
+  if (G.W >= 660)
+    [0, 1, 2, 3].forEach((e) => {
+      // les quatre enseignes tissées ton sur ton, à droite de la mise (à gauche, la place de « Trois cartes »)
       const g = agrandi(grille(ENSEIGNE[e]!, { a: c(BORDEAUX, 5), b: c(BORDEAUX, 4), c: c(BORDEAUX, 3), y: c(BORDEAUX, 5) }), 4);
-      const x = Math.round(cx + u * (w / 2 - m) - 14);
+      const x = w - m - 6 - 124 + 32 * e;
       const y = (G.yM >> 1) + 2;
       for (let j = 0; j < g.h; j++)
         for (let i = 0; i < g.w; i++)

@@ -14,10 +14,11 @@ import { CHANCES_DES_COUPES, DIXIEMES_DES_COUPES, RANGEES, coupeDe, renduDeLaCou
 import { FOIS_DE_LA_MACHINE, SUR_MILLE_DE_LA_MACHINE, casesDuResultat, lireLaLigne, renduDeLaMachine, resultatDuTirage } from "../../src/lib/village/casino/machine";
 import { COULOIRS, TOTAL_DES_PARTS, avancee, couloirPour, ecrireLaCourse, heureDArrivee, renduDeLaCourse } from "../../src/lib/village/casino/course";
 import {
-  carteDuNombre, complement, conseil, coupsPermis, distribuer, faitsMontres, jouerUnCoup, miseeDeLaMain, nombreDeLaCarte, rendementAuMieux, renduDeLaMain, tavernierMontre, total,
+  FOIS_DES_TROIS, carteDuNombre, combinaisonDesTrois, complement, comptesDesTrois, conseil, coupsPermis, distribuer, faitsMontres, jouerUnCoup, miseeDeLaMain, nombreDeLaCarte, recuDesTrois,
+  rendementAuMieux, renduDeLaMain, tavernierMontre, total,
   type EtatDuVingtEtUn,
 } from "../../src/lib/village/casino/vingt-et-un";
-import type { CoupDuVingtEtUn, FaitDuVingtEtUn, ResultatDeLaMachine } from "../../src/lib/village/contrat-casino";
+import { COMBINAISONS_DES_TROIS, type CoupDuVingtEtUn, type FaitDuVingtEtUn, type ResultatDeLaMachine } from "../../src/lib/village/contrat-casino";
 import { graine } from "./casino-essai";
 
 const MISES = Array.from({ length: MISE_DE_DEPART_AU_PLUS / PAS_DES_MISES }, (_, i) => (i + 1) * PAS_DES_MISES);
@@ -322,5 +323,65 @@ describe("le vingt-et-un", () => {
   it("numérote les 52 cartes du rang et de l'enseigne", () => {
     for (let n = 0; n < 52; n++) expect(nombreDeLaCarte(carteDuNombre(n))).toBe(n);
     expect(carteDuNombre(51)).toEqual({ r: 12, e: 3 });
+  });
+});
+
+describe("Trois cartes, la mise à côté du vingt-et-un", () => {
+  // r : 0 l'as … 9 le dix, 10 valet, 11 dame, 12 roi ; e : 0 torques, 1 flammes, 2 épées, 3 chênes
+  const c = (r: number, e: number) => ({ r, e });
+
+  it("rend exactement la mise en moyenne, sur les 140 608 tirages des trois cartes", () => {
+    const n = comptesDesTrois();
+    expect(n).toEqual({ "brelan-enseigne": 52, "suite-enseigne": 288, brelan: 780, suite: 4320, enseigne: 8448, rien: 126720 });
+    const rendu = COMBINAISONS_DES_TROIS.reduce((s, k) => s + n[k] * FOIS_DES_TROIS[k], 0);
+    expect(rendu).toBe(52 ** 3);
+    // gagne 13 888 fois sur 140 608 : une fois sur 10,1
+    expect(52 ** 3 - n.rien).toBe(13888);
+  });
+
+  it("paie les gains de la maquette choisie, du plus rare au plus fréquent", () => {
+    expect(FOIS_DES_TROIS).toEqual({ "brelan-enseigne": 100, "suite-enseigne": 39, brelan: 28, suite: 10, enseigne: 7 });
+    expect(COMBINAISONS_DES_TROIS.map((k) => FOIS_DES_TROIS[k])).toEqual([100, 39, 28, 10, 7]);
+    expect(recuDesTrois(10, "suite-enseigne")).toBe(390);
+    expect(recuDesTrois(190, "brelan-enseigne")).toBe(19000);
+    expect(recuDesTrois(50, null)).toBe(0);
+  });
+
+  it("reconnaît chaque main, l'as avant le 2 ou après le roi", () => {
+    expect(combinaisonDesTrois(c(7, 1), c(7, 1), c(7, 1))).toBe("brelan-enseigne");
+    expect(combinaisonDesTrois(c(7, 1), c(7, 2), c(7, 1))).toBe("brelan");
+    expect(combinaisonDesTrois(c(8, 3), c(9, 3), c(10, 3))).toBe("suite-enseigne");
+    expect(combinaisonDesTrois(c(10, 3), c(8, 3), c(9, 3))).toBe("suite-enseigne");
+    expect(combinaisonDesTrois(c(0, 0), c(1, 2), c(2, 0))).toBe("suite");
+    expect(combinaisonDesTrois(c(11, 0), c(12, 1), c(0, 0))).toBe("suite");
+    expect(combinaisonDesTrois(c(12, 0), c(0, 1), c(1, 0))).toBeNull(); // roi, as, 2 : pas une suite
+    expect(combinaisonDesTrois(c(9, 0), c(10, 1), c(9, 2))).toBeNull(); // dix, valet, dix
+    expect(combinaisonDesTrois(c(9, 2), c(10, 2), c(9, 2))).toBe("enseigne");
+    expect(combinaisonDesTrois(c(1, 2), c(5, 2), c(12, 2))).toBe("enseigne");
+    expect(combinaisonDesTrois(c(1, 2), c(5, 2), c(12, 1))).toBeNull();
+  });
+
+  it("se décide à la donne, sur les deux cartes du joueur et la carte visible du tavernier", () => {
+    // joueur 9 de chênes, tavernier valet de chênes, joueur 10 de chênes, carte cachée 5 de torques
+    const r = distribuer(50, source([3 * 13 + 8, 3 * 13 + 10, 3 * 13 + 9, 4], Math.random), 10);
+    expect(r.etat.trois).toEqual({ mise: 10, combinaison: "suite-enseigne", recu: 390 });
+    expect(r.faits.map((f) => f.t)).toEqual(["carte", "carte", "carte", "carte", "trois", "regarde"]);
+    expect(r.faits[4]).toEqual({ t: "trois", combinaison: "suite-enseigne", recu: 390 });
+    expect(miseeDeLaMain(r.etat)).toBe(60);
+    // la carte cachée ne compte pas : as de torques et as d'épées au joueur, 5 de flammes visible, as de chênes caché
+    const p = distribuer(20, source([0, 17, 26, 39], Math.random), 30);
+    expect(p.etat.trois).toEqual({ mise: 30, combinaison: null, recu: 0 });
+  });
+
+  it("n'existe pas sans mise à côté, et compte dans ce que la main rend", () => {
+    const sans = distribuer(50, source([1, 2, 3, 4], Math.random));
+    expect(sans.etat.trois).toBeNull();
+    expect(sans.faits.some((f) => f.t === "trois")).toBe(false);
+    // un 21 d'entrée et une même enseigne : la main finit à la donne, les deux se paient
+    const bj = distribuer(40, source([0, 5, 12, 7], Math.random), 20);
+    expect(bj.etat.phase).toBe("fini");
+    expect(bj.etat.trois).toEqual({ mise: 20, combinaison: "enseigne", recu: 140 });
+    expect(renduDeLaMain(bj.etat)).toBe(100 + 140);
+    expect(miseeDeLaMain(bj.etat)).toBe(60);
   });
 });

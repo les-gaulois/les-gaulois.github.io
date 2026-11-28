@@ -7,8 +7,8 @@
  * `contrat-casino.ts`). Les totaux ne sont que ce que valent les cartes déjà montrées (`total` des règles).
  */
 import { nombreEcrit } from "../jeu/ecriture";
-import { NOMS_DES_RANGS, nomDeLaCarte, total, vingtEtUnDEntree } from "./casino/vingt-et-un";
-import type { CarteDuVingtEtUn, CoupDuCasino, CoupDuVingtEtUn, CoupsPermis, FaitDuVingtEtUn, IssueDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn } from "./contrat-casino";
+import { FOIS_DES_TROIS, NOMS_DES_RANGS, nomDeLaCarte, total, vingtEtUnDEntree } from "./casino/vingt-et-un";
+import type { CarteDuVingtEtUn, CombinaisonDesTrois, CoupDuCasino, CoupDuVingtEtUn, CoupsPermis, FaitDuVingtEtUn, IssueDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn, TroisCartes } from "./contrat-casino";
 import { motsDuRefus, secondesAvantLaMinute, type PrecisionsDuRefus } from "./ecran-casino";
 
 /** Les quatre gestes : le mot du bouton, puis son nom entier (lu aux lecteurs d'écran, bulle du survol). */
@@ -92,7 +92,32 @@ export function pastille(cartes: readonly CarteDuVingtEtUn[], joueurOuvert: bool
 /** Ce qu'entend un lecteur d'écran quand c'est au joueur : les cartes de la main qui se joue, en mots (la couche des cartes lui est cachée). */
 export function cartesDites(table: TableDuVingtEtUn): string {
   const m = table.mains[table.courante] ?? table.mains[0];
-  return m && m.cartes.length ? `Vos cartes : ${m.cartes.map(nomDeLaCarte).join(", ")}.` : "";
+  const cartes = m && m.cartes.length ? `Vos cartes : ${m.cartes.map(nomDeLaCarte).join(", ")}.` : "";
+  // juste après la donne : ce que « Trois cartes » a fait
+  return table.tour === 0 && table.trois ? `${cartes} ${troisDites(table.trois)}`.trim() : cartes;
+}
+
+/* ---------- « Trois cartes », la mise à côté ---------- */
+
+/** Le nom de chaque main de « Trois cartes », tel que le croupier le dit. */
+export const NOMS_DES_TROIS: Readonly<Record<CombinaisonDesTrois, string>> = {
+  "brelan-enseigne": "Brelan de même enseigne",
+  "suite-enseigne": "Suite de même enseigne",
+  brelan: "Brelan",
+  suite: "Suite",
+  enseigne: "Même enseigne",
+};
+
+/** Quand « Trois cartes » gagne : l'annonce du croupier et l'étiquette posée sur sa place (les nombres du serveur). */
+export function motsDesTrois(combinaison: CombinaisonDesTrois, recu: number): { titre: string; sous: string; etiquette: string } {
+  return { titre: NOMS_DES_TROIS[combinaison], sous: `Trois cartes : ${nombreEcrit(recu)} statères, mise comprise`, etiquette: `${FOIS_DES_TROIS[combinaison]} fois la mise` };
+}
+
+/** Ce qu'entend un lecteur d'écran de « Trois cartes ». */
+export function troisDites(trois: TroisCartes): string {
+  return trois.combinaison
+    ? `Trois cartes : ${NOMS_DES_TROIS[trois.combinaison].toLowerCase()}, ${nombreEcrit(trois.recu)} statères, mise comprise.`
+    : `Trois cartes : rien, ${nombreEcrit(trois.mise)} statères perdus.`;
 }
 
 /** L'annonce du croupier quand c'est au joueur : sa main, et la carte que montre le croupier. */
@@ -153,7 +178,8 @@ export function finDeLaMain(table: TableDuVingtEtUn): FinDeLaMain {
   } else titre = rendu > mise ? "Gagné" : rendu === mise ? "Mise rendue" : rendu ? "Une main sur deux" : "Perdu";
   const somme = !rendu ? "Rien cette fois." : rendu === mise ? `Mise rendue : ${nombreEcrit(rendu)} statères.` : rendu < mise ? `Rendu : ${nombreEcrit(rendu)} statères sur ${nombreEcrit(mise)} misés.` : `Rendu : ${nombreEcrit(rendu)} statères, mise comprise.`;
   // Après une séparation, chaque main a son issue, que les étiquettes de la table ne disent qu'aux yeux.
-  const dire = mains.length > 1 ? `Première main ${ISSUES_DITES[mains[0]!.issue ?? "perdu"]}, seconde ${ISSUES_DITES[mains[1]!.issue ?? "perdu"]}. ${somme}` : somme;
+  const mainsDites = mains.length > 1 ? `Première main ${ISSUES_DITES[mains[0]!.issue ?? "perdu"]}, seconde ${ISSUES_DITES[mains[1]!.issue ?? "perdu"]}. ${somme}` : somme;
+  const dire = table.trois ? `${troisDites(table.trois)} ${mainsDites}` : mainsDites;
   return { titre, sous, signe, ton, dire, fete };
 }
 

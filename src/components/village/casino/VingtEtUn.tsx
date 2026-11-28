@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ServerError, casino as appels } from "../../../lib/compte/api";
 import { medaillon } from "../../../lib/jeu/casino-dessins";
-import { rond as rondDeLaMise, druide, iconesDesGestes, GESTES_DU_VINGT_ET_UN } from "../../../lib/jeu/casino-vingt-et-un";
+import { rond as rondDeLaMise, druide, iconesDesGestes, placeDesTrois, GESTES_DU_VINGT_ET_UN } from "../../../lib/jeu/casino-vingt-et-un";
 import { SONS_DU_VINGT_ET_UN } from "../../../lib/jeu/casino-vingt-et-un-sons";
 import { versLaToile, type Toile } from "../../../lib/jeu/casino-toile";
 import { conseil } from "../../../lib/village/casino/vingt-et-un";
@@ -46,6 +46,7 @@ export default function LeVingtEtUn() {
   const couche = useRef<HTMLDivElement>(null);
   const ronds = useRef<HTMLDivElement>(null);
   const rond0 = useRef<HTMLButtonElement>(null);
+  const troisEl = useRef<HTMLButtonElement>(null);
   const decorEl = useRef<HTMLCanvasElement>(null);
   const lueurEl = useRef<HTMLCanvasElement>(null);
   const direEl = useRef<HTMLParagraphElement>(null);
@@ -82,8 +83,11 @@ export default function LeVingtEtUn() {
   const scene = useRef<SceneDuVingtEtUn | null>(null);
   useLayoutEffect(() => {
     const t = tableEl.current;
-    if (!t || !couche.current || !ronds.current || !rond0.current || !decorEl.current || !lueurEl.current) return;
-    const s = new SceneDuVingtEtUn({ table: t, couche: couche.current, ronds: ronds.current, rond0: rond0.current, decor: decorEl.current, lueur: lueurEl.current }, { dit: (a, b) => crou.dit(a, b), visage: (v) => crou.visage(v) });
+    if (!t || !couche.current || !ronds.current || !rond0.current || !decorEl.current || !lueurEl.current || !troisEl.current) return;
+    const s = new SceneDuVingtEtUn(
+      { table: t, couche: couche.current, ronds: ronds.current, rond0: rond0.current, decor: decorEl.current, lueur: lueurEl.current, trois: troisEl.current },
+      { dit: (a, b) => crou.dit(a, b), visage: (v) => crou.visage(v) },
+    );
     scene.current = s;
     s.mesurer(t.clientWidth);
     let largeur = t.clientWidth;
@@ -96,10 +100,14 @@ export default function LeVingtEtUn() {
     return () => obs.disconnect();
   }, []);
 
-  // Les images du jeu, faites une fois : les icônes des gestes, le rond de la mise, la tête du druide.
+  // Les images du jeu, faites une fois : les icônes des gestes, le rond de la mise, la place de « Trois cartes » (éteinte et
+  // allumée), la tête du druide.
   const images = useMemo(() => {
     const ic = iconesDesGestes();
-    return GESTES_DU_VINGT_ET_UN.map((k) => `--cas-pic-vu-${k}:${enImage(ic[k])}`).join(";") + `;--vu-s-rond:${enImage(rondDeLaMise())}`;
+    return (
+      GESTES_DU_VINGT_ET_UN.map((k) => `--cas-pic-vu-${k}:${enImage(ic[k])}`).join(";") +
+      `;--vu-s-rond:${enImage(rondDeLaMise())};--vu-s-trois:${enImage(placeDesTrois(false))};--vu-s-trois-vif:${enImage(placeDesTrois(true))}`
+    );
   }, []);
   const tete = useMemo(() => druide(), []);
   // Sur un téléphone, le panneau du croupier est sous le pupitre : son médaillon est aussi sur la table, et il y réagit.
@@ -133,18 +141,24 @@ export default function LeVingtEtUn() {
     crou.efface();
   };
 
-  /* --- Le pupitre : toucher un jeton le pose aussitôt sur la mise (le geste de la maquette), toucher le rond aussi --- */
-  const totalAvant = useRef(0);
+  /*
+   * --- Le pupitre : toucher un jeton le pose aussitôt sur la mise (le geste de la maquette), toucher le rond aussi ; toucher
+   * la place de « Trois cartes » y pose le jeton choisi. La mise et « Trois cartes » : 200 au plus ensemble (le pupitre). ---
+   */
+  const avant = useRef({ mise: 0, trois: 0 });
   useEffect(() => {
-    const avant = totalAvant.current;
-    totalAvant.current = pup.total;
+    const a = avant.current;
+    const mise = pup.mises["mise"] ?? 0;
+    const trois = pup.mises["trois"] ?? 0;
+    avant.current = { mise, trois };
     const ph = phaseRef.current;
     if (ph === "fini" && pup.total > 0) {
       // Un jeton posé après une main : la table se vide, une autre mise commence.
       nettoyer();
       setPhase("mise");
     } else if (ph !== "mise") return;
-    scene.current?.montreMise(pup.total, pup.total > avant);
+    scene.current?.montreMise(mise, mise > a.mise);
+    scene.current?.montreTrois(trois, trois > a.trois);
     if (pup.total) crou.dit(REPOS_DU_VINGT_ET_UN[0], REPOS_DU_VINGT_ET_UN[1]);
   }, [pup.total]);
   const surPupitre = (ev: MouseEvent): void => {
@@ -156,6 +170,10 @@ export default function LeVingtEtUn() {
   const surRond = (): void => {
     const ph = phaseRef.current;
     if (ph === "mise" || ph === "fini") pup.poser("mise");
+  };
+  const surTrois = (): void => {
+    const ph = phaseRef.current;
+    if (ph === "mise" || ph === "fini") pup.poser("trois");
   };
 
   /* --- Une main --- */
@@ -193,8 +211,9 @@ export default function LeVingtEtUn() {
       try {
         s.nettoyer();
         if (t) {
-          s.debut(t.mise);
+          s.debut(t.mise, t.trois?.mise ?? 0);
           s.montreMise(t.mise, false);
+          s.montreTrois(t.trois?.mise ?? 0, false);
           await s.montrer(faitsDeLaMain.current, true);
         }
       } catch (err2) {
@@ -205,8 +224,10 @@ export default function LeVingtEtUn() {
 
   async function lancer(): Promise<void> {
     if (phaseRef.current !== "mise") return;
+    // « Trois cartes » accompagne une main : sans mise, rien ne part (le serveur refuserait de même).
+    if ((pup.mises["trois"] ?? 0) > 0 && !(pup.mises["mise"] ?? 0)) return crou.refus("Une mise d'abord", "Trois cartes accompagne une main : posez un jeton sur le rond");
     envoi.current = true;
-    const pris = await pup.engager((_m, total) => appels.distribuer(total)).finally(() => (envoi.current = false));
+    const pris = await pup.engager((m) => appels.distribuer(m["mise"] ?? 0, m["trois"] ?? 0)).finally(() => (envoi.current = false));
     if (!pris.ok) {
       if (!arret.current.monte) return;
       // Une main attend déjà (laissée ouverte ailleurs) : on la reprend. Le serveur n'a pas répondu à temps : il a pu
@@ -222,7 +243,7 @@ export default function LeVingtEtUn() {
     setPhase("anime");
     setDebut(false);
     cacherConseil();
-    scene.current?.debut(rep.table.mise);
+    scene.current?.debut(rep.table.mise, rep.table.trois?.mise ?? 0);
     crou.dit("Rien ne va plus", "Les cartes sortent");
     crou.visage("");
     if (W < 760) montrer(salle.current);
@@ -350,8 +371,9 @@ export default function LeVingtEtUn() {
     setTable(t);
     setDebut(false);
     faitsDeLaMain.current = [...t.faits];
-    scene.current?.debut(t.mise);
+    scene.current?.debut(t.mise, t.trois?.mise ?? 0);
     scene.current?.montreMise(t.mise, false);
+    scene.current?.montreTrois(t.trois?.mise ?? 0, false);
     await montrerSurLaTable(t.faits, true);
     if (arret.current.monte) suite(t, null);
   }
@@ -440,6 +462,15 @@ export default function LeVingtEtUn() {
           <canvas class="vu-lueur" ref={lueurEl} aria-hidden="true" />
           <Peinture toile={mini} classe="vu-mini" />
           <button class="vu-rond" type="button" ref={rond0} aria-label="Poser le jeton choisi sur la mise" disabled={(phase !== "mise" && phase !== "fini") || auPlafond} onClick={surRond} />
+          <button
+            class="vu-trois"
+            type="button"
+            ref={troisEl}
+            aria-label="Poser le jeton choisi sur Trois cartes, la mise à côté"
+            title="Trois cartes : vos deux cartes et celle que montre le croupier"
+            disabled={(phase !== "mise" && phase !== "fini") || auPlafond}
+            onClick={surTrois}
+          />
           <div class="vu-ronds" ref={ronds} aria-hidden="true" />
           <div class="vu-couche" ref={couche} aria-hidden="true" />
         </section>
@@ -494,7 +525,13 @@ export default function LeVingtEtUn() {
           <li>Doubler : sur ses deux premières cartes, la mise est doublée et on reçoit une seule carte de plus. Permis aussi après avoir séparé.</li>
           <li>Séparer : deux cartes de même valeur font deux mains, une seule fois. Des as séparés reçoivent une seule carte chacun. Un 21 après avoir séparé n'est pas un 21 d'entrée.</li>
           <li>Ni assurance, ni abandon.</li>
-          <li>200 statères au plus pour la mise de départ. Doubler et séparer restent permis tant que la bourse{casino.etat.plafond === null ? " suffit" : " et le plafond du jour suffisent"}. Jetons de 10, 20, 50, 100 et 200.</li>
+          <li>
+            Trois cartes, la mise à côté : avant de distribuer, posez aussi des jetons sur sa place, à gauche de la mise. Vos deux premières cartes et celle que montre le croupier font une main de trois cartes.
+            On reçoit, mise comprise : brelan de même enseigne, 100 fois la mise ; suite de même enseigne, 39 fois ; brelan, 28 fois ; suite, 10 fois ; trois cartes de même enseigne, 7 fois.
+          </li>
+          <li>Une suite : trois rangs qui se suivent, l'as avant le 2 ou après le roi. La carte cachée du croupier ne compte pas.</li>
+          <li>Trois cartes se décide dès la donne, même si la main s'arrête aussitôt ; ce qu'elle rend arrive avec la fin de la main. Elle gagne environ une fois sur 10 et rend en moyenne exactement la mise.</li>
+          <li>200 statères au plus pour la mise de départ et Trois cartes ensemble. Doubler et séparer restent permis tant que la bourse{casino.etat.plafond === null ? " suffit" : " et le plafond du jour suffisent"}. Jetons de 10, 20, 50, 100 et 200.</li>
           <li>Une main laissée en cours vous attend : elle reprend où elle était.</li>
           <li>Joué au mieux, le jeu rend en moyenne 99,4 % de la mise, jamais plus.</li>
           <li>Le druide montre le meilleur coup parmi ceux qui sont permis.</li>

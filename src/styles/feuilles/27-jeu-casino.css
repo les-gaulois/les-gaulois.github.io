@@ -2288,6 +2288,53 @@
 .casino-jeu .vu-rond:disabled {
   cursor: default;
 }
+/* « Trois cartes », la mise à côté (28 novembre 2026) : sa place, éteinte, puis allumée lentement quand elle gagne. */
+.casino-jeu .vu-trois {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 84px;
+  height: 72px;
+  padding: 0;
+  border: 0;
+  background: var(--vu-s-trois) 0 0 / 84px 72px no-repeat;
+  image-rendering: pixelated;
+  cursor: pointer;
+  transition: opacity 0.5s ease;
+}
+.casino-jeu .vu-trois::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--vu-s-trois-vif) 0 0 / 84px 72px no-repeat;
+  image-rendering: pixelated;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+  pointer-events: none;
+}
+.casino-jeu .vu-trois.vu-allume::after {
+  opacity: 1;
+}
+.casino-jeu .vu-trois:disabled {
+  cursor: default;
+}
+.casino-jeu .vu-trois.vu-efface {
+  opacity: 0;
+  pointer-events: none;
+}
+.casino-jeu .vu-trois .vu-jeton {
+  left: 13px;
+  top: 6px;
+}
+/* le croupier paie sur la pile : le gain se pose sur la mise, un peu plus haut */
+.casino-jeu .vu-trois .vu-jeton.vu-gain {
+  left: 13px;
+  top: -12px;
+}
+.casino-jeu .vu-fige .vu-trois,
+.casino-jeu .vu-fige .vu-trois::after {
+  transition: none !important;
+}
 .casino-jeu .vu-jeton {
   position: absolute;
   left: 3px;
@@ -2437,6 +2484,7 @@
   rotate: none;
 }
 :root.fx-off .casino-jeu .vu-table *,
+:root.fx-off .casino-jeu .vu-trois::after,
 :root.fx-off .casino-jeu .vu-druide-dit {
   transition: none !important;
 }

@@ -17,15 +17,16 @@
  * - `get_casino()` : tout l'écran d'un coup (`EtatDuCasino`) ;
  * - un appel par jeu à un coup : `jouer_roue(p_paris)`, `jouer_machine(p_mise)`, `jouer_course(p_couloir, p_mise)`,
  *   `jouer_palissade(p_mise)`, `jouer_des(p_paris)` (formes `CoupDeLaRoue` et suivantes) ;
- * - le vingt-et-un en plusieurs appels : `distribuer_vingt_et_un(p_mise)`, `jouer_vingt_et_un(p_partie, p_tour, p_coup)`,
- *   `lire_vingt_et_un()` (formes `ReponseDuVingtEtUn` et `LectureDuVingtEtUn`).
+ * - le vingt-et-un en plusieurs appels : `distribuer_vingt_et_un(p_mise)` ou `distribuer_vingt_et_un(p_mise, p_trois)` (avec
+ *   la mise à côté « Trois cartes »), `jouer_vingt_et_un(p_partie, p_tour, p_coup)`, `lire_vingt_et_un()` (formes
+ *   `ReponseDuVingtEtUn` et `LectureDuVingtEtUn`).
  *
  * Le solde après un coup s'appelle `solde_apres`, jamais `solde` : `call` annonce tout `solde` à la page dès la réponse
  * (`SOLDE_ANNONCE`), ce qui montrerait le résultat dans la barre du jeu avant la fin de l'animation. C'est à l'écran
  * d'annoncer `solde_apres`, quand le résultat est montré.
  *
  * Le casino ne crée aucun statère : chaque jeu à un coup rend exactement la mise en moyenne, le vingt-et-un 99,43 % joué au
- * mieux (calcul exact). Aucune cagnotte, aucun classement des gains ni des soldes, jamais rien d'un autre compte.
+ * mieux (calcul exact), sa mise à côté « Trois cartes » exactement la mise. Aucune cagnotte, aucun classement des gains ni des soldes, jamais rien d'un autre compte.
  */
 
 /* ---------- Les jeux et les chiffres ---------- */
@@ -40,7 +41,7 @@ export const JETONS_DU_CASINO = [10, 20, 50, 100, 200] as const;
 export const PAS_DES_MISES = 10;
 /**
  * La mise de départ d'un tour, au plus : la somme des paris sur la table (roue, dés), un lâcher (palissade), un tirage
- * (machine), un couloir (course), la mise de départ (vingt-et-un).
+ * (machine), un couloir (course), la mise de départ et « Trois cartes » ensemble (vingt-et-un).
  */
 export const MISE_DE_DEPART_AU_PLUS = 200;
 /**
@@ -177,7 +178,24 @@ export type FaitDuVingtEtUn =
   | { t: "double"; main: number }
   | { t: "separe" }
   | { t: "main"; main: number }
-  | { t: "bilan"; main: number; issue: IssueDuVingtEtUn; recu: number; entree?: true; saute?: true };
+  | { t: "bilan"; main: number; issue: IssueDuVingtEtUn; recu: number; entree?: true; saute?: true }
+  /** « Trois cartes », décidée aussitôt la quatrième carte posée : la main faite (ou `null`) et ce qu'elle rend, mise comprise. */
+  | { t: "trois"; combinaison: CombinaisonDesTrois | null; recu: number };
+
+/**
+ * Les mains de « Trois cartes », la mise à côté du vingt-et-un (les deux premières cartes du joueur et la carte visible du
+ * tavernier), de la plus rare à la plus fréquente : brelan de même enseigne, suite de même enseigne, brelan, suite, même
+ * enseigne.
+ */
+export const COMBINAISONS_DES_TROIS = ["brelan-enseigne", "suite-enseigne", "brelan", "suite", "enseigne"] as const;
+export type CombinaisonDesTrois = (typeof COMBINAISONS_DES_TROIS)[number];
+
+/** La mise à côté d'une main : la mise, la main faite (`null` : rien) et ce qu'elle rend, mise comprise. */
+export interface TroisCartes {
+  mise: number;
+  combinaison: CombinaisonDesTrois | null;
+  recu: number;
+}
 
 /** Les coups que les règles permettent sur la main en cours (la bourse et le plafond ne sont pas regardés ici). */
 export interface CoupsPermis {
@@ -196,8 +214,10 @@ export interface TableDuVingtEtUn {
   god: boolean;
   /** La mise de départ. */
   mise: number;
-  /** Tout ce qui a été misé sur cette partie, compléments compris (en essai : ce qui l'aurait été). */
+  /** Tout ce qui a été misé sur cette partie, compléments et « Trois cartes » compris (en essai : ce qui l'aurait été). */
   misee: number;
+  /** « Trois cartes », décidée à la donne ; `null` sans mise à côté (absente d'un serveur d'avant la mise à côté). */
+  trois?: TroisCartes | null;
   /** Les cartes du tavernier déjà montrées : la première seule tant que la carte cachée ne l'est pas. */
   tavernier: CarteDuVingtEtUn[];
   /** Le tavernier a encore une carte face cachée. */
@@ -212,7 +232,7 @@ export interface TableDuVingtEtUn {
   permis: CoupsPermis;
   /** Ce que coûtent doubler ou séparer maintenant : la mise de la main en cours (0 quand aucun des deux n'est permis). */
   complement: number;
-  /** Ce que la partie rend en tout, mise comprise, une fois finie (0 avant). */
+  /** Ce que la partie rend en tout, mise et « Trois cartes » comprises, une fois finie (0 avant). */
   rendu: number;
   /** Les faits nouveaux de cet appel ; pour `lire_vingt_et_un` et `get_casino`, tous ceux de la main depuis la donne. */
   faits: FaitDuVingtEtUn[];

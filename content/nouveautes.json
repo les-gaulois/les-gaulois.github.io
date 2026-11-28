@@ -12,6 +12,16 @@
   {
     "date": "2026-11-28",
     "kind": "nouveau",
+    "title": "Trois cartes, la mise à côté du vingt-et-un",
+    "body": "Au vingt-et-un, misez aussi sur « Trois cartes » : vos deux cartes et celle que montre le croupier font brelan, suite ou même enseigne, jusqu'à 100 fois la mise. Elle gagne environ une fois sur 10.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-28",
+    "kind": "nouveau",
     "rank": "top",
     "title": "Le poker du barde et votre bilan",
     "body": "Un septième jeu au casino : le poker du barde, où le barde montre le meilleur choix. Dans le hall, « Mon bilan » montre ce que vous avez misé et reçu à chaque jeu, à vous seul.",

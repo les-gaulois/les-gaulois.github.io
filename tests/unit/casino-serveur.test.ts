@@ -13,6 +13,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { ATTENDU, NOMS, texteAColler } from "../../scripts/a-coller-casino";
 import { ATTENDU as ATTENDU_PLAFOND, NOMS as NOMS_PLAFOND, texteAColler as texteACollerPlafond } from "../../scripts/a-coller-casino-plafond";
 import { ATTENDU as ATTENDU_SANS_PLAFOND, NOM as NOM_SANS_PLAFOND, texteAColler as texteACollerSansPlafond } from "../../scripts/a-coller-casino-sans-plafond";
+import { ATTENDU as ATTENDU_TROIS, NOM as NOM_TROIS, texteAColler as texteACollerTrois } from "../../scripts/a-coller-casino-trois-cartes";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
 import { PARIS_DE_LA_ROUE, PARIS_DES_DES, PLAFOND_DU_JOUR_DU_CASINO, REFUS_DU_CASINO, type CoupDuVingtEtUn, type EtatDuCasino, type FaitDuVingtEtUn, type ReponseDuVingtEtUn } from "../../src/lib/village/contrat-casino";
 import { verifierLesParis } from "../../src/lib/village/casino/commun";
@@ -21,7 +22,7 @@ import { PARIS_DES, payerLesDes } from "../../src/lib/village/casino/des";
 import { DIXIEMES_DES_COUPES, renduDeLaCoupe } from "../../src/lib/village/casino/palissade";
 import { FOIS_DE_LA_MACHINE, lireLaLigne, renduDeLaMachine, resultatDuTirage } from "../../src/lib/village/casino/machine";
 import { COULOIRS, couloirPour } from "../../src/lib/village/casino/course";
-import { carteDuNombre, coupsPermis, distribuer, faitsMontres, jouerUnCoup, type EtatDuVingtEtUn } from "../../src/lib/village/casino/vingt-et-un";
+import { carteDuNombre, combinaisonDesTrois, comptesDesTrois, coupsPermis, distribuer, faitsMontres, jouerUnCoup, type EtatDuVingtEtUn } from "../../src/lib/village/casino/vingt-et-un";
 import { baseDeTest, commeMembre, discordDe, migrations, nouveauMembre, texteDeMigration } from "./banc-pglite";
 import { graine } from "./casino-essai";
 
@@ -29,6 +30,7 @@ const LONG = 300_000;
 const MIGRATION = `${NOMS[0]}.sql`;
 const MIGRATION_PLAFOND = `${NOMS_PLAFOND[0]}.sql`;
 const MIGRATION_SANS_PLAFOND = `${NOM_SANS_PLAFOND}.sql`;
+const MIGRATION_TROIS = `${NOM_TROIS}.sql`;
 /**
  * Le dernier plafond du jour (50 000, du 24 au 27 novembre 2026). Il n'y en a plus (`PLAFOND_DU_JOUR_DU_CASINO` à null) :
  * les essais du plafond le posent le temps d'un test (`avecUnPlafond`), comme une migration le remettrait.
@@ -253,6 +255,7 @@ interface EtatSql {
   separee: boolean;
   courante: number;
   phase: "joueur" | "fini";
+  trois: EtatDuVingtEtUn["trois"];
 }
 type FaitSql = Record<string, unknown> & { carte?: number };
 
@@ -307,6 +310,42 @@ describe("la machine du vingt-et-un en SQL", () => {
     }
     expect(separations).toBeGreaterThan(200);
     expect(doubles).toBeGreaterThan(200);
+  });
+
+  it("Trois cartes : la règle du TypeScript sur les 140 608 tirages, et ses gains", { timeout: LONG }, async () => {
+    const n = await lignes<{ k: string | null; n: number }>(
+      "select internal.casino_v21_trois(a, b, c) as k, count(*)::int as n from generate_series(0, 51) a, generate_series(0, 51) b, generate_series(0, 51) c group by 1",
+    );
+    const ts = comptesDesTrois();
+    expect(Object.fromEntries(n.map((l) => [l.k ?? "rien", l.n]))).toEqual(ts);
+    // carte à carte, sur un échantillon de 7 488 tirages
+    const ech = await lignes<{ a: number; b: number; c: number; k: string | null }>(
+      "select a, b, c, internal.casino_v21_trois(a, b, c) as k from generate_series(0, 51, 7) a, generate_series(0, 51, 3) b, generate_series(0, 51) c",
+    );
+    expect(ech).toHaveLength(7488);
+    for (const l of ech) expect(l.k, `${l.a} ${l.b} ${l.c}`).toBe(combinaisonDesTrois(carteDuNombre(l.a), carteDuNombre(l.b), carteDuNombre(l.c)));
+    const fois = await lignes<{ k: string; f: number }>("select k, internal.casino_v21_trois_fois(k) as f from unnest(array['brelan-enseigne', 'suite-enseigne', 'brelan', 'suite', 'enseigne', null]) k");
+    expect(fois.map((l) => l.f)).toEqual([100, 39, 28, 10, 7, 0]);
+  });
+
+  it("Trois cartes : chaque donne comme le TypeScript, 400 mains tirées au hasard", { timeout: LONG }, async () => {
+    const alea = graine(3);
+    const carte = () => Math.floor(alea() * 52);
+    let gagnees = 0;
+    for (let h = 0; h < 400; h++) {
+      const mise = 10 * (1 + Math.floor(alea() * 10));
+      const trois = h % 5 === 0 ? 0 : 10 * (1 + Math.floor(alea() * 10));
+      const pioche = Array.from({ length: 4 }, carte);
+      // une donne sur quatre de même enseigne, une sur huit en brelan
+      if (h % 4 === 1) for (const i of [1, 2]) pioche[i] = (pioche[i]! % 13) + 13 * Math.floor(pioche[0]! / 13);
+      if (h % 8 === 3) for (const i of [1, 2]) pioche[i] = (pioche[0]! % 13) + 13 * Math.floor(alea() * 4);
+      const ts = distribuer(mise, sourceDe(pioche).tire, trois);
+      const sql = await une<{ etat: EtatSql; faits: FaitSql[] }>("select internal.casino_v21_distribuer($1, $2, public.t_ents($3::jsonb)) as r", [mise, trois, json(pioche)]);
+      expect(etatVersTs(sql.etat), json(pioche)).toEqual(ts.etat);
+      expect(faitsVersTs(sql.faits)).toEqual(ts.faits);
+      if (ts.etat.trois?.recu) gagnees++;
+    }
+    expect(gagnees).toBeGreaterThan(80);
   });
 
   it("refuse un coup non permis", async () => {
@@ -555,6 +594,57 @@ describe("le vingt-et-un des membres", () => {
     expect(e.parties[0]).toMatchObject({ jeu: "vingt-et-un", mise: 300, rendu: 200, resume: { jeu: "vingt-et-un", issues: ["egal", "perdu"] } });
   });
 
+  it("Trois cartes : prend les deux mises ensemble, se décide à la donne et se paie avec la main", async () => {
+    const uid = await joueur(2000);
+    await viderLeHasard();
+    // 9 de chênes, valet de chênes visible, 10 de chênes, carte cachée 7 de torques : une suite de même enseigne
+    const donne = [47, 49, 48, 6];
+    await pousser(donne);
+    const d = await comme<ReponseDuVingtEtUn>(uid, "select public.distribuer_vingt_et_un(50, 10) as r");
+    const ts = distribuer(50, sourceDe(donne).tire, 10);
+    expect(d.table).toMatchObject({ mise: 50, misee: 60, phase: "joueur", cachee: true, trois: { mise: 10, combinaison: "suite-enseigne", recu: 390 } });
+    expect(d.table.faits).toEqual(faitsMontres(ts.faits));
+    expect(d.table.faits.findIndex((f) => f.t === "trois")).toBe(4);
+    expect(d).toMatchObject({ solde_apres: 1940, mise_du_jour: 60 });
+    // la mise à côté se paie avec la main, pas avant
+    expect((await journal(uid)).map((l) => [l.nature, l.montant])).toEqual([["casino_mise", -60]]);
+    // rester sur 19 : le tavernier (valet et 7) s'arrête à 17
+    await pousser(Array.from({ length: 24 }, () => 0));
+    const fin = await comme<ReponseDuVingtEtUn>(uid, "select public.jouer_vingt_et_un($1, 0, 'rester') as r", [d.table.partie]);
+    expect(fin.table).toMatchObject({ phase: "fini", misee: 60, rendu: 100 + 390, trois: { recu: 390 } });
+    expect(fin).toMatchObject({ solde_apres: 2000 - 60 + 490 });
+    expect((await journal(uid)).map((l) => [l.nature, l.montant])).toEqual([["casino_mise", -60], ["casino_gain", 490]]);
+    const e = await comme<EtatDuCasino>(uid, "select public.get_casino() as r");
+    expect(e.parties[0]).toMatchObject({ jeu: "vingt-et-un", mise: 60, rendu: 490 });
+  });
+
+  it("Trois cartes : perdue, elle est gardée même quand la main finit à la donne", async () => {
+    const uid = await joueur(1000);
+    await viderLeHasard();
+    // as de torques et roi de flammes au joueur, 2 d'épées visible : 21 d'entrée, rien aux trois cartes
+    await pousser([0, 27, 25, 3]);
+    const d = await comme<ReponseDuVingtEtUn>(uid, "select public.distribuer_vingt_et_un(40, 20) as r");
+    expect(d.table).toMatchObject({ phase: "fini", misee: 60, rendu: 100, trois: { mise: 20, combinaison: null, recu: 0 } });
+    expect((await journal(uid)).map((l) => [l.nature, l.montant])).toEqual([["casino_mise", -60], ["casino_gain", 100]]);
+  });
+
+  it("Trois cartes : refuse ce qui n'est pas valable, sans rien prendre", async () => {
+    const uid = await joueur(100);
+    const refus = async (q: string): Promise<string> => (await comme<{ ok: false; error: string }>(uid, q)).error;
+    expect(await refus("select public.distribuer_vingt_et_un(50, 5) as r")).toBe("pari_invalide");
+    expect(await refus("select public.distribuer_vingt_et_un(50, -10) as r")).toBe("pari_invalide");
+    expect(await refus("select public.distribuer_vingt_et_un(50, null) as r")).toBe("pari_invalide");
+    expect(await refus("select public.distribuer_vingt_et_un(0, 10) as r")).toBe("pari_invalide");
+    expect(await refus("select public.distribuer_vingt_et_un(150, 60) as r")).toBe("mise_trop_haute");
+    expect(await refus("select public.distribuer_vingt_et_un(10, 2147483640) as r")).toBe("mise_trop_haute");
+    expect(await refus("select public.distribuer_vingt_et_un(90, 20) as r")).toBe("solde_insuffisant");
+    expect(await journal(uid)).toEqual([]);
+    // à 0, l'appel à deux nombres joue comme l'autre
+    const d = await comme<ReponseDuVingtEtUn>(uid, "select public.distribuer_vingt_et_un(20, 0) as r");
+    expect(d.table).toMatchObject({ misee: 20, trois: null });
+    expect(d.table.faits.some((f) => f.t === "trois")).toBe(false);
+  });
+
   it("ne montre jamais la carte cachée avant la fin, et reprend une main laissée ouverte", async () => {
     const uid = await joueur(1000);
     await viderLeHasard();
@@ -798,6 +888,48 @@ describe("le fichier à coller", () => {
     await expect(sansCasino.exec(texteACollerSansPlafond())).rejects.toThrow(/pas installé/);
     await sansCasino.exec("rollback");
     expect((await sansCasino.query<{ t: string | null }>("select to_regprocedure('internal.casino_reste_du_jour(uuid)')::text as t")).rows[0]!.t).toBeNull();
+    await sansCasino.close();
+  });
+
+  it("trois cartes : s'installe sur le casino déjà collé, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
+    const base = await baseDeTest({ sauf: [MIGRATION_TROIS] });
+    const existe = async (f: string): Promise<boolean> => (await base.query<{ t: string | null }>(`select to_regprocedure('${f}')::text as t`)).rows[0]!.t !== null;
+    expect(await existe("public.distribuer_vingt_et_un(integer, integer)")).toBe(false);
+    const controle = async (): Promise<string> => {
+      const r = await base.exec(texteACollerTrois());
+      return (r.at(-1)!.rows[0] as { controle: string }).controle;
+    };
+    expect(await controle()).toBe(ATTENDU_TROIS);
+    expect(await controle()).toBe(ATTENDU_TROIS);
+    const droit = async (role: string, f: string): Promise<boolean> => (await base.query<{ x: boolean }>(`select has_function_privilege('${role}', '${f}', 'execute') as x`)).rows[0]!.x;
+    for (const f of ["internal.casino_v21_trois(integer, integer, integer)", "internal.casino_v21_trois_fois(text)", "internal.casino_v21_distribuer(integer, integer, integer[])", "internal.casino_v21_distribuer(integer, integer[])", "internal.casino_v21_table(bigint, jsonb)", "internal.casino_v21_conclure(bigint)", "internal.casino_v21_commencer(integer, integer)"]) {
+      for (const role of ["anon", "authenticated"]) expect(await droit(role, f), `${role} ${f}`).toBe(false);
+    }
+    for (const f of ["public.distribuer_vingt_et_un(integer)", "public.distribuer_vingt_et_un(integer, integer)"]) {
+      expect(await droit("authenticated", f), f).toBe(true);
+      expect(await droit("anon", f), f).toBe(false);
+    }
+    await base.close();
+  });
+
+  it("trois cartes : la migration ne fait que remplacer et ajouter des fonctions, et le fichier s'arrête sans le casino", { timeout: LONG }, async () => {
+    const sql = texteDeMigration(MIGRATION_TROIS);
+    expect([...sql.matchAll(/create or replace function ([a-z_]+\.[a-z0-9_]+)\(/g)].map((m) => m[1])).toEqual([
+      "internal.casino_v21_trois",
+      "internal.casino_v21_trois_fois",
+      "internal.casino_v21_distribuer",
+      "internal.casino_v21_distribuer",
+      "internal.casino_v21_table",
+      "internal.casino_v21_conclure",
+      "internal.casino_v21_commencer",
+      "public.distribuer_vingt_et_un",
+      "public.distribuer_vingt_et_un",
+    ]);
+    expect(sql).not.toMatch(/\b(delete|insert into internal\.stateres|drop|truncate|alter)\b/i);
+    const sansCasino = await baseDeTest({ sauf: migrations().filter((m) => m >= MIGRATION) });
+    await expect(sansCasino.exec(texteACollerTrois())).rejects.toThrow(/pas installé/);
+    await sansCasino.exec("rollback");
+    expect((await sansCasino.query<{ t: string | null }>("select to_regprocedure('internal.casino_v21_trois(integer, integer, integer)')::text as t")).rows[0]!.t).toBeNull();
     await sansCasino.close();
   });
 

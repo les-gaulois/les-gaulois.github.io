@@ -321,7 +321,7 @@ export function Hall({ etat, prets, ouvrir }: { etat: EtatDuCasino; prets: Reado
             </summary>
             <ul>
               <li>On joue en statères, gagnés avec le clan. Ils ne s'achètent pas et ne se retirent pas.</li>
-              <li>Chaque jeu rend en moyenne exactement la mise. Le vingt-et-un rend 99,4 % et le poker 99,5 %, joués au mieux.</li>
+              <li>Chaque jeu rend en moyenne exactement la mise. Le vingt-et-un rend 99,4 % et le poker 99,5 %, joués au mieux ; Trois cartes, la mise à côté du vingt-et-un, exactement la mise.</li>
               <li>Le serveur tire le résultat d'abord. L'animation le montre, elle ne le change jamais.</li>
               <li>Jetons de {etat.jetons.join(", ").replace(/, (\d+)$/, " et $1")} statères, {etat.mise_au_plus} au plus sur une table.</li>
               {etat.plafond === null ? (

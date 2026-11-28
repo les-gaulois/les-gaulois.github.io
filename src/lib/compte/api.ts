@@ -308,8 +308,12 @@ export const casino = {
   palissade: (mise: number): Promise<CoupDeLaPalissade> => avecDelai(call<CoupDeLaPalissade>("jouer_palissade", { p_mise: mise })),
   /** Un lancer de dés avec les paris de la table. */
   des: (paris: MisesDesDes): Promise<CoupDesDes> => avecDelai(call<CoupDesDes>("jouer_des", { p_paris: paris })),
-  /** Une main du vingt-et-un commence avec la mise `mise`. */
-  distribuer: (mise: number): Promise<ReponseDuVingtEtUn> => avecDelai(call<ReponseDuVingtEtUn>("distribuer_vingt_et_un", { p_mise: mise })),
+  /**
+   * Une main du vingt-et-un commence avec la mise `mise` et `trois` statères sur « Trois cartes », la mise à côté. Sans mise à
+   * côté, l'appel est celui d'avant (`p_mise` seul).
+   */
+  distribuer: (mise: number, trois = 0): Promise<ReponseDuVingtEtUn> =>
+    avecDelai(call<ReponseDuVingtEtUn>("distribuer_vingt_et_un", trois > 0 ? { p_mise: mise, p_trois: trois } : { p_mise: mise })),
   /** Un coup sur la main `partie`, vue au tour `tour` (celui de la dernière réponse). */
   jouer: (partie: number, tour: number, coup: CoupDuVingtEtUn): Promise<ReponseDuVingtEtUn> => avecDelai(call<ReponseDuVingtEtUn>("jouer_vingt_et_un", { p_partie: partie, p_tour: tour, p_coup: coup })),
   /** La main laissée ouverte, à reprendre, ou `null`. */

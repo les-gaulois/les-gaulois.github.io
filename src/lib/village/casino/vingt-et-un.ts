@@ -13,7 +13,7 @@
  * Deux écarts voulus avec la maquette, pour le serveur : « retourne » porte la carte cachée, et une carte se tire d'un
  * nombre de 0 à 51 (`carteDuNombre`) donné par la source du serveur.
  */
-import type { CarteDuVingtEtUn, CoupDuVingtEtUn, CoupsPermis, FaitDuVingtEtUn, IssueDuVingtEtUn, MainDuVingtEtUn } from "../contrat-casino";
+import type { CarteDuVingtEtUn, CombinaisonDesTrois, CoupDuVingtEtUn, CoupsPermis, FaitDuVingtEtUn, IssueDuVingtEtUn, MainDuVingtEtUn, TroisCartes } from "../contrat-casino";
 
 export const ENSEIGNES = ["torques", "flammes", "épées", "chênes"] as const;
 export const RANGS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "V", "D", "R"] as const;
@@ -184,6 +184,39 @@ export function rendementAuMieux(): number {
   return 1 + tot;
 }
 
+/* ---------- Trois cartes : la mise à côté (maquette « Trois cartes », choisie le 28 novembre 2026) ---------- */
+
+/**
+ * Ce que rend chaque main de trois cartes (les deux premières du joueur et la carte visible du tavernier), en fois la mise
+ * à côté, mise comprise. Sur le paquet sans fin, ces gains rendent exactement la mise en moyenne (`comptesDesTrois`).
+ */
+export const FOIS_DES_TROIS: Readonly<Record<CombinaisonDesTrois, number>> = { "brelan-enseigne": 100, "suite-enseigne": 39, brelan: 28, suite: 10, enseigne: 7 };
+
+/**
+ * La main de trois cartes : un brelan (trois mêmes rangs), une suite (trois rangs qui se suivent, l'as avant le 2 ou après
+ * le roi), ou trois cartes de même enseigne ; la meilleure seule compte. `null` : rien.
+ */
+export function combinaisonDesTrois(a: CarteDuVingtEtUn, b: CarteDuVingtEtUn, c: CarteDuVingtEtUn): CombinaisonDesTrois | null {
+  const meme = a.e === b.e && b.e === c.e;
+  if (a.r === b.r && b.r === c.r) return meme ? "brelan-enseigne" : "brelan";
+  const [x, y, z] = [a.r, b.r, c.r].sort((p, q) => p - q) as [number, number, number];
+  const suite = x !== y && y !== z && (z - x === 2 || (x === 0 && y === 11 && z === 12));
+  if (suite) return meme ? "suite-enseigne" : "suite";
+  return meme ? "enseigne" : null;
+}
+
+/** Ce que rend la mise à côté `mise` sur la main `combinaison`, mise comprise. */
+export const recuDesTrois = (mise: number, combinaison: CombinaisonDesTrois | null): number => (combinaison ? mise * FOIS_DES_TROIS[combinaison] : 0);
+
+/** Combien des 52 × 52 × 52 tirages font chaque main (« rien » : aucune). Le calcul exact des chances. */
+export function comptesDesTrois(): Record<CombinaisonDesTrois | "rien", number> {
+  const n: Record<CombinaisonDesTrois | "rien", number> = { "brelan-enseigne": 0, "suite-enseigne": 0, brelan: 0, suite: 0, enseigne: 0, rien: 0 };
+  for (let i = 0; i < 52; i++)
+    for (let j = 0; j < 52; j++)
+      for (let k = 0; k < 52; k++) n[combinaisonDesTrois(carteDuNombre(i), carteDuNombre(j), carteDuNombre(k)) ?? "rien"]++;
+  return n;
+}
+
 /* ---------- La machine du serveur : il tire d'abord, et rend la liste de ce que l'écran doit montrer ---------- */
 
 /** Une main entière, telle que le serveur la garde : la carte cachée comprise. */
@@ -195,6 +228,8 @@ export interface EtatDuVingtEtUn {
   separee: boolean;
   courante: number;
   phase: "joueur" | "fini";
+  /** La mise à côté « Trois cartes », décidée à la donne, ou `null` sans elle. */
+  trois: TroisCartes | null;
 }
 
 /** La source des cartes : un nombre de 0 à 51 à chaque appel. */
@@ -202,10 +237,14 @@ export type SourceDeCartes = () => number;
 
 const nouvelleMain = (cartes: CarteDuVingtEtUn[], mise: number): MainDuVingtEtUn => ({ cartes, mise, doublee: false, finie: false, issue: null, recu: 0 });
 
-/** Une main commence. Rend l'état et les faits à montrer, dans l'ordre (la carte cachée y est encore : voir `faitsMontres`). */
-export function distribuer(mise: number, source: SourceDeCartes): { etat: EtatDuVingtEtUn; faits: FaitDuVingtEtUn[] } {
+/**
+ * Une main commence, avec `trois` statères sur « Trois cartes » (0 : sans mise à côté). Rend l'état et les faits à montrer,
+ * dans l'ordre (la carte cachée y est encore : voir `faitsMontres`). La mise à côté se décide sur les deux cartes du joueur
+ * et la carte visible du tavernier, aussitôt la quatrième carte posée.
+ */
+export function distribuer(mise: number, source: SourceDeCartes, trois = 0): { etat: EtatDuVingtEtUn; faits: FaitDuVingtEtUn[] } {
   const tire = () => carteDuNombre(source());
-  const e: EtatDuVingtEtUn = { mise, tavernier: [], mains: [nouvelleMain([], mise)], separee: false, courante: 0, phase: "joueur" };
+  const e: EtatDuVingtEtUn = { mise, tavernier: [], mains: [nouvelleMain([], mise)], separee: false, courante: 0, phase: "joueur", trois: null };
   const faits: FaitDuVingtEtUn[] = [];
   const j = e.mains[0]!;
   const c1 = tire();
@@ -220,6 +259,11 @@ export function distribuer(mise: number, source: SourceDeCartes): { etat: EtatDu
   const t2 = tire();
   e.tavernier.push(t2);
   faits.push({ t: "carte", a: "tavernier", carte: t2, cachee: true });
+  if (trois > 0) {
+    const combinaison = combinaisonDesTrois(c1, c2, t1);
+    e.trois = { mise: trois, combinaison, recu: recuDesTrois(trois, combinaison) };
+    faits.push({ t: "trois", combinaison, recu: e.trois.recu });
+  }
   const vis = valeur(t1);
   const tBJ = vingtEtUnDEntree(e.tavernier);
   const jBJ = vingtEtUnDEntree(j.cartes);
@@ -341,11 +385,11 @@ export function jouerUnCoup(e: EtatDuVingtEtUn, coup: CoupDuVingtEtUn, source: S
   return faits;
 }
 
-/** Ce que la main rend en tout, mise comprise. */
-export const renduDeLaMain = (e: EtatDuVingtEtUn): number => e.mains.reduce((s, m) => s + m.recu, 0);
+/** Ce que la main rend en tout, mise comprise, « Trois cartes » comprise. */
+export const renduDeLaMain = (e: EtatDuVingtEtUn): number => e.mains.reduce((s, m) => s + m.recu, 0) + (e.trois?.recu ?? 0);
 
-/** Ce qui a été misé sur la main en tout : chaque main, doublée ou non. */
-export const miseeDeLaMain = (e: EtatDuVingtEtUn): number => e.mains.reduce((s, m) => s + m.mise, 0);
+/** Ce qui a été misé sur la main en tout : chaque main, doublée ou non, et « Trois cartes ». */
+export const miseeDeLaMain = (e: EtatDuVingtEtUn): number => e.mains.reduce((s, m) => s + m.mise, 0) + (e.trois?.mise ?? 0);
 
 /**
  * Les faits tels que l'écran peut les voir : la carte cachée du tavernier reste `null` tant qu'aucun « retourne » ne la

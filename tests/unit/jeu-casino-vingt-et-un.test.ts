@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { OBJETS, POILS } from "../../supabase/functions/code-discord/gaulois";
-import { CH, CL, GESTES_DU_VINGT_ET_UN, LC, TENUES_DES_FIGURES, TENUE_DU_DRUIDE, busteDeFigure, caisse, decor, dos, druide, face, iconesDesGestes, lueurDuVingtEtUn, miseEnPage, placesDesCartes, rond, sabot } from "../../src/lib/jeu/casino-vingt-et-un";
+import { CH, CL, GESTES_DU_VINGT_ET_UN, HT, LC, LT, TENUES_DES_FIGURES, TENUE_DU_DRUIDE, busteDeFigure, caisse, decor, dos, druide, face, iconesDesGestes, lueurDuVingtEtUn, miseEnPage, placeDesTrois, placesDesCartes, rond, sabot } from "../../src/lib/jeu/casino-vingt-et-un";
 import { SONS_DU_VINGT_ET_UN } from "../../src/lib/jeu/casino-vingt-et-un-sons";
 import { BORDEAUX, Toile } from "../../src/lib/jeu/casino-toile";
 import { conseil, distribuer, jouerUnCoup, coupsPermis, complement, miseeDeLaMain, renduDeLaMain, faitsMontres, tavernierMontre, carteDuNombre, nombreDeLaCarte, type EtatDuVingtEtUn } from "../../src/lib/village/casino/vingt-et-un";
 import type { CarteDuVingtEtUn, FaitDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn } from "../../src/lib/village/contrat-casino";
 import { resumeDeLaPartie, resumeDuCoup } from "../../src/lib/village/ecran-casino";
-import { MOTS_DU_DRUIDE, NOMS_DES_GESTES, cartesDites, coupDuVingtEtUn, finDeLaMain, gestesPermis, motsDeLaSuite, motsDuRefusEnMain, nomDuGeste, pastille, rubanDuBilan } from "../../src/lib/village/ecran-vingt-et-un";
+import { MOTS_DU_DRUIDE, NOMS_DES_GESTES, cartesDites, coupDuVingtEtUn, finDeLaMain, gestesPermis, motsDeLaSuite, motsDesTrois, motsDuRefusEnMain, nomDuGeste, pastille, rubanDuBilan, troisDites } from "../../src/lib/village/ecran-vingt-et-un";
 
 // L'écran du vingt-et-un du casino de « Mon Gaulois » (maquette « Le Palais d'or » de Claude Fable 5.2, validée par le pilote
 // le 22 novembre 2026) : le jeu de cartes gaulois, la mise en page de la table, et ce que l'écran dit de ce que le serveur a
@@ -127,7 +127,28 @@ describe("la table", () => {
       const t = decor(G);
       expect([t.w, t.h]).toEqual([G.W >> 1, G.H >> 1]);
     }
-    expect(miseEnPage(1060).H).toBe(498); // deux lignes de règles
+    expect(miseEnPage(1060).H).toBe(518); // deux lignes de règles, et le nom de « Trois cartes » sous sa place
+  });
+  it("pose « Trois cartes » à gauche de la mise, sans toucher le rond, les cartes du joueur ni le bord", () => {
+    for (let w = 300; w <= 1100; w += 2) {
+      const G = miseEnPage(w);
+      const p = { x0: G.trois.x, x1: G.trois.x + LT, y0: G.trois.y, y1: G.trois.y + HT };
+      expect(p.x0 % 2 + (p.y0 % 2), String(w)).toBe(0);
+      // le rond de la mise et le bord de la table (jonc et filet)
+      expect(p.x1 + 8, String(w)).toBeLessThanOrEqual(G.cx - 32);
+      expect(p.x0, String(w)).toBeGreaterThanOrEqual(22);
+      // sous les cartes du joueur, et son nom gravé au-dessus du filet du bas
+      expect(p.y0, String(w)).toBeGreaterThan(G.yJ + 128);
+      expect(p.y1 + 2 + 16, String(w)).toBeLessThanOrEqual(G.H - 22);
+    }
+    expect(miseEnPage(720).trois).toEqual({ x: 54, y: miseEnPage(720).yM - 6 });
+  });
+  it("dessine la place de « Trois cartes », éteinte et allumée, de la même taille", () => {
+    const [eteinte, allumee] = [placeDesTrois(false), placeDesTrois(true)];
+    expect([eteinte.w * 2, eteinte.h * 2]).toEqual([LT, HT]);
+    expect([allumee.w, allumee.h]).toEqual([eteinte.w, eteinte.h]);
+    expect(empreinte(allumee)).not.toBe(empreinte(eteinte));
+    expect(pleins(eteinte)).toBeGreaterThan(600);
   });
   it("garde toutes les cartes d'une main sur la table, même onze cartes, même deux mains", () => {
     for (let w = 300; w <= 1100; w += 2) {
@@ -282,5 +303,14 @@ describe("la fin d'une main, avec les nombres du serveur", () => {
 describe("les sons du jeu de cartes", () => {
   it("ne font rien sans contexte audio", () => {
     for (const f of Object.values(SONS_DU_VINGT_ET_UN)) expect(() => f()).not.toThrow();
+  });
+});
+
+describe("Trois cartes à l'écran", () => {
+  it("dit la main faite : le croupier, l'étiquette de la place et le lecteur d'écran", () => {
+    expect(motsDesTrois("suite-enseigne", 390)).toEqual({ titre: "Suite de même enseigne", sous: "Trois cartes : 390 statères, mise comprise", etiquette: "39 fois la mise" });
+    expect(motsDesTrois("enseigne", 70).etiquette).toBe("7 fois la mise");
+    expect(troisDites({ mise: 10, combinaison: "brelan", recu: 280 })).toBe("Trois cartes : brelan, 280 statères, mise comprise.");
+    expect(troisDites({ mise: 20, combinaison: null, recu: 0 })).toBe("Trois cartes : rien, 20 statères perdus.");
   });
 });

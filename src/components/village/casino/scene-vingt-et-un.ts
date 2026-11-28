@@ -3,10 +3,10 @@ import type { Visage } from "../../../lib/jeu/casino-dessins";
 import { SONS } from "../../../lib/jeu/casino-sons";
 import { jetonDeMise, pair, poseToile, versLaToile } from "../../../lib/jeu/casino-toile";
 import { SONS_DU_VINGT_ET_UN, type SonDuVingtEtUn } from "../../../lib/jeu/casino-vingt-et-un-sons";
-import { decor, dos, face, lueurDuVingtEtUn, miseEnPage, placesDesCartes, HC, type MiseEnPageDuVingtEtUn } from "../../../lib/jeu/casino-vingt-et-un";
+import { decor, dos, face, lueurDuVingtEtUn, miseEnPage, placesDesCartes, HC, HT, LT, type MiseEnPageDuVingtEtUn } from "../../../lib/jeu/casino-vingt-et-un";
 import { total } from "../../../lib/village/casino/vingt-et-un";
 import type { CarteDuVingtEtUn, FaitDuVingtEtUn } from "../../../lib/village/contrat-casino";
-import { pastille, rubanDuBilan } from "../../../lib/village/ecran-vingt-et-un";
+import { motsDesTrois, pastille, rubanDuBilan } from "../../../lib/village/ecran-vingt-et-un";
 import { Etiquette } from "../../jeu/Pixels";
 import { attendre, sansMouvement } from "./commun";
 import { Mots } from "./Pieces";
@@ -34,6 +34,8 @@ export interface ElementsDeLaTable {
   rond0: HTMLElement;
   decor: HTMLCanvasElement;
   lueur: HTMLCanvasElement;
+  /** La place de « Trois cartes », la mise à côté. */
+  trois: HTMLElement;
 }
 
 interface CarteSurLaTable {
@@ -70,6 +72,9 @@ export class SceneDuVingtEtUn {
   private mainsJ: MainSurLaTable[] = [];
   /** La mise de chaque main, suivie fait après fait (doublée, séparée). */
   private mises: number[] = [];
+  /** La mise à côté « Trois cartes » de la main, et les bilans déjà montrés (ses jetons rentrent avec le dernier). */
+  private troisMise = 0;
+  private bilansVus = 0;
   /** Faux quand le jeu est quitté : plus un son, plus un mouvement. */
   vivante = true;
   /** Vrai pendant qu'une main reprise se pose d'un coup : ni mouvement, ni son, ni annonce. */
@@ -123,6 +128,8 @@ export class SceneDuVingtEtUn {
       this.ranger(m);
     });
     if (!this.mainsJ.length) this.placerRond(this.el.rond0, G.cx);
+    this.el.trois.style.left = G.trois.x + "px";
+    this.el.trois.style.top = G.trois.y + "px";
     void table.offsetWidth;
     table.classList.remove("vu-fige");
   }
@@ -232,10 +239,16 @@ export class SceneDuVingtEtUn {
     c.setAttribute("aria-hidden", "true");
     return c;
   }
-  /** Pendant qu'on mise : le rond du milieu montre ce que le pupitre compte. */
+  /** Pendant qu'on mise : le rond du milieu montre ce que le pupitre compte sur la mise. */
   montreMise(somme: number, retombe: boolean): void {
-    const rond0 = this.el.rond0;
-    let c = rond0.querySelector<HTMLCanvasElement>(".vu-jeton");
+    this.montreSur(this.el.rond0, somme, retombe);
+  }
+  /** Pendant qu'on mise : la place de « Trois cartes » montre ce que le pupitre y compte. */
+  montreTrois(somme: number, retombe: boolean): void {
+    this.montreSur(this.el.trois, somme, retombe);
+  }
+  private montreSur(el: HTMLElement, somme: number, retombe: boolean): void {
+    let c = el.querySelector<HTMLCanvasElement>(".vu-jeton");
     if (!somme) {
       c?.remove();
       return;
@@ -245,7 +258,7 @@ export class SceneDuVingtEtUn {
     c = this.jetonEl(somme);
     c.dataset["v"] = String(somme);
     if (retombe && !sansMouvement()) c.style.animation = "cas-pose .22s cubic-bezier(.3,1.5,.5,1) 1";
-    rond0.append(c);
+    el.append(c);
   }
   /** Un jeton de plus arrive sur le rond (le double, le paiement du croupier). */
   private async ajouterJeton(el: HTMLElement | null, montant: number, classe: string): Promise<void> {
@@ -270,18 +283,22 @@ export class SceneDuVingtEtUn {
 
   /** Efface la main d'avant : cartes, pastilles, étiquettes, jetons, lueur. */
   nettoyer(): void {
-    const { couche, ronds, rond0, lueur } = this.el;
+    const { couche, ronds, rond0, lueur, trois } = this.el;
     couche.replaceChildren();
     ronds.replaceChildren();
     for (const c of rond0.querySelectorAll(".vu-jeton")) c.remove();
+    for (const c of trois.querySelectorAll(".vu-jeton")) c.remove();
+    trois.classList.remove("vu-allume", "vu-efface");
     lueur.classList.remove("vu-vue");
     this.mainT = null;
     this.mainsJ = [];
     this.mises = [];
+    this.troisMise = 0;
+    this.bilansVus = 0;
     if (this.G) this.placerRond(rond0, this.G.cx);
   }
-  /** Une donne commence : la main du croupier, celle du joueur sur le rond du milieu. */
-  debut(mise: number): void {
+  /** Une donne commence : la main du croupier, celle du joueur sur le rond du milieu, et « Trois cartes » s'il y en a. */
+  debut(mise: number, trois = 0): void {
     const G = this.G;
     if (!G) return;
     this.mainT = this.nouvelleMain("croupier", G.cxT, G.yT);
@@ -290,6 +307,8 @@ export class SceneDuVingtEtUn {
     j.rond = this.el.rond0;
     this.mainsJ = [j];
     this.mises = [mise];
+    this.troisMise = trois;
+    this.bilansVus = 0;
   }
 
   /**
@@ -360,6 +379,7 @@ export class SceneDuVingtEtUn {
           this.attenuer(f.main);
           await this.pause(220);
         } else if (f.t === "bilan") await this.bilan(f);
+        else if (f.t === "trois") await this.troisCartes(f);
       }
     } finally {
       if (vite) {
@@ -385,6 +405,8 @@ export class SceneDuVingtEtUn {
     b.rond.className = "vu-rond";
     this.placerRond(b.rond, G.cx);
     this.el.ronds.append(b.rond);
+    // Sur une table étroite, le rond de la première main viendrait sur « Trois cartes », déjà décidée : elle s'efface.
+    if (G.cx - G.sep - 32 < G.trois.x + LT) this.el.trois.classList.add("vu-efface");
     void b.rond.offsetWidth;
     this.son("glisse");
     this.ranger(a, 320);
@@ -422,6 +444,33 @@ export class SceneDuVingtEtUn {
       await this.pause(r.fete ? 620 : 340);
       await this.partir(m.rond, "vu-rentre");
     }
+    // la dernière main dite : ce que « Trois cartes » a rendu rentre avec elle (le serveur le paie avec la main)
+    if (++this.bilansVus >= this.mainsJ.length && this.el.trois.querySelector(".vu-jeton")) await this.partir(this.el.trois, "vu-rentre");
     await this.pause(140);
+  }
+
+  /** « Trois cartes » se décide : la place s'allume et le croupier paie à côté, ou les jetons partent à la caisse. */
+  private async troisCartes(f: Extract<FaitDuVingtEtUn, { t: "trois" }>): Promise<void> {
+    const place = this.el.trois;
+    await this.pause(160);
+    if (!f.combinaison) {
+      await this.partir(place, "vu-perd");
+      return;
+    }
+    const mots = motsDesTrois(f.combinaison, f.recu);
+    place.classList.add("vu-allume");
+    const r = document.createElement("span");
+    r.className = "vu-ruban vu-ruban-trois";
+    render(h(Etiquette, { t: mots.etiquette, ton: "or" }), r);
+    this.el.couche.append(r);
+    // sur le nom gravé de la place, sous la pile de jetons, sans sortir de la table
+    r.style.left = Math.max(place.offsetLeft + LT / 2, r.offsetWidth / 2 + 14) + "px";
+    r.style.top = place.offsetTop + HT - 6 + "px";
+    void r.offsetWidth;
+    r.classList.add("vu-vu");
+    if (!this.vite) this.voix.dit(mots.titre, mots.sous);
+    await this.pause(420);
+    await this.ajouterJeton(place, f.recu - this.troisMise, "vu-gain");
+    await this.pause(700);
   }
 }
