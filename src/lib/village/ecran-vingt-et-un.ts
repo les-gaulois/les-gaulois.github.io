@@ -7,7 +7,8 @@
  * `contrat-casino.ts`). Les totaux ne sont que ce que valent les cartes déjà montrées (`total` des règles).
  */
 import { nombreEcrit } from "../jeu/ecriture";
-import { FOIS_DES_TROIS, NOMS_DES_RANGS, nomDeLaCarte, total, vingtEtUnDEntree } from "./casino/vingt-et-un";
+import { FOIS_DES_TROIS, NOMS_DES_RANGS, comptesDesTrois, nomDeLaCarte, total, vingtEtUnDEntree } from "./casino/vingt-et-un";
+import { COMBINAISONS_DES_TROIS } from "./contrat-casino";
 import type { CarteDuVingtEtUn, CombinaisonDesTrois, CoupDuCasino, CoupDuVingtEtUn, CoupsPermis, FaitDuVingtEtUn, IssueDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn, TroisCartes } from "./contrat-casino";
 import { motsDuRefus, secondesAvantLaMinute, type PrecisionsDuRefus } from "./ecran-casino";
 
@@ -107,6 +108,29 @@ export const NOMS_DES_TROIS: Readonly<Record<CombinaisonDesTrois, string>> = {
   suite: "Suite",
   enseigne: "Même enseigne",
 };
+
+/** Une ligne de la table des gains de « Trois cartes » : la main, ce qu'elle rend (mise comprise), une fois sur combien. */
+export interface LigneDesTrois {
+  id: CombinaisonDesTrois;
+  nom: string;
+  fois: number;
+  uneSur: number;
+}
+let tableDesTrois: { lignes: LigneDesTrois[]; uneSur: number } | null = null;
+/**
+ * La table des gains de « Trois cartes », de la plus rare à la plus fréquente, et une fois sur combien elle gagne en tout :
+ * le calcul exact sur les 140 608 tirages (`comptesDesTrois`), arrondi à l'entier. Faite une fois.
+ */
+export function tableDesGainsDesTrois(): { lignes: LigneDesTrois[]; uneSur: number } {
+  if (tableDesTrois) return tableDesTrois;
+  const n = comptesDesTrois();
+  const tous = 52 ** 3;
+  tableDesTrois = {
+    lignes: COMBINAISONS_DES_TROIS.map((id) => ({ id, nom: NOMS_DES_TROIS[id], fois: FOIS_DES_TROIS[id], uneSur: Math.round(tous / n[id]) })),
+    uneSur: Math.round(tous / (tous - n.rien)),
+  };
+  return tableDesTrois;
+}
 
 /** Quand « Trois cartes » gagne : l'annonce du croupier et l'étiquette posée sur sa place (les nombres du serveur). */
 export function motsDesTrois(combinaison: CombinaisonDesTrois, recu: number): { titre: string; sous: string; etiquette: string } {

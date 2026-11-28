@@ -5,7 +5,7 @@ import { jetonDeMise, pair, poseToile, versLaToile } from "../../../lib/jeu/casi
 import { SONS_DU_VINGT_ET_UN, type SonDuVingtEtUn } from "../../../lib/jeu/casino-vingt-et-un-sons";
 import { decor, dos, face, lueurDuVingtEtUn, miseEnPage, placesDesCartes, HC, HT, LT, type MiseEnPageDuVingtEtUn } from "../../../lib/jeu/casino-vingt-et-un";
 import { total } from "../../../lib/village/casino/vingt-et-un";
-import type { CarteDuVingtEtUn, FaitDuVingtEtUn } from "../../../lib/village/contrat-casino";
+import type { CarteDuVingtEtUn, CombinaisonDesTrois, FaitDuVingtEtUn } from "../../../lib/village/contrat-casino";
 import { motsDesTrois, pastille, rubanDuBilan } from "../../../lib/village/ecran-vingt-et-un";
 import { Etiquette } from "../../jeu/Pixels";
 import { attendre, sansMouvement } from "./commun";
@@ -25,6 +25,8 @@ import { Mots } from "./Pieces";
 export interface VoixDeLaScene {
   dit(titre: string, sous?: string): void;
   visage(v: Visage): void;
+  /** « Trois cartes » vient d'être montrée : la main faite, ou `null` (la table des gains allume sa ligne). */
+  trois?(combinaison: CombinaisonDesTrois | null): void;
 }
 /** Les éléments de la table, posés par le composant. */
 export interface ElementsDeLaTable {
@@ -454,11 +456,13 @@ export class SceneDuVingtEtUn {
     const place = this.el.trois;
     await this.pause(160);
     if (!f.combinaison) {
+      this.voix.trois?.(null);
       await this.partir(place, "vu-perd");
       return;
     }
     const mots = motsDesTrois(f.combinaison, f.recu);
     place.classList.add("vu-allume");
+    this.voix.trois?.(f.combinaison);
     const r = document.createElement("span");
     r.className = "vu-ruban vu-ruban-trois";
     render(h(Etiquette, { t: mots.etiquette, ton: "or" }), r);

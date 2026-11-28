@@ -6,7 +6,7 @@ import { BORDEAUX, Toile } from "../../src/lib/jeu/casino-toile";
 import { conseil, distribuer, jouerUnCoup, coupsPermis, complement, miseeDeLaMain, renduDeLaMain, faitsMontres, tavernierMontre, carteDuNombre, nombreDeLaCarte, type EtatDuVingtEtUn } from "../../src/lib/village/casino/vingt-et-un";
 import type { CarteDuVingtEtUn, FaitDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn } from "../../src/lib/village/contrat-casino";
 import { resumeDeLaPartie, resumeDuCoup } from "../../src/lib/village/ecran-casino";
-import { MOTS_DU_DRUIDE, NOMS_DES_GESTES, cartesDites, coupDuVingtEtUn, finDeLaMain, gestesPermis, motsDeLaSuite, motsDesTrois, motsDuRefusEnMain, nomDuGeste, pastille, rubanDuBilan, troisDites } from "../../src/lib/village/ecran-vingt-et-un";
+import { MOTS_DU_DRUIDE, NOMS_DES_GESTES, cartesDites, coupDuVingtEtUn, finDeLaMain, gestesPermis, motsDeLaSuite, motsDesTrois, motsDuRefusEnMain, nomDuGeste, pastille, rubanDuBilan, tableDesGainsDesTrois, troisDites } from "../../src/lib/village/ecran-vingt-et-un";
 
 // L'écran du vingt-et-un du casino de « Mon Gaulois » (maquette « Le Palais d'or » de Claude Fable 5.2, validée par le pilote
 // le 22 novembre 2026) : le jeu de cartes gaulois, la mise en page de la table, et ce que l'écran dit de ce que le serveur a
@@ -312,5 +312,20 @@ describe("Trois cartes à l'écran", () => {
     expect(motsDesTrois("enseigne", 70).etiquette).toBe("7 fois la mise");
     expect(troisDites({ mise: 10, combinaison: "brelan", recu: 280 })).toBe("Trois cartes : brelan, 280 statères, mise comprise.");
     expect(troisDites({ mise: 20, combinaison: null, recu: 0 })).toBe("Trois cartes : rien, 20 statères perdus.");
+  });
+});
+
+describe("la table des gains de Trois cartes", () => {
+  it("donne chaque main, ce qu'elle rend et une fois sur combien, du calcul exact", () => {
+    const g = tableDesGainsDesTrois();
+    expect(g.lignes.map((l) => [l.nom, l.fois, l.uneSur])).toEqual([
+      ["Brelan de même enseigne", 100, 2704],
+      ["Suite de même enseigne", 39, 488],
+      ["Brelan", 28, 180],
+      ["Suite", 10, 33],
+      ["Même enseigne", 7, 17],
+    ]);
+    // 13 888 tirages gagnants sur 140 608
+    expect(g.uneSur).toBe(10);
   });
 });

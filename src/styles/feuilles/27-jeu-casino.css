@@ -2151,7 +2151,8 @@
   grid-template-areas:
     "table croupier"
     "table gestes"
-    "table pupitre";
+    "table pupitre"
+    "trois trois";
   gap: 14px 32px;
   align-items: center;
 }
@@ -2335,6 +2336,72 @@
 .casino-jeu .vu-fige .vu-trois::after {
   transition: none !important;
 }
+/* La table des gains de « Trois cartes », sur le feutre sous le jeu, comme celle du poker : chaque main, ce qu'elle rend
+   et une fois sur combien ; la ligne gagnée s'allume quand la table la montre. */
+.casino-jeu .vu-trois-gains {
+  grid-area: trois;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 22px 24px;
+}
+.casino-jeu .vu-trois-tete,
+.casino-jeu .vu-trois-pied {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 16px;
+  margin: 0;
+}
+.casino-jeu .vu-trois-ligne {
+  --bt: 3;
+  --br: 3;
+  --bb: 3;
+  --bl: 3;
+  --src: var(--cas-s-case-feutre);
+  border-style: solid;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px 12px;
+}
+.casino-jeu .vu-trois-ligne > :first-child {
+  grid-column: 1 / -1;
+}
+@container casino (max-width: 1099px) {
+  .casino-jeu .vu-trois-gains {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .casino-jeu .vu-trois-ligne {
+    grid-template-columns: minmax(0, 1fr) 6.5rem 7.5rem;
+  }
+  .casino-jeu .vu-trois-ligne > :first-child {
+    grid-column: auto;
+  }
+  .casino-jeu .vu-trois-ligne > :not(:first-child) {
+    justify-self: end;
+  }
+}
+@container casino (max-width: 459px) {
+  .casino-jeu .vu-trois-gains {
+    padding: 18px;
+  }
+  .casino-jeu .vu-trois-ligne {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .casino-jeu .vu-trois-ligne > :first-child {
+    grid-column: 1 / -1;
+  }
+  .casino-jeu .vu-trois-ligne > :nth-child(2) {
+    justify-self: start;
+  }
+  .casino-jeu .vu-trois-ligne > :nth-child(3) {
+    justify-self: end;
+  }
+}
 .casino-jeu .vu-jeton {
   position: absolute;
   left: 3px;
@@ -2455,7 +2522,8 @@
       "table"
       "gestes"
       "croupier"
-      "pupitre";
+      "pupitre"
+      "trois";
     gap: 14px;
   }
 }
@@ -2467,7 +2535,8 @@
       "table"
       "gestes"
       "pupitre"
-      "croupier";
+      "croupier"
+      "trois";
   }
   .casino-jeu .vu-salle.vu-debut .vu-gestes {
     display: none;

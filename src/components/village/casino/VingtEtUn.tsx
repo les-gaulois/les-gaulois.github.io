@@ -5,9 +5,10 @@ import { rond as rondDeLaMise, druide, iconesDesGestes, placeDesTrois, GESTES_DU
 import { SONS_DU_VINGT_ET_UN } from "../../../lib/jeu/casino-vingt-et-un-sons";
 import { versLaToile, type Toile } from "../../../lib/jeu/casino-toile";
 import { conseil } from "../../../lib/village/casino/vingt-et-un";
-import type { CoupDuVingtEtUn, FaitDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn } from "../../../lib/village/contrat-casino";
+import type { CombinaisonDesTrois, CoupDuVingtEtUn, FaitDuVingtEtUn, ReponseDuVingtEtUn, TableDuVingtEtUn } from "../../../lib/village/contrat-casino";
 import { etatDuPlafond, motsDuRefus, refusDesMemesMises } from "../../../lib/village/ecran-casino";
-import { MOTS_DU_DRUIDE, NOMS_DES_GESTES, REPOS_DU_VINGT_ET_UN, cartesDites, coupDuVingtEtUn, finDeLaMain, gestesPermis, motsDeLaSuite, motsDuRefusEnMain, nomDuGeste, type GestesPermis } from "../../../lib/village/ecran-vingt-et-un";
+import { MOTS_DU_DRUIDE, NOMS_DES_GESTES, REPOS_DU_VINGT_ET_UN, cartesDites, coupDuVingtEtUn, finDeLaMain, gestesPermis, motsDeLaSuite, motsDuRefusEnMain, nomDuGeste, tableDesGainsDesTrois, type GestesPermis } from "../../../lib/village/ecran-vingt-et-un";
+import { nombreEcrit } from "../../../lib/jeu/ecriture";
 import { montrer, useJour, useLargeurDuJeu } from "./commun";
 import { useCasino } from "./contexte";
 import { PanneauDuCroupier, useCroupier } from "./Croupier";
@@ -69,6 +70,9 @@ export default function LeVingtEtUn() {
   const [reste, setReste] = useState<number | null>(casino.etat.reste_du_jour);
   const [debut, setDebut] = useState(true);
   const [conseille, setConseille] = useState<CoupDuVingtEtUn | null>(null);
+  // Ce que « Trois cartes » a fait, une fois montré sur la table (`undefined` avant) : la table des gains allume sa ligne.
+  const [troisVu, setTroisVu] = useState<CombinaisonDesTrois | null | undefined>(undefined);
+  const gainsDesTrois = useMemo(() => tableDesGainsDesTrois(), []);
   const [druideMot, setDruideMot] = useState("");
   const [druideVu, setDruideVu] = useState(false);
 
@@ -86,7 +90,7 @@ export default function LeVingtEtUn() {
     if (!t || !couche.current || !ronds.current || !rond0.current || !decorEl.current || !lueurEl.current || !troisEl.current) return;
     const s = new SceneDuVingtEtUn(
       { table: t, couche: couche.current, ronds: ronds.current, rond0: rond0.current, decor: decorEl.current, lueur: lueurEl.current, trois: troisEl.current },
-      { dit: (a, b) => crou.dit(a, b), visage: (v) => crou.visage(v) },
+      { dit: (a, b) => crou.dit(a, b), visage: (v) => crou.visage(v), trois: (c) => setTroisVu(c) },
     );
     scene.current = s;
     s.mesurer(t.clientWidth);
@@ -137,6 +141,7 @@ export default function LeVingtEtUn() {
   const nettoyer = (): void => {
     scene.current?.nettoyer();
     setTable(null);
+    setTroisVu(undefined);
     cacherConseil();
     crou.efface();
   };
@@ -504,6 +509,27 @@ export default function LeVingtEtUn() {
         </div>
         <div class="vu-pupitre" onClick={surPupitre}>
           <Pupitre pupitre={pup} action="Distribuer" nomAction="Distribuer les cartes" surAction={() => void lancer()} />
+        </div>
+        <div class="cas-tapis vu-trois-gains" role="list" aria-label="Trois cartes, la mise à côté : la table des gains">
+          <div class="vu-trois-tete" aria-hidden="true">
+            <Mots t="Trois cartes" couleur="orvif" relief="ombre" muet />
+            <Mots t="Vos deux cartes et celle que montre le croupier" couleur="creme" plie muet />
+          </div>
+          {gainsDesTrois.lignes.map((l) => (
+            <div
+              key={l.id}
+              role="listitem"
+              class={`vu-trois-ligne jeu-n9 cas-halo ${troisVu === undefined ? "" : troisVu === l.id ? "cas-sorti" : "cas-eteint"}`}
+              aria-label={`${l.nom} : ${l.fois} fois la mise. Une main sur ${nombreEcrit(l.uneSur)} environ.`}
+            >
+              <Mots t={l.nom} couleur="creme" relief="ombre" plie muet />
+              <Mots t={`${l.fois} fois`} couleur="creme" relief="ombre" muet />
+              <Mots t={`1 sur ${nombreEcrit(l.uneSur)}`} couleur="orvif" muet />
+            </div>
+          ))}
+          <p class="vu-trois-pied">
+            <Mots t={`Gagne 1 fois sur ${gainsDesTrois.uneSur} environ. Rend en moyenne exactement la mise.`} couleur="creme" plie />
+          </p>
         </div>
       </div>
       <details class="cas-pli cas-panneau jeu-n9 vu-regles">
