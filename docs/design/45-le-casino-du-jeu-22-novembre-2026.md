@@ -60,6 +60,22 @@ lumières, mêmes sons ; ne pas les changer sans la demande du pilote. Code de C
   l'index d'une carte : losange plein, anneau percé (`--cas-marque-losange`, `--cas-marque-rond` de `casino-pieces.ts`,
   dessin de Claude Opus 5.5, 23 novembre 2026). Une case étroite du tapis en hauteur (38 px) tient tout juste le chiffre,
   l'écart et la marque : n'y rien ajouter.
+  **La roue moins répétitive** (28 novembre 2026, demande du pilote : « moins répétitif […] beaucoup d'animation », maquette
+  jouable faite sur le vrai code et validée : « construit le » ; une première maquette redessinée à la main avait été
+  refusée, « tu as enlevé l'identité gauloise ») : cinq façons de lancer (`tirerUnLancer` : lancer doux, lancer fort, longue
+  piste, bille sauteuse, coup de poignet, jamais deux fois la même de suite), la roue qui change de sens à chaque tour, de
+  0 à 4 rebonds de case en case comptés à rebours depuis le numéro tiré, le croupier qui dit son lancer ; la bille se pose
+  entre 3 et 7,5 secondes ; « Tour rapide » sous la roue (2 secondes environ) ; une loupe au cadre d'or qui suit la bille
+  de la descente à la pose. Les fêtes suivent ce que le tour a vraiment rapporté : un gain (la lueur, le gain écrit au centre
+  de la roue, juste dès qu'il paraît, les jetons gagnants qui volent vers la bourse de la barre, `[data-testid="jeu-bourse"]`), un beau gain
+  dès 3 fois la mise (six statères qui tombent), un grand gain dès 9 fois (le numéro en géant, la pluie de seize statères,
+  un tour de lumière sur les cases) ; rien de fêté quand on récupère moins que sa mise. Les lignes du tapis s'écrivent
+  « Ligne 1, 2, 3 » et « 3 fois » (sur une table étroite : « Lignes, 3 fois » à côté et le chiffre dans la case). Au
+  survol, les numéros d'un pari s'allument sur le tapis (le halo d'or) et sur la roue. Les paris entre les cases se posent
+  sur des points d'or calculés d'après la vraie place des numéros ; « Voisins » pose cinq jetons d'un geste ; une barre de
+  36 cases dit sur combien de numéros les jetons rendent plus que la mise (`chanceDeLaTable`, testé ; la hauteur des
+  cases le dit aussi, pas seulement leur couleur, et la barre se lit à voix haute). Jamais de rebond ni de lancer qui dépende des
+  jetons posés (pas de « presque gagné » fabriqué).
 - **Le vingt-et-un** (`VingtEtUn.tsx`, sa table `scene-vingt-et-un.ts`, dessins `casino-vingt-et-un.ts`, sons
   `casino-vingt-et-un-sons.ts`, mots `src/lib/village/ecran-vingt-et-un.ts`) : le jeu de cartes gaulois (torques, flammes,
   épées, chênes ; valet, dame et roi en vrais Gaulois du site, habillés de la garde-robe, identiques point par point à la

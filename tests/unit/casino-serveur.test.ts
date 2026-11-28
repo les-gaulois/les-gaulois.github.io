@@ -14,6 +14,7 @@ import { ATTENDU, NOMS, texteAColler } from "../../scripts/a-coller-casino";
 import { ATTENDU as ATTENDU_PLAFOND, NOMS as NOMS_PLAFOND, texteAColler as texteACollerPlafond } from "../../scripts/a-coller-casino-plafond";
 import { ATTENDU as ATTENDU_SANS_PLAFOND, NOM as NOM_SANS_PLAFOND, texteAColler as texteACollerSansPlafond } from "../../scripts/a-coller-casino-sans-plafond";
 import { ATTENDU as ATTENDU_TROIS, NOM as NOM_TROIS, texteAColler as texteACollerTrois } from "../../scripts/a-coller-casino-trois-cartes";
+import { ATTENDU as ATTENDU_ROUE, NOM as NOM_ROUE, texteAColler as texteACollerRoue } from "../../scripts/a-coller-casino-roue";
 import { ERROR_MESSAGES } from "../../src/lib/compte/errors";
 import { PARIS_DE_LA_ROUE, PARIS_DES_DES, PLAFOND_DU_JOUR_DU_CASINO, REFUS_DU_CASINO, type CoupDuVingtEtUn, type EtatDuCasino, type FaitDuVingtEtUn, type ReponseDuVingtEtUn } from "../../src/lib/village/contrat-casino";
 import { verifierLesParis } from "../../src/lib/village/casino/commun";
@@ -31,6 +32,7 @@ const MIGRATION = `${NOMS[0]}.sql`;
 const MIGRATION_PLAFOND = `${NOMS_PLAFOND[0]}.sql`;
 const MIGRATION_SANS_PLAFOND = `${NOM_SANS_PLAFOND}.sql`;
 const MIGRATION_TROIS = `${NOM_TROIS}.sql`;
+const MIGRATION_ROUE = `${NOM_ROUE}.sql`;
 /**
  * Le dernier plafond du jour (50 000, du 24 au 27 novembre 2026). Il n'y en a plus (`PLAFOND_DU_JOUR_DU_CASINO` à null) :
  * les essais du plafond le posent le temps d'un test (`avecUnPlafond`), comme une migration le remettrait.
@@ -135,10 +137,10 @@ describe("les règles du serveur sont celles du TypeScript", () => {
     return t;
   };
 
-  it("la roue : les 48 paris, les rouges, et chaque paiement sur les 36 numéros", async () => {
+  it("la roue : les 150 paris, les rouges, et chaque paiement sur les 36 numéros", async () => {
     expect(await une("select to_jsonb(internal.casino_roue_paris()) as r")).toEqual([...PARIS_DE_LA_ROUE]);
     expect(await une("select to_jsonb(internal.casino_roue_rouges()) as r")).toEqual([...ROUGES].sort((a, b) => a - b));
-    const cas = Array.from({ length: 400 }, (_, i) => ({ paris: i < 48 ? { [PARIS_DE_LA_ROUE[i]!]: 10 } : tableAuHasard(PARIS_DE_LA_ROUE), n: 1 + (i % 36) }));
+    const cas = Array.from({ length: 600 }, (_, i) => ({ paris: i < PARIS_DE_LA_ROUE.length ? { [PARIS_DE_LA_ROUE[i]!]: 10 } : tableAuHasard(PARIS_DE_LA_ROUE), n: 1 + (i % 36) }));
     const sql = await une<{ total: number; par_pari: Record<string, number> }[]>(
       "select jsonb_agg(internal.casino_roue_rendu(c -> 'paris', (c ->> 'n')::int) order by i) as r from jsonb_array_elements($1::jsonb) with ordinality t (c, i)", [json(cas)]);
     cas.forEach((c, i) => {
@@ -438,7 +440,10 @@ describe("le casino des membres", () => {
     const uid = await joueur(100);
     const refus = async (requete: string, params: unknown[] = []) => (await comme<{ ok: boolean; error: string }>(uid, requete, params)).error;
     expect(await refus("select public.jouer_roue($1::jsonb) as r", [json({ rouge: 15 })])).toBe("pari_invalide");
-    expect(await refus("select public.jouer_roue($1::jsonb) as r", [json({ s7: 10 })])).toBe("pari_invalide");
+    // Un pari des dés (s12, la somme de 12) n'est pas un pari de la roue, dont les six vont de s1 à s11 ; v3 serait à cheval
+    // entre le 3 et le 4, qui ne se touchent pas sur le tapis.
+    expect(await refus("select public.jouer_roue($1::jsonb) as r", [json({ s12: 10 })])).toBe("pari_invalide");
+    for (const hors of ["v3", "q33", "h34", "r13", "h01", "s0"]) expect(await refus("select public.jouer_roue($1::jsonb) as r", [json({ [hors]: 10 })]), hors).toBe("pari_invalide");
     expect(await refus("select public.jouer_roue($1::jsonb) as r", [json({ rouge: 210 })])).toBe("mise_trop_haute");
     // « 10.0 » : refusé avant le tirage, gagnant ou perdant
     for (let n = 0; n < 36; n++) {
@@ -930,6 +935,37 @@ describe("le fichier à coller", () => {
     await expect(sansCasino.exec(texteACollerTrois())).rejects.toThrow(/pas installé/);
     await sansCasino.exec("rollback");
     expect((await sansCasino.query<{ t: string | null }>("select to_regprocedure('internal.casino_v21_trois(integer, integer, integer)')::text as t")).rows[0]!.t).toBeNull();
+    await sansCasino.close();
+  });
+
+  it("la roue entre les cases : s'installe sur le casino déjà collé, se recolle sans rien changer, et le dit", { timeout: LONG }, async () => {
+    const base = await baseDeTest({ sauf: [MIGRATION_ROUE] });
+    const nombre = async (): Promise<number> => (await base.query<{ n: number }>("select cardinality(internal.casino_roue_paris()) as n")).rows[0]!.n;
+    expect(await nombre()).toBe(48);
+    const controle = async (): Promise<string> => {
+      const r = await base.exec(texteACollerRoue());
+      return (r.at(-1)!.rows[0] as { controle: string }).controle;
+    };
+    expect(await controle()).toBe(ATTENDU_ROUE);
+    expect(await controle()).toBe(ATTENDU_ROUE);
+    expect(await nombre()).toBe(150);
+    const droit = async (role: string, f: string): Promise<boolean> => (await base.query<{ x: boolean }>(`select has_function_privilege('${role}', '${f}', 'execute') as x`)).rows[0]!.x;
+    for (const f of ["internal.casino_roue_paris()", "internal.casino_roue_fois(text)", "internal.casino_roue_gagne(text, integer)"]) {
+      for (const role of ["anon", "authenticated"]) expect(await droit(role, f), `${role} ${f}`).toBe(false);
+    }
+    expect(await droit("authenticated", "public.jouer_roue(jsonb)")).toBe(true);
+    expect(await droit("anon", "public.jouer_roue(jsonb)")).toBe(false);
+    await base.close();
+  });
+
+  it("la roue entre les cases : la migration ne remplace que les trois règles, et le fichier s'arrête sans le casino", { timeout: LONG }, async () => {
+    const sql = texteDeMigration(MIGRATION_ROUE);
+    expect([...sql.matchAll(/create or replace function ([a-z_]+\.[a-z0-9_]+)\(/g)].map((m) => m[1])).toEqual(["internal.casino_roue_paris", "internal.casino_roue_fois", "internal.casino_roue_gagne"]);
+    expect(sql).not.toMatch(/\b(delete|update|insert|drop|truncate|alter)\b/i);
+    const sansCasino = await baseDeTest({ sauf: migrations().filter((m) => m >= MIGRATION) });
+    await expect(sansCasino.exec(texteACollerRoue())).rejects.toThrow(/pas installé/);
+    await sansCasino.exec("rollback");
+    expect((await sansCasino.query<{ t: string | null }>("select to_regprocedure('internal.casino_roue_paris()')::text as t")).rows[0]!.t).toBeNull();
     await sansCasino.close();
   });
 

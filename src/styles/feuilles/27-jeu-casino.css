@@ -1070,6 +1070,221 @@
 .casino-jeu .roue-regles {
   margin-top: 18px;
 }
+/* Maquette du 28 novembre 2026 : les trois lignes écrites, les paris entre les cases, le pari survolé, la loupe, la fête,
+   la barre de chance. Des lueurs qui montent lentement, rien qui clignote ; tout s'arrête avec la pause du jeu. */
+.casino-jeu .roue-case.roue-ligne {
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 2px;
+}
+.casino-jeu .roue-lignes-mot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  padding-right: 6px;
+}
+.casino-jeu .cas-halo.roue-vise::after {
+  opacity: 0.75;
+  transition-duration: 0.25s;
+}
+.casino-jeu .roue-zone {
+  position: absolute;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  translate: -50% -50%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.casino-jeu .roue-zone::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  translate: -50% -50%;
+  rotate: 45deg;
+  background: #ffd84a;
+  box-shadow: 0 0 0 2px #070b1f;
+  opacity: 0;
+  transition:
+    opacity 0.25s ease,
+    scale 0.25s ease;
+}
+.casino-jeu .roue-tapis:not(.roue-ferme):hover .roue-zone::before {
+  opacity: 0.5;
+}
+.casino-jeu .roue-tapis:not(.roue-ferme) .roue-zone:hover::before,
+.casino-jeu .roue-zone:focus-visible::before {
+  opacity: 1;
+  scale: 1.5;
+}
+@media (hover: none) {
+  .casino-jeu .roue-tapis:not(.roue-ferme) .roue-zone::before {
+    opacity: 0.45;
+  }
+}
+.casino-jeu .roue-tapis .roue-zone.roue-mise::before {
+  opacity: 0;
+}
+.casino-jeu .roue-tapis.roue-ferme .roue-zone {
+  cursor: default;
+}
+.casino-jeu .roue-zone .cas-mise {
+  left: 50%;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  translate: -50% -50%;
+}
+.casino-jeu .roue-zone-gagne .cas-mise {
+  filter: drop-shadow(0 0 3px #ffd84a) drop-shadow(0 0 6px rgb(255 216 74 / 0.7));
+}
+.casino-jeu .roue-loupe {
+  position: absolute;
+  right: -4%;
+  top: -4%;
+  z-index: 2;
+  width: 30%;
+  aspect-ratio: 1;
+  line-height: 0;
+  background: #070b1f;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+.casino-jeu .roue-loupe.roue-vue {
+  opacity: 1;
+}
+.casino-jeu .roue-loupe canvas {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  filter: none;
+}
+.casino-jeu .roue-fete {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  pointer-events: none;
+}
+.casino-jeu .roue-geant {
+  animation: roue-geant 3s ease-out 1 both;
+}
+.casino-jeu .roue-gain {
+  animation: roue-gain 2.8s ease-out 1 both;
+}
+@keyframes roue-geant {
+  0% {
+    opacity: 0;
+    scale: 0.5;
+  }
+  22% {
+    opacity: 1;
+    scale: 1;
+  }
+  80% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.04;
+  }
+}
+@keyframes roue-gain {
+  0% {
+    opacity: 0;
+    translate: 0 14px;
+  }
+  18% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  82% {
+    opacity: 1;
+    translate: 0 -4px;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 -18px;
+  }
+}
+.roue-vol {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+.casino-jeu .roue-gestes {
+  display: flex;
+  justify-content: center;
+}
+.casino-jeu .roue-chance {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.casino-jeu .roue-chance-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.casino-jeu .roue-gestes-tapis {
+  margin-left: auto;
+}
+/* La barre de chance est posée sur le feutre, sombre dans les deux thèmes : ses couleurs sont celles du feutre, et la
+   hauteur dit aussi l'issue (pleine : gagne ; moitié : rend la mise ou moins ; un trait : rien). */
+.casino-jeu .roue-barre {
+  display: grid;
+  grid-template-columns: repeat(36, minmax(0, 1fr));
+  align-items: end;
+  gap: 2px;
+  height: 18px;
+}
+.casino-jeu .roue-barre i {
+  height: 4px;
+  background: #8a6a72;
+  transition:
+    height 0.35s ease,
+    background-color 0.35s ease;
+}
+.casino-jeu .roue-barre i.roue-b-gagne {
+  height: 100%;
+  background: #ffd84a;
+}
+.casino-jeu .roue-barre i.roue-b-rend {
+  height: 50%;
+  background: #cfc9b8;
+}
+.casino-jeu .roue-barre i.roue-b-sorti {
+  outline: 2px solid #f6f1e3;
+  outline-offset: 1px;
+}
+:root.fx-off .casino-jeu .roue-geant,
+:root.fx-off .casino-jeu .roue-gain {
+  animation: none;
+}
+:root.fx-off .roue-vol {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .casino-jeu .roue-geant,
+  .casino-jeu .roue-gain {
+    animation: none;
+  }
+}
 @container casino (max-width: 1239px) {
   .casino-jeu .roue-salle {
     grid-template-areas:

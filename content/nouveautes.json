@@ -13,6 +13,17 @@
   {
     "date": "2026-11-28",
     "kind": "ameliore",
+    "rank": "top",
+    "title": "La roue du charron se réveille",
+    "body": "Cinq lancers, une roue qui change de sens, une bille qui rebondit et une loupe pour la suivre. Nouveaux paris entre les cases : à cheval, carré, trio, six, et les voisins d'un geste.",
+    "link": {
+      "href": "/village#casino",
+      "label": "Le casino"
+    }
+  },
+  {
+    "date": "2026-11-28",
+    "kind": "ameliore",
     "rank": "minor",
     "title": "Les gains de Trois cartes sous la table",
     "body": "Au vingt-et-un, la table des gains de Trois cartes est visible sous le jeu : ce que rend chaque main et une fois sur combien elle sort. La main gagnée s'y allume.",

@@ -58,12 +58,23 @@ export const DERNIERES_PARTIES_DU_CASINO = 10;
 
 /* ---------- Les paris ---------- */
 
-/** La roue du charron : les 36 numéros, puis les paris de groupe. */
+const de = (a: number, b: number): number[] => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+/**
+ * La roue du charron : les 36 numéros, les paris de groupe, puis (28 novembre 2026, migration
+ * `20261128000800_roue_paris_entre_les_cases`) les paris entre les cases : à cheval le long (`h1` à `h33`) et en travers
+ * (`v<n>`, n jamais multiple de 3), le carré (`q<n>`), le trio (`r1` à `r12`) et le six (`s1` à `s11`). Dans l'ordre de
+ * `internal.casino_roue_paris()`.
+ */
 export const PARIS_DE_LA_ROUE = [
   ...Array.from({ length: 36 }, (_, i) => `n${i + 1}` as const),
   "rouge", "bleu", "pair", "impair", "bas", "haut", "t1", "t2", "t3", "c1", "c2", "c3",
+  ...de(1, 33).map((n) => `h${n}` as const),
+  ...de(1, 35).filter((n) => n % 3 !== 0).map((n) => `v${n}` as const),
+  ...de(1, 32).filter((n) => n % 3 !== 0).map((n) => `q${n}` as const),
+  ...de(1, 12).map((c) => `r${c}` as const),
+  ...de(1, 11).map((c) => `s${c}` as const),
 ] as const;
-export type PariDeLaRoue = `n${number}` | "rouge" | "bleu" | "pair" | "impair" | "bas" | "haut" | "t1" | "t2" | "t3" | "c1" | "c2" | "c3";
+export type PariDeLaRoue = `n${number}` | `h${number}` | `v${number}` | `q${number}` | `r${number}` | `s${number}` | "rouge" | "bleu" | "pair" | "impair" | "bas" | "haut" | "t1" | "t2" | "t3" | "c1" | "c2" | "c3";
 
 /** Les dés : moins de 7, un double, plus de 7, puis chaque somme de 2 à 12. */
 export const PARIS_DES_DES = ["moins", "double", "plus", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "s12"] as const;

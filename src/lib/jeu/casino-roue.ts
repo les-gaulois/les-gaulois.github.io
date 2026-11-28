@@ -34,10 +34,12 @@ export interface PositionDeLaRoue {
   /** L'angle de la bille (absolu) et sa distance au centre (1 le bord de la roue). */
   billeA: number;
   billeR: number;
-  /** Où en est la bille : sur la piste, qui descend, posée. */
-  phase: "piste" | "descente" | "posee";
+  /** Où en est la bille : sur la piste, qui descend, qui saute de case en case, posée. */
+  phase: "piste" | "descente" | "saut" | "posee";
   /** Pendant la descente, de 0 à 1. */
   u: number;
+  /** Le rebond en cours (0, 1, 2…), -1 avant le premier, le nombre de rebonds une fois posée. */
+  saut: number;
 }
 export interface MouvementDeLaRoue {
   /** La bille quitte la piste. */
@@ -51,46 +53,132 @@ export interface MouvementDeLaRoue {
   /** L'angle de la bille par rapport à la roue pendant la descente (pour les cloisons). */
   position(t: number): PositionDeLaRoue;
 }
-export function mouvementDeLaRoue(k: number, rot0: number): MouvementDeLaRoue {
-  const TA = 3.2;
-  const W0 = 2.4;
+
+/**
+ * Un lancer du croupier (maquette du 28 novembre 2026 : « moins répétitif ») : l'élan de la roue et de la bille, le temps sur
+ * la piste, la descente, les rebonds de case en case, et la fin. Tout est tiré au hasard avant le tour, sans jamais regarder
+ * les jetons posés : la bille finit toujours dans la case du numéro déjà tiré par le serveur, et ses rebonds sont comptés à
+ * rebours depuis cette case.
+ */
+export interface LancerDeLaRoue {
+  /** Son nom, que le croupier dit (« Lancer fort »). Vide : le lancer de toujours. */
+  nom: string;
+  /** Le temps sur la piste, en secondes. */
+  TA: number;
+  /** L'élan de la roue et celui de la bille. */
+  W0: number;
+  B0: number;
+  /**
+   * Ce que la bille parcourt en descendant, par rapport à la roue (en radians), et la forme de son ralenti. Avec `descente`
+   * (en secondes), ce chemin se règle pour que la descente dure ce temps-là, sans à-coup à la sortie de la piste.
+   */
+  DELTA: number;
+  descente?: number;
+  KP: number;
+  /** Les rebonds : combien de cases (1 à 3), en avant (1) ou en arrière (-1), leur durée et leur hauteur. */
+  sauts: readonly { cases: number; sens: 1 | -1; d: number; h: number }[];
+  /** Le temps que la roue garde son élan, bille posée, puis le temps qu'elle met à s'arrêter. */
+  apres: number;
+  D: number;
+}
+/** Le lancer d'avant le 28 novembre 2026 : le même à chaque tour. */
+export const LANCER_DE_TOUJOURS: LancerDeLaRoue = { nom: "", TA: 3.2, W0: 2.4, B0: 10, DELTA: 3.2, KP: 2.4, sauts: [], apres: 0.9, D: 2.4 };
+
+/** Les cinq façons de lancer, en fourchettes : [plus petit, plus grand]. */
+const FACONS: readonly { nom: string; TA: [number, number]; W0: [number, number]; B0: [number, number]; descente: [number, number]; KP: [number, number]; sauts: [number, number] }[] = [
+  { nom: "Lancer doux", TA: [2.2, 2.6], W0: [1.8, 2.2], B0: [8, 9], descente: [1.2, 1.5], KP: [2.0, 2.3], sauts: [0, 1] },
+  { nom: "Lancer fort", TA: [3.4, 3.9], W0: [2.8, 3.2], B0: [12, 13], descente: [1.6, 2.0], KP: [2.6, 2.9], sauts: [2, 3] },
+  { nom: "Longue piste", TA: [4.0, 4.6], W0: [2.2, 2.6], B0: [10, 11], descente: [1.4, 1.7], KP: [2.2, 2.5], sauts: [0, 1] },
+  { nom: "Bille sauteuse", TA: [2.8, 3.2], W0: [2.4, 2.8], B0: [10, 11], descente: [1.3, 1.6], KP: [2.4, 2.6], sauts: [3, 4] },
+  { nom: "Coup de poignet", TA: [2.6, 3.0], W0: [2.6, 3.0], B0: [11, 12], descente: [1.3, 1.6], KP: [2.2, 2.5], sauts: [1, 2] },
+];
+/** Le nombre de façons de lancer. */
+export const FACONS_DE_LANCER = FACONS.length;
+
+/**
+ * Tire un lancer : une des cinq façons (jamais `avant`, celle du tour d'avant), ou le tour rapide (deux secondes environ).
+ * `hasard` rend un nombre de 0 à 1 (Math.random par défaut). Rend le lancer et le rang de sa façon (-1 pour le tour rapide).
+ */
+export function tirerUnLancer(rapide: boolean, avant = -1, hasard: () => number = Math.random): { lancer: LancerDeLaRoue; rang: number } {
+  const entre = ([a, b]: [number, number]): number => a + hasard() * (b - a);
+  const entier = ([a, b]: [number, number]): number => a + Math.min(b - a, Math.floor(hasard() * (b - a + 1)));
+  const sauts = (n: number): LancerDeLaRoue["sauts"] =>
+    Array.from({ length: n }, () => {
+      const cases = entier([1, 3]);
+      return { cases, sens: hasard() < 0.25 ? -1 : 1, d: 0.22 + 0.05 * cases + hasard() * 0.08, h: 0.035 + 0.012 * cases + hasard() * 0.01 } as const;
+    });
+  if (rapide) return { lancer: { nom: "Tour rapide", TA: 0.75, W0: 2.2, B0: 9, DELTA: 1.6, descente: 0.4, KP: 2, sauts: [], apres: 0.15, D: 0.9 }, rang: -1 };
+  let rang = Math.min(FACONS.length - 1, Math.floor(hasard() * FACONS.length));
+  if (rang === avant) rang = (rang + 1 + Math.min(FACONS.length - 2, Math.floor(hasard() * (FACONS.length - 1)))) % FACONS.length;
+  const f = FACONS[rang]!;
+  return { lancer: { nom: f.nom, TA: entre(f.TA), W0: entre(f.W0), B0: entre(f.B0), DELTA: 0, descente: entre(f.descente), KP: entre(f.KP), sauts: sauts(entier(f.sauts)), apres: 0.5 + hasard() * 0.5, D: 1.8 + hasard() * 0.6 }, rang };
+}
+
+/**
+ * `lancer` : la façon de lancer (le lancer de toujours par défaut) ; `sens` : 1, la roue tourne dans le sens des aiguilles
+ * d'une montre et la bille à l'inverse, -1 tout à l'envers (le croupier change de sens à chaque tour).
+ */
+export function mouvementDeLaRoue(k: number, rot0: number, lancer: LancerDeLaRoue = LANCER_DE_TOUJOURS, sens: 1 | -1 = 1): MouvementDeLaRoue {
+  const { TA, W0, B0, KP, apres, D } = lancer;
   const TW = 2.6;
   const DERIVE = 0.32;
-  const B0 = 10;
   const TB = 1.4;
   const B1 = 1.1;
-  const DELTA = -3.2;
-  const KP = 2.4;
-  const rotA = (t: number): number => rot0 + W0 * TW * (1 - Math.exp(-t / TW)) + DERIVE * t;
+  const rotA = (t: number): number => rot0 + sens * (W0 * TW * (1 - Math.exp(-t / TW)) + DERIVE * t);
   const vW = (t: number): number => W0 * Math.exp(-t / TW) + DERIVE;
-  const intB = (t: number): number => -(B0 * TB * (1 - Math.exp(-t / TB)) + B1 * t);
+  const intB = (t: number): number => -sens * (B0 * TB * (1 - Math.exp(-t / TB)) + B1 * t);
   const vB = (t: number): number => -(B0 * Math.exp(-t / TB) + B1);
-  const v0 = vB(TA) - vW(TA);
+  const v0 = Math.abs(vB(TA) - vW(TA));
+  const DELTA = lancer.descente ? (lancer.descente * v0) / KP : lancer.DELTA;
   const dur = (KP * DELTA) / v0;
   const phiFin = angleDeLaCase(k);
-  const b0 = rotA(TA) + phiFin - DELTA - intB(TA);
-  const T1 = TA + dur + 0.9;
-  const D = 2.4;
+  // Les rebonds, à rebours depuis la case du numéro : la bille touche d'abord la case `phiPose`, puis saute jusqu'à la sienne.
+  const PAS = (Math.PI * 2) / CASES;
+  const sauts: { de: number; a: number; t0: number; d: number; h: number }[] = [];
+  let a = phiFin;
+  for (let i = lancer.sauts.length - 1; i >= 0; i--) {
+    const s = lancer.sauts[i]!;
+    const de = a + sens * s.sens * s.cases * PAS;
+    sauts.unshift({ de, a, t0: 0, d: s.d, h: s.h });
+    a = de;
+  }
+  const phiPose = a;
+  let t = TA + dur;
+  for (const s of sauts) {
+    s.t0 = t;
+    t += s.d;
+  }
+  const pose = t;
+  const b0 = rotA(TA) + phiPose + sens * DELTA - intB(TA);
+  const T1 = pose + apres;
   const rotDe = (t: number): number => {
     if (t <= T1) return rotA(t);
     const e = borne((t - T1) / D);
-    return rotA(T1) + (vW(T1) * D * (1 - Math.pow(1 - e, 3))) / 3;
+    return rotA(T1) + (sens * vW(T1) * D * (1 - Math.pow(1 - e, 3))) / 3;
   };
   return {
     TA,
-    pose: TA + dur,
+    pose,
     fin: T1 + D,
     vitesseDeLaBille: (t) => -vB(t),
     position(t) {
       const rot = rotDe(t);
-      if (t < TA) return { rot, billeA: b0 + intB(t), billeR: 0.865 - 0.004 * Math.sin(t * 9), phase: "piste", u: 0 };
+      if (t < TA) return { rot, billeA: b0 + intB(t), billeR: 0.865 - 0.004 * Math.sin(t * 9), phase: "piste", u: 0, saut: -1 };
       if (t < TA + dur) {
         const u = (t - TA) / dur;
-        const phi = phiFin - DELTA * Math.pow(1 - u, KP);
+        const phi = phiPose + sens * DELTA * Math.pow(1 - u, KP);
         const billeR = mel(0.865, 0.515, lisse(0.02, 0.5, u)) + (u > 0.42 ? 0.04 * Math.abs(Math.sin((u - 0.42) * Math.PI * 4.2)) * (1 - u) : 0);
-        return { rot, billeA: rot + phi, billeR, phase: "descente", u };
+        return { rot, billeA: rot + phi, billeR, phase: "descente", u, saut: -1 };
       }
-      return { rot, billeA: rot + phiFin, billeR: 0.515, phase: "posee", u: 1 };
+      for (let i = 0; i < sauts.length; i++) {
+        const s = sauts[i]!;
+        if (t < s.t0 + s.d) {
+          const q = (t - s.t0) / s.d;
+          return { rot, billeA: rot + mel(s.de, s.a, lisse(0, 1, q)), billeR: 0.515 + s.h * Math.sin(Math.PI * q), phase: "saut", u: 1, saut: i };
+        }
+      }
+      const q = t - pose;
+      return { rot, billeA: rot + phiFin + 0.012 * Math.sin(q * 18) * Math.exp(-q * 7), billeR: 0.515, phase: "posee", u: 1, saut: sauts.length };
     },
   };
 }
@@ -209,8 +297,11 @@ export class RoueEnPoints {
     this.bille = b;
   }
 
-  /** Repeint les cases qui tournent pour la roue à l'angle `rot` ; la case `gagnant` (ou -1) s'éclaire de `eclat` tons (0 à 2). */
-  peindre(rot: number, gagnant = -1, eclat = 0): void {
+  /**
+   * Repeint les cases qui tournent pour la roue à l'angle `rot` ; la case `gagnant` (ou -1) s'éclaire de `eclat` tons (0 à 2),
+   * et chaque case `k` de `lumieres[k]` tons de plus (les numéros d'un pari survolé, le tour de lumière d'un grand gain).
+   */
+  peindre(rot: number, gagnant = -1, eclat = 0, lumieres: ArrayLike<number> | null = null): void {
     const rq = rot * K;
     const { tournants, zone, angQ, niv, nivOr, epais, pts } = this;
     for (let j = 0; j < tournants.length; j++) {
@@ -231,6 +322,7 @@ export class RoueEnPoints {
       }
       let l = niv[i]!;
       if (n === gagnant) l = Math.min(7, l + eclat);
+      else if (lumieres && lumieres[n]) l = Math.min(7, l + Math.round(lumieres[n]!));
       pts[i] = (ROUGE_DE_LA_CASE[n] ? P_RUB : P_SAP)[l]!;
     }
   }

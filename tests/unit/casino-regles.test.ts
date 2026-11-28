@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { COMPLEMENTS_AU_PLUS, JETONS_DU_CASINO, MISE_DE_DEPART_AU_PLUS, PARIS_DE_LA_ROUE, PARIS_DES_DES, PAS_DES_MISES, PLAFOND_DU_JOUR_DU_CASINO, REFUS_DU_CASINO } from "../../src/lib/village/contrat-casino";
 import { ERROR_MESSAGES, errorMessage } from "../../src/lib/compte/errors";
 import { foisEcrit, miseDeDepartValide, montantValide, parDixiemes, verifierLesParis } from "../../src/lib/village/casino/commun";
-import { ORDRE_DE_LA_ROUE, PARIS_ROUE, ROUGES, payerLaRoue } from "../../src/lib/village/casino/roue";
+import { ORDRE_DE_LA_ROUE, PARIS_ROUE, ROUGES, chanceDeLaTable, payerLaRoue, voisinsSurLaRoue } from "../../src/lib/village/casino/roue";
 import { DIXIEMES_DE_LA_SOMME, PARIS_DES, payerLesDes } from "../../src/lib/village/casino/des";
 import { CHANCES_DES_COUPES, DIXIEMES_DES_COUPES, RANGEES, coupeDe, renduDeLaCoupe } from "../../src/lib/village/casino/palissade";
 import { FOIS_DE_LA_MACHINE, SUR_MILLE_DE_LA_MACHINE, casesDuResultat, lireLaLigne, renduDeLaMachine, resultatDuTirage } from "../../src/lib/village/casino/machine";
@@ -75,7 +75,9 @@ describe("la roue du charron", () => {
     ORDRE_DE_LA_ROUE.forEach((n, i) => expect(ROUGES.has(n), String(n)).toBe(i % 2 === 0));
   });
 
-  it("a les 48 paris du contrat, et chacun rend exactement sa mise en moyenne", () => {
+  it("a les 150 paris du contrat, et chacun rend exactement sa mise en moyenne", () => {
+    expect(PARIS_DE_LA_ROUE).toHaveLength(150);
+    expect(new Set(PARIS_DE_LA_ROUE).size).toBe(150);
     expect(Object.keys(PARIS_ROUE).sort()).toEqual([...PARIS_DE_LA_ROUE].sort());
     for (const id of PARIS_DE_LA_ROUE) {
       const rendu = Array.from({ length: 36 }, (_, i) => payerLaRoue({ [id]: 10 }, i + 1).total).reduce((a, b) => a + b, 0);
@@ -84,6 +86,54 @@ describe("la roue du charron", () => {
     expect(PARIS_ROUE["n7"]!.fois).toBe(36);
     expect(PARIS_ROUE["rouge"]!.fois).toBe(2);
     expect(PARIS_ROUE["c3"]!.fois).toBe(3);
+  });
+
+  it("pose les paris entre les cases sur les bons numéros, et paie 36 divisé par leur nombre", () => {
+    const nums = (id: string): number[] => [...PARIS_ROUE[id]!.nums].sort((a, b) => a - b);
+    expect(nums("h1")).toEqual([1, 4]);
+    expect(nums("h33")).toEqual([33, 36]);
+    expect(nums("v1")).toEqual([1, 2]);
+    expect(nums("v35")).toEqual([35, 36]);
+    expect(PARIS_ROUE["v3"]).toBeUndefined();
+    expect(nums("q17")).toEqual([17, 18, 20, 21]);
+    expect(PARIS_ROUE["q33"]).toBeUndefined();
+    expect(nums("r6")).toEqual([16, 17, 18]);
+    expect(nums("s6")).toEqual([16, 17, 18, 19, 20, 21]);
+    expect(PARIS_ROUE["s12"]).toBeUndefined();
+    for (const id of PARIS_DE_LA_ROUE) expect(PARIS_ROUE[id]!.nums.length * PARIS_ROUE[id]!.fois, id).toBe(36);
+    expect(payerLaRoue({ q17: 10, s6: 20, rouge: 10 }, 21)).toEqual({ total: 210, parPari: { q17: 90, s6: 120, rouge: 0 } });
+  });
+
+  it("dit sur combien de numéros une table gagne, et de combien", () => {
+    expect(chanceDeLaTable({})).toBeNull();
+    // Un numéro plein : un seul numéro gagne, 350 de gain.
+    const plein = chanceDeLaTable({ n17: 10 })!;
+    expect(plein.gagnants).toBe(1);
+    expect([plein.min, plein.max]).toEqual([350, 350]);
+    expect(plein.issues[16]).toBe("gagne");
+    expect(plein.issues.filter((i) => i === "rien")).toHaveLength(35);
+    // Le 17, son carré et la ligne 2 : 30 misés ; le 17 rend 480, le 20 rend 120, le 18 et le 21 rendent 90, les dix
+    // autres numéros de la ligne 2 rendent 30, la mise sans plus.
+    const t = chanceDeLaTable({ n17: 10, q17: 10, c2: 10 })!;
+    expect(t.gagnants).toBe(4);
+    expect([t.min, t.max]).toEqual([60, 450]);
+    expect(t.issues.filter((i) => i === "rend")).toHaveLength(10);
+    expect(t.issues[19]).toBe("gagne");
+    // Rouge et bleu ensemble : la mise revient toujours, jamais plus.
+    const egal = chanceDeLaTable({ rouge: 10, bleu: 10 })!;
+    expect(egal.gagnants).toBe(0);
+    expect([egal.min, egal.max]).toEqual([0, 0]);
+    expect(egal.issues.every((i) => i === "rend")).toBe(true);
+  });
+
+  it("donne les cinq voisins d'un numéro sur la roue", () => {
+    expect(voisinsSurLaRoue(24)).toEqual([9, 32, 24, 16, 25]);
+    for (let n = 1; n <= 36; n++) {
+      const v = voisinsSurLaRoue(n);
+      expect(new Set(v).size, String(n)).toBe(5);
+      expect(v[2]).toBe(n);
+    }
+    expect(voisinsSurLaRoue(0)).toEqual([]);
   });
 
   it("paie chaque pari d'une table, mise comprise", () => {

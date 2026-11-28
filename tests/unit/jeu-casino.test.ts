@@ -5,7 +5,7 @@ import { OBJETS, POILS } from "../../supabase/functions/code-discord/gaulois";
 import { CROUPIERS, TENUES_DES_CROUPIERS, VISAGES, gaulois, medaillon, portraitEnPied, statere } from "../../src/lib/jeu/casino-dessins";
 import { banniere, placeDeLaRoue, vignette } from "../../src/lib/jeu/casino-hall";
 import { PETITES_ICONES_DU_CASINO, VARIABLES_DU_CASINO, BORDEAUX_DU_BOUTON, BORDEAUX_DU_RUBAN, MATIERES_DU_PALAIS, MARQUES_DE_LA_ROUE, marqueDeLaRoue, reteindre, iconeDuCasino, petiteIconeDuCasino } from "../../src/lib/jeu/casino-pieces";
-import { CASES, ORDRE_DE_LA_ROUE, ROUGES, RoueEnPoints, angleDeLaCase, caseDuNumero, caseSousLaBille, mouvementDeLaRoue, poseImmobile } from "../../src/lib/jeu/casino-roue";
+import { CASES, FACONS_DE_LANCER, LANCER_DE_TOUJOURS, ORDRE_DE_LA_ROUE, ROUGES, RoueEnPoints, angleDeLaCase, caseDuNumero, caseSousLaBille, mouvementDeLaRoue, poseImmobile, tirerUnLancer } from "../../src/lib/jeu/casino-roue";
 import { COUPE_HAUTE, SONS } from "../../src/lib/jeu/casino-sons";
 import { BORDEAUX, ENCRE, IVOIRE, JETONS, OR, PIECES_DES_TABLES, RUBIS, SAPHIR, Toile, hexDe, jeton, jetonDeMise, pair, toileDesCases } from "../../src/lib/jeu/casino-toile";
 import { Planche, R } from "../../src/lib/jeu/planche";
@@ -307,6 +307,64 @@ describe("la roue du charron", () => {
           expect(caseSousLaBille(p.billeA, p.rot)).toBe(k);
         }
       }
+  });
+
+  it("amène la bille sur le numéro tiré quel que soit le lancer, le sens et les rebonds, sans regarder les jetons", () => {
+    // Un hasard rejouable : les lancers tirés dépendent de lui seul, jamais d'un pari posé.
+    let x = 20261128;
+    const hasard = (): number => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648);
+    let avant = -1;
+    let sauts = 0;
+    for (let i = 0; i < 400; i++) {
+      const rapide = i % 9 === 0;
+      const { lancer, rang } = tirerUnLancer(rapide, avant, hasard);
+      if (!rapide) {
+        expect(rang).not.toBe(avant);
+        expect(rang).toBeGreaterThanOrEqual(0);
+        expect(rang).toBeLessThan(FACONS_DE_LANCER);
+        avant = rang;
+      } else expect(lancer.sauts).toHaveLength(0);
+      expect(lancer.nom.length).toBeGreaterThan(0);
+      sauts += lancer.sauts.length;
+      const k = i % CASES;
+      const sens = i % 2 === 0 ? 1 : -1;
+      const m = mouvementDeLaRoue(k, -3 + (i % 7), lancer, sens);
+      expect(m.pose).toBeGreaterThan(m.TA);
+      expect(m.fin).toBeGreaterThan(m.pose);
+      // Le tour rapide s'arrête en moins de deux secondes et demie. Pour les autres, la bille se pose entre trois et sept
+      // secondes et demie après le lancer, et la roue s'arrête avant onze secondes et demie (avant le 28 novembre 2026 :
+      // toujours 5,7 et 8,9 secondes).
+      if (rapide) expect(m.fin).toBeLessThan(2.5);
+      else {
+        expect(m.pose).toBeGreaterThan(3);
+        expect(m.pose).toBeLessThan(7.5);
+        expect(m.fin).toBeLessThan(11.5);
+      }
+      for (const t of [m.pose, m.pose + 0.3, m.fin, m.fin + 2]) {
+        const p = m.position(t);
+        expect(p.phase).toBe("posee");
+        expect(caseSousLaBille(p.billeA, p.rot)).toBe(k);
+      }
+      // Les rebonds se suivent dans l'ordre, la bille au-dessus des cases pendant le saut.
+      for (let s = 0; s < lancer.sauts.length; s++) {
+        let vu = false;
+        for (let t = m.TA; t < m.pose; t += 0.02) {
+          const p = m.position(t);
+          if (p.phase === "saut" && p.saut === s) {
+            vu = true;
+            expect(p.billeR).toBeGreaterThanOrEqual(0.515);
+          }
+        }
+        expect(vu).toBe(true);
+      }
+    }
+    expect(sauts).toBeGreaterThan(0);
+  });
+
+  it("garde le lancer de toujours quand on ne lui en donne pas", () => {
+    const m = mouvementDeLaRoue(5, 0.2);
+    const t = mouvementDeLaRoue(5, 0.2, LANCER_DE_TOUJOURS, 1);
+    for (const s of [0, 1, 3.3, 4, m.pose, m.fin]) expect(m.position(s)).toEqual(t.position(s));
   });
 
   it("pose le résultat sans mouvement sur la même case", () => {
